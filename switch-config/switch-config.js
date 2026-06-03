@@ -4,12 +4,12 @@
  * Reads Designer state from localStorage, populates form fields,
  * orchestrates config generation, and renders output.
  */
-/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS, initializeAnalytics, trackPageView, trackFormCompletion */
-(function () {
+/* global SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS */
+(function() {
     'use strict';
 
-    var STORAGE_KEY = 'odinDesignerToSwitchConfig';
-    var designerState = null;
+    const STORAGE_KEY = 'odinDesignerToSwitchConfig';
+    let designerState = null;
 
     // Initialize analytics + record page view (mirrors index.html / sizer.js bootstrap).
     if (typeof initializeAnalytics === 'function') {
@@ -20,7 +20,7 @@
     }
 
     // ── Initialization ───────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         // The test harness (tests/index.html) loads this script to exercise
         // pure helpers (e.g. buildQuickStartState) but doesn't render the
         // generator form — bail out if the form's anchor element is absent.
@@ -67,9 +67,9 @@
     // doesn't re-apply old data.
     function loadDesignerData() {
         try {
-            var fromDesigner = false;
+            let fromDesigner = false;
             try {
-                var params = new URLSearchParams(window.location.search);
+                const params = new URLSearchParams(window.location.search);
                 fromDesigner = params.get('from') === 'designer';
             } catch (paramErr) {
                 fromDesigner = false;
@@ -77,7 +77,7 @@
             if (!fromDesigner) {
                 return;
             }
-            var raw = localStorage.getItem(STORAGE_KEY);
+            const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return;
             designerState = JSON.parse(raw);
             // Consume-once: clear the key so a manual refresh of this tab
@@ -96,20 +96,20 @@
 
     // ── Populate model dropdowns ─────────────────────────────────────
     function populateModelDropdowns() {
-        var torSelect = document.getElementById('sc-tor-model');
-        var bmcSelect = document.getElementById('sc-bmc-model');
+        const torSelect = document.getElementById('sc-tor-model');
+        const bmcSelect = document.getElementById('sc-bmc-model');
 
-        var torModels = getTorModels();
-        for (var t = 0; t < torModels.length; t++) {
-            var opt = document.createElement('option');
+        const torModels = getTorModels();
+        for (let t = 0; t < torModels.length; t++) {
+            const opt = document.createElement('option');
             opt.value = torModels[t].key;
             opt.textContent = torModels[t].label;
             torSelect.appendChild(opt);
         }
 
-        var bmcModels = getBmcModels();
-        for (var b = 0; b < bmcModels.length; b++) {
-            var bOpt = document.createElement('option');
+        const bmcModels = getBmcModels();
+        for (let b = 0; b < bmcModels.length; b++) {
+            const bOpt = document.createElement('option');
             bOpt.value = bmcModels[b].key;
             bOpt.textContent = bmcModels[b].label;
             bmcSelect.appendChild(bOpt);
@@ -119,7 +119,7 @@
     // ── Pre-populate form from Designer state ────────────────────────
     function populateFromDesigner() {
         if (!designerState) return;
-        var ds = designerState;
+        const ds = designerState;
         // Deployment pattern (switched / switchless / fully_converged) is
         // still needed downstream to relabel the storage-VLAN section. (The
         // in-form deployment-info banner that previously consumed this was
@@ -128,12 +128,12 @@
         // badge and intro copy, so duplicating the same info here would
         // risk a stale or contradictory message after Quick Start defaults
         // were applied.)
-        var pattern = resolveDeploymentPattern(ds);
+        const pattern = resolveDeploymentPattern(ds);
 
         // Leaf-only scope banner for disaggregated deployments. The external SAN
         // fabric (FC zoning, iSCSI targets) and the EVPN spine/underlay are out
         // of scope for this leaf-focused generator — make that crystal clear.
-        var disaggScopeBanner = document.getElementById('sc-disagg-scope-banner');
+        const disaggScopeBanner = document.getElementById('sc-disagg-scope-banner');
         if (disaggScopeBanner) {
             disaggScopeBanner.style.display = (ds.architecture === 'disaggregated') ? 'flex' : 'none';
         }
@@ -145,7 +145,7 @@
         renderDisaggRackCards(ds);
 
         // Infrastructure VLAN
-        var infraVlanNote = document.getElementById('sc-infra-vlan-note');
+        const infraVlanNote = document.getElementById('sc-infra-vlan-note');
         if (ds.architecture === 'disaggregated' && ds.disaggVlans && ds.disaggVlans.mgmt) {
             setVal('sc-infra-vlan', String(ds.disaggVlans.mgmt));
             if (infraVlanNote) {
@@ -171,7 +171,7 @@
         }
         if (ds.infraCidr) {
             // infraCidr may be "10.0.0.0/24" or just "24"
-            var cidr = ds.infraCidr;
+            let cidr = ds.infraCidr;
             if (cidr.indexOf('/') !== -1) cidr = cidr.split('/')[1];
             setVal('sc-infra-cidr', cidr);
         }
@@ -182,10 +182,10 @@
         if (!getVal('sc-infra-cidr')) setVal('sc-infra-cidr', '24');
 
         // Derive default SVI IPs from the infrastructure gateway
-        var isRackAware = ds.scale === 'rack-aware' || ds.scale === 'rack_aware';
-        var infraGw = getVal('sc-infra-gateway') || '10.0.1.1';
+        const isRackAware = ds.scale === 'rack-aware' || ds.scale === 'rack_aware';
+        const infraGw = getVal('sc-infra-gateway') || '10.0.1.1';
         if (!getVal('sc-infra-gateway')) setVal('sc-infra-gateway', infraGw);
-        var infraSvis = deriveSviIps(infraGw, isRackAware ? 4 : 2);
+        const infraSvis = deriveSviIps(infraGw, isRackAware ? 4 : 2);
         if (infraSvis[0]) setVal('sc-infra-ip-tor1', infraSvis[0]);
         if (infraSvis[1]) setVal('sc-infra-ip-tor2', infraSvis[1]);
         if (isRackAware && infraSvis[2]) setVal('sc-infra-ip-tor3', infraSvis[2]);
@@ -193,22 +193,22 @@
 
         // Default compute VLAN 1 — derive SVIs from gateway
         // For disaggregated clusters, use tenant network VLANs from Designer
-        var isDisaggregated = ds.architecture === 'disaggregated';
-        var tenantVlans = isDisaggregated && ds.disaggTenantNetworks ? flattenTenantVlans(ds.disaggTenantNetworks) : [];
+        const isDisaggregated = ds.architecture === 'disaggregated';
+        const tenantVlans = isDisaggregated && ds.disaggTenantNetworks ? flattenTenantVlans(ds.disaggTenantNetworks) : [];
         // Re-running this function (e.g. when the user changes the
         // Deployment Type picker and clicks Apply) must not leak the
         // optional compute VLAN 2 / 3 blocks shown by a previous
         // disaggregated-with-multiple-tenants run. Hide them up-front; the
         // tenant loop below re-shows the ones it populates.
-        for (var hi = 2; hi <= 3; hi++) {
-            var hideBlock = document.getElementById('sc-compute-vlan-' + hi);
+        for (let hi = 2; hi <= 3; hi++) {
+            const hideBlock = document.getElementById('sc-compute-vlan-' + hi);
             if (hideBlock) hideBlock.style.display = 'none';
         }
         if (tenantVlans.length > 0) {
             // Populate compute VLAN slots from disaggregated tenant networks (up to 3)
-            for (var tv = 0; tv < Math.min(tenantVlans.length, 3); tv++) {
-                var idx = tv + 1;
-                var block = document.getElementById('sc-compute-vlan-' + idx);
+            for (let tv = 0; tv < Math.min(tenantVlans.length, 3); tv++) {
+                const idx = tv + 1;
+                const block = document.getElementById('sc-compute-vlan-' + idx);
                 if (block) block.style.display = '';
                 setVal('sc-compute-vlan' + idx + '-id', String(tenantVlans[tv].vlan));
             }
@@ -216,7 +216,7 @@
             setVal('sc-compute-vlan1-id', '201');
             setVal('sc-compute-vlan1-cidr', '24');
             setVal('sc-compute-vlan1-gw', '10.0.201.1');
-            var compSvis = deriveSviIps('10.0.201.1', isRackAware ? 4 : 2);
+            const compSvis = deriveSviIps('10.0.201.1', isRackAware ? 4 : 2);
             if (compSvis[0]) setVal('sc-compute-vlan1-tor1', compSvis[0]);
             if (compSvis[1]) setVal('sc-compute-vlan1-tor2', compSvis[1]);
             if (isRackAware && compSvis[2]) setVal('sc-compute-vlan1-tor3', compSvis[2]);
@@ -233,33 +233,33 @@
         //   - disaggregated previously set the title to "Cluster Networks"
         //     and the per-VLAN labels to Designer-supplied cluster names →
         //     must be reset to the static defaults from index.html.
-        var storageSection = document.getElementById('sc-storage-section');
+        const storageSection = document.getElementById('sc-storage-section');
         if (storageSection) storageSection.style.display = '';
-        var storageTitleEl = document.getElementById('sc-storage-section-title');
+        const storageTitleEl = document.getElementById('sc-storage-section-title');
         if (storageTitleEl) storageTitleEl.textContent = 'Storage Networks';
-        var storageLbl1Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)';
-        var storageLbl2Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)';
-        var storageLbl1El = document.getElementById('sc-storage1-vlan-label');
+        const storageLbl1Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)';
+        const storageLbl2Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)';
+        const storageLbl1El = document.getElementById('sc-storage1-vlan-label');
         if (storageLbl1El) storageLbl1El.innerHTML = storageLbl1Default;
-        var storageLbl2El = document.getElementById('sc-storage2-vlan-label');
+        const storageLbl2El = document.getElementById('sc-storage2-vlan-label');
         if (storageLbl2El) storageLbl2El.innerHTML = storageLbl2Default;
 
         if (isDisaggregated && ds.disaggVlans) {
             if (ds.disaggVlans.cluster1) setVal('sc-storage1-vlan', String(ds.disaggVlans.cluster1));
             if (ds.disaggVlans.cluster2) setVal('sc-storage2-vlan', String(ds.disaggVlans.cluster2));
-            var cNames = ds.disaggClusterNetworkNames || {};
-            var cName1 = (cNames.cluster1 && String(cNames.cluster1).trim()) || 'Cluster Network 1';
-            var cName2 = (cNames.cluster2 && String(cNames.cluster2).trim()) || 'Cluster Network 2';
-            var sectionTitle = document.getElementById('sc-storage-section-title');
+            const cNames = ds.disaggClusterNetworkNames || {};
+            const cName1 = (cNames.cluster1 && String(cNames.cluster1).trim()) || 'Cluster Network 1';
+            const cName2 = (cNames.cluster2 && String(cNames.cluster2).trim()) || 'Cluster Network 2';
+            const sectionTitle = document.getElementById('sc-storage-section-title');
             if (sectionTitle) sectionTitle.textContent = 'Cluster Networks';
-            var lbl1 = document.getElementById('sc-storage1-vlan-label');
+            const lbl1 = document.getElementById('sc-storage1-vlan-label');
             if (lbl1) lbl1.innerHTML = escapeAttr(cName1) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>1)';
-            var lbl2 = document.getElementById('sc-storage2-vlan-label');
+            const lbl2 = document.getElementById('sc-storage2-vlan-label');
             if (lbl2) lbl2.innerHTML = escapeAttr(cName2) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>2)';
         } else if (pattern === 'switchless') {
             if (storageSection) storageSection.style.display = 'none';
         } else {
-            var storageVlans = extractStorageVlans(ds);
+            const storageVlans = extractStorageVlans(ds);
             if (storageVlans[0]) setVal('sc-storage1-vlan', storageVlans[0]);
             if (storageVlans[1]) setVal('sc-storage2-vlan', storageVlans[1]);
         }
@@ -298,9 +298,9 @@
         // Pre-select the QoS Validator deployment-type dropdown to match the
         // Designer handoff, so validating an existing switch config against
         // the right rule set is one click away.
-        var profileSelect = document.getElementById('sc-qos-audit-profile');
+        const profileSelect = document.getElementById('sc-qos-audit-profile');
         if (profileSelect) {
-            var profileKey = 'hci_switched';
+            let profileKey = 'hci_switched';
             if (ds.architecture === 'disaggregated') {
                 if (ds.disaggStorageType === 'fc_san') profileKey = 'disagg_fc';
                 else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profileKey = 'disagg_iscsi';
@@ -316,8 +316,8 @@
     // (switched / switchless / fully_converged). Used by populateFromDesigner()
     // to decide how to label and populate the storage-VLAN section.
     function resolveDeploymentPattern(ds) {
-        var storage = (ds.storage || '').toLowerCase();
-        var intent = (ds.intent || '').toLowerCase();
+        const storage = (ds.storage || '').toLowerCase();
+        const intent = (ds.intent || '').toLowerCase();
         if (storage === 'switchless') return 'switchless';
         if (storage === 'switched' || storage === 'network_switch' || storage === 'network switch') return 'switched';
         if (intent === 'all_traffic' || intent === 'all traffic') return 'fully_converged';
@@ -347,9 +347,9 @@
      *                          is used. The HCI scale toggle is unaffected.
      */
     function buildQuickStartState(profile, scale, disaggRackCount) {
-        var rackAware = scale === 'rack_aware' || scale === 'rack-aware';
-        var nodes = rackAware ? 8 : 4;
-        var s = {
+        const rackAware = scale === 'rack_aware' || scale === 'rack-aware';
+        const nodes = rackAware ? 8 : 4;
+        const s = {
             scenario: 'quickstart',
             nodes: nodes,
             scale: rackAware ? 'rack-aware' : 'single',
@@ -359,7 +359,7 @@
         // Disaggregated rack count: explicit value (1–8) takes precedence;
         // otherwise fall back to the HCI-style scale (single=1, rack_aware=2)
         // for backwards compatibility with older callers.
-        var dRacks = parseInt(disaggRackCount, 10);
+        let dRacks = parseInt(disaggRackCount, 10);
         if (!(dRacks >= 1 && dRacks <= 8)) {
             dRacks = rackAware ? 2 : 1;
         }
@@ -417,11 +417,11 @@
      * existing Designer state (if any). Called on load and after exitQuickStart.
      */
     function preselectQuickStartFromDesigner() {
-        var profileSelect = document.getElementById('sc-quick-start-profile');
+        const profileSelect = document.getElementById('sc-quick-start-profile');
         if (!profileSelect) return;
         if (!designerState) return;
-        var ds = designerState;
-        var profile = 'hci_switched';
+        const ds = designerState;
+        let profile = 'hci_switched';
         if (ds.architecture === 'disaggregated') {
             if (ds.disaggStorageType === 'fc_san') profile = 'disagg_fc';
             else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profile = 'disagg_iscsi';
@@ -433,16 +433,16 @@
         }
         profileSelect.value = profile;
 
-        var scale = (ds.scale === 'rack-aware' || ds.scale === 'rack_aware') ? 'rack_aware' : 'single';
-        var radios = document.getElementsByName('sc-quick-start-scale');
-        for (var i = 0; i < radios.length; i++) {
+        const scale = (ds.scale === 'rack-aware' || ds.scale === 'rack_aware') ? 'rack_aware' : 'single';
+        const radios = document.getElementsByName('sc-quick-start-scale');
+        for (let i = 0; i < radios.length; i++) {
             radios[i].checked = (radios[i].value === scale);
         }
         // For disagg, also seed the rack-count number input so the picker
         // reflects what was loaded (1–8 for FC SAN / iSCSI).
-        var rackCountInput = document.getElementById('sc-quick-start-rack-count');
+        const rackCountInput = document.getElementById('sc-quick-start-rack-count');
         if (rackCountInput && ds.disaggRackCount) {
-            var rc = parseInt(ds.disaggRackCount, 10);
+            const rc = parseInt(ds.disaggRackCount, 10);
             if (rc >= 1 && rc <= 8) rackCountInput.value = String(rc);
         }
         // Show the right scale control for this profile.
@@ -460,33 +460,33 @@
      * Single Rack if it was previously checked.
      */
     function updateQuickStartScaleControls() {
-        var profileSelect = document.getElementById('sc-quick-start-profile');
-        var radioWrap = document.getElementById('sc-quick-start-scale-radio');
-        var disaggWrap = document.getElementById('sc-quick-start-scale-disagg');
+        const profileSelect = document.getElementById('sc-quick-start-profile');
+        const radioWrap = document.getElementById('sc-quick-start-scale-radio');
+        const disaggWrap = document.getElementById('sc-quick-start-scale-disagg');
         if (!profileSelect || !radioWrap || !disaggWrap) return;
-        var profile = profileSelect.value || '';
-        var isDisagg = profile.indexOf('disagg_') === 0;
-        var isSwitchless = profile === 'hci_switchless';
+        const profile = profileSelect.value || '';
+        const isDisagg = profile.indexOf('disagg_') === 0;
+        const isSwitchless = profile === 'hci_switchless';
         radioWrap.style.display = isDisagg ? 'none' : 'flex';
         disaggWrap.style.display = isDisagg ? 'block' : 'none';
 
         // Hide the Rack-Aware radio for Storage Switchless and force the
         // selection back to Single Rack if needed.
-        var raLabel = document.getElementById('sc-quick-start-scale-rack-aware-label');
+        const raLabel = document.getElementById('sc-quick-start-scale-rack-aware-label');
         if (raLabel) {
             raLabel.style.display = isSwitchless ? 'none' : 'flex';
         }
         if (isSwitchless) {
-            var radios = document.getElementsByName('sc-quick-start-scale');
-            var sawCheckedRackAware = false;
-            for (var i = 0; i < radios.length; i++) {
+            const radios = document.getElementsByName('sc-quick-start-scale');
+            let sawCheckedRackAware = false;
+            for (let i = 0; i < radios.length; i++) {
                 if (radios[i].value === 'rack_aware' && radios[i].checked) {
                     sawCheckedRackAware = true;
                     radios[i].checked = false;
                 }
             }
             if (sawCheckedRackAware) {
-                for (var j = 0; j < radios.length; j++) {
+                for (let j = 0; j < radios.length; j++) {
                     if (radios[j].value === 'single') { radios[j].checked = true; break; }
                 }
             }
@@ -503,22 +503,22 @@
      * synthesized one and updates the heading copy accordingly.
      */
     function applyQuickStart() {
-        var profileSelect = document.getElementById('sc-quick-start-profile');
+        const profileSelect = document.getElementById('sc-quick-start-profile');
         if (!profileSelect) return;
-        var profile = profileSelect.value || 'hci_switched';
-        var scale = 'single';
-        var radios = document.getElementsByName('sc-quick-start-scale');
-        for (var i = 0; i < radios.length; i++) {
+        const profile = profileSelect.value || 'hci_switched';
+        let scale = 'single';
+        const radios = document.getElementsByName('sc-quick-start-scale');
+        for (let i = 0; i < radios.length; i++) {
             if (radios[i].checked) { scale = radios[i].value; break; }
         }
         // For disaggregated profiles, the rack-count number input replaces
         // the binary scale toggle (the radio is hidden in that mode and may
         // still hold its previous value, which we ignore).
-        var disaggRackCount;
+        let disaggRackCount;
         if (profile.indexOf('disagg_') === 0) {
-            var rcInput = document.getElementById('sc-quick-start-rack-count');
+            const rcInput = document.getElementById('sc-quick-start-rack-count');
             if (rcInput) {
-                var rc = parseInt(rcInput.value, 10);
+                const rc = parseInt(rcInput.value, 10);
                 if (rc >= 1 && rc <= 8) {
                     disaggRackCount = rc;
                     // Mirror the rack count back into the scale concept so
@@ -530,7 +530,7 @@
         }
         designerState = buildQuickStartState(profile, scale, disaggRackCount);
         populateFromDesigner();
-        var main = document.getElementById('sc-main');
+        const main = document.getElementById('sc-main');
         if (main) main.style.display = 'block';
         // Update the picker heading to reflect that the form is now driven by
         // these defaults (not by Designer state).
@@ -555,13 +555,13 @@
      * yet. Keeps the user oriented as they switch back and forth.
      */
     function updateQuickStartHeading() {
-        var badge = document.getElementById('sc-quick-start-mode-badge');
-        var intro = document.getElementById('sc-quick-start-intro');
-        var btn = document.getElementById('sc-quick-start-btn');
+        const badge = document.getElementById('sc-quick-start-mode-badge');
+        const intro = document.getElementById('sc-quick-start-intro');
+        const btn = document.getElementById('sc-quick-start-btn');
         if (!badge || !intro || !btn) return;
 
-        var isQuickStart = designerState && designerState.scenario === 'quickstart';
-        var isDesigner = designerState && !isQuickStart;
+        const isQuickStart = designerState && designerState.scenario === 'quickstart';
+        const isDesigner = designerState && !isQuickStart;
 
         if (isDesigner) {
             badge.textContent = 'loaded from Designer';
@@ -599,18 +599,18 @@
     // IIFE) can read the live in-memory state. We can no longer rely on
     // localStorage there because loadDesignerData() consumes-and-clears the
     // payload on first load (see the comment on loadDesignerData above).
-    window.__getSwitchConfigDesignerState = function () { return designerState; };
+    window.__getSwitchConfigDesignerState = function() { return designerState; };
 
     /**
      * Flatten disaggregated tenant networks into a simple array of VLAN objects.
      * Each tenant VRF can have multiple VLANs; we collect them all in order.
      */
     function flattenTenantVlans(tenantNetworks) {
-        var vlans = [];
-        for (var t = 0; t < tenantNetworks.length; t++) {
-            var tenant = tenantNetworks[t];
+        const vlans = [];
+        for (let t = 0; t < tenantNetworks.length; t++) {
+            const tenant = tenantNetworks[t];
             if (!tenant.vlans) continue;
-            for (var v = 0; v < tenant.vlans.length; v++) {
+            for (let v = 0; v < tenant.vlans.length; v++) {
                 vlans.push({ vlan: tenant.vlans[v].vlan, name: tenant.vlans[v].name, vrf: tenant.vrf });
             }
         }
@@ -618,13 +618,13 @@
     }
 
     function extractStorageVlans(ds) {
-        var vlans = [null, null];
+        const vlans = [null, null];
         if (!ds.intentOverrides) return vlans;
 
         // Try multiple possible keys for storage overrides
-        var keys = ['storage', 'custom_storage'];
-        for (var k = 0; k < keys.length; k++) {
-            var ov = ds.intentOverrides[keys[k]];
+        const keys = ['storage', 'custom_storage'];
+        for (let k = 0; k < keys.length; k++) {
+            const ov = ds.intentOverrides[keys[k]];
             if (!ov) continue;
             if (ov.storageNetwork1VlanId != null) vlans[0] = ov.storageNetwork1VlanId;
             if (ov.storageVlanNic1 != null && vlans[0] == null) vlans[0] = ov.storageVlanNic1;
@@ -636,12 +636,12 @@
     }
 
     function setVal(id, value) {
-        var el = document.getElementById(id);
+        const el = document.getElementById(id);
         if (el && value != null) el.value = value;
     }
 
     function getVal(id) {
-        var el = document.getElementById(id);
+        const el = document.getElementById(id);
         return el ? el.value.trim() : '';
     }
 
@@ -650,13 +650,13 @@
      * Given gateway "10.0.1.1", returns ["10.0.1.2", "10.0.1.3", "10.0.1.4", "10.0.1.5"]
      */
     function deriveSviIps(gatewayIp, count) {
-        var parts = gatewayIp.split('.');
+        const parts = gatewayIp.split('.');
         if (parts.length !== 4) return [];
-        var lastOctet = parseInt(parts[3], 10);
-        var prefix = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
-        var ips = [];
-        for (var i = 1; i <= count; i++) {
-            var val = lastOctet + i;
+        const lastOctet = parseInt(parts[3], 10);
+        const prefix = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
+        const ips = [];
+        for (let i = 1; i <= count; i++) {
+            const val = lastOctet + i;
             if (val > 254) break;
             ips.push(prefix + val);
         }
@@ -669,50 +669,50 @@
     function toggleRack2Sections(show) {
         show = !!show;
         // Infra Rack 2 SVI fields
-        var r2Infra = document.getElementById('sc-rack2-infra');
+        const r2Infra = document.getElementById('sc-rack2-infra');
         if (r2Infra) r2Infra.style.display = show ? '' : 'none';
 
         // Compute VLAN Rack 2 SVI fields (class-based toggle)
-        var r2Compute = document.querySelectorAll('.sc-rack2-compute');
-        for (var i = 0; i < r2Compute.length; i++) {
+        const r2Compute = document.querySelectorAll('.sc-rack2-compute');
+        for (let i = 0; i < r2Compute.length; i++) {
             r2Compute[i].style.display = show ? '' : 'none';
         }
 
         // Rack-2 hostname fields (inline within the hostname grid)
-        var r2Host = document.getElementById('sc-rack2-hostnames');
-        var r2HostTor4 = document.getElementById('sc-rack2-hostnames-tor4');
+        const r2Host = document.getElementById('sc-rack2-hostnames');
+        const r2HostTor4 = document.getElementById('sc-rack2-hostnames-tor4');
         if (r2Host) r2Host.style.display = show ? '' : 'none';
         if (r2HostTor4) r2HostTor4.style.display = show ? '' : 'none';
 
         // Rack headings
-        var rack1Heading = document.getElementById('sc-rack1-heading');
-        var rack2Heading = document.getElementById('sc-rack2-heading');
+        const rack1Heading = document.getElementById('sc-rack1-heading');
+        const rack2Heading = document.getElementById('sc-rack2-heading');
         if (rack1Heading) rack1Heading.style.display = show ? '' : 'none';
         if (rack2Heading) rack2Heading.style.display = show ? '' : 'none';
 
         // Switch hostname grid to 4 columns when rack-aware
-        var hostGrid = document.getElementById('sc-hostname-grid');
+        const hostGrid = document.getElementById('sc-hostname-grid');
         if (hostGrid) {
             if (show) hostGrid.classList.add('sc-grid-4');
             else hostGrid.classList.remove('sc-grid-4');
         }
 
         // Rack-2 BMC hostname
-        var r2Bmc = document.getElementById('sc-rack2-bmc');
+        const r2Bmc = document.getElementById('sc-rack2-bmc');
         if (r2Bmc) r2Bmc.style.display = show ? '' : 'none';
 
         // Rack-2 Site / Location field
-        var r2Site = document.getElementById('sc-rack2-site');
+        const r2Site = document.getElementById('sc-rack2-site');
         if (r2Site) r2Site.style.display = show ? '' : 'none';
 
         // Update Site label to include "Rack 1" when rack-aware
-        var siteLabel = document.getElementById('sc-site-label');
+        const siteLabel = document.getElementById('sc-site-label');
         if (siteLabel) {
             siteLabel.textContent = show ? 'Rack 1 \u2014 Site / Location' : 'Site / Location';
         }
 
         // Update BMC1 label to include "Rack 1" when rack-aware
-        var bmcLabel = document.querySelector('label[for="sc-hostname-bmc"]');
+        const bmcLabel = document.querySelector('label[for="sc-hostname-bmc"]');
         if (bmcLabel) {
             bmcLabel.innerHTML = show
                 ? 'Rack 1 \u2014 <abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname'
@@ -720,17 +720,17 @@
         }
 
         // Existing rack-2 sections (loopback/P2P/iBGP)
-        var r2Ips = document.getElementById('sc-rack2-ips');
+        const r2Ips = document.getElementById('sc-rack2-ips');
         if (r2Ips) r2Ips.style.display = show ? '' : 'none';
     }
 
     // ── Read compute VLANs from form (up to 3) ──────────────────────
     function readComputeVlans() {
-        var vlans = [];
-        for (var i = 1; i <= 3; i++) {
-            var block = document.getElementById('sc-compute-vlan-' + i);
+        const vlans = [];
+        for (let i = 1; i <= 3; i++) {
+            const block = document.getElementById('sc-compute-vlan-' + i);
             if (!block || block.style.display === 'none') continue;
-            var id = getVal('sc-compute-vlan' + i + '-id');
+            const id = getVal('sc-compute-vlan' + i + '-id');
             if (!id) continue;
             vlans.push({
                 id: id,
@@ -748,7 +748,7 @@
 
     // ── Subnet validation helpers ──────────────────────────────────
     function ipToInt(ip) {
-        var parts = ip.split('.');
+        const parts = ip.split('.');
         return ((parseInt(parts[0], 10) << 24) |
                 (parseInt(parts[1], 10) << 16) |
                 (parseInt(parts[2], 10) << 8) |
@@ -756,15 +756,15 @@
     }
 
     function sameSubnet(ip1, ip2, cidr) {
-        var mask = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
+        const mask = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
         return ((ipToInt(ip1) & mask) >>> 0) === ((ipToInt(ip2) & mask) >>> 0);
     }
 
     function isValidIp(ip) {
-        var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+        const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
         if (!m) return false;
-        for (var i = 1; i <= 4; i++) {
-            var n = parseInt(m[i], 10);
+        for (let i = 1; i <= 4; i++) {
+            const n = parseInt(m[i], 10);
             if (n < 0 || n > 255) return false;
         }
         return true;
@@ -775,9 +775,9 @@
      * Returns an error message string, or empty string if valid.
      */
     function validateSubnetGroups() {
-        var errors = [];
-        var cidrStr, cidr, gw, tor1, tor2, tor3, tor4;
-        var isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
+        const errors = [];
+        let cidrStr, cidr, gw, tor1, tor2, tor3, tor4;
+        const isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
 
         // Infrastructure / Management
         cidrStr = getVal('sc-infra-cidr');
@@ -791,25 +791,21 @@
             if (!isValidIp(gw)) errors.push('Infrastructure: Gateway is not a valid IP address.');
             else if (!isValidIp(tor1)) errors.push('Infrastructure: TOR1 SVI IP is not a valid IP address.');
             else {
-                if (!sameSubnet(gw, tor1, cidr))
-                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');
-                if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr))
-                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');
-                if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr))
-                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');
-                if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr))
-                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');
+                if (!sameSubnet(gw, tor1, cidr)) {errors.push('Infrastructure: Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');}
+                if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr)) {errors.push('Infrastructure: Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');}
+                if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr)) {errors.push('Infrastructure: Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');}
+                if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr)) {errors.push('Infrastructure: Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');}
             }
         }
 
         // Compute VLANs 1–3
-        for (var i = 1; i <= 3; i++) {
-            var block = document.getElementById('sc-compute-vlan-' + i);
+        for (let i = 1; i <= 3; i++) {
+            const block = document.getElementById('sc-compute-vlan-' + i);
             if (!block || block.style.display === 'none') continue;
-            var vlanId = getVal('sc-compute-vlan' + i + '-id');
+            const vlanId = getVal('sc-compute-vlan' + i + '-id');
             if (!vlanId) continue;
 
-            var label = 'Compute VLAN ' + i + ' (' + vlanId + ')';
+            const label = 'Compute VLAN ' + i + ' (' + vlanId + ')';
             cidrStr = getVal('sc-compute-vlan' + i + '-cidr');
             gw = getVal('sc-compute-vlan' + i + '-gw');
             tor1 = getVal('sc-compute-vlan' + i + '-tor1');
@@ -830,14 +826,10 @@
                 if (!isValidIp(gw)) errors.push(label + ': Gateway is not a valid IP address.');
                 else if (!isValidIp(tor1)) errors.push(label + ': ToR1 SVI IP is not a valid IP address.');
                 else {
-                    if (!sameSubnet(gw, tor1, cidr))
-                        errors.push(label + ': Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');
-                    if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr))
-                        errors.push(label + ': Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');
-                    if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr))
-                        errors.push(label + ': Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');
-                    if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr))
-                        errors.push(label + ': Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');
+                    if (!sameSubnet(gw, tor1, cidr)) {errors.push(label + ': Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');}
+                    if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr)) {errors.push(label + ': Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');}
+                    if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr)) {errors.push(label + ': Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');}
+                    if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr)) {errors.push(label + ': Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');}
                 }
             }
         }
@@ -854,12 +846,12 @@
     // Mgmt SVI IPs. Common VLAN/QoS/TACACS/NTP/BGP-underlay settings (SC2/SC3)
     // flow into every rack unchanged.
     function renderDisaggRackCards(ds) {
-        var section = document.getElementById('sc-disagg-racks-section');
-        var container = document.getElementById('sc-disagg-racks-container');
+        const section = document.getElementById('sc-disagg-racks-section');
+        const container = document.getElementById('sc-disagg-racks-container');
         if (!section || !container) return;
 
-        var rackCount = parseInt(ds.disaggRackCount, 10) || 0;
-        var isDisagg = ds.architecture === 'disaggregated';
+        let rackCount = parseInt(ds.disaggRackCount, 10) || 0;
+        const isDisagg = ds.architecture === 'disaggregated';
 
         // Show for any disaggregated deployment (1..8 racks). Every rack gets
         // its own card — Rack 1 inclusive — so all rack-specific values
@@ -873,27 +865,27 @@
         if (rackCount > 8) rackCount = 8;
 
         section.style.display = '';
-        var parts = [];
+        const parts = [];
 
         // Emit cards for racks 1..N.
-        for (var r = 1; r <= rackCount; r++) {
-            var defAsn = 64789 + (r - 1);                          // Rack 1 = 64789
-            var defLoopA = '10.0.255.' + (2 * r - 1) + '/32';
-            var defLoopB = '10.0.255.' + (2 * r) + '/32';
-            var defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
-            var defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
-            var defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
-            var defSite  = 'Datacenter-A Rack-' + r;
+        for (let r = 1; r <= rackCount; r++) {
+            const defAsn = 64789 + (r - 1);                          // Rack 1 = 64789
+            const defLoopA = '10.0.255.' + (2 * r - 1) + '/32';
+            const defLoopB = '10.0.255.' + (2 * r) + '/32';
+            const defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
+            const defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
+            const defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
+            const defSite  = 'Datacenter-A Rack-' + r;
             // Per-rack P2P underlay IPs to the spine Border1/Border2.
             // Default scheme: /30 blocks of 4 starting at 10.0.0.2 for Rack 1.
-            var p2pBase = (r - 1) * 16;  // 16 addresses per rack to leave room
-            var defP2pB1A = '10.0.0.' + (p2pBase + 2)  + '/30';
-            var defP2pB1B = '10.0.0.' + (p2pBase + 6)  + '/30';
-            var defP2pB2A = '10.0.0.' + (p2pBase + 10) + '/30';
-            var defP2pB2B = '10.0.0.' + (p2pBase + 14) + '/30';
-            var defIbgpA  = '10.0.' + (100 + r) + '.1';
-            var defIbgpB  = '10.0.' + (100 + r) + '.2';
-            var open = (r === 1) ? ' open' : '';
+            const p2pBase = (r - 1) * 16;  // 16 addresses per rack to leave room
+            const defP2pB1A = '10.0.0.' + (p2pBase + 2)  + '/30';
+            const defP2pB1B = '10.0.0.' + (p2pBase + 6)  + '/30';
+            const defP2pB2A = '10.0.0.' + (p2pBase + 10) + '/30';
+            const defP2pB2B = '10.0.0.' + (p2pBase + 14) + '/30';
+            const defIbgpA  = '10.0.' + (100 + r) + '.1';
+            const defIbgpB  = '10.0.' + (100 + r) + '.2';
+            const open = (r === 1) ? ' open' : '';
 
             parts.push(
                 '<details class="sc-rack-card" id="sc-disagg-rack-card-' + r + '"' + open + ' style="border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--subtle-bg);">' +
@@ -937,21 +929,21 @@
         // Hide the single-rack SC1/SC3 fields that are now superseded by the
         // per-rack cards. Border Router ASN stays in SC3 because it is shared
         // across the whole fabric.
-        var sc1Rack1 = document.getElementById('sc-sc1-rack1-fields');
-        var sc3ToRAsn = document.getElementById('sc-sc3-tor-asn-wrap');
-        var sc3Routing = document.getElementById('sc-sc3-rack1-routing');
+        const sc1Rack1 = document.getElementById('sc-sc1-rack1-fields');
+        const sc3ToRAsn = document.getElementById('sc-sc3-tor-asn-wrap');
+        const sc3Routing = document.getElementById('sc-sc3-rack1-routing');
         if (sc1Rack1)   sc1Rack1.style.display   = 'none';
         if (sc3ToRAsn)  sc3ToRAsn.style.display  = 'none';
         if (sc3Routing) sc3Routing.style.display = 'none';
     }
 
     function rackField(rackNum, slug, label, defaultVal, type, placeholder) {
-        var id = 'sc-disagg-rack-' + rackNum + '-' + slug;
-        var ph = placeholder ? placeholder : (defaultVal || '');
-        var pat = (slug === 'host-a' || slug === 'host-b' || slug === 'host-bmc')
+        const id = 'sc-disagg-rack-' + rackNum + '-' + slug;
+        const ph = placeholder ? placeholder : (defaultVal || '');
+        const pat = (slug === 'host-a' || slug === 'host-b' || slug === 'host-bmc')
             ? ' pattern="[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen" maxlength="63"'
             : '';
-        var min = (type === 'number') ? ' min="1" max="4294967294"' : '';
+        const min = (type === 'number') ? ' min="1" max="4294967294"' : '';
         return '<div class="sc-field">' +
             '<label for="' + id + '">' + escapeAttr(label) + '</label>' +
             '<input type="' + type + '" id="' + id + '" value="' + escapeAttr(defaultVal) + '" placeholder="' + escapeAttr(ph) + '"' + pat + min + '>' +
@@ -962,15 +954,15 @@
     // EVERY rack (including Rack 1) has its own card in SC1b. Returns an array
     // of rack objects ordered by rack number. Safe to call with rackCount < 1.
     function collectDisaggRackOverrides(rackCount) {
-        var racks = [];
+        const racks = [];
         if (rackCount < 1) return racks;
         if (rackCount > 8) rackCount = 8;
-        for (var r = 1; r <= rackCount; r++) {
-            var defAsn = 64789 + (r - 1);
-            var p2pBase = (r - 1) * 16;
-            var defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
-            var defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
-            var defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
+        for (let r = 1; r <= rackCount; r++) {
+            const defAsn = 64789 + (r - 1);
+            const p2pBase = (r - 1) * 16;
+            const defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
+            const defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
+            const defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
             racks.push({
                 rackNumber: r,
                 hostA:   getVal('sc-disagg-rack-' + r + '-host-a')   || defHostA,
@@ -994,32 +986,32 @@
     }
 
     // ── Generate Configs ─────────────────────────────────────────────
-    window.generateConfigs = function () {
-        var torModelKey = getVal('sc-tor-model');
-        var bmcModelKey = getVal('sc-bmc-model');
+    window.generateConfigs = function() {
+        const torModelKey = getVal('sc-tor-model');
+        const bmcModelKey = getVal('sc-bmc-model');
 
         if (!torModelKey) {
             alert('Please select a ToR switch model.');
             return;
         }
 
-        var validationErrors = validateSubnetGroups();
+        const validationErrors = validateSubnetGroups();
         if (validationErrors) {
             alert('Subnet validation failed:\n\n' + validationErrors);
             return;
         }
 
-        var isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
-        var isDisagg = designerState && designerState.architecture === 'disaggregated';
-        var disaggRackCount = isDisagg ? (parseInt(designerState.disaggRackCount, 10) || 1) : 1;
-        var isDisaggMulti = isDisagg && disaggRackCount >= 2;
+        const isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
+        const isDisagg = designerState && designerState.architecture === 'disaggregated';
+        const disaggRackCount = isDisagg ? (parseInt(designerState.disaggRackCount, 10) || 1) : 1;
+        const isDisaggMulti = isDisagg && disaggRackCount >= 2;
 
         // For disaggregated deployments, Rack 1's identity/routing fields live
         // in the SC1b Rack 1 card. Sync them into the legacy SC1/SC3 field IDs
         // so the existing single-rack build path below (TOR1/TOR2/BMC) picks
         // up the per-rack values without further refactoring.
         if (isDisagg) {
-            var r1 = collectDisaggRackOverrides(1)[0];
+            const r1 = collectDisaggRackOverrides(1)[0];
             if (r1) {
                 setVal('sc-hostname-tor1', r1.hostA);
                 setVal('sc-hostname-tor2', r1.hostB);
@@ -1039,7 +1031,7 @@
             }
         }
 
-        var builder = new SwitchConfigBuilder({
+        const builder = new SwitchConfigBuilder({
             designerState: designerState || {},
             torModelKey: torModelKey,
             bmcModelKey: bmcModelKey || null,
@@ -1106,15 +1098,15 @@
         });
 
         // Build standard JSON for each switch
-        var configs = [];
-        var torModel = SWITCH_MODELS[torModelKey];
-        var renderer = torModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
+        const configs = [];
+        const torModel = SWITCH_MODELS[torModelKey];
+        const renderer = torModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
 
         // Collect infrastructure service values for placeholder replacement
-        var tzVal = getVal('sc-timezone');
-        var tzParts = tzVal ? tzVal.split('|') : [];
+        const tzVal = getVal('sc-timezone');
+        const tzParts = tzVal ? tzVal.split('|') : [];
         // tzParts: [abbr, offsetH, offsetM, dstAbbr, dstRule, ianaName]
-        var infrastructure = {
+        const infrastructure = {
             ntpServer: getVal('sc-ntp-server'),
             syslogServer: getVal('sc-syslog-server'),
             tacacsServer1: getVal('sc-tacacs-server1'),
@@ -1131,7 +1123,7 @@
         };
 
         // TOR1
-        var tor1Json = builder.buildTor('TOR1');
+        const tor1Json = builder.buildTor('TOR1');
         tor1Json.infrastructure = infrastructure;
         configs.push({
             label: (isDisaggMulti ? 'Rack 1 — ToR-A (' : 'ToR1 (') + (getVal('sc-hostname-tor1') || 'tor-1a') + ')',
@@ -1141,7 +1133,7 @@
         });
 
         // TOR2
-        var tor2Json = builder.buildTor('TOR2');
+        const tor2Json = builder.buildTor('TOR2');
         tor2Json.infrastructure = infrastructure;
         configs.push({
             label: (isDisaggMulti ? 'Rack 1 — ToR-B (' : 'ToR2 (') + (getVal('sc-hostname-tor2') || 'tor-1b') + ')',
@@ -1152,7 +1144,7 @@
 
         // Rack-aware: TOR3 & TOR4
         if (isRackAware) {
-            var tor3Json = builder.buildTor('TOR3');
+            const tor3Json = builder.buildTor('TOR3');
             tor3Json.infrastructure = infrastructure;
             configs.push({
                 label: 'ToR3 (' + (getVal('sc-hostname-tor3') || 'tor-2a') + ')',
@@ -1161,7 +1153,7 @@
                 json: tor3Json
             });
 
-            var tor4Json = builder.buildTor('TOR4');
+            const tor4Json = builder.buildTor('TOR4');
             tor4Json.infrastructure = infrastructure;
             configs.push({
                 label: 'ToR4 (' + (getVal('sc-hostname-tor4') || 'tor-2b') + ')',
@@ -1173,10 +1165,10 @@
 
         // BMC
         if (bmcModelKey) {
-            var bmcModel = SWITCH_MODELS[bmcModelKey];
-            var bmcRenderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
+            const bmcModel = SWITCH_MODELS[bmcModelKey];
+            const bmcRenderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
 
-            var bmcJson = builder.buildBmc(getVal('sc-hostname-bmc') || 'bmc-1', getVal('sc-site'));
+            const bmcJson = builder.buildBmc(getVal('sc-hostname-bmc') || 'bmc-1', getVal('sc-site'));
             if (bmcJson) {
                 bmcJson.infrastructure = infrastructure;
                 configs.push({
@@ -1189,7 +1181,7 @@
 
             // Rack-aware: second BMC switch for Rack 2
             if (isRackAware) {
-                var bmc2Json = builder.buildBmc(getVal('sc-hostname-bmc2') || 'bmc-2', getVal('sc-site2'));
+                const bmc2Json = builder.buildBmc(getVal('sc-hostname-bmc2') || 'bmc-2', getVal('sc-site2'));
                 if (bmc2Json) {
                     bmc2Json.infrastructure = infrastructure;
                     configs.push({
@@ -1209,11 +1201,11 @@
         // ASN, loopbacks, Mgmt SVI IPs, and P2P/iBGP underlay peering while
         // reusing the common VLAN/QoS settings.
         if (isDisaggMulti) {
-            var rackOverrides = collectDisaggRackOverrides(disaggRackCount);
-            for (var ri = 0; ri < rackOverrides.length; ri++) {
-                var ro = rackOverrides[ri];
+            const rackOverrides = collectDisaggRackOverrides(disaggRackCount);
+            for (let ri = 0; ri < rackOverrides.length; ri++) {
+                const ro = rackOverrides[ri];
                 if (ro.rackNumber === 1) continue; // already emitted above
-                var rackBuilder = new SwitchConfigBuilder({
+                const rackBuilder = new SwitchConfigBuilder({
                     designerState: designerState || {},
                     torModelKey: torModelKey,
                     bmcModelKey: bmcModelKey || null,
@@ -1270,7 +1262,7 @@
                     }
                 });
 
-                var rTor1 = rackBuilder.buildTor('TOR1');
+                const rTor1 = rackBuilder.buildTor('TOR1');
                 rTor1.infrastructure = infrastructure;
                 configs.push({
                     label: 'Rack ' + ro.rackNumber + ' — ToR-A (' + ro.hostA + ')',
@@ -1279,7 +1271,7 @@
                     json: rTor1
                 });
 
-                var rTor2 = rackBuilder.buildTor('TOR2');
+                const rTor2 = rackBuilder.buildTor('TOR2');
                 rTor2.infrastructure = infrastructure;
                 configs.push({
                     label: 'Rack ' + ro.rackNumber + ' — ToR-B (' + ro.hostB + ')',
@@ -1289,9 +1281,9 @@
                 });
 
                 if (bmcModelKey) {
-                    var rBmcModel = SWITCH_MODELS[bmcModelKey];
-                    var rBmcRenderer = rBmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
-                    var rBmcJson = rackBuilder.buildBmc(ro.hostBmc, ro.site || getVal('sc-site'));
+                    const rBmcModel = SWITCH_MODELS[bmcModelKey];
+                    const rBmcRenderer = rBmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
+                    const rBmcJson = rackBuilder.buildBmc(ro.hostBmc, ro.site || getVal('sc-site'));
                     if (rBmcJson) {
                         rBmcJson.infrastructure = infrastructure;
                         configs.push({
@@ -1315,23 +1307,23 @@
     };
 
     // ── Render tabbed output ─────────────────────────────────────────
-    var configJsonMap = {};
+    let configJsonMap = {};
 
     function renderOutput(configs) {
-        var section = document.getElementById('sc-output-section');
-        var tabsEl = document.getElementById('sc-output-tabs');
-        var panelsEl = document.getElementById('sc-output-panels');
+        const section = document.getElementById('sc-output-section');
+        const tabsEl = document.getElementById('sc-output-tabs');
+        const panelsEl = document.getElementById('sc-output-panels');
 
         tabsEl.innerHTML = '';
         panelsEl.innerHTML = '';
         configJsonMap = {};
 
-        for (var i = 0; i < configs.length; i++) {
-            var c = configs[i];
+        for (let i = 0; i < configs.length; i++) {
+            const c = configs[i];
             configJsonMap[c.id] = c.json;
 
             // Tab button
-            var tab = document.createElement('button');
+            const tab = document.createElement('button');
             tab.className = 'sc-tab' + (i === 0 ? ' active' : '');
             tab.textContent = c.label;
             tab.setAttribute('data-tab', c.id);
@@ -1339,12 +1331,12 @@
             tabsEl.appendChild(tab);
 
             // Panel
-            var panel = document.createElement('div');
+            const panel = document.createElement('div');
             panel.className = 'sc-tab-content' + (i === 0 ? ' active' : '');
             panel.id = 'sc-panel-' + c.id;
 
             // Code header with copy/download/json
-            var header = document.createElement('div');
+            const header = document.createElement('div');
             header.className = 'sc-code-header';
             header.innerHTML =
                 '<span>Full Configuration</span>' +
@@ -1356,7 +1348,7 @@
             panel.appendChild(header);
 
             // Code block
-            var code = document.createElement('div');
+            const code = document.createElement('div');
             code.className = 'sc-code-block';
             code.id = 'sc-code-' + c.id;
             code.textContent = c.config;
@@ -1370,44 +1362,44 @@
     }
 
     function switchTab(e) {
-        var tabId = e.currentTarget.getAttribute('data-tab');
+        const tabId = e.currentTarget.getAttribute('data-tab');
         // Deactivate all tabs and panels
-        var tabs = document.querySelectorAll('.sc-tab');
-        var panels = document.querySelectorAll('.sc-tab-content');
-        for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
-        for (var j = 0; j < panels.length; j++) panels[j].classList.remove('active');
+        const tabs = document.querySelectorAll('.sc-tab');
+        const panels = document.querySelectorAll('.sc-tab-content');
+        for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+        for (let j = 0; j < panels.length; j++) panels[j].classList.remove('active');
         // Activate selected
         e.currentTarget.classList.add('active');
-        var panel = document.getElementById('sc-panel-' + tabId);
+        const panel = document.getElementById('sc-panel-' + tabId);
         if (panel) panel.classList.add('active');
     }
 
     // ── Copy config to clipboard ─────────────────────────────────────
-    window.copySwitchConfig = function (btn) {
-        var configId = btn.getAttribute('data-config-id');
-        var codeEl = document.getElementById('sc-code-' + configId);
+    window.copySwitchConfig = function(btn) {
+        const configId = btn.getAttribute('data-config-id');
+        const codeEl = document.getElementById('sc-code-' + configId);
         if (!codeEl) return;
-        var text = codeEl.textContent;
-        navigator.clipboard.writeText(text).then(function () {
-            var orig = btn.textContent;
+        const text = codeEl.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            const orig = btn.textContent;
             btn.textContent = '✓ Copied';
-            setTimeout(function () { btn.textContent = orig; }, 2000);
+            setTimeout(function() { btn.textContent = orig; }, 2000);
         });
     };
 
     // ── Download config as file ──────────────────────────────────────
-    window.downloadSwitchConfig = function (btn) {
-        var configId = btn.getAttribute('data-config-id');
-        var hostname = btn.getAttribute('data-hostname') || configId;
-        var codeEl = document.getElementById('sc-code-' + configId);
+    window.downloadSwitchConfig = function(btn) {
+        const configId = btn.getAttribute('data-config-id');
+        const hostname = btn.getAttribute('data-hostname') || configId;
+        const codeEl = document.getElementById('sc-code-' + configId);
         if (!codeEl) return;
-        var text = codeEl.textContent;
-        var blob = new Blob([text], { type: 'text/plain' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
+        const text = codeEl.textContent;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
         a.href = url;
         // Sanitize filename
-        var safeName = hostname.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const safeName = hostname.replace(/[^a-zA-Z0-9_-]/g, '_');
         a.download = safeName + '_config.cfg';
         document.body.appendChild(a);
         a.click();
@@ -1416,17 +1408,17 @@
     };
 
     // ── Export JSON data as file ─────────────────────────────────────
-    window.exportSwitchJson = function (btn) {
-        var configId = btn.getAttribute('data-config-id');
-        var hostname = btn.getAttribute('data-hostname') || configId;
-        var jsonData = configJsonMap[configId];
+    window.exportSwitchJson = function(btn) {
+        const configId = btn.getAttribute('data-config-id');
+        const hostname = btn.getAttribute('data-hostname') || configId;
+        const jsonData = configJsonMap[configId];
         if (!jsonData) return;
-        var text = JSON.stringify(jsonData, null, 2);
-        var blob = new Blob([text], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
+        const text = JSON.stringify(jsonData, null, 2);
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
         a.href = url;
-        var safeName = hostname.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const safeName = hostname.replace(/[^a-zA-Z0-9_-]/g, '_');
         a.download = safeName + '_config.json';
         document.body.appendChild(a);
         a.click();
@@ -1440,32 +1432,31 @@
 })();
 
 // ── Compute VLAN add/remove (global for onclick) ─────────────────
-/* global addComputeVlan, removeComputeVlan */
-window.addComputeVlan = function () {
-    for (var i = 2; i <= 3; i++) {
-        var block = document.getElementById('sc-compute-vlan-' + i);
+window.addComputeVlan = function() {
+    for (let i = 2; i <= 3; i++) {
+        const block = document.getElementById('sc-compute-vlan-' + i);
         if (block && block.style.display === 'none') {
             block.style.display = '';
             // Auto-populate SVI defaults for rack-aware deployments. The
             // rack-aware flag now comes from the in-memory designerState
             // (Designer transfer or Quick Start defaults) — not from
             // localStorage, which loadDesignerData() consumes-and-clears.
-            var ds = (typeof window.__getSwitchConfigDesignerState === 'function')
+            const ds = (typeof window.__getSwitchConfigDesignerState === 'function')
                 ? window.__getSwitchConfigDesignerState()
                 : null;
-            var ra = ds && (ds.scale === 'rack-aware' || ds.scale === 'rack_aware');
-            var gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
+            const ra = ds && (ds.scale === 'rack-aware' || ds.scale === 'rack_aware');
+            const gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
             if (gwField && gwField.value) {
-                var parts = gwField.value.split('.');
+                const parts = gwField.value.split('.');
                 if (parts.length === 4) {
-                    var last = parseInt(parts[3], 10);
-                    var pfx = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
-                    var torCount = ra ? 4 : 2;
-                    var ids = ['tor1', 'tor2', 'tor3', 'tor4'];
-                    for (var j = 0; j < torCount; j++) {
-                        var v = last + j + 1;
+                    const last = parseInt(parts[3], 10);
+                    const pfx = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
+                    const torCount = ra ? 4 : 2;
+                    const ids = ['tor1', 'tor2', 'tor3', 'tor4'];
+                    for (let j = 0; j < torCount; j++) {
+                        const v = last + j + 1;
                         if (v > 254) break;
-                        var f = document.getElementById('sc-compute-vlan' + i + '-' + ids[j]);
+                        const f = document.getElementById('sc-compute-vlan' + i + '-' + ids[j]);
                         if (f && !f.value) f.value = pfx + v;
                     }
                 }
@@ -1475,22 +1466,22 @@ window.addComputeVlan = function () {
     }
     updateAddComputeBtn();
 };
-window.removeComputeVlan = function (n) {
-    var block = document.getElementById('sc-compute-vlan-' + n);
+window.removeComputeVlan = function(n) {
+    const block = document.getElementById('sc-compute-vlan-' + n);
     if (block) {
         block.style.display = 'none';
         // Clear values
-        var inputs = block.querySelectorAll('input');
-        for (var i = 0; i < inputs.length; i++) inputs[i].value = '';
+        const inputs = block.querySelectorAll('input');
+        for (let i = 0; i < inputs.length; i++) inputs[i].value = '';
     }
     updateAddComputeBtn();
 };
 function updateAddComputeBtn() {
-    var btn = document.getElementById('sc-add-compute-vlan');
+    const btn = document.getElementById('sc-add-compute-vlan');
     if (!btn) return;
-    var allVisible = true;
-    for (var i = 2; i <= 3; i++) {
-        var block = document.getElementById('sc-compute-vlan-' + i);
+    let allVisible = true;
+    for (let i = 2; i <= 3; i++) {
+        const block = document.getElementById('sc-compute-vlan-' + i);
         if (block && block.style.display === 'none') { allVisible = false; break; }
     }
     btn.disabled = allVisible;
@@ -1504,10 +1495,9 @@ function updateAddComputeBtn() {
 // the ToR Switch page already loads. First-visit auto-trigger is gated on
 // the localStorage key below; the nav-bar Help button calls
 // showSwitchOnboarding() on demand and is wired up in js/nav.js.
-/* global showSwitchOnboarding */
-var SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
+const SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
 
-var switchOnboardingSteps = [
+const switchOnboardingSteps = [
     {
         icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
@@ -1544,25 +1534,25 @@ var switchOnboardingSteps = [
     }
 ];
 
-var currentSwitchOnboardingStep = 0;
+let currentSwitchOnboardingStep = 0;
 
-window.showSwitchOnboarding = function () {
+window.showSwitchOnboarding = function() {
     currentSwitchOnboardingStep = 0;
     renderSwitchOnboardingStep();
 };
 
 function renderSwitchOnboardingStep() {
-    var step = switchOnboardingSteps[currentSwitchOnboardingStep];
+    const step = switchOnboardingSteps[currentSwitchOnboardingStep];
 
-    var existing = document.querySelectorAll('.onboarding-overlay');
-    for (var x = 0; x < existing.length; x++) { existing[x].remove(); }
+    const existing = document.querySelectorAll('.onboarding-overlay');
+    for (let x = 0; x < existing.length; x++) { existing[x].remove(); }
 
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'onboarding-overlay';
 
-    var featuresHtml = '';
-    for (var f = 0; f < step.features.length; f++) {
-        var feat = step.features[f];
+    let featuresHtml = '';
+    for (let f = 0; f < step.features.length; f++) {
+        const feat = step.features[f];
         featuresHtml += '<div class="onboarding-feature">'
             + '<span class="onboarding-feature-icon">' + feat.icon + '</span>'
             + '<div class="onboarding-feature-text">'
@@ -1572,12 +1562,12 @@ function renderSwitchOnboardingStep() {
             + '</div>';
     }
 
-    var dotsHtml = '';
-    for (var d = 0; d < switchOnboardingSteps.length; d++) {
+    let dotsHtml = '';
+    for (let d = 0; d < switchOnboardingSteps.length; d++) {
         dotsHtml += '<div class="onboarding-dot' + (d === currentSwitchOnboardingStep ? ' active' : '') + '"></div>';
     }
 
-    var nextLabel = (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) ? 'Get Started' : 'Next';
+    const nextLabel = (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) ? 'Get Started' : 'Next';
 
     overlay.innerHTML = '<div class="onboarding-card">'
         + '<div class="onboarding-icon' + (step.isImage ? ' onboarding-icon-image' : '') + '">' + step.icon + '</div>'
@@ -1592,7 +1582,7 @@ function renderSwitchOnboardingStep() {
         + '</div>';
 
     overlay.querySelector('[data-action="skip"]').addEventListener('click', skipSwitchOnboarding);
-    overlay.querySelector('[data-action="next"]').addEventListener('click', function () {
+    overlay.querySelector('[data-action="next"]').addEventListener('click', function() {
         if (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) {
             finishSwitchOnboarding();
         } else {
@@ -1614,20 +1604,20 @@ function nextSwitchOnboardingStep() {
 
 function skipSwitchOnboarding() {
     try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
-    var els = document.querySelectorAll('.onboarding-overlay');
-    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+    const els = document.querySelectorAll('.onboarding-overlay');
+    for (let i = 0; i < els.length; i++) { els[i].remove(); }
 }
 
 function finishSwitchOnboarding() {
     try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
-    var els = document.querySelectorAll('.onboarding-overlay');
-    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+    const els = document.querySelectorAll('.onboarding-overlay');
+    for (let i = 0; i < els.length; i++) { els[i].remove(); }
 }
 
 // Close onboarding overlay on Escape key
-document.addEventListener('keydown', function (e) {
+document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        var els = document.querySelectorAll('.onboarding-overlay');
+        const els = document.querySelectorAll('.onboarding-overlay');
         if (els.length > 0) { skipSwitchOnboarding(); }
     }
 });

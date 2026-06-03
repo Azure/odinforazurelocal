@@ -243,155 +243,155 @@ document.addEventListener('DOMContentLoaded', function() {
 // "Start Over" click).
 function getInitialWizardState() {
     return {
-    scenario: null,
-    architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
-    region: null,
-    localInstanceRegion: null,
-    scale: null,
-    nodes: null,
-    witnessType: null,
-    theme: 'dark',
-    fontSize: 'medium',
-    ports: null,
-    portConfig: null,
-    portConfigConfirmed: false,
-    storage: null,
-    torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged
-    switchlessLinkMode: null,
-    storagePoolConfiguration: null,
-    // SAN LUN IDs — only populated when storagePoolConfiguration === 'InfraOnly'
-    // (auto-locked to 'InfraOnly' when architecture === 'disaggregated'). Emitted
-    // to the create-cluster-san ARM template as parameters.infraVolLunId /
-    // parameters.infraPerfLunId.
-    infraVolLunId: null,
-    infraPerfLunId: null,
-    rackAwareZones: null,
-    rackAwareZonesConfirmed: false,
-    rackAwareZoneSwapSelection: null,
-    rackAwareTorsPerRoom: null,
-    rackAwareTorArchitecture: null,
-    intent: null,
-    customIntentConfirmed: false,
-    fqdnConfirmed: false,
-    outbound: null,
-    arc: null,
-    proxy: null,
-    ip: null,
-    infra: null,
-    infraCidr: null,
-    infraCidrAuto: true,
-    infraGateway: null,
-    infraGatewayManual: false,
-    infraPoolManual: false,
-    nodeSettings: [],
-    infraVlan: null,
-    infraVlanId: null,
-    storageAutoIp: null,
-    customStorageSubnets: [], // User-defined storage subnets when Storage Auto IP is disabled
-    customStorageSubnetsConfirmed: false, // Confirmation state for custom storage subnets
-    activeDirectory: null,
-    adDomain: null,
-    adOuPath: null,
-    adfsServerName: null,
-    dnsServers: [],
-    localDnsZone: null,
-    dnsServiceExisting: null,
-    sdnEnabled: null,
-    sdnFeatures: [],
-    sdnManagement: null,
-    intentOverrides: {},
-    customIntents: {},
-    adapterMapping: {},
-    adapterMappingConfirmed: false,
-    adapterMappingSelection: null,
-    overridesConfirmed: false,
-    securityConfiguration: null, // 'recommended' or 'customized'
-    securitySettings: {
-        driftControlEnforced: true,
-        bitlockerBootVolume: true,
-        bitlockerDataVolumes: true,
-        wdacEnforced: true,
-        credentialGuardEnforced: true,
-        smbSigningEnforced: true,
-        smbClusterEncryption: true
-    },
-    rdmaGuardMessage: null,
-    privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
-    privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
-    sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
-    sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
-    // Disconnected (ALDO) deployment role + paired Autonomous-Cloud FQDN.
-    // clusterRole: 'management' | 'workload' | null — selected on the Disconnected
-    // Operations step when scenario === 'disconnected'.
-    // autonomousCloudFqdn: string | null — the air-gapped cloud FQDN entered on
-    // the same step (and pre-populated from a Sizer ALDO handoff).
-    clusterRole: null,
-    autonomousCloudFqdn: null,
-    // Disaggregated architecture state
-    disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
-    disaggBackupEnabled: false,
-    disaggPortCount: null,
-    disaggRackCount: null,
-    disaggNodesPerRack: null,
-    disaggSpineCount: null,
-    disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 },
-    disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10300, iscsiB: 10400, backup: 10800 },
-    disaggMgmtVlanMode: 'access',
-    // Per MS Disaggregated-storage docs, cluster VLANs (1711/1712) are configured
-    // in access mode on leaf ports by default — the leaf tags/strips and the host
-    // NIC sees untagged frames. When toggled to trunk on DA4, the host NIC must
-    // tag and the ARM `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId`
-    // is emitted as the VLAN value (rather than 0). Cluster A and B modes are
-    // always paired (UI enforces: toggling one toggles the other).
-    disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
-    // Display names for the two disaggregated cluster networks. Editable on DA4.
-    // Flow to the Adapter-Mapping zone titles (DA8) and to ARM
-    // `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name` (sanitized:
-    // spaces → hyphens, alphanumeric + hyphen only).
-    disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
-    disaggVrfName: 'AZLOCALINFRA',
-    disaggVrfMode: 'single',
-    disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
-    disaggIscsiTargets: [],
-    disaggQosCustomized: false,
-    // DA9: Node configuration
+        scenario: null,
+        architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
+        region: null,
+        localInstanceRegion: null,
+        scale: null,
+        nodes: null,
+        witnessType: null,
+        theme: 'dark',
+        fontSize: 'medium',
+        ports: null,
+        portConfig: null,
+        portConfigConfirmed: false,
+        storage: null,
+        torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged
+        switchlessLinkMode: null,
+        storagePoolConfiguration: null,
+        // SAN LUN IDs — only populated when storagePoolConfiguration === 'InfraOnly'
+        // (auto-locked to 'InfraOnly' when architecture === 'disaggregated'). Emitted
+        // to the create-cluster-san ARM template as parameters.infraVolLunId /
+        // parameters.infraPerfLunId.
+        infraVolLunId: null,
+        infraPerfLunId: null,
+        rackAwareZones: null,
+        rackAwareZonesConfirmed: false,
+        rackAwareZoneSwapSelection: null,
+        rackAwareTorsPerRoom: null,
+        rackAwareTorArchitecture: null,
+        intent: null,
+        customIntentConfirmed: false,
+        fqdnConfirmed: false,
+        outbound: null,
+        arc: null,
+        proxy: null,
+        ip: null,
+        infra: null,
+        infraCidr: null,
+        infraCidrAuto: true,
+        infraGateway: null,
+        infraGatewayManual: false,
+        infraPoolManual: false,
+        nodeSettings: [],
+        infraVlan: null,
+        infraVlanId: null,
+        storageAutoIp: null,
+        customStorageSubnets: [], // User-defined storage subnets when Storage Auto IP is disabled
+        customStorageSubnetsConfirmed: false, // Confirmation state for custom storage subnets
+        activeDirectory: null,
+        adDomain: null,
+        adOuPath: null,
+        adfsServerName: null,
+        dnsServers: [],
+        localDnsZone: null,
+        dnsServiceExisting: null,
+        sdnEnabled: null,
+        sdnFeatures: [],
+        sdnManagement: null,
+        intentOverrides: {},
+        customIntents: {},
+        adapterMapping: {},
+        adapterMappingConfirmed: false,
+        adapterMappingSelection: null,
+        overridesConfirmed: false,
+        securityConfiguration: null, // 'recommended' or 'customized'
+        securitySettings: {
+            driftControlEnforced: true,
+            bitlockerBootVolume: true,
+            bitlockerDataVolumes: true,
+            wdacEnforced: true,
+            credentialGuardEnforced: true,
+            smbSigningEnforced: true,
+            smbClusterEncryption: true
+        },
+        rdmaGuardMessage: null,
+        privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
+        privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
+        sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
+        sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+        // Disconnected (ALDO) deployment role + paired Autonomous-Cloud FQDN.
+        // clusterRole: 'management' | 'workload' | null — selected on the Disconnected
+        // Operations step when scenario === 'disconnected'.
+        // autonomousCloudFqdn: string | null — the air-gapped cloud FQDN entered on
+        // the same step (and pre-populated from a Sizer ALDO handoff).
+        clusterRole: null,
+        autonomousCloudFqdn: null,
+        // Disaggregated architecture state
+        disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
+        disaggBackupEnabled: false,
+        disaggPortCount: null,
+        disaggRackCount: null,
+        disaggNodesPerRack: null,
+        disaggSpineCount: null,
+        disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 },
+        disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10300, iscsiB: 10400, backup: 10800 },
+        disaggMgmtVlanMode: 'access',
+        // Per MS Disaggregated-storage docs, cluster VLANs (1711/1712) are configured
+        // in access mode on leaf ports by default — the leaf tags/strips and the host
+        // NIC sees untagged frames. When toggled to trunk on DA4, the host NIC must
+        // tag and the ARM `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId`
+        // is emitted as the VLAN value (rather than 0). Cluster A and B modes are
+        // always paired (UI enforces: toggling one toggles the other).
+        disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
+        // Display names for the two disaggregated cluster networks. Editable on DA4.
+        // Flow to the Adapter-Mapping zone titles (DA8) and to ARM
+        // `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name` (sanitized:
+        // spaces → hyphens, alphanumeric + hyphen only).
+        disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
+        disaggVrfName: 'AZLOCALINFRA',
+        disaggVrfMode: 'single',
+        disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
+        disaggIscsiTargets: [],
+        disaggQosCustomized: false,
+        // DA9: Node configuration
 
-    // DA8: NIC / Adapter configuration
-    disaggPortSpeeds: {  // Speed per NIC slot
-        ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE'
-    },
-    disaggIntentMapping: { // Port-to-intent mapping (SET team)
-        mgmt_compute: ['ocp_p1', 'ocp_p2']  // Default: OCP ports form Mgmt+Compute SET
-    },
-    disaggClusterPortMapping: { // Standalone port-to-VLAN mapping
-        pcie1_p1: '711', pcie1_p2: '712',   // Cluster NICs
-        pcie2_p1: '500', pcie2_p2: '600'    // iSCSI NICs (6-NIC only)
-    },
-    disaggNicNames: {
-        ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',           // Compute+Mgmt SET team
-        cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', // Cluster standalone
-        iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',     // iSCSI standalone (6-NIC only)
-        backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',  // Backup standalone (optional)
-        bmc: 'BMC'
-    },
-    disaggNicNamesConfirmed: false,
-    disaggNicConfigConfirmed: false,
-    // Per-port config (mirrors HCI portConfig)
-    disaggPortConfig: {},
-    disaggPortConfigConfirmed: false,
-    // Adapter mapping (mirrors HCI adapterMapping)
-    disaggAdapterMapping: {},
-    disaggAdapterMappingConfirmed: false,
-    // Intent overrides (RDMA, Jumbo, SR-IOV for Mgmt+Compute and Backup intents)
-    disaggIntentOverrides: {},
-    // Overrides confirmed
-    disaggOverridesConfirmed: false,
-    // Standalone NIC subnets (not managed by intents)
-    disaggClusterSubnet1: null, // Cluster NIC1 subnet (VLAN 711)
-    disaggClusterSubnet2: null, // Cluster NIC2 subnet (VLAN 712)
-    disaggIscsiSubnet1: null,   // iSCSI NIC1 subnet (VLAN 500)
-    disaggIscsiSubnet2: null,   // iSCSI NIC2 subnet (VLAN 600)
-    disaggBackupSubnet: null    // Backup subnet (VLAN 800)
+        // DA8: NIC / Adapter configuration
+        disaggPortSpeeds: {  // Speed per NIC slot
+            ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE'
+        },
+        disaggIntentMapping: { // Port-to-intent mapping (SET team)
+            mgmt_compute: ['ocp_p1', 'ocp_p2']  // Default: OCP ports form Mgmt+Compute SET
+        },
+        disaggClusterPortMapping: { // Standalone port-to-VLAN mapping
+            pcie1_p1: '711', pcie1_p2: '712',   // Cluster NICs
+            pcie2_p1: '500', pcie2_p2: '600'    // iSCSI NICs (6-NIC only)
+        },
+        disaggNicNames: {
+            ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',           // Compute+Mgmt SET team
+            cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', // Cluster standalone
+            iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',     // iSCSI standalone (6-NIC only)
+            backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',  // Backup standalone (optional)
+            bmc: 'BMC'
+        },
+        disaggNicNamesConfirmed: false,
+        disaggNicConfigConfirmed: false,
+        // Per-port config (mirrors HCI portConfig)
+        disaggPortConfig: {},
+        disaggPortConfigConfirmed: false,
+        // Adapter mapping (mirrors HCI adapterMapping)
+        disaggAdapterMapping: {},
+        disaggAdapterMappingConfirmed: false,
+        // Intent overrides (RDMA, Jumbo, SR-IOV for Mgmt+Compute and Backup intents)
+        disaggIntentOverrides: {},
+        // Overrides confirmed
+        disaggOverridesConfirmed: false,
+        // Standalone NIC subnets (not managed by intents)
+        disaggClusterSubnet1: null, // Cluster NIC1 subnet (VLAN 711)
+        disaggClusterSubnet2: null, // Cluster NIC2 subnet (VLAN 712)
+        disaggIscsiSubnet1: null,   // iSCSI NIC1 subnet (VLAN 500)
+        disaggIscsiSubnet2: null,   // iSCSI NIC2 subnet (VLAN 600)
+        disaggBackupSubnet: null    // Backup subnet (VLAN 800)
     };
 }
 
@@ -2274,7 +2274,7 @@ function generateArmParameters() {
         // satisfies the failover-cluster naming rules (1–15 chars, letters/
         // numbers/hyphen, not all-numeric, no edge hyphen); otherwise keep the
         // REPLACE_WITH_CLUSTER_NAME placeholder.
-        const clusterNameForArm = (function () {
+        const clusterNameForArm = (function() {
             const n = (state.clusterName || '').trim();
             if (n.length < 1 || n.length > 15) return 'REPLACE_WITH_CLUSTER_NAME';
             if (!/^[A-Za-z0-9-]+$/.test(n)) return 'REPLACE_WITH_CLUSTER_NAME';
@@ -8123,7 +8123,7 @@ function resetAll() {
     // Drop any keys that aren't in the canonical defaults (e.g. legacy keys
     // from older saved state that have since been removed). This prevents
     // "leftover" data from surviving a reset.
-    Object.keys(state).forEach(function (k) {
+    Object.keys(state).forEach(function(k) {
         if (!Object.prototype.hasOwnProperty.call(fresh, k)) delete state[k];
     });
     Object.assign(state, fresh);

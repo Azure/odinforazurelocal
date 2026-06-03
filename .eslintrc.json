@@ -154,7 +154,21 @@
   ],
   "overrides": [
     {
-      "files": ["js/utils.js", "js/notifications.js", "js/analytics.js", "js/theme.js", "js/formatting.js", "js/validation.js", "js/dns.js", "js/script.js", "js/disaggregated.js"],
+      "files": ["js/utils.js", "js/notifications.js", "js/analytics.js", "js/theme.js", "js/formatting.js", "js/validation.js", "js/dns.js", "js/script.js", "js/disaggregated.js", "sizer/sizer.js", "report/report.js"],
+      "rules": {
+        "no-redeclare": "off",
+        "no-unused-vars": "off"
+      }
+    },
+    {
+      "files": ["report/report.js"],
+      "rules": {
+        "no-var": "off",
+        "no-inner-declarations": "off"
+      }
+    },
+    {
+      "files": ["docs/outbound-connectivity/script.js"],
       "rules": {
         "no-redeclare": "off",
         "no-unused-vars": "off"

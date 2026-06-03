@@ -1,4 +1,4 @@
-(function () {
+(function() {
     // Expose a minimal API for report.html buttons.
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;
@@ -11,19 +11,19 @@
     window.togglePrintFriendly = togglePrintFriendly;
 
     // Internals exposed for pptx-export.js (kept under __odin* prefix to mark as internal).
-    window.__odinGetReportState = function () { return CURRENT_REPORT_STATE; };
-    window.__odinSvgElementToPng = function (svgEl, opts) { return svgElementToPngDataUrl(svgEl, opts); };
+    window.__odinGetReportState = function() { return CURRENT_REPORT_STATE; };
+    window.__odinSvgElementToPng = function(svgEl, opts) { return svgElementToPngDataUrl(svgEl, opts); };
     // Expose the private-endpoint reference data and the proxy-bypass helpers
     // so external callers (e.g., the PPTX exporter) can mirror what the
     // rendered report shows without scraping the DOM. Bound at module init
     // below once these symbols are defined.
-    window.__odinGetPrivateEndpointInfo = function () { return null; };
-    window.__odinBuildProxyBypassList = function () { return []; };
+    window.__odinGetPrivateEndpointInfo = function() { return null; };
+    window.__odinBuildProxyBypassList = function() { return []; };
 
     var CURRENT_REPORT_STATE = null;
 
     // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
-    var FIREWALL_ENDPOINT_URLS = {
+    const FIREWALL_ENDPOINT_URLS = {
         east_us: { label: 'East US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/EastUSendpoints/eastus-hci-endpoints.md' },
         south_central_us: { label: 'South Central US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/SouthCentralUSEndpoints/southcentralus-hci-endpoints.md' },
         west_europe: { label: 'West Europe', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/WestEuropeendpoints/westeurope-hci-endpoints.md' },
@@ -34,7 +34,7 @@
         japan_east: { label: 'Japan East', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/JapanEastEndpoints/japaneast-hci-endpoints.md' },
         us_gov_virginia: { label: 'US Gov Virginia', url: 'https://github.com/CristianEdwards/AzureStack-Tools/blob/master/HCI/usgovvirginia-hci-endpoints/usgovvirginia-hci-endpoints.md' }
     };
-    var ARC_GATEWAY_ENDPOINTS_URL = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal#azure-local-endpoints-not-redirected';
+    const ARC_GATEWAY_ENDPOINTS_URL = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal#azure-local-endpoints-not-redirected';
 
     // Returns { label, url } for the firewall allow-list link based on Arc Gateway and region
     function getFirewallEndpointInfo(s) {
@@ -44,7 +44,7 @@
                 url: ARC_GATEWAY_ENDPOINTS_URL
             };
         }
-        var regionInfo = FIREWALL_ENDPOINT_URLS[s.localInstanceRegion];
+        const regionInfo = FIREWALL_ENDPOINT_URLS[s.localInstanceRegion];
         if (regionInfo) {
             return {
                 label: 'Consolidated endpoint list for ' + regionInfo.label + ' (Azure Local, Arc-enabled servers, ARB, AKS)',
@@ -57,10 +57,10 @@
             url: 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements'
         };
     }
-    var isPrintFriendly = false;
+    let isPrintFriendly = false;
 
     // Outbound connectivity diagram URLs - use local files from docs folder
-    var OUTBOUND_DIAGRAMS = {
+    const OUTBOUND_DIAGRAMS = {
         // Public Path diagrams
         'public_no_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
         'public_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
@@ -104,7 +104,7 @@
     };
 
     // Disconnected Operations draw.io source files for editable diagram export
-    var OUTBOUND_DRAWIO = {
+    const OUTBOUND_DRAWIO = {
         'disconnected_fullyconverged_limited': '../docs/disconnected-operations/ALDO-fullyconverged-Limited-Connectivity.drawio',
         'disconnected_fullyconverged_airgapped': '../docs/disconnected-operations/ALDO-fullyconverged-Air-Gapped.drawio',
         'disconnected_disaggregated_limited': '../docs/disconnected-operations/ALDO-disaggregated-Limited-Connectivity.drawio',
@@ -139,12 +139,12 @@
 
         // Disconnected Operations - select diagram by intent, storage, node count, and cluster role
         if (s.scenario === 'disconnected') {
-            var isAirGapped = s.outbound === 'air_gapped';
-            var suffix = isAirGapped ? 'airgapped' : 'limited';
-            var intent = s.intent;
-            var nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
-            var isSwitchless = s.storage === 'switchless';
-            var portCount = parseInt(s.ports, 10) || 4;
+            const isAirGapped = s.outbound === 'air_gapped';
+            const suffix = isAirGapped ? 'airgapped' : 'limited';
+            const intent = s.intent;
+            const nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+            const isSwitchless = s.storage === 'switchless';
+            const portCount = parseInt(s.ports, 10) || 4;
 
             // Single-node workload cluster → dedicated diagram (check before intent type)
             if (nodeCount === 1 && s.clusterRole === 'workload') {
@@ -152,14 +152,14 @@
                 if (intent === 'compute_storage') return 'disconnected_single_node_wl_disaggregated_' + suffix;
                 // Custom intent: analyse actual NIC assignments for single-node
                 if (intent === 'custom') {
-                    var ci_sn = s.customIntents || {};
-                    var vals_sn = Object.values(ci_sn);
+                    const ci_sn = s.customIntents || {};
+                    const vals_sn = Object.values(ci_sn);
                     if (vals_sn.length > 0 && vals_sn.every(function(v) { return v === 'all'; })) {
                         return 'disconnected_single_node_wl_fullyconverged_' + suffix;
                     }
-                    var hasCS_sn = vals_sn.some(function(v) { return v === 'compute_storage'; });
-                    var hasCmp_sn = vals_sn.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
-                    var hasStg_sn = vals_sn.some(function(v) { return v === 'storage'; });
+                    const hasCS_sn = vals_sn.some(function(v) { return v === 'compute_storage'; });
+                    const hasCmp_sn = vals_sn.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                    const hasStg_sn = vals_sn.some(function(v) { return v === 'storage'; });
                     if (hasCS_sn || (hasCmp_sn && hasStg_sn)) {
                         return 'disconnected_single_node_wl_disaggregated_' + suffix;
                     }
@@ -177,21 +177,21 @@
 
             // Custom intent: analyse actual NIC assignments to pick best diagram
             if (intent === 'custom') {
-                var ci = s.customIntents || {};
-                var vals = Object.values(ci);
+                const ci = s.customIntents || {};
+                const vals = Object.values(ci);
                 // All NICs carry all traffic → fully converged
                 if (vals.length > 0 && vals.every(function(v) { return v === 'all'; })) {
                     return 'disconnected_fullyconverged_' + suffix;
                 }
                 // compute_storage combined, or separate compute + storage NICs → disaggregated
-                var hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
-                var hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
-                var hasStorage = vals.some(function(v) { return v === 'storage'; });
+                const hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
+                const hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                const hasStorage = vals.some(function(v) { return v === 'storage'; });
                 if (hasComputeStorage || (hasCompute && hasStorage)) {
                     return 'disconnected_disaggregated_' + suffix;
                 }
                 // mgmt_compute-style custom: check storage NIC count for 4-storage variant
-                var storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
+                const storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
                 if (storageNics >= 2) {
                     return 'disconnected_mgmt_compute_4storage_' + suffix;
                 }
@@ -209,8 +209,8 @@
             return 'private';
         }
         // Public path - determine based on arc and proxy settings
-        var hasArc = s.arc === 'arc_gateway';
-        var hasProxy = s.proxy === 'proxy';
+        const hasArc = s.arc === 'arc_gateway';
+        const hasProxy = s.proxy === 'proxy';
         if (hasArc && hasProxy) return 'public_proxy_arc';
         if (hasArc && !hasProxy) return 'public_no_proxy_arc';
         if (!hasArc && hasProxy) return 'public_proxy_no_arc';
@@ -223,24 +223,24 @@
 
         // Disconnected Operations diagram titles
         if (s.scenario === 'disconnected') {
-            var connType = s.outbound === 'air_gapped' ? 'Air Gapped' : 'Limited Connectivity';
-            var intent = s.intent;
-            var nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
-            var isSwitchless = s.storage === 'switchless';
-            var portCount = parseInt(s.ports, 10) || 4;
+            const connType = s.outbound === 'air_gapped' ? 'Air Gapped' : 'Limited Connectivity';
+            const intent = s.intent;
+            const nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+            const isSwitchless = s.storage === 'switchless';
+            const portCount = parseInt(s.ports, 10) || 4;
             // Single-node workload cluster titles (check before intent type)
             if (nodeCount === 1 && s.clusterRole === 'workload') {
                 if (intent === 'all_traffic') return 'Disconnected Operations: Single Node Fully Converged Workload (' + connType + ')';
                 if (intent === 'compute_storage') return 'Disconnected Operations: Single Node Disaggregated Workload (' + connType + ')';
                 if (intent === 'custom') {
-                    var ci_snt = s.customIntents || {};
-                    var vals_snt = Object.values(ci_snt);
+                    const ci_snt = s.customIntents || {};
+                    const vals_snt = Object.values(ci_snt);
                     if (vals_snt.length > 0 && vals_snt.every(function(v) { return v === 'all'; })) {
                         return 'Disconnected Operations: Single Node Fully Converged Workload (' + connType + ')';
                     }
-                    var hasCS_snt = vals_snt.some(function(v) { return v === 'compute_storage'; });
-                    var hasCmp_snt = vals_snt.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
-                    var hasStg_snt = vals_snt.some(function(v) { return v === 'storage'; });
+                    const hasCS_snt = vals_snt.some(function(v) { return v === 'compute_storage'; });
+                    const hasCmp_snt = vals_snt.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                    const hasStg_snt = vals_snt.some(function(v) { return v === 'storage'; });
                     if (hasCS_snt || (hasCmp_snt && hasStg_snt)) {
                         return 'Disconnected Operations: Single Node Disaggregated Workload (' + connType + ')';
                     }
@@ -252,18 +252,18 @@
             if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) return 'Disconnected Operations: Management & Compute ' + nodeCount + '-Node Switchless (' + connType + ')';
             // Custom intent: derive title from actual NIC assignments
             if (intent === 'custom') {
-                var ci = s.customIntents || {};
-                var vals = Object.values(ci);
+                const ci = s.customIntents || {};
+                const vals = Object.values(ci);
                 if (vals.length > 0 && vals.every(function(v) { return v === 'all'; })) {
                     return 'Disconnected Operations: Fully Converged (' + connType + ')';
                 }
-                var hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
-                var hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
-                var hasStorage = vals.some(function(v) { return v === 'storage'; });
+                const hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
+                const hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                const hasStorage = vals.some(function(v) { return v === 'storage'; });
                 if (hasComputeStorage || (hasCompute && hasStorage)) {
                     return 'Disconnected Operations: Disaggregated (' + connType + ')';
                 }
-                var storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
+                const storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
                 if (storageNics >= 2) {
                     return 'Disconnected Operations: Management & Compute 4-Storage (' + connType + ')';
                 }
@@ -276,8 +276,8 @@
         if (s.outbound === 'private') {
             return 'Private Path: Azure Firewall Explicit Proxy + Arc Gateway';
         }
-        var hasArc = s.arc === 'arc_gateway';
-        var hasProxy = s.proxy === 'proxy';
+        const hasArc = s.arc === 'arc_gateway';
+        const hasProxy = s.proxy === 'proxy';
         if (hasArc && hasProxy) return 'Public Path: Enterprise Proxy + Arc Gateway (Recommended)';
         if (hasArc && !hasProxy) return 'Public Path: Arc Gateway (No Proxy)';
         if (!hasArc && hasProxy) return 'Public Path: Enterprise Proxy (No Arc Gateway)';
@@ -285,7 +285,7 @@
     }
 
     // Private Endpoints information with detailed configuration
-    var PRIVATE_ENDPOINT_INFO = {
+    const PRIVATE_ENDPOINT_INFO = {
         'keyvault': {
             name: 'Azure Key Vault',
             fqdn: 'vault.azure.net',
@@ -402,9 +402,9 @@
 
     function togglePrintFriendly() {
         isPrintFriendly = !isPrintFriendly;
-        var body = document.body;
-        var btn = document.getElementById('print-friendly-btn');
-        
+        const body = document.body;
+        const btn = document.getElementById('print-friendly-btn');
+
         // Use CSS class toggle for robust style handling
         // This approach doesn't rely on inline styles and works with computed CSS
         if (isPrintFriendly) {
@@ -421,7 +421,7 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
@@ -442,19 +442,19 @@
         try {
             // Check portConfig for custom names (v0.13.0+ feature)
             if (state && Array.isArray(state.portConfig) && state.portConfig[idx1Based - 1]) {
-                var customName = state.portConfig[idx1Based - 1].customName;
+                const customName = state.portConfig[idx1Based - 1].customName;
                 if (customName && String(customName).trim()) {
                     return String(customName).trim();
                 }
             }
             // Legacy: check nicNames array
             if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                var n0 = String(state.nicNames[idx1Based - 1]).trim();
+                const n0 = String(state.nicNames[idx1Based - 1]).trim();
                 if (n0) return n0;
             }
             // Legacy: check nicNames object
             if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                var n1 = String(state.nicNames[idx1Based]).trim();
+                const n1 = String(state.nicNames[idx1Based]).trim();
                 if (n1) return n1;
             }
         } catch (e) {
@@ -470,17 +470,17 @@
     // e.g., 10.0.0.0/8 -> 10.*.*.*
     function convertCidrToWildcard(cidr) {
         if (!cidr) return null;
-        var parts = cidr.split('/');
+        const parts = cidr.split('/');
         if (parts.length !== 2) return null;
-        
-        var ip = parts[0];
-        var prefix = parseInt(parts[1], 10);
-        var octets = ip.split('.');
+
+        const ip = parts[0];
+        const prefix = parseInt(parts[1], 10);
+        const octets = ip.split('.');
         if (octets.length !== 4) return null;
-        
+
         // Validate prefix is a valid number between 0 and 32
         if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return null;
-        
+
         // Determine how many octets to keep based on CIDR prefix
         if (prefix <= 8) {
             return octets[0] + '.*.*.*';
@@ -499,33 +499,33 @@
     // convertCidrToWildcard are in scope. Mirrors the bypass-list logic in
     // the rendered Outbound section so the PPTX exporter can produce the
     // same content without scraping the DOM.
-    window.__odinGetPrivateEndpointInfo = function () { return PRIVATE_ENDPOINT_INFO; };
-    window.__odinBuildProxyBypassList = function (s) {
+    window.__odinGetPrivateEndpointInfo = function() { return PRIVATE_ENDPOINT_INFO; };
+    window.__odinBuildProxyBypassList = function(s) {
         if (!s || s.proxy !== 'proxy') return [];
-        var items = [];
+        const items = [];
         items.push('localhost');
         items.push('127.0.0.1');
         if (s.nodeSettings && s.nodeSettings.length) {
-            s.nodeSettings.forEach(function (node) {
+            s.nodeSettings.forEach(function(node) {
                 if (node && node.name) items.push(node.name);
             });
-            s.nodeSettings.forEach(function (node) {
+            s.nodeSettings.forEach(function(node) {
                 if (node && node.ipCidr) {
-                    var ip = node.ipCidr.split('/')[0];
+                    const ip = node.ipCidr.split('/')[0];
                     if (ip) items.push(ip);
                 }
             });
         }
         if (s.adDomain) items.push('*.' + s.adDomain);
         if (s.infraCidr) {
-            var w = convertCidrToWildcard(s.infraCidr);
+            const w = convertCidrToWildcard(s.infraCidr);
             if (w) items.push(w);
         }
         if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList) {
-            s.privateEndpointsList.forEach(function (key) {
-                var info = PRIVATE_ENDPOINT_INFO[key];
+            s.privateEndpointsList.forEach(function(key) {
+                const info = PRIVATE_ENDPOINT_INFO[key];
                 if (info && info.proxyBypass) {
-                    info.proxyBypass.forEach(function (b) {
+                    info.proxyBypass.forEach(function(b) {
                         if (items.indexOf(b) === -1) items.push(b);
                     });
                 }
@@ -541,7 +541,7 @@
         if (state && state.storageAutoIp === 'disabled' &&
             Array.isArray(state.customStorageSubnets) &&
             state.customStorageSubnets[subnetIndex - 1]) {
-            var customCidr = String(state.customStorageSubnets[subnetIndex - 1]).trim();
+            const customCidr = String(state.customStorageSubnets[subnetIndex - 1]).trim();
             if (customCidr) return customCidr;
         }
         // When Auto IP is enabled, use Network ATC default subnets (10.71.0.0/16 range)
@@ -568,11 +568,11 @@
 
     function buildStandaloneReportWordHtml(opts) {
         opts = opts || {};
-        var inlineCss = opts.inlineCss || '';
-        var bodyHtml = opts.bodyHtml || '';
-        var title = opts.title || (document.title || 'Azure Local Design Assistant (ALDA) Tool — Report');
+        const inlineCss = opts.inlineCss || '';
+        const bodyHtml = opts.bodyHtml || '';
+        const title = opts.title || (document.title || 'Azure Local Design Assistant (ALDA) Tool — Report');
 
-        var headParts = [];
+        const headParts = [];
         headParts.push('<meta http-equiv="Content-Type" content="text/html; charset=utf-8">');
         headParts.push('<meta charset="UTF-8">');
         headParts.push('<title>' + escapeHtml(title) + '</title>');
@@ -639,34 +639,34 @@
     function convertSummarySectionsToWordTables(rootEl) {
         try {
             if (!rootEl) return;
-            var sections = rootEl.querySelectorAll('.summary-section');
-            for (var i = 0; i < sections.length; i++) {
-                var sec = sections[i];
+            const sections = rootEl.querySelectorAll('.summary-section');
+            for (let i = 0; i < sections.length; i++) {
+                const sec = sections[i];
                 if (!sec) continue;
 
-                var rows = sec.querySelectorAll('.summary-row');
+                const rows = sec.querySelectorAll('.summary-row');
                 if (!rows || !rows.length) continue;
 
-                var table = document.createElement('table');
+                const table = document.createElement('table');
                 table.className = 'word-kv-table';
                 table.setAttribute('cellspacing', '0');
                 table.setAttribute('cellpadding', '0');
 
-                var tbody = document.createElement('tbody');
+                const tbody = document.createElement('tbody');
                 table.appendChild(tbody);
 
-                for (var r = 0; r < rows.length; r++) {
-                    var row = rows[r];
-                    var labelEl = row.querySelector('.summary-label');
-                    var valueEl = row.querySelector('.summary-value');
+                for (let r = 0; r < rows.length; r++) {
+                    const row = rows[r];
+                    const labelEl = row.querySelector('.summary-label');
+                    const valueEl = row.querySelector('.summary-value');
                     if (!labelEl || !valueEl) continue;
 
-                    var tr = document.createElement('tr');
-                    var tdL = document.createElement('td');
+                    const tr = document.createElement('tr');
+                    const tdL = document.createElement('td');
                     tdL.className = 'word-kv-label';
                     tdL.textContent = (labelEl.textContent || '').trim();
 
-                    var tdV = document.createElement('td');
+                    const tdV = document.createElement('td');
                     tdV.className = 'word-kv-value';
                     // Preserve spans/links in value.
                     tdV.innerHTML = valueEl.innerHTML;
@@ -677,12 +677,12 @@
                 }
 
                 // Remove the original div rows.
-                for (var r2 = rows.length - 1; r2 >= 0; r2--) {
+                for (let r2 = rows.length - 1; r2 >= 0; r2--) {
                     if (rows[r2] && rows[r2].parentNode) rows[r2].parentNode.removeChild(rows[r2]);
                 }
 
                 // Insert the table after the section title (if present).
-                var title = sec.querySelector('.summary-section-title');
+                const title = sec.querySelector('.summary-section-title');
                 if (title && title.parentNode === sec && title.nextSibling) {
                     sec.insertBefore(table, title.nextSibling);
                 } else {
@@ -696,16 +696,16 @@
 
     function svgElementToPngDataUrl(svgEl, opts) {
         opts = opts || {};
-        var scale = opts.scale || 2;
-        var background = opts.background || '#ffffff';
-        var theme = opts.theme || 'light';
+        const scale = opts.scale || 2;
+        const background = opts.background || '#ffffff';
+        const theme = opts.theme || 'light';
 
         function ensureXlinkNamespace(svgNode) {
             try {
                 if (!svgNode) return;
                 // Some external SVGs rely on xlink:href for embedded images.
                 // Ensure the namespace exists so <image xlink:href="..."> resolves when serialized.
-                var hasXlinkHref = false;
+                let hasXlinkHref = false;
                 try {
                     hasXlinkHref = !!svgNode.querySelector('[xlink\\:href]');
                 } catch (eSel) {
@@ -722,11 +722,11 @@
         function stripAnimationStyles(svgNode) {
             try {
                 if (!svgNode) return;
-                var styled = svgNode.querySelectorAll('[style*="animation"], [style*="stroke-dashoffset"]');
-                for (var i = 0; i < styled.length; i++) {
-                    var el = styled[i];
+                const styled = svgNode.querySelectorAll('[style*="animation"], [style*="stroke-dashoffset"]');
+                for (let i = 0; i < styled.length; i++) {
+                    const el = styled[i];
                     if (!el) continue;
-                    var s = el.getAttribute('style');
+                    let s = el.getAttribute('style');
                     if (!s) continue;
                     // Remove animation declarations which can confuse some rasterizers.
                     s = s.replace(/(^|;)\s*animation\s*:[^;]+;?/gi, '$1');
@@ -755,29 +755,29 @@
                 // Canvas SVG rasterization is unreliable with foreignObject.
                 // The Arc Gateway SVG includes <switch><foreignObject>...<image> fallback.</switch>.
                 // Remove foreignObject and flatten switches to the fallback <image>.
-                var foreign = svgNode.querySelectorAll('foreignObject');
-                for (var f = foreign.length - 1; f >= 0; f--) {
-                    var fo = foreign[f];
+                const foreign = svgNode.querySelectorAll('foreignObject');
+                for (let f = foreign.length - 1; f >= 0; f--) {
+                    const fo = foreign[f];
                     if (fo && fo.parentNode) fo.parentNode.removeChild(fo);
                 }
 
                 // Strip scripts (defensive).
-                var scripts = svgNode.querySelectorAll('script');
-                for (var s = scripts.length - 1; s >= 0; s--) {
-                    var sc = scripts[s];
+                const scripts = svgNode.querySelectorAll('script');
+                for (let s = scripts.length - 1; s >= 0; s--) {
+                    const sc = scripts[s];
                     if (sc && sc.parentNode) sc.parentNode.removeChild(sc);
                 }
 
                 // Flatten <switch> to a concrete drawable element.
-                var switches = svgNode.querySelectorAll('switch');
-                for (var i = switches.length - 1; i >= 0; i--) {
-                    var sw = switches[i];
+                const switches = svgNode.querySelectorAll('switch');
+                for (let i = switches.length - 1; i >= 0; i--) {
+                    const sw = switches[i];
                     if (!sw || !sw.parentNode) continue;
 
-                    var picked = null;
+                    let picked = null;
                     // Prefer a direct <image> fallback.
-                    for (var c = 0; c < sw.childNodes.length; c++) {
-                        var child = sw.childNodes[c];
+                    for (let c = 0; c < sw.childNodes.length; c++) {
+                        const child = sw.childNodes[c];
                         if (!child || child.nodeType !== 1) continue;
                         if (String(child.nodeName).toLowerCase() === 'image') {
                             picked = child;
@@ -790,11 +790,11 @@
                     }
 
                     if (picked) {
-                        var repl = picked.cloneNode(true);
+                        const repl = picked.cloneNode(true);
                         // Preserve common container attributes.
-                        var tf = sw.getAttribute('transform');
+                        const tf = sw.getAttribute('transform');
                         if (tf && !repl.getAttribute('transform')) repl.setAttribute('transform', tf);
-                        var st = sw.getAttribute('style');
+                        const st = sw.getAttribute('style');
                         if (st && !repl.getAttribute('style')) repl.setAttribute('style', st);
                         sw.parentNode.replaceChild(repl, sw);
                     } else {
@@ -811,17 +811,17 @@
 
         function parseSvgLength(val) {
             if (!val) return null;
-            var s = String(val).trim();
+            const s = String(val).trim();
             // Strip common units (px/pt/em) and keep the leading number.
-            var m = s.match(/^([0-9]+(\.[0-9]+)?)/);
+            const m = s.match(/^([0-9]+(\.[0-9]+)?)/);
             if (!m) return null;
-            var n = parseFloat(m[1]);
+            const n = parseFloat(m[1]);
             return Number.isFinite(n) ? n : null;
         }
 
-        return new Promise(function (resolve) {
+        return new Promise(function(resolve) {
             try {
-                var clone = svgEl.cloneNode(true);
+                const clone = svgEl.cloneNode(true);
                 if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
                 ensureXlinkNamespace(clone);
@@ -829,8 +829,8 @@
 
                 // Inject theme vars so computed colors don't depend on external CSS.
                 try {
-                    var rootStyle = window.getComputedStyle(document.documentElement);
-                    var themeVars = {
+                    const rootStyle = window.getComputedStyle(document.documentElement);
+                    const themeVars = {
                         '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
                         '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
                         '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
@@ -851,21 +851,21 @@
                         themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
                     }
 
-                    var decls = Object.keys(themeVars)
-                        .map(function (k) {
-                            var v = (themeVars[k] || '').trim();
+                    const decls = Object.keys(themeVars)
+                        .map(function(k) {
+                            const v = (themeVars[k] || '').trim();
                             return v ? (k + ': ' + v + ';') : '';
                         })
                         .filter(Boolean)
                         .join(' ');
 
                     if (decls) {
-                        var defs = clone.querySelector('defs');
+                        let defs = clone.querySelector('defs');
                         if (!defs) {
                             defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
                             clone.insertBefore(defs, clone.firstChild);
                         }
-                        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
                         styleEl.textContent = ':root { ' + decls + ' }';
                         defs.appendChild(styleEl);
                     }
@@ -874,27 +874,27 @@
                 }
 
                 // Solid background rect so the resulting PNG isn't transparent.
-                var vbStr = (clone.getAttribute('viewBox') || '').trim();
-                var vb = null;
+                const vbStr = (clone.getAttribute('viewBox') || '').trim();
+                let vb = null;
                 if (vbStr) {
-                    var parts = vbStr.split(/\s+/).map(function (p) { return parseFloat(p); });
-                    if (parts.length === 4 && parts.every(function (n) { return Number.isFinite(n); })) {
+                    const parts = vbStr.split(/\s+/).map(function(p) { return parseFloat(p); });
+                    if (parts.length === 4 && parts.every(function(n) { return Number.isFinite(n); })) {
                         vb = { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
                     }
                 }
 
                 // Some SVGs omit viewBox and rely on width/height.
-                var wh = null;
+                let wh = null;
                 if (!vb) {
-                    var wAttr = parseSvgLength(clone.getAttribute('width'));
-                    var hAttr = parseSvgLength(clone.getAttribute('height'));
+                    const wAttr = parseSvgLength(clone.getAttribute('width'));
+                    const hAttr = parseSvgLength(clone.getAttribute('height'));
                     if (wAttr && hAttr) {
                         wh = { w: wAttr, h: hAttr };
                     }
                 }
 
                 try {
-                    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('fill', background);
                     if (vb) {
                         rect.setAttribute('x', String(vb.x));
@@ -908,7 +908,7 @@
                         rect.setAttribute('height', '100%');
                     }
 
-                    var defsNode = clone.querySelector('defs');
+                    const defsNode = clone.querySelector('defs');
                     if (defsNode && defsNode.nextSibling) {
                         clone.insertBefore(rect, defsNode.nextSibling);
                     } else {
@@ -918,20 +918,20 @@
                     // ignore
                 }
 
-                var serializer = new XMLSerializer();
-                var svgText = serializer.serializeToString(clone);
+                const serializer = new XMLSerializer();
+                let svgText = serializer.serializeToString(clone);
                 if (svgText.indexOf('<?xml') !== 0) {
                     svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
                 }
 
-                var svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-                var svgUrl = URL.createObjectURL(svgBlob);
+                const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
 
-                var img = new Image();
-                img.onload = function () {
+                const img = new Image();
+                img.onload = function() {
                     try {
-                        var w = 1200;
-                        var h = 800;
+                        let w = 1200;
+                        let h = 800;
                         if (vb) {
                             w = Math.max(1, Math.round(vb.w * scale));
                             h = Math.max(1, Math.round(vb.h * scale));
@@ -940,19 +940,19 @@
                             h = Math.max(1, Math.round(wh.h * scale));
                         } else {
                             // Fallback: use rendered size if available.
-                            var box = svgEl.getBoundingClientRect();
+                            const box = svgEl.getBoundingClientRect();
                             if (box && box.width && box.height) {
                                 w = Math.max(1, Math.round(box.width * scale));
                                 h = Math.max(1, Math.round(box.height * scale));
                             }
                         }
 
-                        var canvas = document.createElement('canvas');
+                        const canvas = document.createElement('canvas');
                         canvas.width = w;
                         canvas.height = h;
-                        var ctx = canvas.getContext('2d');
+                        const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
-                        var pngUrl = canvas.toDataURL('image/png');
+                        const pngUrl = canvas.toDataURL('image/png');
                         resolve(pngUrl);
                     } catch (eDraw) {
                         resolve(null);
@@ -960,7 +960,7 @@
                         URL.revokeObjectURL(svgUrl);
                     }
                 };
-                img.onerror = function () {
+                img.onerror = function() {
                     try { URL.revokeObjectURL(svgUrl); } catch (eRevoke) { /* URL already revoked or never minted */ }
                     resolve(null);
                 };
@@ -979,16 +979,16 @@
 
     function downloadReportWord() {
         try {
-            var main = document.querySelector('main.container');
+            const main = document.querySelector('main.container');
             if (!main) return;
 
-            var clone = main.cloneNode(true);
+            const clone = main.cloneNode(true);
 
             // Remove Validation Summary section from exports.
             try {
-                var validationsHost = clone.querySelector('#report-validations');
+                const validationsHost = clone.querySelector('#report-validations');
                 if (validationsHost) {
-                    var validationsStep = validationsHost.closest('.step');
+                    const validationsStep = validationsHost.closest('.step');
                     if (validationsStep && validationsStep.parentNode) {
                         validationsStep.parentNode.removeChild(validationsStep);
                     }
@@ -998,29 +998,29 @@
             }
 
             // Remove any action buttons and Close button.
-            var noPrintEls = clone.querySelectorAll('.no-print');
-            for (var i = 0; i < noPrintEls.length; i++) {
+            const noPrintEls = clone.querySelectorAll('.no-print');
+            for (let i = 0; i < noPrintEls.length; i++) {
                 if (noPrintEls[i] && noPrintEls[i].parentNode) {
                     noPrintEls[i].parentNode.removeChild(noPrintEls[i]);
                 }
             }
-            var resetBtn = clone.querySelector('.reset-button');
+            const resetBtn = clone.querySelector('.reset-button');
             if (resetBtn && resetBtn.parentNode) {
                 resetBtn.parentNode.removeChild(resetBtn);
             }
 
             // Convert diagrams (SVG) to embedded PNG images for Word.
-            var prefetch = Promise.resolve();
+            let prefetch = Promise.resolve();
             // If outbound diagram hasn't loaded yet, fetch into the export clone so it appears in Word.
-            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            const diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
             if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
-                var diagramHost = clone.querySelector('#outbound-connectivity-diagram');
+                const diagramHost = clone.querySelector('#outbound-connectivity-diagram');
                 if (diagramHost && !diagramHost.querySelector('svg')) {
-                    var diagramUrl = OUTBOUND_DIAGRAMS[diagKey];
+                    const diagramUrl = OUTBOUND_DIAGRAMS[diagKey];
                     prefetch = fetch(diagramUrl)
                         .then(function(resp) { return resp.text(); })
                         .then(function(svg) {
-                            var containerEl = diagramHost.querySelector('#outbound-diagram-container');
+                            const containerEl = diagramHost.querySelector('#outbound-diagram-container');
                             if (containerEl) {
                                 containerEl.innerHTML = svg;
                             } else {
@@ -1030,16 +1030,16 @@
                 }
             }
 
-            prefetch.then(function () {
-                var svgs = clone.querySelectorAll('svg.switchless-diagram__svg');
-                var conversions = [];
-                for (var s = 0; s < svgs.length; s++) {
-                    (function (svgNode) {
+            prefetch.then(function() {
+                const svgs = clone.querySelectorAll('svg.switchless-diagram__svg');
+                const conversions = [];
+                for (let s = 0; s < svgs.length; s++) {
+                    (function(svgNode) {
                         conversions.push(
                             svgElementToPngDataUrl(svgNode, { theme: 'dark', background: '#000000', scale: 2 })
-                                .then(function (pngDataUrl) {
+                                .then(function(pngDataUrl) {
                                     if (!pngDataUrl) return;
-                                    var img = document.createElement('img');
+                                    const img = document.createElement('img');
                                     img.alt = 'Network diagram';
                                     img.src = pngDataUrl;
 
@@ -1056,15 +1056,15 @@
                 }
 
                 // Also convert the outbound connectivity diagram SVG to PNG for Word
-                var outboundContainer = clone.querySelector('#outbound-diagram-container');
+                const outboundContainer = clone.querySelector('#outbound-diagram-container');
                 if (outboundContainer) {
-                    var outboundSvg = outboundContainer.querySelector('svg');
+                    const outboundSvg = outboundContainer.querySelector('svg');
                     if (outboundSvg) {
                         conversions.push(
                             svgElementToPngDataUrl(outboundSvg, { theme: 'dark', background: '#000000', scale: 2 })
-                                .then(function (pngDataUrl) {
+                                .then(function(pngDataUrl) {
                                     if (!pngDataUrl) return;
-                                    var img = document.createElement('img');
+                                    const img = document.createElement('img');
                                     img.alt = 'Outbound connectivity diagram';
                                     img.src = pngDataUrl;
                                     img.style.width = '100%';
@@ -1078,34 +1078,34 @@
                 }
 
                 return Promise.all(conversions);
-            }).then(function () {
+            }).then(function() {
                 // Convert label/value summary grids to tables for clear Word formatting.
                 convertSummarySectionsToWordTables(clone);
 
-                var wordCss = buildWordFriendlyCss();
+                const wordCss = buildWordFriendlyCss();
 
                 // Include background-globes div to avoid relying on page structure; CSS hides it.
-                var bodyHtml = '<div class="background-globes"></div>' + clone.outerHTML;
-                var html = buildStandaloneReportWordHtml({ inlineCss: wordCss, bodyHtml: bodyHtml });
+                const bodyHtml = '<div class="background-globes"></div>' + clone.outerHTML;
+                const html = buildStandaloneReportWordHtml({ inlineCss: wordCss, bodyHtml: bodyHtml });
 
-                var blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
-                var url = URL.createObjectURL(blob);
+                const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
 
-                var ts = new Date();
-                var pad2 = function (n) { return String(n).padStart(2, '0'); };
-                var fileName = 'azure-local-report-'
+                const ts = new Date();
+                const pad2 = function(n) { return String(n).padStart(2, '0'); };
+                const fileName = 'azure-local-report-'
                     + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
                     + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
                     + '.doc';
 
-                var a = document.createElement('a');
+                const a = document.createElement('a');
                 a.href = url;
                 a.download = fileName;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
 
-                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
             });
         } catch (e) {
             // ignore
@@ -1113,7 +1113,7 @@
     }
 
     function buildMarkdownContent(s, diagrams) {
-        var md = [];
+        const md = [];
         md.push('# Azure Local Configuration Report');
         md.push('');
 
@@ -1137,7 +1137,7 @@
                 md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
                 md.push('| Autonomous Cloud FQDN | ' + escapeMd(s.autonomousCloudFqdn || 'Not configured') + ' |');
                 if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
-                    var ipParts = [];
+                    const ipParts = [];
                     if (s.applianceIp1) ipParts.push('Ingress vNIC: ' + escapeMd(s.applianceIp1));
                     if (s.applianceIp2) ipParts.push('Mgmt vNIC: ' + escapeMd(s.applianceIp2));
                     md.push('| Appliance IPs | `' + ipParts.join(' \u00B7 ') + '` |');
@@ -1154,7 +1154,7 @@
 
         // Sizer Hardware Configuration (only present when imported from Sizer)
         if (s.sizerHardware) {
-            var hw = s.sizerHardware;
+            const hw = s.sizerHardware;
             md.push('## Hardware Configuration (from Sizer)');
             md.push('');
             md.push('| Setting | Value |');
@@ -1175,12 +1175,12 @@
                 md.push('| vCPU Ratio (pCPU:vCPU) | ' + hw.vcpuRatio + ':1 |');
             }
             if (hw.storage) {
-                var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
-                                   hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
-                                   hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
+                const storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
+                    hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
+                        hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
                 md.push('| Storage Configuration | ' + storageLabel + ' |');
                 if (hw.storage.diskConfig) {
-                    var dc = hw.storage.diskConfig;
+                    const dc = hw.storage.diskConfig;
                     if (dc.isTiered && dc.cache && dc.capacity) {
                         md.push('| Cache Disks | ' + dc.cache.count + 'x ' + (dc.cache.sizeGB >= 1024 ? (dc.cache.sizeGB / 1024).toFixed(1) + ' TB' : dc.cache.sizeGB + ' GB') + ' (' + (dc.cache.type || '') + ') |');
                         md.push('| Capacity Disks | ' + dc.capacity.count + 'x ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ') |');
@@ -1190,20 +1190,20 @@
                 }
             }
             if (hw.resiliency) {
-                var resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
-                               hw.resiliency === '2way' ? 'Two-way Mirror' :
-                               hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
+                const resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
+                    hw.resiliency === '2way' ? 'Two-way Mirror' :
+                        hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
                 md.push('| Storage Resiliency | ' + resLabel + ' |');
             }
             if (hw.futureGrowth && hw.futureGrowth !== '0') {
                 md.push('| Future Growth | ' + hw.futureGrowth + '% |');
             }
             if (hw.clusterType) {
-                var ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+                const ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
                 md.push('| Cluster Type | ' + (ctLabels[hw.clusterType] || hw.clusterType) + ' |');
             }
             if (hw.workloadSummary) {
-                var ws = hw.workloadSummary;
+                const ws = hw.workloadSummary;
                 md.push('| Workloads | ' + (ws.count || 0) + ' |');
                 md.push('| Total vCPUs Required | ' + (ws.totalVcpus || 0) + ' |');
                 md.push('| Total Memory Required | ' + (ws.totalMemoryGB || 0) + ' GB |');
@@ -1214,14 +1214,14 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
-            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
+            const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
             md.push('');
-            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
-                var wl = s.sizerWorkloads[wi];
-                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+            for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                const wl = s.sizerWorkloads[wi];
+                const wlLabel = wl.name || typeLabels[wl.type] || wl.type;
                 md.push('### ' + wlLabel + ' (' + (typeLabels[wl.type] || wl.type) + ')');
                 md.push('');
                 md.push('| Setting | Value |');
@@ -1260,7 +1260,7 @@
                     md.push('| Worker VMs | 4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ') |');
                     md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
                 } else if (wl.type === 'videoindexer') {
-                    var viIsMin = wl.configuration === 'minimum';
+                    const viIsMin = wl.configuration === 'minimum';
                     md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
                     md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
                     md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
@@ -1283,14 +1283,14 @@
         if (s.storageAutoIp === 'enabled') {
             md.push('| Storage Subnets | Default Network ATC (10.71.0.0/16) - IPs assigned automatically |');
         } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
-            var validSubnets = s.customStorageSubnets.filter(function(sub) { return sub && String(sub).trim(); });
+            const validSubnets = s.customStorageSubnets.filter(function(sub) { return sub && String(sub).trim(); });
             if (validSubnets.length > 0) {
                 md.push('| Storage Subnets | `' + validSubnets.join(', ') + '` |');
             }
         }
         if (s.storagePoolConfiguration) {
-            var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
-                          s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
+            const spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
+                s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
             md.push('| Storage Pool Configuration | ' + spConfig + ' |');
         }
         if (s.torSwitchCount) md.push('| ToR Switch Count | ' + (s.torSwitchCount === '1' ? 'Single' : 'Dual') + ' |');
@@ -1303,9 +1303,9 @@
             md.push('| Port | Speed | RDMA |');
             md.push('|------|-------|------|');
             s.portConfig.forEach(function(pc, idx) {
-                var name = (pc && pc.customName) ? pc.customName : ('Port ' + (idx + 1));
-                var speed = (pc && pc.speed) ? pc.speed : '-';
-                var rdma = (pc && pc.rdma) ? 'Yes' : 'No';
+                const name = (pc && pc.customName) ? pc.customName : ('Port ' + (idx + 1));
+                const speed = (pc && pc.speed) ? pc.speed : '-';
+                const rdma = (pc && pc.rdma) ? 'Yes' : 'No';
                 md.push('| ' + name + ' | ' + speed + ' | ' + rdma + ' |');
             });
             md.push('');
@@ -1352,7 +1352,7 @@
         if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + escapeMd(s.infra.start) + ' - ' + escapeMd(s.infra.end) + '` |');
         if (s.infraGateway) md.push('| Default Gateway | `' + escapeMd(s.infraGateway) + '` |');
         if (s.scenario === 'disconnected' && (s.applianceIp1 || s.applianceIp2)) {
-            var ipPartsInfra = [];
+            const ipPartsInfra = [];
             if (s.applianceIp1) ipPartsInfra.push('Ingress vNIC: ' + escapeMd(s.applianceIp1));
             if (s.applianceIp2) ipPartsInfra.push('Mgmt vNIC: ' + escapeMd(s.applianceIp2));
             md.push('| Appliance IPs | `' + ipPartsInfra.join(' \u00B7 ') + '` |');
@@ -1366,8 +1366,8 @@
             md.push('| Node | Name | IP Address |');
             md.push('|------|------|------------|');
             s.nodeSettings.forEach(function(node, idx) {
-                var name = (node && node.name) ? node.name : ('node' + (idx + 1));
-                var ip = '-';
+                const name = (node && node.name) ? node.name : ('node' + (idx + 1));
+                let ip = '-';
                 if (node && node.ipCidr) {
                     ip = String(node.ipCidr).split('/')[0];
                 } else if (node && node.ip) {
@@ -1388,7 +1388,7 @@
         if (s.adOuPath) md.push('| OU Path | `' + escapeMd(s.adOuPath) + '` |');
         if (s.adfsServerName) md.push('| ADFS Server Name | `' + escapeMd(s.adfsServerName) + '` |');
         if (Array.isArray(s.dnsServers) && s.dnsServers.length > 0) {
-            var dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
+            const dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
             if (dnsStr) md.push('| DNS Servers | `' + escapeMd(dnsStr) + '` |');
         }
         if (s.localDnsZone) md.push('| Local DNS Zone | `' + escapeMd(s.localDnsZone) + '` |');
@@ -1403,8 +1403,8 @@
             md.push('| Configuration | ' + (s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized') + ' |');
             // Always list all 7 controls. Recommended mode = all enforced (matches wizard
             // defaults); Customized mode reflects the user's per-control selections.
-            var sec = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
-            var secOn = function (key) { return sec ? (sec[key] !== undefined ? sec[key] : true) : true; };
+            const sec = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            const secOn = function(key) { return sec ? (sec[key] !== undefined ? sec[key] : true) : true; };
             md.push('| WDAC | ' + (secOn('wdacEnforced') ? 'Enabled' : 'Disabled') + ' |');
             md.push('| Credential Guard | ' + (secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled') + ' |');
             md.push('| Drift Control | ' + (secOn('driftControlEnforced') ? 'Enabled' : 'Disabled') + ' |');
@@ -1427,10 +1427,10 @@
         }
 
         // ── Validation Summary ──
-        var validations = computeValidations(s);
-        var allChecks = validations.results || [];
-        var passCount = allChecks.filter(function (x) { return x.passed; }).length;
-        var failCount = allChecks.length - passCount;
+        const validations = computeValidations(s);
+        const allChecks = validations.results || [];
+        const passCount = allChecks.filter(function(x) { return x.passed; }).length;
+        const failCount = allChecks.length - passCount;
 
         md.push('## Validation Summary');
         md.push('');
@@ -1440,10 +1440,10 @@
         if (allChecks.length > 0) {
             md.push('| Status | Check | Details |');
             md.push('|--------|-------|---------|');
-            allChecks.forEach(function (v) {
-                var mark = v.passed ? '✅' : '⚠️';
-                var details = v.details ? v.details.replace(/\|/g, function() { return '\\|'; }) : '';
-                var name = v.name ? v.name.replace(/\|/g, function() { return '\\|'; }) : '';
+            allChecks.forEach(function(v) {
+                const mark = v.passed ? '✅' : '⚠️';
+                const details = v.details ? v.details.replace(/\|/g, function() { return '\\|'; }) : '';
+                const name = v.name ? v.name.replace(/\|/g, function() { return '\\|'; }) : '';
                 md.push('| ' + mark + ' | ' + name + ' | ' + details + ' |');
             });
             md.push('');
@@ -1482,7 +1482,7 @@
             md.push('**Autonomous Cloud FQDN:** ' + (s.autonomousCloudFqdn || 'Not configured'));
             md.push('');
             if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
-                var ipPartsRationale = [];
+                const ipPartsRationale = [];
                 if (s.applianceIp1) ipPartsRationale.push('Ingress vNIC: ' + s.applianceIp1);
                 if (s.applianceIp2) ipPartsRationale.push('Mgmt vNIC: ' + s.applianceIp2);
                 md.push('**Appliance IPs:** ' + ipPartsRationale.join(' · '));
@@ -1497,14 +1497,14 @@
             md.push('');
             md.push('**Azure Local Instance Region:** ' + formatLocalInstanceRegion(s.localInstanceRegion));
             md.push('');
-            var cloudNotes = [];
+            const cloudNotes = [];
             cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
             if (s.region === 'azure_commercial') {
                 cloudNotes.push('Azure Local supported regions for Azure Public include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
             } else if (s.region === 'azure_government') {
                 cloudNotes.push('Azure Local supported regions for Azure Government include: US Gov Virginia.');
             }
-            cloudNotes.forEach(function (n) { md.push('- ' + n); });
+            cloudNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
@@ -1515,12 +1515,12 @@
         md.push('');
         md.push('**Nodes:** ' + (s.nodes || '-'));
         md.push('');
-        var scaleNotes = [];
+        const scaleNotes = [];
         if (s.scale === 'low_capacity') scaleNotes.push('Low Capacity targets smaller deployments and limits certain network intent combinations.');
         if (s.scale === 'rack_aware') scaleNotes.push('Rack Aware is designed for multi-room / split-rack node placement.');
         if (s.scenario === 'disconnected') scaleNotes.push('Disconnected mode typically enforces Standard scale constraints.');
         if (scaleNotes.length) {
-            scaleNotes.forEach(function (n) { md.push('- ' + n); });
+            scaleNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
@@ -1531,14 +1531,14 @@
         md.push('');
         md.push('**Ports per node:** ' + (s.ports || '-'));
         md.push('');
-        var storageNotes = [];
+        const storageNotes = [];
         if (s.storage === 'switchless') {
             storageNotes.push('Switchless storage typically reduces the number of storage networks and impacts intent options.');
             storageNotes.push('Switchless storage is generally intended for smaller clusters; larger clusters require switched storage connectivity.');
         }
         if (String(s.ports) === '4') storageNotes.push('With 4 ports, the wizard disables Custom intent (insufficient ports for flexible mapping).');
         if (storageNotes.length) {
-            storageNotes.forEach(function (n) { md.push('- ' + n); });
+            storageNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
@@ -1547,13 +1547,13 @@
         md.push('');
         md.push('**Intent:** ' + formatIntent(s.intent));
         md.push('');
-        var intentNotes = [];
+        const intentNotes = [];
         if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
         if (s.intent === 'mgmt_compute') intentNotes.push('Splits storage traffic away from mgmt/compute to reduce contention and isolate storage behavior.');
         if (s.intent === 'compute_storage') intentNotes.push('Keeps management isolated while converging compute+storage.');
         if (s.intent === 'custom') intentNotes.push('Custom intent allows manual adapter assignment.');
         if (intentNotes.length) {
-            intentNotes.forEach(function (n) { md.push('- ' + n); });
+            intentNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
@@ -1572,11 +1572,11 @@
             md.push('**Network Requirements:** [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network)');
             md.push('');
         } else if (s.arc || s.localInstanceRegion) {
-            var fwInfoRat = getFirewallEndpointInfo(s);
+            const fwInfoRat = getFirewallEndpointInfo(s);
             md.push('**Firewall Allow List Endpoint Requirements:** [' + fwInfoRat.label + '](' + fwInfoRat.url + ')');
             md.push('');
         }
-        var outboundNotes = [];
+        const outboundNotes = [];
         if (s.outbound === 'private') {
             outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
             outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint.');
@@ -1585,32 +1585,32 @@
             outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
         }
         if (outboundNotes.length) {
-            outboundNotes.forEach(function (n) { md.push('- ' + n); });
+            outboundNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
         // Proxy Bypass String
         if (s.proxy === 'proxy') {
-            var bypassItems = ['localhost', '127.0.0.1'];
+            const bypassItems = ['localhost', '127.0.0.1'];
             if (s.nodeSettings && s.nodeSettings.length) {
                 s.nodeSettings.forEach(function(node) {
                     if (node && node.name) bypassItems.push(node.name);
                 });
                 s.nodeSettings.forEach(function(node) {
                     if (node && node.ipCidr) {
-                        var ip = node.ipCidr.split('/')[0];
+                        const ip = node.ipCidr.split('/')[0];
                         if (ip) bypassItems.push(ip);
                     }
                 });
             }
             if (s.adDomain) bypassItems.push('*.' + s.adDomain);
             if (s.infraCidr) {
-                var infraWild = convertCidrToWildcard(s.infraCidr);
+                const infraWild = convertCidrToWildcard(s.infraCidr);
                 if (infraWild) bypassItems.push(infraWild);
             }
             if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
                 s.privateEndpointsList.forEach(function(peKey) {
-                    var info = PRIVATE_ENDPOINT_INFO[peKey];
+                    const info = PRIVATE_ENDPOINT_INFO[peKey];
                     if (info && info.proxyBypass) {
                         info.proxyBypass.forEach(function(bypass) {
                             if (bypassItems.indexOf(bypass) === -1) bypassItems.push(bypass);
@@ -1635,7 +1635,7 @@
             md.push('| Service | FQDN | Private Link Zone |');
             md.push('|---------|------|-------------------|');
             s.privateEndpointsList.forEach(function(peKey) {
-                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                const info = PRIVATE_ENDPOINT_INFO[peKey];
                 if (info) {
                     md.push('| ' + info.icon + ' ' + info.name + ' | `' + info.fqdn + '` | `' + info.privateLink + '` |');
                 }
@@ -1644,7 +1644,7 @@
 
             // Show individual PE considerations
             s.privateEndpointsList.forEach(function(peKey) {
-                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                const info = PRIVATE_ENDPOINT_INFO[peKey];
                 if (info && info.considerations && info.considerations.length > 0) {
                     md.push('**' + info.icon + ' ' + info.name + ' Considerations:**');
                     md.push('');
@@ -1673,13 +1673,13 @@
             md.push('**Infra Range:** `' + s.infra.start + ' - ' + s.infra.end + '`');
         }
         md.push('');
-        var mgmtNotes = [
+        const mgmtNotes = [
             'Management IP strategy affects provisioning workflow and long-term operations.',
             'Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.',
             'Management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration.',
             'The infrastructure IP pool is designed for cluster infrastructure services; size it with headroom if you expect additional services later.'
         ];
-        mgmtNotes.forEach(function (n) { md.push('- ' + n); });
+        mgmtNotes.forEach(function(n) { md.push('- ' + n); });
         md.push('');
 
         // Identity & DNS
@@ -1690,7 +1690,7 @@
         if (s.dnsServers && s.dnsServers.length) { md.push(''); md.push('**DNS Servers:** `' + s.dnsServers.join(', ') + '`'); }
         if (s.localDnsZone) { md.push(''); md.push('**Local DNS Zone:** `' + s.localDnsZone + '`'); }
         md.push('');
-        var idNotes = [];
+        const idNotes = [];
         if (s.activeDirectory === 'azure_ad') idNotes.push('Domain-joined deployments require correct AD DNS resolution and domain membership planning.');
         if (s.activeDirectory === 'local_identity') idNotes.push('Local Identity mode typically requires a local DNS zone for name resolution within the environment.');
         if (s.dnsServers && s.dnsServers.length) {
@@ -1698,7 +1698,7 @@
             idNotes.push('Azure Local guidance states DNS server IPs used by nodes are not supported to change after deployment.');
         }
         if (idNotes.length) {
-            idNotes.forEach(function (n) { md.push('- ' + n); });
+            idNotes.forEach(function(n) { md.push('- ' + n); });
             md.push('');
         }
 
@@ -1725,42 +1725,42 @@
     }
 
     function triggerMarkdownDownload(content) {
-        var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
 
-        var ts = new Date();
-        var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
-        var fileName = 'AzureLocal-Config-'
+        const ts = new Date();
+        const pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+        const fileName = 'AzureLocal-Config-'
             + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
             + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
             + '.md';
 
-        var a = document.createElement('a');
+        const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
 
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
     }
 
     function downloadReportMarkdown() {
         try {
             if (!CURRENT_REPORT_STATE) return;
-            var s = CURRENT_REPORT_STATE;
+            const s = CURRENT_REPORT_STATE;
 
             // Collect diagram PNG data URLs first (async), then build markdown
-            var diagramPromises = [];
+            const diagramPromises = [];
 
             // Host Networking diagram (SVG rendered in page)
-            var hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
-            var hostSvg = hostSec ? hostSec.querySelector('svg.switchless-diagram__svg') : null;
+            const hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
+            const hostSvg = hostSec ? hostSec.querySelector('svg.switchless-diagram__svg') : null;
             if (hostSvg) {
                 diagramPromises.push(
                     svgElementToPngDataUrl(hostSvg, { theme: 'dark', background: '#000000', scale: 2 })
-                        .then(function (url) { return { key: 'host', url: url }; })
-                        .catch(function () { return { key: 'host', url: null }; })
+                        .then(function(url) { return { key: 'host', url: url }; })
+                        .catch(function() { return { key: 'host', url: null }; })
                 );
             } else {
                 diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
@@ -1773,24 +1773,24 @@
             // sanitises the tree (removes foreignObject, flattens <switch> to <image>
             // fallbacks) before rasterising — the exact same path used for the host
             // networking diagram.
-            var outboundDiagKey = getOutboundDiagramKey(s);
+            const outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
-                diagramPromises.push(new Promise(function (resolve) {
+                diagramPromises.push(new Promise(function(resolve) {
                     try {
-                        var xhr = new XMLHttpRequest();
+                        const xhr = new XMLHttpRequest();
                         xhr.open('GET', OUTBOUND_DIAGRAMS[outboundDiagKey], true);
-                        xhr.onload = function () {
+                        xhr.onload = function() {
                             if (xhr.status === 200 || xhr.status === 0) {
-                                var svgText = xhr.responseText;
+                                const svgText = xhr.responseText;
                                 if (svgText && svgText.indexOf('<svg') !== -1) {
                                     try {
-                                        var parser = new DOMParser();
-                                        var doc = parser.parseFromString(svgText, 'image/svg+xml');
-                                        var svgEl = doc.querySelector('svg');
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                                        const svgEl = doc.querySelector('svg');
                                         if (svgEl) {
                                             svgElementToPngDataUrl(svgEl, { theme: 'dark', background: '#000000', scale: 2 })
-                                                .then(function (url) { resolve({ key: 'outbound', url: url }); })
-                                                .catch(function () { resolve({ key: 'outbound', url: null }); });
+                                                .then(function(url) { resolve({ key: 'outbound', url: url }); })
+                                                .catch(function() { resolve({ key: 'outbound', url: null }); });
                                         } else {
                                             console.warn('Outbound diagram: no <svg> element in parsed response');
                                             resolve({ key: 'outbound', url: null });
@@ -1808,7 +1808,7 @@
                                 resolve({ key: 'outbound', url: null });
                             }
                         };
-                        xhr.onerror = function () {
+                        xhr.onerror = function() {
                             console.warn('Outbound diagram: XHR network error');
                             resolve({ key: 'outbound', url: null });
                         };
@@ -1822,14 +1822,14 @@
                 diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
             }
 
-            Promise.all(diagramPromises).then(function (diagramResults) {
-                var diagrams = {};
-                diagramResults.forEach(function (d) { diagrams[d.key] = d.url; });
-                var content = buildMarkdownContent(s, diagrams);
+            Promise.all(diagramPromises).then(function(diagramResults) {
+                const diagrams = {};
+                diagramResults.forEach(function(d) { diagrams[d.key] = d.url; });
+                const content = buildMarkdownContent(s, diagrams);
                 triggerMarkdownDownload(content);
-            }).catch(function (err) {
+            }).catch(function(err) {
                 console.error('Markdown diagram error, exporting without diagrams:', err);
-                var content = buildMarkdownContent(s, {});
+                const content = buildMarkdownContent(s, {});
                 triggerMarkdownDownload(content);
             });
         } catch (e) {
@@ -1841,7 +1841,7 @@
     // Helper: get disaggregated port list for report rendering (top-level for drawio + diagram access)
     // Port IDs must match wizard format (ocp_p1, pcie1_p2, etc.) for config lookups
     function getDisaggPortListForReport(storageType, backupEnabled, portCount) {
-        var ports = [
+        const ports = [
             { id: 'ocp_p1', defaultName: 'OCP-NIC1', slot: 'ocp' },
             { id: 'ocp_p2', defaultName: 'OCP-NIC2', slot: 'ocp' },
             { id: 'pcie1_p1', defaultName: 'PCIe1-NIC3', slot: 'pcie1' },
@@ -1868,26 +1868,26 @@
      */
     function generateHostNetworkingDrawio(s) {
         if (!s || !s.ports || !s.intent) return '';
-        var ports = parseInt(s.ports, 10) || 0;
+        let ports = parseInt(s.ports, 10) || 0;
         if (ports <= 0) return '';
 
-        var nAll = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
-        var isSingleNode = nAll === 1;
-        var n = Math.min(nAll, 4);
-        var isSwitchless = s.storage === 'switchless';
-        var showTorSwitches = !isSwitchless;
-        var torCount = isSingleNode ? 1 : ((s.torSwitchCount === 'single') ? 1 : 2);
+        const nAll = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+        const isSingleNode = nAll === 1;
+        const n = Math.min(nAll, 4);
+        const isSwitchless = s.storage === 'switchless';
+        const showTorSwitches = !isSwitchless;
+        const torCount = isSingleNode ? 1 : ((s.torSwitchCount === 'single') ? 1 : 2);
 
-        var intent = s.intent;
+        const intent = s.intent;
 
         // --- Port classification (mirrors SVG logic) ---
-        var hasAdapterMapping = s.adapterMappingConfirmed && s.adapterMapping && Object.keys(s.adapterMapping).length > 0;
+        const hasAdapterMapping = s.adapterMappingConfirmed && s.adapterMapping && Object.keys(s.adapterMapping).length > 0;
 
         function getTraffic(portIdx) {
-            var nic = portIdx + 1;
+            const nic = portIdx + 1;
             if (!intent) return [];
             if (hasAdapterMapping && s.adapterMapping[nic]) {
-                var m = s.adapterMapping[nic];
+                const m = s.adapterMapping[nic];
                 if (m === 'mgmt') return ['m', 'c'];
                 if (m === 'compute' || m === 'compute_1' || m === 'compute_2') return ['c'];
                 if (m === 'storage') return ['s'];
@@ -1906,7 +1906,7 @@
                 return portIdx < 2 ? ['m'] : ['c', 's'];
             }
             if (intent === 'custom') {
-                var val = (s.customIntents && s.customIntents[nic]) || 'unused';
+                const val = (s.customIntents && s.customIntents[nic]) || 'unused';
                 if (val === 'mgmt') return ['m'];
                 if (val === 'compute' || val === 'compute_1' || val === 'compute_2') return ['c'];
                 if (val === 'storage') return ['s'];
@@ -1919,33 +1919,38 @@
         }
 
         // Classify ports
-        var mgmtPorts = [];
-        var storPorts = [];
-        for (var pi = 0; pi < ports; pi++) {
-            var t = getTraffic(pi);
-            var hasS = t.indexOf('s') >= 0;
-            var hasM = t.indexOf('m') >= 0;
-            var hasC = t.indexOf('c') >= 0;
-            if (hasS && !hasM && !hasC) { storPorts.push(pi + 1); }
-            else if (hasS) { storPorts.push(pi + 1); mgmtPorts.push(pi + 1); } // all_traffic: both
-            else { mgmtPorts.push(pi + 1); }
+        let mgmtPorts = [];
+        let storPorts = [];
+        for (let pi = 0; pi < ports; pi++) {
+            const t = getTraffic(pi);
+            const hasS = t.indexOf('s') >= 0;
+            const hasM = t.indexOf('m') >= 0;
+            const hasC = t.indexOf('c') >= 0;
+            if (hasS && !hasM && !hasC) {
+                storPorts.push(pi + 1);
+            } else if (hasS) {
+                storPorts.push(pi + 1);
+                mgmtPorts.push(pi + 1);
+            } else { // all_traffic: both
+                mgmtPorts.push(pi + 1);
+            }
         }
         // For all_traffic, all ports go to mgmtPorts only (one group)
         if (intent === 'all_traffic') {
             mgmtPorts = [];
             storPorts = [];
-            for (var ai = 0; ai < ports; ai++) { mgmtPorts.push(ai + 1); }
+            for (let ai = 0; ai < ports; ai++) { mgmtPorts.push(ai + 1); }
         }
 
         // For switchless topologies, override to canonical port layout matching ODIN SVG diagrams:
         // Always 2 mgmt+compute ports + (n-1)*2 storage ports per node, regardless of user config.
         // 2-node: 2 storage (4 total), 3-node: 4 storage (6 total), 4-node: 6 storage (8 total).
         if (isSwitchless && n >= 2) {
-            var storCount = (n - 1) * 2;
+            const storCount = (n - 1) * 2;
             ports = 2 + storCount;
             mgmtPorts = [1, 2];
             storPorts = [];
-            for (var sp = 3; sp <= ports; sp++) storPorts.push(sp);
+            for (let sp = 3; sp <= ports; sp++) storPorts.push(sp);
         }
 
         function getPortName(idx1) {
@@ -1958,32 +1963,33 @@
         }
 
         // --- Layout constants ---
-        var torW = 160, torH = 50;
-        var mgmtVnicAreaHD = 48;
-        var nodeW = 300, nodeH = 200 + mgmtVnicAreaHD;
-        var portW = 56, portH = 34;
-        var portGap = 10;
-        var nodeGap = 60;
-        var torGap = 80;
-        var torToNodeGap = 100;
-        var marginX = 60, marginY = 40;
-        var intentBoxPad = 10;
+        const torW = 160, torH = 50;
+        const mgmtVnicAreaHD = 48;
+        let nodeW = 300;
+        const nodeH = 200 + mgmtVnicAreaHD;
+        const portW = 56, portH = 34;
+        const portGap = 10;
+        const nodeGap = 60;
+        const torGap = 80;
+        const torToNodeGap = 100;
+        const marginX = 60, marginY = 40;
+        const intentBoxPad = 10;
 
         // Calculate node width based on port count
-        var totalPortsW = ports * portW + (ports - 1) * portGap;
+        const totalPortsW = ports * portW + (ports - 1) * portGap;
         if (totalPortsW + 40 > nodeW) nodeW = totalPortsW + 60;
 
         // Overall layout
-        var totalNodesW = n * nodeW + (n - 1) * nodeGap;
-        var svgW = Math.max(totalNodesW + marginX * 2, (torCount === 2 ? (2 * torW + torGap) : torW) + marginX * 2);
-        var torY = marginY;
-        var nodesY = showTorSwitches ? (torY + torH + torToNodeGap) : marginY;
-        var nodesStartX = (svgW - totalNodesW) / 2;
+        const totalNodesW = n * nodeW + (n - 1) * nodeGap;
+        const svgW = Math.max(totalNodesW + marginX * 2, (torCount === 2 ? (2 * torW + torGap) : torW) + marginX * 2);
+        const torY = marginY;
+        const nodesY = showTorSwitches ? (torY + torH + torToNodeGap) : marginY;
+        const nodesStartX = (svgW - totalNodesW) / 2;
 
         // --- Build cells ---
-        var cells = [];
-        var cellId = 2; // 0 and 1 are reserved by draw.io
-        var edges = [];
+        const cells = [];
+        let cellId = 2; // 0 and 1 are reserved by draw.io
+        const edges = [];
 
         function addCell(id, value, x, y, w, h, style, parent) {
             cells.push({
@@ -2005,10 +2011,10 @@
         function nextId() { return String(cellId++); }
 
         // --- ToR switches ---
-        var tor1Id = null, tor2Id = null;
+        let tor1Id = null, tor2Id = null;
         if (showTorSwitches) {
-            var torTotalW = torCount === 2 ? (2 * torW + torGap) : torW;
-            var torStartX = (svgW - torTotalW) / 2;
+            const torTotalW = torCount === 2 ? (2 * torW + torGap) : torW;
+            const torStartX = (svgW - torTotalW) / 2;
 
             tor1Id = nextId();
             addCell(tor1Id, 'ToR Switch 1', torStartX, torY, torW, torH,
@@ -2020,7 +2026,7 @@
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#666666;fontColor=#FFFFFF;fontSize=13;fontStyle=1;arcSize=20;');
 
                 // MLAG/LAG link between ToRs
-                var lagId = nextId();
+                const lagId = nextId();
                 addEdge(lagId, tor1Id, tor2Id,
                     'endArrow=none;html=1;strokeColor=#3B82F6;strokeWidth=3;fontColor=#999999;fontSize=10;labelBackgroundColor=none;');
                 // Add label
@@ -2030,17 +2036,17 @@
 
         // --- Nodes ---
         // Track storage port cell IDs and absolute positions for switchless mesh connections
-        var storagePortIds = [];
-        var storagePortAbsPos = [];
-        for (var ni = 0; ni < n; ni++) {
+        const storagePortIds = [];
+        const storagePortAbsPos = [];
+        for (let ni = 0; ni < n; ni++) {
             storagePortIds.push([]);
             storagePortAbsPos.push([]);
-            var nodeX = nodesStartX + ni * (nodeW + nodeGap);
-            var nodeY2 = nodesY;
+            const nodeX = nodesStartX + ni * (nodeW + nodeGap);
+            const nodeY2 = nodesY;
 
             // Node container (group)
-            var nodeContainerId = nextId();
-            var nodeName = 'Node ' + (ni + 1);
+            const nodeContainerId = nextId();
+            let nodeName = 'Node ' + (ni + 1);
             if (s.nodeSettings && s.nodeSettings[ni] && s.nodeSettings[ni].name) {
                 nodeName = String(s.nodeSettings[ni].name).trim() || nodeName;
             }
@@ -2048,7 +2054,7 @@
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#3B82F6;fontColor=#FFFFFF;fontSize=14;fontStyle=1;arcSize=10;verticalAlign=top;spacingTop=8;container=1;collapsible=0;');
 
             // Determine intent groups for this node
-            var groups = [];
+            const groups = [];
             if (isSwitchless) {
                 // Switchless always shows canonical layout: Mgmt+Compute (blue) + Storage (purple)
                 groups.push({ label: 'Management + Compute', ports: [1, 2], color: 'blue' });
@@ -2059,58 +2065,58 @@
                 groups.push({ label: 'Management + Compute', ports: mgmtPorts.filter(function(p) { return storPorts.indexOf(p) < 0; }), color: 'blue' });
                 if (storPorts.length > 0) groups.push({ label: 'Storage', ports: storPorts, color: 'purple' });
             } else if (intent === 'compute_storage') {
-                var mcOnly = [];
-                var csOnly = [];
-                for (var ci = 0; ci < ports; ci++) {
-                    var tt = getTraffic(ci);
+                const mcOnly = [];
+                const csOnly = [];
+                for (let ci = 0; ci < ports; ci++) {
+                    const tt = getTraffic(ci);
                     if (tt.indexOf('m') >= 0 && tt.indexOf('s') < 0) mcOnly.push(ci + 1);
                     else csOnly.push(ci + 1);
                 }
                 groups.push({ label: 'Management', ports: mcOnly, color: 'blue' });
                 if (csOnly.length > 0) groups.push({ label: 'Compute + Storage', ports: csOnly, color: 'purple' });
             } else if (intent === 'custom') {
-                var buckets = {};
-                var order = [];
-                for (var ci2 = 0; ci2 < ports; ci2++) {
-                    var tt2 = getTraffic(ci2);
-                    var key = tt2.sort().join(',') || 'unused';
+                const buckets = {};
+                const order = [];
+                for (let ci2 = 0; ci2 < ports; ci2++) {
+                    const tt2 = getTraffic(ci2);
+                    const key = tt2.sort().join(',') || 'unused';
                     if (!buckets[key]) { buckets[key] = []; order.push(key); }
                     buckets[key].push(ci2 + 1);
                 }
-                var nameMap = { 'm,c': 'Mgmt + Compute', 's': 'Storage', 'c': 'Compute', 'm': 'Management', 'c,s': 'Compute + Storage', 'c,m,s': 'All Traffic' };
-                var colorMap = { 'm,c': 'blue', 's': 'purple', 'c': 'green', 'm': 'blue', 'c,s': 'purple', 'c,m,s': 'blue' };
-                for (var oi = 0; oi < order.length; oi++) {
-                    var k = order[oi];
+                const nameMap = { 'm,c': 'Mgmt + Compute', 's': 'Storage', 'c': 'Compute', 'm': 'Management', 'c,s': 'Compute + Storage', 'c,m,s': 'All Traffic' };
+                const colorMap = { 'm,c': 'blue', 's': 'purple', 'c': 'green', 'm': 'blue', 'c,s': 'purple', 'c,m,s': 'blue' };
+                for (let oi = 0; oi < order.length; oi++) {
+                    const k = order[oi];
                     if (k === 'unused') continue;
                     groups.push({ label: nameMap[k] || k, ports: buckets[k], color: colorMap[k] || 'blue' });
                 }
             }
             if (groups.length === 0) {
                 // Fallback: all ports in one group
-                var allP = [];
-                for (var fp = 1; fp <= ports; fp++) allP.push(fp);
+                const allP = [];
+                for (let fp = 1; fp <= ports; fp++) allP.push(fp);
                 groups.push({ label: 'Network', ports: allP, color: 'blue' });
             }
 
             // Draw intent groups and ports inside node
-            var totalGroupPorts = 0;
-            for (var gi2 = 0; gi2 < groups.length; gi2++) totalGroupPorts += groups[gi2].ports.length;
-            var intentGapBetween = 16;
-            var totalIntentW = totalGroupPorts * portW + (totalGroupPorts - 1) * portGap + (groups.length - 1) * intentGapBetween;
-            var intentStartX = (nodeW - totalIntentW) / 2;
+            let totalGroupPorts = 0;
+            for (let gi2 = 0; gi2 < groups.length; gi2++) totalGroupPorts += groups[gi2].ports.length;
+            const intentGapBetween = 16;
+            const totalIntentW = totalGroupPorts * portW + (totalGroupPorts - 1) * portGap + (groups.length - 1) * intentGapBetween;
+            const intentStartX = (nodeW - totalIntentW) / 2;
 
-            var mgmtVlanLabelD = (s.infraVlan === 'custom' && s.infraVlanId) ? ('VLAN ' + s.infraVlanId) : 'Default VLAN';
+            const mgmtVlanLabelD = (s.infraVlan === 'custom' && s.infraVlanId) ? ('VLAN ' + s.infraVlanId) : 'Default VLAN';
 
-            var portXCursor = intentStartX;
-            for (var gi = 0; gi < groups.length; gi++) {
-                var grp = groups[gi];
-                var isMgmtGrp = (grp.color === 'blue');
-                var grpVnicH = isMgmtGrp ? mgmtVnicAreaHD : 0;
-                var grpW = grp.ports.length * portW + (grp.ports.length - 1) * portGap;
-                var grpBoxW = grpW + intentBoxPad * 2;
-                var grpBoxH = portH + 30 + intentBoxPad * 2 + grpVnicH;
-                var grpBoxX = portXCursor - intentBoxPad;
-                var grpBoxY = nodeH - grpBoxH - 16;
+            let portXCursor = intentStartX;
+            for (let gi = 0; gi < groups.length; gi++) {
+                const grp = groups[gi];
+                const isMgmtGrp = (grp.color === 'blue');
+                const grpVnicH = isMgmtGrp ? mgmtVnicAreaHD : 0;
+                const grpW = grp.ports.length * portW + (grp.ports.length - 1) * portGap;
+                const grpBoxW = grpW + intentBoxPad * 2;
+                const grpBoxH = portH + 30 + intentBoxPad * 2 + grpVnicH;
+                const grpBoxX = portXCursor - intentBoxPad;
+                const grpBoxY = nodeH - grpBoxH - 16;
 
                 // Intent group box
                 var grpFill, grpStroke, portFill, portStroke;
@@ -2125,37 +2131,37 @@
                     portFill = '#0055A4'; portStroke = '#005A9E';
                 }
 
-                var grpId = nextId();
+                const grpId = nextId();
                 addCell(grpId, '', grpBoxX, grpBoxY, grpBoxW, grpBoxH,
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=' + grpFill + ';strokeColor=' + grpStroke + ';strokeWidth=1;dashed=1;dashPattern=5 3;arcSize=12;container=1;collapsible=0;verticalAlign=top;',
                     nodeContainerId);
 
                 // Intent label inside group box
-                var lblId = nextId();
+                const lblId = nextId();
                 addCell(lblId, grp.label, 0, grpBoxH - 22, grpBoxW, 20,
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=10;',
                     grpId);
 
                 // Mgmt vNIC card inside management group
                 if (isMgmtGrp) {
-                    var vaCardW = 80;
-                    var vaCardH = 30;
-                    var vaX = (grpBoxW - vaCardW) / 2;
-                    var vaY = intentBoxPad;
-                    var vnicCellId = nextId();
+                    const vaCardW = 80;
+                    const vaCardH = 30;
+                    const vaX = (grpBoxW - vaCardW) / 2;
+                    const vaY = intentBoxPad;
+                    const vnicCellId = nextId();
                     addCell(vnicCellId, 'Mgmt vNIC\\n' + mgmtVlanLabelD, vaX, vaY, vaCardW, vaCardH,
                         'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#0078D4;fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
                         grpId);
                 }
 
                 // Port blocks
-                for (var ppi = 0; ppi < grp.ports.length; ppi++) {
-                    var portNum = grp.ports[ppi];
-                    var px = intentBoxPad + ppi * (portW + portGap);
-                    var py = intentBoxPad + grpVnicH;
+                for (let ppi = 0; ppi < grp.ports.length; ppi++) {
+                    const portNum = grp.ports[ppi];
+                    const px = intentBoxPad + ppi * (portW + portGap);
+                    const py = intentBoxPad + grpVnicH;
 
-                    var portId = nextId();
-                    var portLabel = getPortName(portNum);
+                    const portId = nextId();
+                    const portLabel = getPortName(portNum);
                     addCell(portId, portLabel, px, py, portW, portH,
                         'rounded=1;whiteSpace=wrap;html=1;fillColor=' + portFill + ';strokeColor=' + portStroke + ';fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;',
                         grpId);
@@ -2172,15 +2178,15 @@
 
                     // Connect port to ToR
                     if (showTorSwitches) {
-                        var isStoragePort = (grp.color === 'purple');
-                        var edgeColor = isStoragePort ? '#8B5CF6' : '#0078D4';
+                        const isStoragePort = (grp.color === 'purple');
+                        const edgeColor = isStoragePort ? '#8B5CF6' : '#0078D4';
                         var targetTor;
                         if (torCount === 2) {
                             targetTor = (ppi % 2 === 0) ? tor1Id : tor2Id;
                         } else {
                             targetTor = tor1Id;
                         }
-                        var edgeId = nextId();
+                        const edgeId = nextId();
                         addEdge(edgeId, portId, targetTor,
                             'endArrow=none;html=1;strokeColor=' + edgeColor + ';strokeWidth=1.5;dashed=1;dashPattern=4 2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
                     }
@@ -2194,7 +2200,7 @@
         if (isSwitchless && n >= 2) {
             // Build switchless mesh edges with color-coded subnets, mirroring the ODIN SVG renderer.
             // Each node-pair gets 2 dedicated subnets (dual-link).
-            var subnetHues;
+            let subnetHues;
             if (n === 2) {
                 subnetHues = [210, 330];
             } else if (n === 3) {
@@ -2205,56 +2211,51 @@
 
             function hslToHex(h, s2, l) {
                 s2 /= 100; l /= 100;
-                var c2 = (1 - Math.abs(2 * l - 1)) * s2;
-                var x2 = c2 * (1 - Math.abs((h / 60) % 2 - 1));
-                var m2 = l - c2 / 2;
-                var r, g, b;
-                if (h < 60) { r = c2; g = x2; b = 0; }
-                else if (h < 120) { r = x2; g = c2; b = 0; }
-                else if (h < 180) { r = 0; g = c2; b = x2; }
-                else if (h < 240) { r = 0; g = x2; b = c2; }
-                else if (h < 300) { r = x2; g = 0; b = c2; }
-                else { r = c2; g = 0; b = x2; }
-                var toHex = function(v) { var hex = Math.round((v + m2) * 255).toString(16); return hex.length === 1 ? '0' + hex : hex; };
+                const c2 = (1 - Math.abs(2 * l - 1)) * s2;
+                const x2 = c2 * (1 - Math.abs((h / 60) % 2 - 1));
+                const m2 = l - c2 / 2;
+                let r, g, b;
+                if (h < 60) { r = c2; g = x2; b = 0; } else if (h < 120) { r = x2; g = c2; b = 0; } else if (h < 180) { r = 0; g = c2; b = x2; } else if (h < 240) { r = 0; g = x2; b = c2; } else if (h < 300) { r = x2; g = 0; b = c2; } else { r = c2; g = 0; b = x2; }
+                const toHex = function(v) { const hex = Math.round((v + m2) * 255).toString(16); return hex.length === 1 ? '0' + hex : hex; };
                 return '#' + toHex(r) + toHex(g) + toHex(b);
             }
 
             // Build connection mapping mirroring the SVG renderer.
             // For each node-pair (i<j), 2 consecutive storage ports on each side.
-            var subnetCounter = 0;
-            for (var si = 0; si < n; si++) {
-                for (var sj = si + 1; sj < n; sj++) {
+            let subnetCounter = 0;
+            for (let si = 0; si < n; si++) {
+                for (let sj = si + 1; sj < n; sj++) {
                     // Peer order: how many peers of node si come before sj
-                    var peerOrderI = 0;
-                    for (var sm = 0; sm < n; sm++) {
+                    let peerOrderI = 0;
+                    for (let sm = 0; sm < n; sm++) {
                         if (sm === si) continue;
                         if (sm === sj) break;
                         peerOrderI++;
                     }
                     // Peer order: how many peers of node sj come before si
-                    var peerOrderJ = 0;
-                    for (var sn2 = 0; sn2 < n; sn2++) {
+                    let peerOrderJ = 0;
+                    for (let sn2 = 0; sn2 < n; sn2++) {
                         if (sn2 === sj) continue;
                         if (sn2 === si) break;
                         peerOrderJ++;
                     }
 
-                    for (var link = 0; link < 2; link++) {
-                        var portIdxI = peerOrderI * 2 + link;
-                        var portIdxJ = peerOrderJ * 2 + link;
-                        var subnetNum = subnetCounter + 1;
-                        var hue = subnetHues[subnetCounter % subnetHues.length];
-                        var color = hslToHex(hue, 78, 62);
+                    for (let link = 0; link < 2; link++) {
+                        const portIdxI = peerOrderI * 2 + link;
+                        const portIdxJ = peerOrderJ * 2 + link;
+                        const subnetNum = subnetCounter + 1;
+                        const hue = subnetHues[subnetCounter % subnetHues.length];
+                        const color = hslToHex(hue, 78, 62);
 
-                        var srcId = (storagePortIds[si] && storagePortIds[si][portIdxI]) ? storagePortIds[si][portIdxI] : null;
-                        var tgtId = (storagePortIds[sj] && storagePortIds[sj][portIdxJ]) ? storagePortIds[sj][portIdxJ] : null;
+                        const srcId = (storagePortIds[si] && storagePortIds[si][portIdxI]) ? storagePortIds[si][portIdxI] : null;
+                        const tgtId = (storagePortIds[sj] && storagePortIds[sj][portIdxJ]) ? storagePortIds[sj][portIdxJ] : null;
 
                         if (srcId && tgtId) {
                             // Compute orthogonal waypoints: down to lane, horizontal, up to target
-                            var srcPos = (storagePortAbsPos[si] && storagePortAbsPos[si][portIdxI]) ? storagePortAbsPos[si][portIdxI] : null;
-                            var tgtPos = (storagePortAbsPos[sj] && storagePortAbsPos[sj][portIdxJ]) ? storagePortAbsPos[sj][portIdxJ] : null;
-                            var laneY = nodesY + nodeH + 30 + subnetCounter * 22;
-                            var meshEdgeId = nextId();
+                            const srcPos = (storagePortAbsPos[si] && storagePortAbsPos[si][portIdxI]) ? storagePortAbsPos[si][portIdxI] : null;
+                            const tgtPos = (storagePortAbsPos[sj] && storagePortAbsPos[sj][portIdxJ]) ? storagePortAbsPos[sj][portIdxJ] : null;
+                            const laneY = nodesY + nodeH + 30 + subnetCounter * 22;
+                            const meshEdgeId = nextId();
                             addEdge(meshEdgeId, srcId, tgtId,
                                 'endArrow=none;html=1;strokeColor=' + color + ';strokeWidth=2.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
                             edges[edges.length - 1].label = 'Subnet ' + subnetNum;
@@ -2272,13 +2273,13 @@
         }
 
         // Extend page height for switchless mesh routing area below nodes
-        var pageH = nodesY + nodeH + 100;
+        let pageH = nodesY + nodeH + 100;
         if (isSwitchless && n >= 2) {
             pageH = nodesY + nodeH + (n * (n - 1)) * 22 + 120;
         }
 
         // --- Build XML ---
-        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xml += '<mxfile host="app.diagrams.net" type="device">\n';
         xml += '  <diagram name="Host Networking" id="odin-host-networking">\n';
         xml += '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="' + Math.round(svgW + 100) + '" pageHeight="' + Math.round(pageH) + '" math="0" shadow="0">\n';
@@ -2287,22 +2288,22 @@
         xml += '        <mxCell id="1" parent="0" />\n';
 
         // Render vertex cells
-        for (var vi = 0; vi < cells.length; vi++) {
-            var c = cells[vi];
+        for (let vi = 0; vi < cells.length; vi++) {
+            const c = cells[vi];
             xml += '        <mxCell id="' + c.id + '" value="' + c.value + '" style="' + c.style + '" vertex="1" parent="' + c.parent + '">\n';
             xml += '          <mxGeometry x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" as="geometry" />\n';
             xml += '        </mxCell>\n';
         }
 
         // Render edge cells
-        for (var ei = 0; ei < edges.length; ei++) {
-            var e = edges[ei];
-            var lbl = e.label ? (' value="' + xmlEsc(e.label) + '"') : '';
+        for (let ei = 0; ei < edges.length; ei++) {
+            const e = edges[ei];
+            const lbl = e.label ? (' value="' + xmlEsc(e.label) + '"') : '';
             xml += '        <mxCell id="' + e.id + '"' + lbl + ' style="' + e.style + '" edge="1" source="' + e.source + '" target="' + e.target + '" parent="1">\n';
             if (e.points && e.points.length > 0) {
                 xml += '          <mxGeometry relative="1" as="geometry">\n';
                 xml += '            <Array as="points">\n';
-                for (var pi2 = 0; pi2 < e.points.length; pi2++) {
+                for (let pi2 = 0; pi2 < e.points.length; pi2++) {
                     xml += '              <mxPoint x="' + Math.round(e.points[pi2].x) + '" y="' + Math.round(e.points[pi2].y) + '" />\n';
                 }
                 xml += '            </Array>\n';
@@ -2328,16 +2329,16 @@
     function generateDisaggregatedHostNetworkingDrawio(s) {
         if (!s || s.architecture !== 'disaggregated') return '';
 
-        var storageType = s.disaggStorageType || 'fc_san';
-        var backupEnabled = !!s.disaggBackupEnabled;
-        var portCount = parseInt(s.disaggPortCount, 10) || 4;
-        var totalNodes = parseInt(s.nodes, 10) || ((parseInt(s.disaggRackCount, 10) || 1) * (parseInt(s.disaggNodesPerRack, 10) || 1));
-        var n = Math.min(2, totalNodes);
-        var hasFc = (storageType === 'fc_san');
-        var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-        var hasDedicatedIscsi = (storageType === 'iscsi_6nic');
-        var hasSharedIscsi = (storageType === 'iscsi_4nic');
-        var adapterMapping = s.disaggAdapterMapping || {};
+        const storageType = s.disaggStorageType || 'fc_san';
+        const backupEnabled = !!s.disaggBackupEnabled;
+        const portCount = parseInt(s.disaggPortCount, 10) || 4;
+        const totalNodes = parseInt(s.nodes, 10) || ((parseInt(s.disaggRackCount, 10) || 1) * (parseInt(s.disaggNodesPerRack, 10) || 1));
+        const n = Math.min(2, totalNodes);
+        const hasFc = (storageType === 'fc_san');
+        const hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+        const hasDedicatedIscsi = (storageType === 'iscsi_6nic');
+        const hasSharedIscsi = (storageType === 'iscsi_4nic');
+        const adapterMapping = s.disaggAdapterMapping || {};
 
         function xmlEsc(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -2346,21 +2347,21 @@
         // NIC name helper
         function getNicNameD(slotKey, idx) {
             if (s.disaggPortConfig) {
-                var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
-                for (var pi = 0; pi < portList.length; pi++) {
+                const portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+                for (let pi = 0; pi < portList.length; pi++) {
                     if (portList[pi].id === slotKey + '_p' + idx) {
-                        var cfg = s.disaggPortConfig[portList[pi].id];
+                        const cfg = s.disaggPortConfig[portList[pi].id];
                         return (cfg && (cfg.customName || cfg.name)) || portList[pi].defaultName;
                     }
                 }
             }
-            var defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
+            const defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
             return (defaults[slotKey] || slotKey) + idx;
         }
 
         function getPortSpeedD(slotKey, idx) {
             if (s.disaggPortConfig) {
-                var key = slotKey + '_p' + idx;
+                const key = slotKey + '_p' + idx;
                 if (s.disaggPortConfig[key] && s.disaggPortConfig[key].speed) return s.disaggPortConfig[key].speed;
             }
             if (slotKey === 'bmc') return '1GbE';
@@ -2369,10 +2370,10 @@
         }
 
         // Build NIC groups dynamically from adapter mapping
-        var nicGroups = [];
-        var dClusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
-        var dClusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
-        var zoneMeta = {
+        const nicGroups = [];
+        const dClusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
+        const dClusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
+        const zoneMeta = {
             mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
             cluster_1: { label: dClusterLabel1, color: 'green', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
             cluster_2: { label: dClusterLabel2, color: 'green', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
@@ -2380,35 +2381,35 @@
             iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '400'), forcedLeaf: 'B' },
             backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
         };
-        var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
-        var portListD = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+        const zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
+        const portListD = getDisaggPortListForReport(storageType, backupEnabled, portCount);
         // CodeQL js/remote-property-injection (#19, #20, #21): use Maps so
         // user-derived zone keys are stored as explicit key/value pairs with
         // safe dictionary semantics.
-        var groupsByZoneD = new Map();
-        var zoneLeafCountersD = new Map();
+        const groupsByZoneD = new Map();
+        const zoneLeafCountersD = new Map();
 
-        for (var dpi = 0; dpi < portListD.length; dpi++) {
-            var dPort = portListD[dpi];
-            var dZone = adapterMapping[dPort.id];
+        for (let dpi = 0; dpi < portListD.length; dpi++) {
+            const dPort = portListD[dpi];
+            const dZone = adapterMapping[dPort.id];
             if (!dZone || dZone === 'pool' || dPort.slot === 'bmc') continue;
             if (!groupsByZoneD.has(dZone)) groupsByZoneD.set(dZone, []);
             if (!zoneLeafCountersD.has(dZone)) zoneLeafCountersD.set(dZone, 0);
-            var dzmeta = zoneMeta[dZone];
-            var dLeaf = (dzmeta && dzmeta.forcedLeaf) ? dzmeta.forcedLeaf : ((zoneLeafCountersD.get(dZone) % 2 === 0) ? 'A' : 'B');
+            const dzmeta = zoneMeta[dZone];
+            const dLeaf = (dzmeta && dzmeta.forcedLeaf) ? dzmeta.forcedLeaf : ((zoneLeafCountersD.get(dZone) % 2 === 0) ? 'A' : 'B');
             zoneLeafCountersD.set(dZone, zoneLeafCountersD.get(dZone) + 1);
-            var dSlotKey = dPort.id.replace(/_p\d+$/, '');
-            var dIdx = parseInt(dPort.id.replace(/^.*_p/, ''), 10);
+            const dSlotKey = dPort.id.replace(/_p\d+$/, '');
+            const dIdx = parseInt(dPort.id.replace(/^.*_p/, ''), 10);
             groupsByZoneD.get(dZone).push({ name: getNicNameD(dSlotKey, dIdx), speed: getPortSpeedD(dSlotKey, dIdx), leaf: dLeaf });
         }
 
-        for (var dzi = 0; dzi < zoneOrder.length; dzi++) {
-            var dzk = zoneOrder[dzi];
-            var dList = groupsByZoneD.get(dzk);
+        for (let dzi = 0; dzi < zoneOrder.length; dzi++) {
+            const dzk = zoneOrder[dzi];
+            const dList = groupsByZoneD.get(dzk);
             if (!dList || dList.length === 0) continue;
-            var dmeta = zoneMeta[dzk];
+            const dmeta = zoneMeta[dzk];
             if (!dmeta) continue;
-            var dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: dList };
+            const dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: dList };
             if (dmeta.vnicAbove) dgrp.vnicAbove = dmeta.vnicAbove;
             if (dmeta.vlanBelow) dgrp.vlanBelow = dmeta.vlanBelow;
             if (dmeta.subLabel) dgrp.subLabel = dmeta.subLabel;
@@ -2436,7 +2437,7 @@
                 nics: [{ name: getNicNameD('pcie1', 2), speed: getPortSpeedD('pcie1', 2), leaf: 'B' }]
             });
             if (backupEnabled) {
-                var bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
+                const bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
                 nicGroups.push({
                     key: 'backup', label: 'In-Guest Backup Compute Intent', color: 'orange',
                     nics: [
@@ -2448,7 +2449,7 @@
         }
 
         // Storage adapters
-        var storageAdapters = [];
+        const storageAdapters = [];
         if (hasFc) {
             storageAdapters.push({ name: getNicNameD('fc', 1), speed: getPortSpeedD('fc', 1), target: 'A' });
             storageAdapters.push({ name: getNicNameD('fc', 2), speed: getPortSpeedD('fc', 2), target: 'B' });
@@ -2456,50 +2457,50 @@
         // iSCSI scenarios: Storage Array shown at leaf level, no bottom storage adapters
 
         // Layout constants
-        var portW = 62, portH = 38, portGap = 10, groupGap = 18, intentBoxPad = 12;
-        var leafW = 160, leafH = 50, leafGap = 80;
-        var sanW = 160, sanH = 40, sanGap = 60;
-        var marginX = 60, marginY = 40;
+        const portW = 62, portH = 38, portGap = 10, groupGap = 18, intentBoxPad = 12;
+        const leafW = 160, leafH = 50, leafGap = 80;
+        const sanW = 160, sanH = 40, sanGap = 60;
+        const marginX = 60, marginY = 40;
 
         // Compute NIC row width
         function rowWidth(groups) {
-            var w = 0;
-            for (var i = 0; i < groups.length; i++) {
+            let w = 0;
+            for (let i = 0; i < groups.length; i++) {
                 w += groups[i].nics.length * portW + (groups[i].nics.length - 1) * portGap;
                 if (i < groups.length - 1) w += groupGap;
             }
             return w;
         }
 
-        var nicRowW = rowWidth(nicGroups);
-        var storageW = storageAdapters.length * portW + Math.max(0, storageAdapters.length - 1) * portGap;
-        var maxRowW = Math.max(nicRowW, storageW);
-        var nodeW = Math.max(440, maxRowW + 80);
-        var mgmtVnicAreaHD = 48;
-        var nodeH = 220 + mgmtVnicAreaHD + (storageAdapters.length > 0 ? 80 : 0);
-        var nodeGap = 60;
+        const nicRowW = rowWidth(nicGroups);
+        const storageW = storageAdapters.length * portW + Math.max(0, storageAdapters.length - 1) * portGap;
+        const maxRowW = Math.max(nicRowW, storageW);
+        const nodeW = Math.max(440, maxRowW + 80);
+        const mgmtVnicAreaHD = 48;
+        const nodeH = 220 + mgmtVnicAreaHD + (storageAdapters.length > 0 ? 80 : 0);
+        const nodeGap = 60;
 
-        var totalNodesW = n * nodeW + (n - 1) * nodeGap;
-        var iscsiArrWD = 170, iscsiArrHD = 56, iscsiArrGapD = 50;
-        var totalLeafW = 2 * leafW + leafGap;
-        var topRowWD = totalLeafW + (hasIscsi ? (iscsiArrGapD + iscsiArrWD) : 0);
-        var svgW = Math.max(totalNodesW + marginX * 2, topRowWD + marginX * 2);
+        const totalNodesW = n * nodeW + (n - 1) * nodeGap;
+        const iscsiArrWD = 170, iscsiArrHD = 56, iscsiArrGapD = 50;
+        const totalLeafW = 2 * leafW + leafGap;
+        const topRowWD = totalLeafW + (hasIscsi ? (iscsiArrGapD + iscsiArrWD) : 0);
+        const svgW = Math.max(totalNodesW + marginX * 2, topRowWD + marginX * 2);
 
-        var leafY = marginY;
-        var leafToNodeGap = 100;
-        var nodesY = leafY + leafH + leafToNodeGap;
-        var leafBlockStartXD = hasIscsi ? ((svgW - topRowWD) / 2) : ((svgW - totalLeafW) / 2);
-        var nodesStartX = (svgW - totalNodesW) / 2;
-        var leaf1X = leafBlockStartXD;
-        var leaf2X = leaf1X + leafW + leafGap;
+        const leafY = marginY;
+        const leafToNodeGap = 100;
+        const nodesY = leafY + leafH + leafToNodeGap;
+        const leafBlockStartXD = hasIscsi ? ((svgW - topRowWD) / 2) : ((svgW - totalLeafW) / 2);
+        const nodesStartX = (svgW - totalNodesW) / 2;
+        const leaf1X = leafBlockStartXD;
+        const leaf2X = leaf1X + leafW + leafGap;
 
-        var sanY = nodesY + nodeH + 60;
-        var pageH = (hasIscsi ? (nodesY + nodeH + 80) : (sanY + sanH + 80));
+        const sanY = nodesY + nodeH + 60;
+        const pageH = (hasIscsi ? (nodesY + nodeH + 80) : (sanY + sanH + 80));
 
         // Cell/edge builders
-        var cells = [];
-        var edgesList = [];
-        var cellId = 2;
+        const cells = [];
+        const edgesList = [];
+        let cellId = 2;
         function nextId() { return String(cellId++); }
 
         function addCell(id, value, x, y, w, h, style, parent) {
@@ -2519,44 +2520,44 @@
         }
 
         // Leaf-A
-        var leaf1Id = nextId();
+        const leaf1Id = nextId();
         addCell(leaf1Id, 'Leaf-A', leaf1X, leafY, leafW, leafH,
             'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#3B82F6;fontColor=#FFFFFF;fontSize=13;fontStyle=1;arcSize=20;strokeWidth=2;');
 
         // Leaf-B
-        var leaf2Id = nextId();
+        const leaf2Id = nextId();
         addCell(leaf2Id, 'Leaf-B', leaf2X, leafY, leafW, leafH,
             'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#3B82F6;fontColor=#FFFFFF;fontSize=13;fontStyle=1;arcSize=20;strokeWidth=2;');
 
         // iBGP link between leaves
-        var ibgpId = nextId();
+        const ibgpId = nextId();
         addEdge(ibgpId, leaf1Id, leaf2Id,
             'endArrow=none;html=1;strokeColor=#FACC15;strokeWidth=2;dashed=1;dashPattern=6 3;fontColor=#FACC15;fontSize=10;labelBackgroundColor=none;',
             'iBGP P49');
 
         // SAN / iSCSI targets — for shared iSCSI, show Storage Array at leaf level instead
-        var sanAId, sanBId;
+        let sanAId, sanBId;
         if (hasIscsi) {
-            var iscsiArrXD = leaf2X + leafW + iscsiArrGapD;
-            var iscsiArrYD = leafY - 3;
+            const iscsiArrXD = leaf2X + leafW + iscsiArrGapD;
+            const iscsiArrYD = leafY - 3;
             sanAId = nextId();
             addCell(sanAId, 'iSCSI Storage Array\nDual Controllers (A + B)\nMPIO Active/Active', iscsiArrXD, iscsiArrYD, iscsiArrWD, iscsiArrHD,
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=9;fontStyle=1;arcSize=20;strokeWidth=2;');
             // Connect Leaf-A and Leaf-B to Storage Array
-            var saEdgeA = nextId();
+            const saEdgeA = nextId();
             addEdge(saEdgeA, leaf1Id, sanAId,
                 'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;',
                 'Ctrl-A');
-            var saEdgeB = nextId();
+            const saEdgeB = nextId();
             addEdge(saEdgeB, leaf2Id, sanAId,
                 'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;',
                 'Ctrl-B');
             sanBId = sanAId; // single target for shared
         } else {
-            var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
-            var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
-            var totalSanW = 2 * sanW + sanGap;
-            var sanStartX = (svgW - totalSanW) / 2;
+            const targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
+            const targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
+            const totalSanW = 2 * sanW + sanGap;
+            const sanStartX = (svgW - totalSanW) / 2;
 
             sanAId = nextId();
             addCell(sanAId, targetLabelA, sanStartX, sanY, sanW, sanH,
@@ -2567,12 +2568,12 @@
         }
 
         // Render nodes
-        for (var ni = 0; ni < n; ni++) {
-            var nodeX = nodesStartX + ni * (nodeW + nodeGap);
+        for (let ni = 0; ni < n; ni++) {
+            const nodeX = nodesStartX + ni * (nodeW + nodeGap);
 
             // Node container
-            var nodeContainerId = nextId();
-            var nodeName = 'Node ' + (ni + 1);
+            const nodeContainerId = nextId();
+            let nodeName = 'Node ' + (ni + 1);
             if (s.nodeSettings && s.nodeSettings[ni] && s.nodeSettings[ni].name) {
                 nodeName = String(s.nodeSettings[ni].name).trim() || nodeName;
             }
@@ -2580,68 +2581,68 @@
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#1A1A2E;strokeColor=#334155;fontColor=#FFFFFF;fontSize=14;fontStyle=1;arcSize=8;verticalAlign=top;spacingTop=8;container=1;collapsible=0;');
 
             // BMC (top-right)
-            var bmcId = nextId();
+            const bmcId = nextId();
             addCell(bmcId, getNicNameD('bmc', 1), nodeW - 75, 8, 60, 24,
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#666666;fontColor=#AAAAAA;fontSize=8;arcSize=15;',
                 nodeContainerId);
 
             // NIC groups row
-            var rw = rowWidth(nicGroups);
-            var cursorX = (nodeW - rw) / 2;
-            var nicRowY = 60 + mgmtVnicAreaHD;
+            const rw = rowWidth(nicGroups);
+            let cursorX = (nodeW - rw) / 2;
+            const nicRowY = 60 + mgmtVnicAreaHD;
 
-            for (var gi = 0; gi < nicGroups.length; gi++) {
-                var grp = nicGroups[gi];
-                var cs = fillStroke(grp.color);
-                var grpW = grp.nics.length * portW + (grp.nics.length - 1) * portGap;
-                var grpBoxW = grpW + intentBoxPad * 2;
-                var hasVnicAboveD = !!grp.vnicAbove;
-                var vnicAboveAreaHD = hasVnicAboveD ? mgmtVnicAreaHD : 0;
-                var grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAboveAreaHD;
-                var grpBoxX = cursorX - intentBoxPad;
-                var grpBoxY = nicRowY - vnicAboveAreaHD;
+            for (let gi = 0; gi < nicGroups.length; gi++) {
+                const grp = nicGroups[gi];
+                const cs = fillStroke(grp.color);
+                const grpW = grp.nics.length * portW + (grp.nics.length - 1) * portGap;
+                const grpBoxW = grpW + intentBoxPad * 2;
+                const hasVnicAboveD = !!grp.vnicAbove;
+                const vnicAboveAreaHD = hasVnicAboveD ? mgmtVnicAreaHD : 0;
+                const grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAboveAreaHD;
+                const grpBoxX = cursorX - intentBoxPad;
+                const grpBoxY = nicRowY - vnicAboveAreaHD;
 
                 // Group box
-                var grpId = nextId();
+                const grpId = nextId();
                 addCell(grpId, '', grpBoxX, grpBoxY, grpBoxW, grpBoxH,
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.fill + ';strokeColor=' + cs.stroke + ';strokeWidth=1;dashed=1;dashPattern=5 3;arcSize=12;container=1;collapsible=0;verticalAlign=top;',
                     nodeContainerId);
 
                 // Group label
-                var lblId = nextId();
-                var lblText = grp.subLabel ? (grp.label + '\\n' + grp.subLabel) : grp.label;
-                var lblHeight = grp.subLabel ? 30 : 20;
+                const lblId = nextId();
+                const lblText = grp.subLabel ? (grp.label + '\\n' + grp.subLabel) : grp.label;
+                const lblHeight = grp.subLabel ? 30 : 20;
                 addCell(lblId, lblText, 0, grpBoxH - lblHeight, grpBoxW, lblHeight,
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=9;',
                     grpId);
 
                 // vNIC above physical NICs (e.g., Management vNIC)
                 if (hasVnicAboveD) {
-                    var vaCardW = 80;
-                    var vaCardH = 30;
-                    var vaX = (grpBoxW - vaCardW) / 2;
-                    var vaY = intentBoxPad;
-                    var vnicAboveId = nextId();
+                    const vaCardW = 80;
+                    const vaCardH = 30;
+                    const vaX = (grpBoxW - vaCardW) / 2;
+                    const vaY = intentBoxPad;
+                    const vnicAboveId = nextId();
                     addCell(vnicAboveId, grp.vnicAbove.name + '\\n' + grp.vnicAbove.vlan, vaX, vaY, vaCardW, vaCardH,
                         'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.fill + ';strokeColor=' + cs.stroke + ';fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
                         grpId);
                 }
 
                 // Port cards
-                for (var pi = 0; pi < grp.nics.length; pi++) {
-                    var nic = grp.nics[pi];
-                    var px = intentBoxPad + pi * (portW + portGap);
-                    var py = intentBoxPad + vnicAboveAreaHD;
+                for (let pi = 0; pi < grp.nics.length; pi++) {
+                    const nic = grp.nics[pi];
+                    const px = intentBoxPad + pi * (portW + portGap);
+                    const py = intentBoxPad + vnicAboveAreaHD;
 
-                    var portId = nextId();
+                    const portId = nextId();
                     addCell(portId, nic.name + '\\n' + nic.speed, px, py, portW, portH,
                         'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.portFill + ';strokeColor=' + cs.portStroke + ';fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;',
                         grpId);
 
                     // Connect to leaf
-                    var targetLeaf = (nic.leaf === 'A') ? leaf1Id : leaf2Id;
-                    var edgeColor = cs.stroke;
-                    var eid = nextId();
+                    const targetLeaf = (nic.leaf === 'A') ? leaf1Id : leaf2Id;
+                    const edgeColor = cs.stroke;
+                    const eid = nextId();
                     addEdge(eid, portId, targetLeaf,
                         'endArrow=none;html=1;strokeColor=' + edgeColor + ';strokeWidth=1.5;dashed=1;dashPattern=4 2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
                 }
@@ -2651,29 +2652,29 @@
 
             // Storage adapters at bottom of node
             if (storageAdapters.length > 0) {
-                var saY = nodeH - portH - 30;
-                var saStartX2 = (nodeW - storageW) / 2;
-                var pcs = fillStroke('purple');
+                const saY = nodeH - portH - 30;
+                const saStartX2 = (nodeW - storageW) / 2;
+                const pcs = fillStroke('purple');
 
                 // Storage label
-                var storageLbl = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
-                var stLblId = nextId();
+                const storageLbl = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
+                const stLblId = nextId();
                 addCell(stLblId, storageLbl, 20, saY - 22, nodeW - 40, 18,
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#A78BFA;fontSize=9;fontStyle=1;',
                     nodeContainerId);
 
-                for (var si = 0; si < storageAdapters.length; si++) {
-                    var sa = storageAdapters[si];
-                    var sx = saStartX2 + si * (portW + portGap);
+                for (let si = 0; si < storageAdapters.length; si++) {
+                    const sa = storageAdapters[si];
+                    const sx = saStartX2 + si * (portW + portGap);
 
-                    var saId = nextId();
+                    const saId = nextId();
                     addCell(saId, sa.name + '\\n' + sa.speed, sx, saY, portW, portH,
                         'rounded=1;whiteSpace=wrap;html=1;fillColor=' + pcs.fill + ';strokeColor=' + pcs.stroke + ';fontColor=#FFFFFF;fontSize=7;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
                         nodeContainerId);
 
                     // Connect to SAN target
-                    var targetSan = (sa.target === 'A') ? sanAId : sanBId;
-                    var saEdgeId = nextId();
+                    const targetSan = (sa.target === 'A') ? sanAId : sanBId;
+                    const saEdgeId = nextId();
                     addEdge(saEdgeId, saId, targetSan,
                         'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;');
                 }
@@ -2681,7 +2682,7 @@
         }
 
         // Build XML
-        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xml += '<mxfile host="app.diagrams.net" type="device">\n';
         xml += '  <diagram name="Disaggregated Host Networking" id="odin-disagg-host-networking">\n';
         xml += '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="' + Math.round(svgW + 100) + '" pageHeight="' + Math.round(pageH) + '" math="0" shadow="0">\n';
@@ -2689,16 +2690,16 @@
         xml += '        <mxCell id="0" />\n';
         xml += '        <mxCell id="1" parent="0" />\n';
 
-        for (var vi = 0; vi < cells.length; vi++) {
-            var c = cells[vi];
+        for (let vi = 0; vi < cells.length; vi++) {
+            const c = cells[vi];
             xml += '        <mxCell id="' + c.id + '" value="' + c.value + '" style="' + c.style + '" vertex="1" parent="' + c.parent + '">\n';
             xml += '          <mxGeometry x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" as="geometry" />\n';
             xml += '        </mxCell>\n';
         }
 
-        for (var ei = 0; ei < edgesList.length; ei++) {
-            var e = edgesList[ei];
-            var lbl = e.label ? (' value="' + xmlEsc(e.label) + '"') : '';
+        for (let ei = 0; ei < edgesList.length; ei++) {
+            const e = edgesList[ei];
+            const lbl = e.label ? (' value="' + xmlEsc(e.label) + '"') : '';
             xml += '        <mxCell id="' + e.id + '"' + lbl + ' style="' + e.style + '" edge="1" source="' + e.source + '" target="' + e.target + '" parent="1">\n';
             xml += '          <mxGeometry relative="1" as="geometry" />\n';
             xml += '        </mxCell>\n';
@@ -2717,50 +2718,50 @@
      */
     function downloadHostNetworkingDrawio() {
         if (!CURRENT_REPORT_STATE) return;
-        var s = CURRENT_REPORT_STATE;
-        var drawioXml = (s.architecture === 'disaggregated')
+        const s = CURRENT_REPORT_STATE;
+        const drawioXml = (s.architecture === 'disaggregated')
             ? generateDisaggregatedHostNetworkingDrawio(s)
             : generateHostNetworkingDrawio(s);
         if (!drawioXml) return;
 
-        var blob = new Blob([drawioXml], { type: 'application/xml' });
-        var url = URL.createObjectURL(blob);
+        const blob = new Blob([drawioXml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
 
-        var ts = new Date();
-        var pad2 = function (n) { return String(n).padStart(2, '0'); };
-        var fileName = 'azure-local-diagram-'
+        const ts = new Date();
+        const pad2 = function(n) { return String(n).padStart(2, '0'); };
+        const fileName = 'azure-local-diagram-'
             + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
             + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
             + '.drawio';
 
-        var a = document.createElement('a');
+        const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
     }
 
     function downloadHostNetworkingDiagramSvg(variant) {
         try {
-            var hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
+            const hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
             if (!hostSec) return;
-            var svg = hostSec.querySelector('svg.switchless-diagram__svg');
+            const svg = hostSec.querySelector('svg.switchless-diagram__svg');
             if (!svg) return;
 
-            var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+            const theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
 
             // Clone so we can inject theme variables + a solid background for standalone viewing.
-            var clone = svg.cloneNode(true);
+            const clone = svg.cloneNode(true);
             if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-            var exportBg = '#000000';
+            let exportBg = '#000000';
 
             try {
-                var rootStyle = window.getComputedStyle(document.documentElement);
+                const rootStyle = window.getComputedStyle(document.documentElement);
                 // Default to the current (dark) site theme.
-                var themeVars = {
+                const themeVars = {
                     '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
                     '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
                     '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
@@ -2783,21 +2784,21 @@
 
                 exportBg = (theme === 'light') ? '#ffffff' : (themeVars['--bg-dark'] || '#000000');
 
-                var decls = Object.keys(themeVars)
-                    .map(function (k) {
-                        var v = (themeVars[k] || '').trim();
+                const decls = Object.keys(themeVars)
+                    .map(function(k) {
+                        const v = (themeVars[k] || '').trim();
                         return v ? (k + ': ' + v + ';') : '';
                     })
                     .filter(Boolean)
                     .join(' ');
 
                 if (decls) {
-                    var defs = clone.querySelector('defs');
+                    let defs = clone.querySelector('defs');
                     if (!defs) {
                         defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
                         clone.insertBefore(defs, clone.firstChild);
                     }
-                    var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
                     styleEl.textContent = ':root { ' + decls + ' }';
                     defs.appendChild(styleEl);
                 }
@@ -2807,13 +2808,13 @@
 
             // Add a background rect so the downloaded SVG isn't transparent.
             try {
-                var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('fill', exportBg);
 
-                var vb = (clone.getAttribute('viewBox') || '').trim();
+                const vb = (clone.getAttribute('viewBox') || '').trim();
                 if (vb) {
-                    var parts = vb.split(/\s+/).map(function (p) { return parseFloat(p); });
-                    if (parts.length === 4 && parts.every(function (n) { return Number.isFinite(n); })) {
+                    const parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                    if (parts.length === 4 && parts.every(function(n) { return Number.isFinite(n); })) {
                         rect.setAttribute('x', String(parts[0]));
                         rect.setAttribute('y', String(parts[1]));
                         rect.setAttribute('width', String(parts[2]));
@@ -2831,7 +2832,7 @@
                     rect.setAttribute('height', '100%');
                 }
 
-                var defsNode = clone.querySelector('defs');
+                const defsNode = clone.querySelector('defs');
                 if (defsNode && defsNode.nextSibling) {
                     clone.insertBefore(rect, defsNode.nextSibling);
                 } else {
@@ -2841,30 +2842,30 @@
                 // ignore
             }
 
-            var serializer = new XMLSerializer();
-            var svgText = serializer.serializeToString(clone);
+            const serializer = new XMLSerializer();
+            let svgText = serializer.serializeToString(clone);
             if (svgText.indexOf('<?xml') !== 0) {
                 svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
             }
 
-            var blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
+            const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
 
-            var ts = new Date();
-            var pad2 = function (n) { return String(n).padStart(2, '0'); };
-            var fileName = 'azure-local-diagram-' + theme + '-'
+            const ts = new Date();
+            const pad2 = function(n) { return String(n).padStart(2, '0'); };
+            const fileName = 'azure-local-diagram-' + theme + '-'
                 + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
                 + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
                 + '.svg';
 
-            var a = document.createElement('a');
+            const a = document.createElement('a');
             a.href = url;
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
 
-            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
         } catch (e) {
             // ignore
         }
@@ -2872,48 +2873,48 @@
 
     function downloadOutboundConnectivityDiagramSvg(variant) {
         try {
-            var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
-            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            const theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+            const diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
             if (!diagKey || !OUTBOUND_DIAGRAMS[diagKey]) return;
 
             // Determine the correct SVG URL based on theme
-            var basePath = OUTBOUND_DIAGRAMS[diagKey];
+            const basePath = OUTBOUND_DIAGRAMS[diagKey];
             // The SVGs are dark by default, for light we'd need to apply transformations
-            var svgUrl = basePath;
+            const svgUrl = basePath;
 
             fetch(svgUrl)
                 .then(function(resp) { return resp.text(); })
                 .then(function(svgText) {
-                    var parser = new DOMParser();
-                    var doc = parser.parseFromString(svgText, 'image/svg+xml');
-                    var svg = doc.querySelector('svg');
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svg = doc.querySelector('svg');
                     if (!svg) return;
 
-                    var clone = svg.cloneNode(true);
+                    const clone = svg.cloneNode(true);
                     if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-                    var exportBg = theme === 'light' ? '#ffffff' : '#000000';
+                    const exportBg = theme === 'light' ? '#ffffff' : '#000000';
 
                     // For light theme, we need to invert some colors
                     if (theme === 'light') {
                         // Add a style to invert dark backgrounds to light
-                        var defs = clone.querySelector('defs');
+                        let defs = clone.querySelector('defs');
                         if (!defs) {
                             defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
                             clone.insertBefore(defs, clone.firstChild);
                         }
-                        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
                         styleEl.textContent = 'svg { background-color: #ffffff; }';
                         defs.appendChild(styleEl);
                     }
 
                     // Add a background rect
-                    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('fill', exportBg);
-                    var vb = (clone.getAttribute('viewBox') || '').trim();
+                    const vb = (clone.getAttribute('viewBox') || '').trim();
                     if (vb) {
-                        var parts = vb.split(/\s+/).map(function (p) { return parseFloat(p); });
-                        if (parts.length === 4 && parts.every(function (n) { return Number.isFinite(n); })) {
+                        const parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                        if (parts.length === 4 && parts.every(function(n) { return Number.isFinite(n); })) {
                             rect.setAttribute('x', String(parts[0]));
                             rect.setAttribute('y', String(parts[1]));
                             rect.setAttribute('width', String(parts[2]));
@@ -2932,30 +2933,30 @@
                     }
                     clone.insertBefore(rect, clone.firstChild);
 
-                    var serializer = new XMLSerializer();
-                    var finalSvgText = serializer.serializeToString(clone);
+                    const serializer = new XMLSerializer();
+                    let finalSvgText = serializer.serializeToString(clone);
                     if (finalSvgText.indexOf('<?xml') !== 0) {
                         finalSvgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + finalSvgText;
                     }
 
-                    var blob = new Blob([finalSvgText], { type: 'image/svg+xml;charset=utf-8' });
-                    var url = URL.createObjectURL(blob);
+                    const blob = new Blob([finalSvgText], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
 
-                    var ts = new Date();
-                    var pad2 = function (n) { return String(n).padStart(2, '0'); };
-                    var fileName = 'outbound-connectivity-' + theme + '-'
+                    const ts = new Date();
+                    const pad2 = function(n) { return String(n).padStart(2, '0'); };
+                    const fileName = 'outbound-connectivity-' + theme + '-'
                         + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
                         + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
                         + '.svg';
 
-                    var a = document.createElement('a');
+                    const a = document.createElement('a');
                     a.href = url;
                     a.download = fileName;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
 
-                    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
                 })
                 .catch(function(err) {
                     console.warn('Failed to download outbound diagram:', err);
@@ -2970,32 +2971,32 @@
      */
     function downloadOutboundConnectivityDrawio() {
         try {
-            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            const diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
             if (!diagKey || !OUTBOUND_DRAWIO[diagKey]) return;
 
-            var drawioUrl = OUTBOUND_DRAWIO[diagKey];
+            const drawioUrl = OUTBOUND_DRAWIO[diagKey];
             fetch(drawioUrl)
-                .then(function (resp) { return resp.text(); })
-                .then(function (drawioXml) {
-                    var blob = new Blob([drawioXml], { type: 'application/xml' });
-                    var url = URL.createObjectURL(blob);
+                .then(function(resp) { return resp.text(); })
+                .then(function(drawioXml) {
+                    const blob = new Blob([drawioXml], { type: 'application/xml' });
+                    const url = URL.createObjectURL(blob);
 
-                    var ts = new Date();
-                    var pad2 = function (n) { return String(n).padStart(2, '0'); };
-                    var fileName = 'disconnected-operations-'
+                    const ts = new Date();
+                    const pad2 = function(n) { return String(n).padStart(2, '0'); };
+                    const fileName = 'disconnected-operations-'
                         + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
                         + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
                         + '.drawio';
 
-                    var a = document.createElement('a');
+                    const a = document.createElement('a');
                     a.href = url;
                     a.download = fileName;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
                 })
-                .catch(function (err) {
+                .catch(function(err) {
                     console.warn('Failed to download drawio file:', err);
                 });
         } catch (e) {
@@ -3014,12 +3015,12 @@
         // The SVG structure is flat: each cell has its own <g data-cell-id="..."> as siblings
         // under <g data-cell-id="1">.  So we read geometry from the container rects and
         // append overlay rects at the end of the main group (drawn on top of everything).
-        var MGMT_CONTAINER  = 'JwsQfcPdxONgqVIScywy-218';   // management cluster grey area (left)
-        var WL_CONTAINER_1  = 'JwsQfcPdxONgqVIScywy-182';   // workload cluster 1 grey area (middle)
-        var WL_CONTAINER_2  = 'JwsQfcPdxONgqVIScywy-186';   // workload cluster 2 grey area (right, only in non-switchless SVGs)
+        const MGMT_CONTAINER  = 'JwsQfcPdxONgqVIScywy-218';   // management cluster grey area (left)
+        const WL_CONTAINER_1  = 'JwsQfcPdxONgqVIScywy-182';   // workload cluster 1 grey area (middle)
+        const WL_CONTAINER_2  = 'JwsQfcPdxONgqVIScywy-186';   // workload cluster 2 grey area (right, only in non-switchless SVGs)
 
         // Determine which containers to dim and which to highlight
-        var activeIds, dimIds;
+        let activeIds, dimIds;
         if (clusterRole === 'management') {
             activeIds = [MGMT_CONTAINER];
             // Dim both workload clusters (if the second one exists in this SVG)
@@ -3037,25 +3038,25 @@
         }
 
         // Find the main content group where all cells are rendered
-        var mainGroup = svgEl.querySelector('[data-cell-id="1"]');
+        const mainGroup = svgEl.querySelector('[data-cell-id="1"]');
         if (!mainGroup) return;
 
         // Helper: read rect geometry from a container cell group (accounts for translate)
         function getRectGeometry(cellId) {
-            var g = svgEl.querySelector('[data-cell-id="' + cellId + '"]');
+            const g = svgEl.querySelector('[data-cell-id="' + cellId + '"]');
             if (!g) return null;
-            var rect = g.querySelector('rect');
+            const rect = g.querySelector('rect');
             if (!rect) return null;
-            var x = parseFloat(rect.getAttribute('x')) || 0;
-            var y = parseFloat(rect.getAttribute('y')) || 0;
-            var w = parseFloat(rect.getAttribute('width')) || 0;
-            var h = parseFloat(rect.getAttribute('height')) || 0;
-            var rx = parseFloat(rect.getAttribute('rx')) || 0;
-            var ry = parseFloat(rect.getAttribute('ry')) || 0;
+            let x = parseFloat(rect.getAttribute('x')) || 0;
+            let y = parseFloat(rect.getAttribute('y')) || 0;
+            const w = parseFloat(rect.getAttribute('width')) || 0;
+            const h = parseFloat(rect.getAttribute('height')) || 0;
+            const rx = parseFloat(rect.getAttribute('rx')) || 0;
+            const ry = parseFloat(rect.getAttribute('ry')) || 0;
             // Account for any translate transform on parent <g>
-            var transformG = rect.parentNode;
+            const transformG = rect.parentNode;
             if (transformG) {
-                var tf = (transformG.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+                const tf = (transformG.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
                 if (tf) { x += parseFloat(tf[1]); y += parseFloat(tf[2]); }
             }
             return { x: x, y: y, w: w, h: h, rx: rx, ry: ry };
@@ -3067,26 +3068,26 @@
         // container's x-range and extend the height to cover them.
         function expandGeoForSwitchlessLabels(geo) {
             if (!geo) return geo;
-            var labels = svgEl.querySelectorAll('[data-cell-id^="switchless-"]');
+            const labels = svgEl.querySelectorAll('[data-cell-id^="switchless-"]');
             if (!labels.length) return geo;
-            var bottom = geo.y + geo.h;
-            for (var i = 0; i < labels.length; i++) {
-                var r = labels[i].querySelector('rect');
+            let bottom = geo.y + geo.h;
+            for (let i = 0; i < labels.length; i++) {
+                const r = labels[i].querySelector('rect');
                 if (!r) continue;
-                var lx = parseFloat(r.getAttribute('x')) || 0;
-                var ly = parseFloat(r.getAttribute('y')) || 0;
-                var lw = parseFloat(r.getAttribute('width')) || 0;
-                var lh = parseFloat(r.getAttribute('height')) || 0;
+                let lx = parseFloat(r.getAttribute('x')) || 0;
+                let ly = parseFloat(r.getAttribute('y')) || 0;
+                const lw = parseFloat(r.getAttribute('width')) || 0;
+                const lh = parseFloat(r.getAttribute('height')) || 0;
                 // Account for translate on parent <g>
-                var tg = r.parentNode;
+                const tg = r.parentNode;
                 if (tg) {
-                    var tf2 = (tg.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+                    const tf2 = (tg.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
                     if (tf2) { lx += parseFloat(tf2[1]); ly += parseFloat(tf2[2]); }
                 }
-                var labelMidX = lx + lw / 2;
+                const labelMidX = lx + lw / 2;
                 // Check if the label's horizontal centre is within the container's x-range
                 if (labelMidX >= geo.x && labelMidX <= geo.x + geo.w) {
-                    var labelBottom = ly + lh;
+                    const labelBottom = ly + lh;
                     if (labelBottom > bottom) bottom = labelBottom;
                 }
             }
@@ -3097,35 +3098,35 @@
         }
 
         // ── Defs: glow filter + pulse animation ──
-        var defs = svgEl.querySelector('defs');
+        let defs = svgEl.querySelector('defs');
         if (!defs) {
             defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             svgEl.insertBefore(defs, svgEl.firstChild);
         }
-        var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
         filter.setAttribute('id', 'cluster-highlight-glow');
         filter.setAttribute('x', '-20%');  filter.setAttribute('y', '-20%');
         filter.setAttribute('width', '140%'); filter.setAttribute('height', '140%');
-        var feGaussian = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        const feGaussian = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
         feGaussian.setAttribute('stdDeviation', '4');
         feGaussian.setAttribute('result', 'glow');
         filter.appendChild(feGaussian);
-        var feMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
-        var fm1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        const feMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        const fm1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
         fm1.setAttribute('in', 'glow');  feMerge.appendChild(fm1);
-        var fm2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        const fm2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
         fm2.setAttribute('in', 'SourceGraphic'); feMerge.appendChild(fm2);
         filter.appendChild(feMerge);
         defs.appendChild(filter);
-        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
         styleEl.textContent = '@keyframes cluster-pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.4; } }';
         defs.appendChild(styleEl);
 
         // ── Dim overlays: semi-transparent dark rects over the non-active clusters ──
-        dimIds.forEach(function (dimId) {
-            var dimGeo = expandGeoForSwitchlessLabels(getRectGeometry(dimId));
+        dimIds.forEach(function(dimId) {
+            const dimGeo = expandGeoForSwitchlessLabels(getRectGeometry(dimId));
             if (dimGeo) {
-                var dimOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const dimOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 dimOverlay.setAttribute('x', String(dimGeo.x));
                 dimOverlay.setAttribute('y', String(dimGeo.y));
                 dimOverlay.setAttribute('width', String(dimGeo.w));
@@ -3140,11 +3141,11 @@
         });
 
         // ── Highlight borders: glowing animated stroke around the active clusters ──
-        var highlightColor = clusterRole === 'management' ? '#10b981' : '#3b82f6';
-        activeIds.forEach(function (activeId) {
-            var activeGeo = expandGeoForSwitchlessLabels(getRectGeometry(activeId));
+        const highlightColor = clusterRole === 'management' ? '#10b981' : '#3b82f6';
+        activeIds.forEach(function(activeId) {
+            const activeGeo = expandGeoForSwitchlessLabels(getRectGeometry(activeId));
             if (activeGeo) {
-                var highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 highlight.setAttribute('x', String(activeGeo.x - 2));
                 highlight.setAttribute('y', String(activeGeo.y - 2));
                 highlight.setAttribute('width', String(activeGeo.w + 4));
@@ -3167,23 +3168,23 @@
      * for disconnected operations diagrams.
      */
     function loadAndHighlightOutboundDiagram() {
-        var container = document.getElementById('outbound-diagram-container');
+        const container = document.getElementById('outbound-diagram-container');
         if (!container) return;
 
-        var diagramUrl = container.getAttribute('data-diagram-url');
-        var clusterRole = container.getAttribute('data-cluster-role');
+        const diagramUrl = container.getAttribute('data-diagram-url');
+        const clusterRole = container.getAttribute('data-cluster-role');
         if (!diagramUrl) return;
 
         fetch(diagramUrl)
-            .then(function (resp) { return resp.text(); })
-            .then(function (svgText) {
+            .then(function(resp) { return resp.text(); })
+            .then(function(svgText) {
                 if (!svgText || svgText.indexOf('<svg') === -1) {
                     container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
                     return;
                 }
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(svgText, 'image/svg+xml');
-                var svgEl = doc.querySelector('svg');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                const svgEl = doc.querySelector('svg');
                 if (!svgEl) {
                     container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
                     return;
@@ -3204,7 +3205,7 @@
                 container.innerHTML = '';
                 container.appendChild(document.adoptNode(svgEl));
             })
-            .catch(function (err) {
+            .catch(function(err) {
                 console.warn('Failed to load outbound diagram:', err);
                 container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
             });
@@ -3214,18 +3215,18 @@
      * Open the outbound connectivity diagram in a full-screen modal with pan & zoom.
      */
     function openDiagramZoom() {
-        var container = document.getElementById('outbound-diagram-container');
+        const container = document.getElementById('outbound-diagram-container');
         if (!container) return;
-        var srcSvg = container.querySelector('svg');
+        const srcSvg = container.querySelector('svg');
         if (!srcSvg) return;
 
         // Clone the SVG so the original stays untouched
-        var svgClone = srcSvg.cloneNode(true);
+        const svgClone = srcSvg.cloneNode(true);
         // Restore intrinsic dimensions for the modal viewport
-        var vb = (svgClone.getAttribute('viewBox') || '').trim();
-        var vbParts = vb.split(/\s+/).map(Number);
-        var intrinsicW = (vbParts.length === 4 && vbParts[2]) ? vbParts[2] : 1431;
-        var intrinsicH = (vbParts.length === 4 && vbParts[3]) ? vbParts[3] : 480;
+        const vb = (svgClone.getAttribute('viewBox') || '').trim();
+        const vbParts = vb.split(/\s+/).map(Number);
+        const intrinsicW = (vbParts.length === 4 && vbParts[2]) ? vbParts[2] : 1431;
+        const intrinsicH = (vbParts.length === 4 && vbParts[3]) ? vbParts[3] : 480;
         svgClone.setAttribute('width', String(intrinsicW));
         svgClone.setAttribute('height', String(intrinsicH));
         svgClone.style.width = '';
@@ -3233,41 +3234,41 @@
         svgClone.style.display = 'block';
 
         // Build modal DOM
-        var backdrop = document.createElement('div');
+        const backdrop = document.createElement('div');
         backdrop.className = 'diagram-modal-backdrop';
 
-        var toolbar = document.createElement('div');
+        const toolbar = document.createElement('div');
         toolbar.className = 'diagram-modal-toolbar';
 
-        var titleEl = document.createElement('span');
+        const titleEl = document.createElement('span');
         titleEl.className = 'diagram-modal-title';
-        var diagramTitle = '';
-        var h4 = document.querySelector('#outbound-connectivity-diagram h4');
+        let diagramTitle = '';
+        const h4 = document.querySelector('#outbound-connectivity-diagram h4');
         if (h4) diagramTitle = h4.textContent || '';
         titleEl.textContent = diagramTitle || 'Disconnected Operations Diagram';
 
-        var controls = document.createElement('span');
+        const controls = document.createElement('span');
         controls.className = 'diagram-modal-controls';
 
-        var btnZoomIn = document.createElement('button');
+        const btnZoomIn = document.createElement('button');
         btnZoomIn.className = 'diagram-modal-btn';
         btnZoomIn.textContent = '+';
         btnZoomIn.title = 'Zoom in';
 
-        var btnZoomOut = document.createElement('button');
+        const btnZoomOut = document.createElement('button');
         btnZoomOut.className = 'diagram-modal-btn';
         btnZoomOut.textContent = '\u2013'; // en-dash
         btnZoomOut.title = 'Zoom out';
 
-        var btnReset = document.createElement('button');
+        const btnReset = document.createElement('button');
         btnReset.className = 'diagram-modal-btn';
         btnReset.textContent = 'Fit';
         btnReset.title = 'Reset zoom to fit';
 
-        var zoomLabel = document.createElement('span');
+        const zoomLabel = document.createElement('span');
         zoomLabel.className = 'diagram-modal-zoom-label';
 
-        var btnClose = document.createElement('button');
+        const btnClose = document.createElement('button');
         btnClose.className = 'diagram-modal-btn';
         btnClose.textContent = '\u2715'; // X
         btnClose.title = 'Close (Esc)';
@@ -3281,11 +3282,11 @@
         toolbar.appendChild(titleEl);
         toolbar.appendChild(controls);
 
-        var viewport = document.createElement('div');
+        const viewport = document.createElement('div');
         viewport.className = 'diagram-modal-viewport';
         viewport.appendChild(svgClone);
 
-        var hint = document.createElement('div');
+        const hint = document.createElement('div');
         hint.className = 'diagram-modal-hint';
         hint.textContent = 'Scroll to zoom \u00B7 Drag to pan \u00B7 Esc to close';
 
@@ -3295,15 +3296,15 @@
         document.body.appendChild(backdrop);
 
         // ── Zoom / pan state ──
-        var scale = 1;
-        var panX = 0;
-        var panY = 0;
-        var MIN_SCALE = 0.25;
-        var MAX_SCALE = 5;
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        const MIN_SCALE = 0.25;
+        const MAX_SCALE = 5;
 
         function fitToViewport() {
-            var vw = viewport.clientWidth * 0.92;
-            var vh = viewport.clientHeight * 0.92;
+            const vw = viewport.clientWidth * 0.92;
+            const vh = viewport.clientHeight * 0.92;
             scale = Math.min(vw / intrinsicW, vh / intrinsicH, 2);
             panX = (viewport.clientWidth - intrinsicW * scale) / 2;
             panY = (viewport.clientHeight - intrinsicW * scale * (intrinsicH / intrinsicW)) / 2;
@@ -3316,7 +3317,7 @@
         }
 
         function zoomBy(delta, cx, cy) {
-            var prev = scale;
+            const prev = scale;
             scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * delta));
             // Adjust pan so the zoom centres on (cx, cy)
             panX = cx - (cx - panX) * (scale / prev);
@@ -3328,25 +3329,25 @@
         requestAnimationFrame(fitToViewport);
 
         // Button handlers
-        btnZoomIn.addEventListener('click', function (e) { e.stopPropagation(); zoomBy(1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
-        btnZoomOut.addEventListener('click', function (e) { e.stopPropagation(); zoomBy(1 / 1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
-        btnReset.addEventListener('click', function (e) { e.stopPropagation(); fitToViewport(); });
+        btnZoomIn.addEventListener('click', function(e) { e.stopPropagation(); zoomBy(1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
+        btnZoomOut.addEventListener('click', function(e) { e.stopPropagation(); zoomBy(1 / 1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
+        btnReset.addEventListener('click', function(e) { e.stopPropagation(); fitToViewport(); });
 
         // Scroll-to-zoom
-        viewport.addEventListener('wheel', function (e) {
+        viewport.addEventListener('wheel', function(e) {
             e.preventDefault();
-            var rect = viewport.getBoundingClientRect();
-            var cx = e.clientX - rect.left;
-            var cy = e.clientY - rect.top;
-            var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+            const rect = viewport.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
             zoomBy(factor, cx, cy);
         }, { passive: false });
 
         // Drag-to-pan
-        var dragging = false;
-        var dragStartX = 0;
-        var dragStartY = 0;
-        viewport.addEventListener('mousedown', function (e) {
+        let dragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        viewport.addEventListener('mousedown', function(e) {
             if (e.button !== 0) return;
             dragging = true;
             dragStartX = e.clientX - panX;
@@ -3376,8 +3377,8 @@
             if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
         }
         document.addEventListener('keydown', onKey);
-        btnClose.addEventListener('click', function (e) { e.stopPropagation(); closeModal(); });
-        backdrop.addEventListener('click', function (e) {
+        btnClose.addEventListener('click', function(e) { e.stopPropagation(); closeModal(); });
+        backdrop.addEventListener('click', function(e) {
             if (e.target === backdrop) closeModal();
         });
     }
@@ -3385,12 +3386,12 @@
     function tryParsePayload() {
         // 1) URL hash payload (preferred for file:// reliability)
         try {
-            var hash = window.location.hash || '';
-            var idx = hash.indexOf('data=');
+            const hash = window.location.hash || '';
+            const idx = hash.indexOf('data=');
             if (idx >= 0) {
-                var encoded = hash.substring(idx + 5);
+                let encoded = hash.substring(idx + 5);
                 encoded = decodeURIComponent(encoded);
-                var json = decodeURIComponent(escape(atob(encoded)));
+                const json = decodeURIComponent(escape(atob(encoded)));
                 return JSON.parse(json);
             }
         } catch (e) {
@@ -3399,7 +3400,7 @@
 
         // 2) localStorage fallback
         try {
-            var raw = localStorage.getItem('azloc_report_payload');
+            const raw = localStorage.getItem('azloc_report_payload');
             if (raw) return JSON.parse(raw);
         } catch (e2) {
             // ignore
@@ -3431,7 +3432,7 @@
 
     function formatLocalInstanceRegion(val) {
         if (!val) return '-';
-        var map = {
+        const map = {
             east_us: 'East US (Commercial)',
             south_central_us: 'South Central US (Commercial)',
             west_europe: 'West Europe (Commercial)',
@@ -3479,35 +3480,35 @@
     function list(items) {
         if (!items || items.length === 0) return '<div style="color:var(--text-secondary);">-</div>';
         return '<ul style="margin:0.25rem 0 0 1.25rem; color:var(--text-primary);">'
-            + items.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('')
+            + items.map(function(x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('')
             + '</ul>';
     }
 
     function rationaleForState(s) {
-        var validations = computeValidations(s);
-        var sections = [];
+        const validations = computeValidations(s);
+        const sections = [];
 
         function renderSwitchedIntentDiagram(state) {
             // Single-node clusters have no storage connectivity choice (state.storage is null)
             // but should still render a diagram showing the ToR switch and node
-            var isSingleNode = state && state.nodes === '1';
+            const isSingleNode = state && state.nodes === '1';
             if (!state || (state.storage !== 'switched' && !isSingleNode)) return '';
 
             if (String(state.nodes) === '16+') {
                 return '<div style="color:var(--text-secondary);">Diagram is not generated for 16+ nodes (the wizard does not collect per-node details for this case).</div>';
             }
 
-            var nAll = parseInt(state.nodes, 10);
+            let nAll = parseInt(state.nodes, 10);
             if (isNaN(nAll) || nAll < 1) nAll = 1;
             // Show max 2 nodes for cleaner diagram with ToR switches
-            var n = Math.min(2, nAll);
+            const n = Math.min(2, nAll);
 
-            var ports = parseInt(state.ports, 10);
+            let ports = parseInt(state.ports, 10);
             if (isNaN(ports) || ports < 0) ports = 0;
 
             // Determine ToR switch configuration (single or dual)
-            var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
-            var showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') &&
+            const torCount = (state.torSwitchCount === 'single') ? 1 : 2;
+            const showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') &&
                 !!state.torSwitchCount;
 
             function getNodeLabel(idx) {
@@ -3527,16 +3528,16 @@
                 return getPortCustomName(state, idx1Based, 'nic');
             }
 
-            var isCustom = state.intent === 'custom';
-            
+            const isCustom = state.intent === 'custom';
+
             // Check if adapter mapping is confirmed (used for mgmt_compute intent)
-            var hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
+            const hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
 
             function getCustomIntentGroups(customIntents, portCount) {
-                var p = parseInt(portCount, 10) || 0;
+                const p = parseInt(portCount, 10) || 0;
                 if (!customIntents || p <= 0) return [];
 
-                var trafficNames = {
+                const trafficNames = {
                     mgmt: 'Management',
                     compute: 'Compute',
                     compute_1: 'Compute 1',
@@ -3550,30 +3551,30 @@
 
                 // CodeQL js/remote-property-injection (#22): use a Map for
                 // user-controlled intent keys.
-                var buckets = new Map();
-                for (var i = 1; i <= p; i++) {
-                    var assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
+                const buckets = new Map();
+                for (let i = 1; i <= p; i++) {
+                    const assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
                     if (assignment === 'unused') continue;
                     if (!buckets.has(assignment)) buckets.set(assignment, []);
                     buckets.get(assignment).push(i);
                 }
 
                 // Always show Mgmt + Compute first when present.
-                var order = ['mgmt_compute', 'mgmt', 'compute', 'compute_1', 'compute_2', 'compute_storage', 'storage', 'all'];
-                var groups = [];
-                for (var oi = 0; oi < order.length; oi++) {
-                    var key = order[oi];
-                    var nics = buckets.get(key);
+                const order = ['mgmt_compute', 'mgmt', 'compute', 'compute_1', 'compute_2', 'compute_storage', 'storage', 'all'];
+                const groups = [];
+                for (let oi = 0; oi < order.length; oi++) {
+                    const key = order[oi];
+                    const nics = buckets.get(key);
                     if (!nics || nics.length === 0) continue;
-                    var label = (trafficNames[key] || key);
-                    var isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
+                    const label = (trafficNames[key] || key);
+                    const isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
                     groups.push({ key: key, label: label, nics: nics, isStorageLike: isStorageLike });
                 }
 
                 // Include any unexpected keys at the end (stable).
-                Array.from(buckets.keys()).sort().forEach(function (k) {
+                Array.from(buckets.keys()).sort().forEach(function(k) {
                     if (order.indexOf(k) >= 0) return;
-                    var nics2 = buckets.get(k);
+                    const nics2 = buckets.get(k);
                     if (!nics2 || nics2.length === 0) return;
                     groups.push({ key: k, label: (trafficNames[k] || k), nics: nics2, isStorageLike: (String(k).indexOf('storage') >= 0) });
                 });
@@ -3583,10 +3584,10 @@
 
             // Get intent groups from adapter mapping (for mgmt_compute intent with confirmed mapping)
             function getAdapterMappingGroups(adapterMapping, portCount) {
-                var p = parseInt(portCount, 10) || 0;
+                const p = parseInt(portCount, 10) || 0;
                 if (!adapterMapping || p <= 0) return [];
 
-                var trafficNames = {
+                const trafficNames = {
                     mgmt: 'Management + Compute',
                     compute: 'Compute',
                     compute_1: 'Compute 1',
@@ -3599,68 +3600,68 @@
 
                 // CodeQL js/remote-property-injection (#23): use a Map for
                 // user-controlled intent keys.
-                var buckets = new Map();
-                for (var i = 1; i <= p; i++) {
-                    var assignment = adapterMapping[i] || 'pool';
+                const buckets = new Map();
+                for (let i = 1; i <= p; i++) {
+                    let assignment = adapterMapping[i] || 'pool';
                     // Normalize 'mgmt' and 'pool' to 'mgmt' for grouping
                     if (assignment === 'pool') assignment = 'mgmt';
                     if (!buckets.has(assignment)) buckets.set(assignment, []);
                     buckets.get(assignment).push(i);
                 }
 
-                var order = ['mgmt', 'compute', 'compute_1', 'compute_2', 'storage', 'compute_storage', 'all'];
-                var groups = [];
-                for (var oi = 0; oi < order.length; oi++) {
-                    var key = order[oi];
-                    var nics = buckets.get(key);
+                const order = ['mgmt', 'compute', 'compute_1', 'compute_2', 'storage', 'compute_storage', 'all'];
+                const groups = [];
+                for (let oi = 0; oi < order.length; oi++) {
+                    const key = order[oi];
+                    const nics = buckets.get(key);
                     if (!nics || nics.length === 0) continue;
-                    var label = (trafficNames[key] || key);
-                    var isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
+                    const label = (trafficNames[key] || key);
+                    const isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
                     groups.push({ key: key, label: label, nics: nics, isStorageLike: isStorageLike });
                 }
 
                 return groups;
             }
 
-            var showStorageGroup = !isCustom && state.intent !== 'all_traffic';
-            var storagePortCount = (!isCustom && showStorageGroup) ? Math.max(0, ports - 2) : 0;
-            
+            const showStorageGroup = !isCustom && state.intent !== 'all_traffic';
+            const storagePortCount = (!isCustom && showStorageGroup) ? Math.max(0, ports - 2) : 0;
+
             // Get adapter mapping groups if applicable
-            var adapterMappingGroups = hasAdapterMapping ? getAdapterMappingGroups(state.adapterMapping, ports) : [];
-            var customGroups = isCustom ? getCustomIntentGroups(state.customIntents, ports) : [];
+            const adapterMappingGroups = hasAdapterMapping ? getAdapterMappingGroups(state.adapterMapping, ports) : [];
+            const customGroups = isCustom ? getCustomIntentGroups(state.customIntents, ports) : [];
 
             // Layout constants
-            var nodeW = 320;
-            var mgmtVnicAreaH = 48;
-            var nodeH = 180 + mgmtVnicAreaH;
-            var gapX = 40;
-            var marginX = 50;
-            var torSwitchH = 50;
-            var torSwitchW = 140;
-            var torGap = 60;
-            var torToNodeGap = 80;
-            var marginTop = showTorSwitches ? 90 : 70;
-            var marginBottom = 50;
+            let nodeW = 320;
+            const mgmtVnicAreaH = 48;
+            const nodeH = 180 + mgmtVnicAreaH;
+            const gapX = 40;
+            const marginX = 50;
+            const torSwitchH = 50;
+            const torSwitchW = 140;
+            const torGap = 60;
+            const torToNodeGap = 80;
+            const marginTop = showTorSwitches ? 90 : 70;
+            const marginBottom = 50;
 
             // Calculate adapter dimensions based on port count
-            var adapterW = 54;
-            var adapterH = 36;
-            var adapterGap = 10;
-            var totalAdapterW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
+            const adapterW = 54;
+            const adapterH = 36;
+            const adapterGap = 10;
+            const totalAdapterW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
 
             // Ensure node width accommodates all adapters
             nodeW = Math.max(nodeW, totalAdapterW + 40);
 
             // Calculate SVG dimensions
-            var svgW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
-            var torAreaH = showTorSwitches ? (torSwitchH + torToNodeGap) : 0;
-            var svgH = marginTop + torAreaH + nodeH + marginBottom + (nAll > 2 ? 40 : 0);
+            const svgW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
+            const torAreaH = showTorSwitches ? (torSwitchH + torToNodeGap) : 0;
+            const svgH = marginTop + torAreaH + nodeH + marginBottom + (nAll > 2 ? 40 : 0);
 
             // ToR switch positions
-            var torY = marginTop + 10;
-            var tor1X, tor2X;
+            const torY = marginTop + 10;
+            let tor1X, tor2X;
             if (torCount === 2) {
-                var totalTorW = (2 * torSwitchW) + torGap;
+                const totalTorW = (2 * torSwitchW) + torGap;
                 tor1X = (svgW - totalTorW) / 2;
                 tor2X = tor1X + torSwitchW + torGap;
             } else {
@@ -3669,8 +3670,8 @@
             }
 
             // Node positions (horizontally centered)
-            var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
-            var nodeY = marginTop + torAreaH + 10;
+            const nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
+            const nodeY = marginTop + torAreaH + 10;
 
             function nodePos(i) {
                 return {
@@ -3680,16 +3681,16 @@
             }
 
             // Collect all adapter positions for drawing uplinks later
-            var adapterPositions = [];
+            const adapterPositions = [];
 
-            var mgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            const mgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
 
             function renderMgmtVnicCard(boxX, boxTotalW, boxTopY) {
-                var vaCardW = 80;
-                var vaCardH = 30;
-                var vaX = boxX + (boxTotalW - vaCardW) / 2;
-                var vaY = boxTopY + 6;
-                var vo = '';
+                const vaCardW = 80;
+                const vaCardH = 30;
+                const vaX = boxX + (boxTotalW - vaCardW) / 2;
+                const vaY = boxTopY + 6;
+                let vo = '';
                 vo += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="6" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
                 vo += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
                 vo += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(mgmtVlanLabel) + '</text>';
@@ -3698,28 +3699,28 @@
             }
 
             function renderAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
-                var out = '';
-                var adaptersY = nodeTop + nodeH - adapterH - 20;
-                var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
-                var setH = adapterH + 24;
-                var setY = adaptersY - 12;
+                let out = '';
+                const adaptersY = nodeTop + nodeH - adapterH - 20;
+                const startX = nodeLeft + (nodeW - totalAdapterW) / 2;
+                const setH = adapterH + 24;
+                const setY = adaptersY - 12;
 
                 // If adapter mapping is confirmed, use it to determine intent groups
                 if (hasAdapterMapping && adapterMappingGroups.length > 0) {
                     // Build a map of port to intent for adapter mapping
-                    var portToIntent = {};
-                    for (var gi = 0; gi < adapterMappingGroups.length; gi++) {
+                    const portToIntent = {};
+                    for (let gi = 0; gi < adapterMappingGroups.length; gi++) {
                         var grp = adapterMappingGroups[gi];
-                        for (var ni = 0; ni < grp.nics.length; ni++) {
+                        for (let ni = 0; ni < grp.nics.length; ni++) {
                             portToIntent[grp.nics[ni]] = grp;
                         }
                     }
 
                     // Build ordered list of ports grouped by intent (Mgmt+Compute first, then Storage)
-                    var orderedPorts = [];
-                    var mgmtPorts = [];
-                    var storagePorts = [];
-                    for (var pi = 1; pi <= ports; pi++) {
+                    let orderedPorts = [];
+                    const mgmtPorts = [];
+                    const storagePorts = [];
+                    for (let pi = 1; pi <= ports; pi++) {
                         var grp = portToIntent[pi];
                         if (grp && grp.isStorageLike) {
                             storagePorts.push(pi);
@@ -3731,39 +3732,39 @@
 
                     // Calculate intent group box positions based on grouped layout
                     var intentGap = 8; // Gap between intent boxes
-                    
+
                     // Draw Mgmt + Compute box (first group)
                     if (mgmtPorts.length > 0) {
-                        var mgmtBoxW = (mgmtPorts.length * adapterW) + ((mgmtPorts.length - 1) * adapterGap) + 12;
-                        var mgmtBoxX = startX - 6;
-                        var mgmtBoxFullY = setY - mgmtVnicAreaH;
-                        var mgmtBoxFullH = setH + mgmtVnicAreaH;
+                        const mgmtBoxW = (mgmtPorts.length * adapterW) + ((mgmtPorts.length - 1) * adapterGap) + 12;
+                        const mgmtBoxX = startX - 6;
+                        const mgmtBoxFullY = setY - mgmtVnicAreaH;
+                        const mgmtBoxFullH = setH + mgmtVnicAreaH;
                         out += '<rect x="' + mgmtBoxX + '" y="' + mgmtBoxFullY + '" width="' + mgmtBoxW + '" height="' + mgmtBoxFullH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
                         out += '<text x="' + (mgmtBoxX + mgmtBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Management + Compute</text>';
                         out += renderMgmtVnicCard(mgmtBoxX, mgmtBoxW, mgmtBoxFullY);
                     }
-                    
+
                     // Draw Storage box (second group)
                     if (storagePorts.length > 0) {
-                        var storageStartX = startX + (mgmtPorts.length * (adapterW + adapterGap)) + intentGap;
-                        var storageBoxW = (storagePorts.length * adapterW) + ((storagePorts.length - 1) * adapterGap) + 12;
-                        var storageBoxX = storageStartX - 6;
+                        const storageStartX = startX + (mgmtPorts.length * (adapterW + adapterGap)) + intentGap;
+                        const storageBoxW = (storagePorts.length * adapterW) + ((storagePorts.length - 1) * adapterGap) + 12;
+                        const storageBoxX = storageStartX - 6;
                         out += '<rect x="' + storageBoxX + '" y="' + setY + '" width="' + storageBoxW + '" height="' + setH + '" rx="10" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="5 3" />';
                         out += '<text x="' + (storageBoxX + storageBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage</text>';
                     }
 
                     // Draw adapters in grouped order (Mgmt+Compute ports first, then Storage ports)
-                    for (var oi = 0; oi < orderedPorts.length; oi++) {
+                    for (let oi = 0; oi < orderedPorts.length; oi++) {
                         var nicIdx = orderedPorts[oi];
-                        var isMgmt = mgmtPorts.indexOf(nicIdx) >= 0;
-                        
+                        const isMgmt = mgmtPorts.indexOf(nicIdx) >= 0;
+
                         // Calculate X position based on grouped layout
                         var x;
                         if (isMgmt) {
-                            var mgmtIdx = mgmtPorts.indexOf(nicIdx);
+                            const mgmtIdx = mgmtPorts.indexOf(nicIdx);
                             x = startX + (mgmtIdx * (adapterW + adapterGap));
                         } else {
-                            var storageIdx = storagePorts.indexOf(nicIdx);
+                            const storageIdx = storagePorts.indexOf(nicIdx);
                             x = startX + (mgmtPorts.length * (adapterW + adapterGap)) + intentGap + (storageIdx * (adapterW + adapterGap));
                         }
                         var y = adaptersY;
@@ -3797,34 +3798,34 @@
                 // Default behavior (no adapter mapping) - NICs 1-2 are Mgmt+Compute, NICs 3+ are Storage
                 if (!isCustom && ports >= 2) {
                     // Management + Compute box (first 2 NICs)
-                    var setW = (2 * adapterW) + adapterGap + 12;
-                    var setX = startX - 6;
-                    var mgmtSetY = setY - mgmtVnicAreaH;
-                    var mgmtSetH = setH + mgmtVnicAreaH;
+                    const setW = (2 * adapterW) + adapterGap + 12;
+                    const setX = startX - 6;
+                    const mgmtSetY = setY - mgmtVnicAreaH;
+                    const mgmtSetH = setH + mgmtVnicAreaH;
                     out += '<rect x="' + setX + '" y="' + mgmtSetY + '" width="' + setW + '" height="' + mgmtSetH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
-                    
+
                     // Label for Mgmt + Compute group
-                    var mgmtLabel = (state.intent === 'all_traffic') ? 'Management + Compute + Storage' : 'Management + Compute';
+                    const mgmtLabel = (state.intent === 'all_traffic') ? 'Management + Compute + Storage' : 'Management + Compute';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(mgmtLabel) + '</text>';
                     out += renderMgmtVnicCard(setX, setW, mgmtSetY);
-                    
+
                     // Storage box (NICs 3+) if applicable - add gap between boxes
                     if (showStorageGroup && storagePortCount > 0) {
                         var intentGap = 8; // Gap between intent boxes
-                        var storageW = (storagePortCount * adapterW) + ((storagePortCount - 1) * adapterGap) + 12;
-                        var storageX = startX + (2 * (adapterW + adapterGap)) - 6 + intentGap;
+                        const storageW = (storagePortCount * adapterW) + ((storagePortCount - 1) * adapterGap) + 12;
+                        const storageX = startX + (2 * (adapterW + adapterGap)) - 6 + intentGap;
                         out += '<rect x="' + storageX + '" y="' + setY + '" width="' + storageW + '" height="' + setH + '" rx="10" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="5 3" />';
                         out += '<text x="' + (storageX + storageW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage</text>';
                     }
                 }
-                
+
                 // Calculate intent gap for storage adapter positioning
-                var storageIntentGap = (!isCustom && showStorageGroup && storagePortCount > 0) ? 8 : 0;
+                const storageIntentGap = (!isCustom && showStorageGroup && storagePortCount > 0) ? 8 : 0;
 
                 // Draw all adapters horizontally
-                for (var i = 0; i < ports; i++) {
+                for (let i = 0; i < ports; i++) {
                     // Storage adapters (index 2+) need to shift by the intent gap to center in purple box
-                    var adapterOffset = (i >= 2 && storageIntentGap > 0) ? storageIntentGap : 0;
+                    const adapterOffset = (i >= 2 && storageIntentGap > 0) ? storageIntentGap : 0;
                     var x = startX + (i * (adapterW + adapterGap)) + adapterOffset;
                     var y = adaptersY;
                     var nicIdx = i + 1;
@@ -3858,12 +3859,12 @@
             }
 
             function renderCustomAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
-                var out = '';
-                var adaptersY = nodeTop + nodeH - adapterH - 20;
+                let out = '';
+                const adaptersY = nodeTop + nodeH - adapterH - 20;
 
                 // Build a map of port to intent
-                var portIntent = {};
-                for (var gi2 = 0; gi2 < customGroups.length; gi2++) {
+                const portIntent = {};
+                for (let gi2 = 0; gi2 < customGroups.length; gi2++) {
                     var grp = customGroups[gi2];
                     for (var ni = 0; ni < grp.nics.length; ni++) {
                         portIntent[grp.nics[ni]] = grp;
@@ -3872,16 +3873,16 @@
 
                 // Build ordered list of ports grouped by intent (following customGroups order)
                 // This ensures ports with the same intent are visually grouped together
-                var orderedPorts = [];
-                var intentGap = 8; // Gap between intent boxes
-                
+                const orderedPorts = [];
+                const intentGap = 8; // Gap between intent boxes
+
                 for (var gi = 0; gi < customGroups.length; gi++) {
                     var grp = customGroups[gi];
                     for (var ni = 0; ni < grp.nics.length; ni++) {
                         orderedPorts.push(grp.nics[ni]);
                     }
                 }
-                
+
                 // Include any ports not assigned to intents (unused)
                 for (var pi = 1; pi <= ports; pi++) {
                     if (orderedPorts.indexOf(pi) < 0) {
@@ -3890,29 +3891,29 @@
                 }
 
                 // Calculate total width including gaps between intent groups
-                var totalGroupedW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
+                let totalGroupedW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
                 if (customGroups.length > 1) {
                     totalGroupedW += (customGroups.length - 1) * intentGap;
                 }
-                var groupedStartX = nodeLeft + (nodeW - totalGroupedW) / 2;
+                const groupedStartX = nodeLeft + (nodeW - totalGroupedW) / 2;
 
                 // Build position map for each port based on grouped layout
-                var portPositions = {};
-                var currentX = groupedStartX;
-                var boxY = adaptersY - 12;
-                var boxH = adapterH + 24;
-                
+                const portPositions = {};
+                let currentX = groupedStartX;
+                const boxY = adaptersY - 12;
+                const boxH = adapterH + 24;
+
                 for (var gi = 0; gi < customGroups.length; gi++) {
                     var grp = customGroups[gi];
-                    var grpPorts = grp.nics;
-                    var grpW = (grpPorts.length * adapterW) + ((grpPorts.length - 1) * adapterGap);
-                    
+                    const grpPorts = grp.nics;
+                    const grpW = (grpPorts.length * adapterW) + ((grpPorts.length - 1) * adapterGap);
+
                     // Draw intent box
-                    var boxX = currentX - 8;
-                    var boxTotalW = grpW + 16;
-                    
+                    const boxX = currentX - 8;
+                    const boxTotalW = grpW + 16;
+
                     // Color based on intent type
-                    var isStorageLike = grp.isStorageLike;
+                    const isStorageLike = grp.isStorageLike;
                     var isCompute = (grp.key === 'compute' || grp.key === 'compute_1' || grp.key === 'compute_2');
                     var boxFill, boxStroke;
                     if (isStorageLike) {
@@ -3925,17 +3926,17 @@
                         boxFill = 'rgba(0,120,212,0.07)';
                         boxStroke = 'rgba(0,120,212,0.45)';
                     }
-                    
-                    var isMgmtCustom = (grp.key === 'mgmt_compute' || grp.key === 'mgmt' || grp.key === 'all');
-                    var customVnicH = isMgmtCustom ? mgmtVnicAreaH : 0;
-                    var customBoxY = boxY - customVnicH;
-                    var customBoxH = boxH + customVnicH;
+
+                    const isMgmtCustom = (grp.key === 'mgmt_compute' || grp.key === 'mgmt' || grp.key === 'all');
+                    const customVnicH = isMgmtCustom ? mgmtVnicAreaH : 0;
+                    const customBoxY = boxY - customVnicH;
+                    const customBoxH = boxH + customVnicH;
                     out += '<rect x="' + boxX + '" y="' + customBoxY + '" width="' + boxTotalW + '" height="' + customBoxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
                     out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(grp.label) + '</text>';
                     if (isMgmtCustom) {
                         out += renderMgmtVnicCard(boxX, boxTotalW, customBoxY);
                     }
-                    
+
                     // Assign positions to ports in this group
                     for (var pi = 0; pi < grpPorts.length; pi++) {
                         var nicIdx = grpPorts[pi];
@@ -3944,16 +3945,16 @@
                             posInGroup: pi
                         };
                     }
-                    
+
                     // Move currentX for next group
                     currentX += grpW + adapterGap + intentGap;
                 }
 
                 // Draw adapters in grouped order
-                for (var oi = 0; oi < orderedPorts.length; oi++) {
+                for (let oi = 0; oi < orderedPorts.length; oi++) {
                     var nicIdx = orderedPorts[oi];
-                    var posData = portPositions[nicIdx];
-                    
+                    let posData = portPositions[nicIdx];
+
                     // For unassigned ports, calculate position at the end
                     if (!posData) {
                         posData = {
@@ -3961,12 +3962,12 @@
                             posInGroup: 0
                         };
                     }
-                    
-                    var x = posData.x;
-                    var y = adaptersY;
 
-                    var grp2 = portIntent[nicIdx];
-                    var isStorage = grp2 && grp2.isStorageLike;
+                    const x = posData.x;
+                    const y = adaptersY;
+
+                    const grp2 = portIntent[nicIdx];
+                    const isStorage = grp2 && grp2.isStorageLike;
                     var isCompute = grp2 && grp2.key === 'compute';
                     var fill, stroke;
 
@@ -3982,11 +3983,11 @@
                     }
 
                     // Always use getNicLabel for physical port names
-                    var label = getNicLabel(nicIdx);
+                    const label = getNicLabel(nicIdx);
                     // Get position within intent group
-                    var posInGroup = posData.posInGroup || 0;
+                    const posInGroup = posData.posInGroup || 0;
                     // Center text vertically if label is 11 characters or less, otherwise stagger
-                    var textY = (label.length <= 11) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
+                    const textY = (label.length <= 11) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -4007,12 +4008,12 @@
 
             function renderUplinks() {
                 if (!showTorSwitches) return '';
-                var out = '';
-                var torBottomY = torY + torSwitchH;
+                let out = '';
+                const torBottomY = torY + torSwitchH;
 
-                for (var ai = 0; ai < adapterPositions.length; ai++) {
-                    var ap = adapterPositions[ai];
-                    var adapterTopY = ap.y;
+                for (let ai = 0; ai < adapterPositions.length; ai++) {
+                    const ap = adapterPositions[ai];
+                    const adapterTopY = ap.y;
 
                     // Determine which ToR switch to connect to
                     // For dual ToR: use position within intent group (first port → ToR 1, second port → ToR 2)
@@ -4020,7 +4021,7 @@
                     var targetTorX;
                     if (torCount === 2) {
                         // Use posInGroup if available (adapter mapping), otherwise fall back to NIC index
-                        var posInGroup = (ap.posInGroup !== undefined) ? ap.posInGroup : (ap.nicIdx - 1);
+                        const posInGroup = (ap.posInGroup !== undefined) ? ap.posInGroup : (ap.nicIdx - 1);
                         // First port of each intent (posInGroup 0, 2, 4...) → ToR 1
                         // Second port of each intent (posInGroup 1, 3, 5...) → ToR 2
                         targetTorX = (posInGroup % 2 === 0) ? (tor1X + torSwitchW / 2) : (tor2X + torSwitchW / 2);
@@ -4029,7 +4030,7 @@
                     }
 
                     // Draw uplink line from adapter to ToR switch
-                    var lineColor = ap.isStorage ? 'rgba(139,92,246,0.5)' : 'rgba(0,120,212,0.4)';
+                    const lineColor = ap.isStorage ? 'rgba(139,92,246,0.5)' : 'rgba(0,120,212,0.4)';
                     out += '<line x1="' + ap.x + '" y1="' + adapterTopY + '" x2="' + targetTorX + '" y2="' + torBottomY + '" stroke="' + lineColor + '" stroke-width="1.5" stroke-dasharray="4 2" />';
                 }
 
@@ -4037,9 +4038,9 @@
             }
 
             // Build intro text
-            var torLabel = showTorSwitches ? (torCount === 1 ? 'Single ToR' : 'Dual ToR') : '';
-            var scenarioLabel = isSingleNode ? 'Single-node' : 'Storage Switched';
-            var intro = ''
+            const torLabel = showTorSwitches ? (torCount === 1 ? 'Single ToR' : 'Dual ToR') : '';
+            const scenarioLabel = isSingleNode ? 'Single-node' : 'Storage Switched';
+            const intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">' + scenarioLabel + '</strong> scenario diagram'
                 + (showTorSwitches ? (' with ' + torLabel + ' switch' + (torCount === 1 ? '' : 'es')) : '') + '.'
@@ -4049,14 +4050,14 @@
                 + (nAll > 2 ? ('<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(nAll)) + ' nodes.</span>') : '')
                 + '</div>';
 
-            var svg = '';
+            let svg = '';
             svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="' + (isSingleNode ? 'Single-node network' : 'Switched intent') + ' diagram with ToR switch' + (torCount === 1 ? '' : 'es') + '">';
 
             // Outer container
             svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
 
             // Title text
-            var titleText = isSingleNode 
+            const titleText = isSingleNode
                 ? 'Single-node network connectivity — ' + escapeHtml(autoIpLabel(state.storageAutoIp))
                 : 'Storage Switched connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '');
             svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + titleText + '</text>';
@@ -4073,12 +4074,12 @@
                     svg += '<text x="' + (tor2X + torSwitchW / 2) + '" y="' + (torY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch 2</text>';
 
                     // MLAG peer links between ToR switches
-                    var mlagX1 = tor1X + torSwitchW; // Right edge of ToR 1
-                    var mlagX2 = tor2X;              // Left edge of ToR 2
-                    var mlagY1 = torY + torSwitchH / 2 - 6; // Upper link
-                    var mlagY2 = torY + torSwitchH / 2 + 6; // Lower link
-                    var mlagMidX = (mlagX1 + mlagX2) / 2;
-                    var mlagLabelY = torY + torSwitchH / 2 - 14;
+                    const mlagX1 = tor1X + torSwitchW; // Right edge of ToR 1
+                    const mlagX2 = tor2X;              // Left edge of ToR 2
+                    const mlagY1 = torY + torSwitchH / 2 - 6; // Upper link
+                    const mlagY2 = torY + torSwitchH / 2 + 6; // Lower link
+                    const mlagMidX = (mlagX1 + mlagX2) / 2;
+                    const mlagLabelY = torY + torSwitchH / 2 - 14;
                     svg += '<line x1="' + mlagX1 + '" y1="' + mlagY1 + '" x2="' + mlagX2 + '" y2="' + mlagY1 + '" stroke="rgba(59,130,246,0.8)" stroke-width="2" />';
                     svg += '<line x1="' + mlagX1 + '" y1="' + mlagY2 + '" x2="' + mlagX2 + '" y2="' + mlagY2 + '" stroke="rgba(59,130,246,0.8)" stroke-width="2" />';
                     svg += '<text x="' + mlagMidX + '" y="' + mlagLabelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">MLAG</text>';
@@ -4086,8 +4087,8 @@
             }
 
             // Render nodes
-            for (var ni = 0; ni < n; ni++) {
-                var pos = nodePos(ni);
+            for (let ni = 0; ni < n; ni++) {
+                const pos = nodePos(ni);
                 svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 30) + '" text-anchor="middle" font-size="15" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
 
@@ -4103,20 +4104,20 @@
 
             // "+N more nodes" badge
             if (nAll > 2) {
-                var more = nAll - 2;
-                var badgeW = 180;
-                var badgeH = 26;
-                var badgeX = svgW - 50 - badgeW;
-                var badgeY = svgH - 60;
+                const more = nAll - 2;
+                const badgeW = 180;
+                const badgeH = 26;
+                const badgeX = svgW - 50 - badgeW;
+                const badgeY = svgH - 60;
                 svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + more + ' more node' + (more === 1 ? '' : 's') + '</text>';
             }
 
             svg += '</svg>';
 
-            var note = isSingleNode
+            const note = isSingleNode
                 ? '<div class="switchless-diagram__note">Note: Single-node deployments connect the node to the ToR switch for management and compute traffic. No storage connectivity is required as there is no cluster storage replication.</div>'
-                : `<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node's network adapters to the ToR switch fabric.</div>`;
+                : '<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node\'s network adapters to the ToR switch fabric.</div>';
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
         }
@@ -4129,20 +4130,20 @@
          */
         function renderDisaggregatedFabricRequirements(state) {
             if (!state || state.architecture !== 'disaggregated') return '';
-            var rackCount = parseInt(state.disaggRackCount, 10) || 1;
-            var multiRack = rackCount > 1;
-            var vrfMode = state.disaggVrfMode === 'single' ? 'single' : 'separate';
-            var tenants = Array.isArray(state.disaggTenantNetworks) ? state.disaggTenantNetworks : [];
-            var tenantCount = tenants.length;
+            const rackCount = parseInt(state.disaggRackCount, 10) || 1;
+            const multiRack = rackCount > 1;
+            const vrfMode = state.disaggVrfMode === 'single' ? 'single' : 'separate';
+            const tenants = Array.isArray(state.disaggTenantNetworks) ? state.disaggTenantNetworks : [];
+            const tenantCount = tenants.length;
 
-            var intro = '<p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">'
+            const intro = '<p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">'
                 + 'Switch capabilities required for the Clos leaf-spine fabric with VXLAN EVPN overlay, multitenant VRF isolation, and service-leaf integration. '
                 + 'These requirements are <strong>additive</strong> — all base Azure Local switch requirements still apply.'
                 + (multiRack ? '' : ' <em>Single-rack disaggregated clusters that don\'t require SDN at scale may use a simpler 2-switch HSRP pair instead of the full leaf-spine fabric.</em>')
                 + '</p>';
 
             // Topology + Service-leaf architecture diagrams (stacked full-width for readability)
-            var diagrams = '<div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 16px;">'
+            const diagrams = '<div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 16px;">'
                 + '<div style="text-align: center;">'
                 + '<p style="margin: 0 0 6px 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-purple);">Leaf-Spine Topology (' + rackCount + ' rack' + (rackCount === 1 ? '' : 's') + ')</p>'
                 + '<img src="../images/disaggregated/leaf-spine-topology-four-racks.svg" alt="Leaf-spine topology for disaggregated Azure Local" style="width: 100%; max-width: 1130px; border-radius: 6px; border: 1px solid var(--glass-border);">'
@@ -4160,7 +4161,7 @@
                     + '</tr>';
             }
 
-            var rows = ''
+            const rows = ''
                 + reqRow('Underlay',
                     '&bull; eBGP <strong>unnumbered</strong> (RFC 5549) using IPv6 link-local transport for IPv4 NLRI <em>(or /31 point-to-point subnets)</em><br>'
                     + '&bull; Loopback-based peering (one loopback per switch)<br>'
@@ -4207,7 +4208,7 @@
                     + '&bull; Combined IPv4 + EVPN routes &ge; 10,000<br>'
                     + '&bull; TCAM/ACL capacity sufficient for QoS classification and security ACLs');
 
-            var table = '<table style="width: 100%; border-collapse: collapse; background: var(--subtle-bg); border-radius: 6px; overflow: hidden; font-size: 0.88rem;">'
+            const table = '<table style="width: 100%; border-collapse: collapse; background: var(--subtle-bg); border-radius: 6px; overflow: hidden; font-size: 0.88rem;">'
                 + '<thead><tr style="background: var(--card-bg);">'
                 + '<th style="padding: 8px 12px; text-align: left; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border); white-space: nowrap;">Category</th>'
                 + '<th style="padding: 8px 12px; text-align: left; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Requirements</th>'
@@ -4215,17 +4216,17 @@
                 + '<tbody>' + rows + '</tbody>'
                 + '</table>';
 
-            var oversub = '<p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
+            const oversub = '<p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
                 + '<strong style="color: var(--accent-purple);">Oversubscription target:</strong> design the leaf-to-spine layer for a <strong>minimum 2:1</strong> ratio under normal operations '
                 + '(during a spine failure or maintenance, the effective ratio can rise to ~4:1). Scale the spine layer horizontally as the environment grows to add ECMP paths and reduce congestion risk.'
                 + '</p>';
 
-            var sdn = '<p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
+            const sdn = '<p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
                 + '<strong style="color: #f97316;">SDN:</strong> Microsoft SDN (Network Controller) is <strong>not supported</strong> on disaggregated. As of Azure Local 2604, only <em>External SDN LNETs</em> are supported &mdash; logical network segmentation must be implemented on the leaf-spine fabric (VXLAN EVPN). Plan the VLAN-to-VNI mapping accordingly.'
                 + '</p>';
 
             // AKS LNET reachability diagrams — show based on chosen VRF mode
-            var aksVrfDiagrams = '<div style="margin-top: 16px;">'
+            const aksVrfDiagrams = '<div style="margin-top: 16px;">'
                 + '<h4 style="margin: 0 0 8px 0; color: #14b8a6; font-size: 0.88rem;">AKS Logical Network Reachability &amp; Routing Hops</h4>'
                 + '<p style="margin: 0 0 10px 0; color: var(--text-secondary); font-size: 0.85rem;">'
                 + 'When AKS is deployed, the AKS LNET must have Layer 3 reachability to the Management LNET. The chosen VRF design affects the path length:'
@@ -4273,35 +4274,35 @@
         function renderDisaggregatedHostNetworkingDiagram(state) {
             if (!state || state.architecture !== 'disaggregated') return '';
 
-            var storageType = state.disaggStorageType || 'fc_san';
-            var backupEnabled = !!state.disaggBackupEnabled;
-            var portCount = parseInt(state.disaggPortCount, 10) || 4;
-            var totalNodes = parseInt(state.nodes, 10) || ((parseInt(state.disaggRackCount, 10) || 1) * (parseInt(state.disaggNodesPerRack, 10) || 1));
-            var n = Math.min(2, totalNodes);
-            var hasFc = (storageType === 'fc_san');
-            var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-            var hasDedicatedIscsi = (storageType === 'iscsi_6nic');
-            var hasSharedIscsi = (storageType === 'iscsi_4nic');
-            var adapterMapping = state.disaggAdapterMapping || {};
+            const storageType = state.disaggStorageType || 'fc_san';
+            const backupEnabled = !!state.disaggBackupEnabled;
+            const portCount = parseInt(state.disaggPortCount, 10) || 4;
+            const totalNodes = parseInt(state.nodes, 10) || ((parseInt(state.disaggRackCount, 10) || 1) * (parseInt(state.disaggNodesPerRack, 10) || 1));
+            const n = Math.min(2, totalNodes);
+            const hasFc = (storageType === 'fc_san');
+            const hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+            const hasDedicatedIscsi = (storageType === 'iscsi_6nic');
+            const hasSharedIscsi = (storageType === 'iscsi_4nic');
+            const adapterMapping = state.disaggAdapterMapping || {};
 
             // NIC name helper — port IDs must match wizard format: ocp_p1, pcie1_p2, etc.
             function getNicName(slotKey, idx) {
                 if (state.disaggPortConfig) {
-                    var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
-                    for (var pi = 0; pi < portList.length; pi++) {
+                    const portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+                    for (let pi = 0; pi < portList.length; pi++) {
                         if (portList[pi].id === slotKey + '_p' + idx) {
-                            var cfg = state.disaggPortConfig[portList[pi].id];
+                            const cfg = state.disaggPortConfig[portList[pi].id];
                             return (cfg && (cfg.customName || cfg.name)) || portList[pi].defaultName;
                         }
                     }
                 }
-                var defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
+                const defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
                 return (defaults[slotKey] || slotKey) + idx;
             }
 
             function getPortSpeed(slotKey, idx) {
                 if (state.disaggPortConfig) {
-                    var key = slotKey + '_p' + idx;
+                    const key = slotKey + '_p' + idx;
                     if (state.disaggPortConfig[key] && state.disaggPortConfig[key].speed) return state.disaggPortConfig[key].speed;
                 }
                 if (slotKey === 'bmc') return '1GbE';
@@ -4314,26 +4315,26 @@
             }
 
             // --- Build NIC groups dynamically from adapter mapping ---
-            var nicGroups = [];
+            const nicGroups = [];
 
             // Cluster NIC SET wrapper mode (mirrors wizard preview):
             //   'clusterbackup' — iSCSI 6-NIC + backup: ClusterBackupSwitch SET (Cluster1/2 vNICs + Backup VLAN trunk)
             //   null            — standalone physical cluster NICs, including iSCSI 4-NIC shared paths
-            var clusterSetMode = (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup' : null;
-            var clusterSetName = clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
-                    : null;
-            var vlansState = state.disaggVlans || {};
-            var cluster1VnicsAbove = clusterSetMode === 'clusterbackup'
-                    ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') }]
-                    : [];
-            var cluster2VnicsAbove = clusterSetMode === 'clusterbackup'
-                    ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') }]
-                    : [];
+            const clusterSetMode = (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup' : null;
+            const clusterSetName = clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
+                : null;
+            const vlansState = state.disaggVlans || {};
+            const cluster1VnicsAbove = clusterSetMode === 'clusterbackup'
+                ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') }]
+                : [];
+            const cluster2VnicsAbove = clusterSetMode === 'clusterbackup'
+                ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') }]
+                : [];
 
             // Define zone metadata — for 4-NIC, cluster groups are physical shared Cluster+iSCSI paths.
-            var clusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
-            var clusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
-            var zoneMeta = {
+            const clusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
+            const clusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
+            const zoneMeta = {
                 mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }] },
                 cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster1VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
                 cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster2VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
@@ -4346,24 +4347,24 @@
             // CodeQL js/remote-property-injection (#24, #25, #26): use Maps so
             // user-derived zone keys are stored as explicit key/value pairs with
             // safe dictionary semantics.
-            var zoneLeafCounters = new Map();
-            var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
-            var groupsByZone = new Map();
+            const zoneLeafCounters = new Map();
+            const zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
+            const groupsByZone = new Map();
 
             // Iterate adapter mapping and group ports by their assigned zone
-            var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
-            for (var pi = 0; pi < portList.length; pi++) {
-                var port = portList[pi];
-                var zone = adapterMapping[port.id];
+            const portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+            for (let pi = 0; pi < portList.length; pi++) {
+                const port = portList[pi];
+                const zone = adapterMapping[port.id];
                 if (!zone || zone === 'pool' || port.slot === 'bmc') continue;
                 if (!groupsByZone.has(zone)) groupsByZone.set(zone, []);
                 if (!zoneLeafCounters.has(zone)) zoneLeafCounters.set(zone, 0);
-                var zmeta = zoneMeta[zone];
-                var leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters.get(zone) % 2 === 0) ? 'A' : 'B');
+                const zmeta = zoneMeta[zone];
+                const leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters.get(zone) % 2 === 0) ? 'A' : 'B');
                 zoneLeafCounters.set(zone, zoneLeafCounters.get(zone) + 1);
 
-                var slotKey = port.id.replace(/_p\d+$/, '');
-                var idx = parseInt(port.id.replace(/^.*_p/, ''), 10);
+                const slotKey = port.id.replace(/_p\d+$/, '');
+                const idx = parseInt(port.id.replace(/^.*_p/, ''), 10);
 
                 groupsByZone.get(zone).push({
                     id: port.id,
@@ -4374,13 +4375,13 @@
             }
 
             // Build nicGroups in zone order
-            for (var zi = 0; zi < zoneOrder.length; zi++) {
-                var zk = zoneOrder[zi];
-                var zList = groupsByZone.get(zk);
+            for (let zi = 0; zi < zoneOrder.length; zi++) {
+                const zk = zoneOrder[zi];
+                const zList = groupsByZone.get(zk);
                 if (!zList || zList.length === 0) continue;
-                var meta = zoneMeta[zk];
+                const meta = zoneMeta[zk];
                 if (!meta) continue;
-                var grp = {
+                const grp = {
                     key: zk,
                     label: meta.label,
                     color: meta.color,
@@ -4397,14 +4398,14 @@
             // Mgmt+Compute combining OCP-NIC1 + OCP-NIC2). The merged group's box is the
             // SET visual wrapper — no separate overlay rectangle is needed.
             if (clusterSetMode) {
-                var c1Idx = -1, c2Idx = -1;
-                for (var ci = 0; ci < nicGroups.length; ci++) {
+                let c1Idx = -1, c2Idx = -1;
+                for (let ci = 0; ci < nicGroups.length; ci++) {
                     if (nicGroups[ci].key === 'cluster_1') c1Idx = ci;
                     else if (nicGroups[ci].key === 'cluster_2') c2Idx = ci;
                 }
                 if (c1Idx !== -1 && c2Idx !== -1) {
-                    var c1g = nicGroups[c1Idx], c2g = nicGroups[c2Idx];
-                    var mergedGrp = {
+                    const c1g = nicGroups[c1Idx], c2g = nicGroups[c2Idx];
+                    const mergedGrp = {
                         key: 'cluster_set',
                         label: clusterSetName,
                         color: '#22c55e',
@@ -4438,7 +4439,7 @@
                     nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
                 });
                 if (backupEnabled) {
-                    var bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
+                    const bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
                     nicGroups.push({
                         key: 'backup', label: 'In-Guest Backup Compute Intent', color: '#f97316',
                         nics: [
@@ -4450,7 +4451,7 @@
             }
 
             // --- Bottom storage adapters ---
-            var storageAdapters = [];
+            const storageAdapters = [];
             if (hasFc) {
                 storageAdapters.push({ id: 'fc_1', name: getNicName('fc', 1), speed: getPortSpeed('fc', 1), target: 'A', color: '#8b5cf6' });
                 storageAdapters.push({ id: 'fc_2', name: getNicName('fc', 2), speed: getPortSpeed('fc', 2), target: 'B', color: '#8b5cf6' });
@@ -4461,70 +4462,70 @@
             // then through the fabric to the iSCSI Storage Array.
 
             // BMC name
-            var bmcName = getNicName('bmc', 1);
+            const bmcName = getNicName('bmc', 1);
 
             // --- Layout constants ---
-            var adapterW = 62;
-            var adapterH = 38;
-            var adapterGap = 10;
-            var groupGap = 32;
-            var vnicH = 42;
-            var vnicGap = 4;
+            const adapterW = 62;
+            const adapterH = 38;
+            const adapterGap = 10;
+            const groupGap = 32;
+            const vnicH = 42;
+            const vnicGap = 4;
 
             // Compute single row width
             function rowWidth(groups) {
-                var w = 0;
-                for (var i = 0; i < groups.length; i++) {
+                let w = 0;
+                for (let i = 0; i < groups.length; i++) {
                     w += groups[i].nics.length * adapterW + (groups[i].nics.length - 1) * adapterGap;
                     if (i < groups.length - 1) w += groupGap;
                 }
                 return w;
             }
 
-            var nicRowW = rowWidth(nicGroups);
-            var storageW = storageAdapters.length * adapterW + Math.max(0, storageAdapters.length - 1) * adapterGap;
-            var maxRowW = Math.max(nicRowW, storageW);
+            const nicRowW = rowWidth(nicGroups);
+            const storageW = storageAdapters.length * adapterW + Math.max(0, storageAdapters.length - 1) * adapterGap;
+            const maxRowW = Math.max(nicRowW, storageW);
 
-            var nodeW = Math.max(440, maxRowW + 60);
+            const nodeW = Math.max(440, maxRowW + 60);
             // Single horizontal row of vNICs above NICs (per spec, all SET vNICs sit side-by-side).
-            var anyVnicAbove = false;
-            for (var ng = 0; ng < nicGroups.length; ng++) {
+            let anyVnicAbove = false;
+            for (let ng = 0; ng < nicGroups.length; ng++) {
                 if (nicGroups[ng].vnicsAbove && nicGroups[ng].vnicsAbove.length > 0) { anyVnicAbove = true; break; }
             }
-            var mgmtVnicAreaH = anyVnicAbove ? (vnicH + 18) : 0;
-            var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0);
-            var gapX = 50;
-            var marginX = 50;
-            var leafH = 50;
-            var leafW = 160;
-            var leafGap = 70;
-            var leafToNodeGap = 90;
-            var marginTop = 90;
-            var marginBottom = 80;
-            var sanAreaH = 70;
+            const mgmtVnicAreaH = anyVnicAbove ? (vnicH + 18) : 0;
+            const nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0);
+            const gapX = 50;
+            const marginX = 50;
+            const leafH = 50;
+            const leafW = 160;
+            const leafGap = 70;
+            const leafToNodeGap = 90;
+            const marginTop = 90;
+            const marginBottom = 80;
+            const sanAreaH = 70;
 
             // iSCSI Storage Array dimensions (shown at leaf level for shared iSCSI)
-            var iscsiArrayW = 170;
-            var iscsiArrayH = 56;
-            var iscsiArrayGap = 50;
+            const iscsiArrayW = 170;
+            const iscsiArrayH = 56;
+            const iscsiArrayGap = 50;
 
-            var nodesAreaW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
-            var leafAreaH = leafH + leafToNodeGap;
-            var totalLeafW = (2 * leafW) + leafGap;
+            const nodesAreaW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
+            const leafAreaH = leafH + leafToNodeGap;
+            const totalLeafW = (2 * leafW) + leafGap;
             // For iSCSI, widen SVG to fit the iSCSI Storage Array to the right of leaves
-            var topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
-            var svgW = Math.max(nodesAreaW, topRowW + marginX * 2);
+            const topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
+            const svgW = Math.max(nodesAreaW, topRowW + marginX * 2);
             // Build legend entry data (rendered inside the SVG below the diagram so it's
             // included in the downloaded image). Each entry: { title, color, lines: [str] }.
-            function findGrp(key) { for (var fi = 0; fi < nicGroups.length; fi++) if (nicGroups[fi].key === key) return nicGroups[fi]; return null; }
-            var legendEntries = [];
+            function findGrp(key) { for (let fi = 0; fi < nicGroups.length; fi++) if (nicGroups[fi].key === key) return nicGroups[fi]; return null; }
+            const legendEntries = [];
             if (clusterSetMode) {
                 // After the merge step, cluster_1/cluster_2 are gone — use the merged cluster_set group.
-                var setGrp = findGrp('cluster_set');
-                var memberNames = setGrp ? setGrp.nics.map(function(nx){ return nx.name; }) : [];
-                var vnicLabels = [].concat(cluster1VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }))
+                const setGrp = findGrp('cluster_set');
+                const memberNames = setGrp ? setGrp.nics.map(function(nx){ return nx.name; }) : [];
+                const vnicLabels = [].concat(cluster1VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }))
                     .concat(cluster2VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }));
-                var setLines = [
+                const setLines = [
                     'Members: ' + memberNames.join(', '),
                     'Host vNICs: ' + (vnicLabels.length ? vnicLabels.join(', ') : 'none')
                 ];
@@ -4533,7 +4534,7 @@
                 }
                 legendEntries.push({ title: clusterSetName + ' (SET — customer-managed, outside ATC)', color: '#22c55e', lines: setLines });
             }
-            var mgmtGrp = findGrp('mgmt_compute');
+            const mgmtGrp = findGrp('mgmt_compute');
             if (mgmtGrp) {
                 legendEntries.push({
                     title: 'Mgmt + Compute (ATC SET)',
@@ -4545,12 +4546,12 @@
                 });
             }
             if (!clusterSetMode) {
-                var sc1 = findGrp('cluster_1'), sc2 = findGrp('cluster_2');
+                const sc1 = findGrp('cluster_1'), sc2 = findGrp('cluster_2');
                 if (sc1 || sc2) {
-                    var allClusterNics = [].concat(sc1 ? sc1.nics.map(function(nx){ return nx.name; }) : [])
+                    const allClusterNics = [].concat(sc1 ? sc1.nics.map(function(nx){ return nx.name; }) : [])
                         .concat(sc2 ? sc2.nics.map(function(nx){ return nx.name; }) : []);
-                    var clusterLegendTitle = hasSharedIscsi ? 'Shared Cluster + iSCSI Physical Paths (standalone — no SET)' : 'Cluster Networks (standalone — no SET)';
-                    var clusterLegendLines = hasSharedIscsi
+                    const clusterLegendTitle = hasSharedIscsi ? 'Shared Cluster + iSCSI Physical Paths (standalone — no SET)' : 'Cluster Networks (standalone — no SET)';
+                    const clusterLegendLines = hasSharedIscsi
                         ? [
                             'Members: ' + allClusterNics.join(', '),
                             'Path A/B VLANs: ' + (vlansState.cluster1 || '711') + ', ' + (vlansState.cluster2 || '712') + ' — iSCSI uses the same physical NIC source IPs',
@@ -4567,9 +4568,9 @@
                     });
                 }
             }
-            var iA = findGrp('iscsi_a'), iB = findGrp('iscsi_b');
+            const iA = findGrp('iscsi_a'), iB = findGrp('iscsi_b');
             if (iA || iB) {
-                var allIscsi = [].concat(iA ? iA.nics.map(function(nx){ return nx.name; }) : [])
+                const allIscsi = [].concat(iA ? iA.nics.map(function(nx){ return nx.name; }) : [])
                     .concat(iB ? iB.nics.map(function(nx){ return nx.name; }) : []);
                 legendEntries.push({
                     title: 'iSCSI Path A/B (standalone — no SET)',
@@ -4580,7 +4581,7 @@
                     ]
                 });
             }
-            var bk = findGrp('backup');
+            const bk = findGrp('backup');
             if (bk) {
                 legendEntries.push({
                     title: 'In-Guest Backup (dedicated NICs)',
@@ -4592,55 +4593,55 @@
                 });
             }
             // Legend block height (in SVG coordinates)
-            var legendTitleH = 18, legendEntryTitleH = 14, legendLineH = 12, legendEntryGap = 8, legendEntryPadY = 6;
-            var legendBlockH = 0;
+            const legendTitleH = 18, legendEntryTitleH = 14, legendLineH = 12, legendEntryGap = 8, legendEntryPadY = 6;
+            let legendBlockH = 0;
             if (legendEntries.length > 0) {
                 legendBlockH = legendTitleH + 6;
-                for (var le = 0; le < legendEntries.length; le++) {
+                for (let le = 0; le < legendEntries.length; le++) {
                     legendBlockH += legendEntryTitleH + legendEntries[le].lines.length * legendLineH + legendEntryPadY * 2;
                     if (le < legendEntries.length - 1) legendBlockH += legendEntryGap;
                 }
                 legendBlockH += 16;
             }
-            var baseSvgH = marginTop + leafAreaH + nodeH + (hasIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
-            var svgH = baseSvgH + legendBlockH;
+            const baseSvgH = marginTop + leafAreaH + nodeH + (hasIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
+            const svgH = baseSvgH + legendBlockH;
 
             // Leaf switch positions — shift left if iSCSI Storage Array is shown
-            var leafY = marginTop + 10;
-            var leafBlockStartX = hasIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
-            var leaf1X = leafBlockStartX;
-            var leaf2X = leaf1X + leafW + leafGap;
+            const leafY = marginTop + 10;
+            const leafBlockStartX = hasIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
+            const leaf1X = leafBlockStartX;
+            const leaf2X = leaf1X + leafW + leafGap;
 
             // iSCSI Storage Array position (right of Leaf-B, same level)
-            var iscsiArrayX = leaf2X + leafW + iscsiArrayGap;
-            var iscsiArrayY = leafY - 3;
+            const iscsiArrayX = leaf2X + leafW + iscsiArrayGap;
+            const iscsiArrayY = leafY - 3;
 
             // Node positions
-            var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
-            var nodeY = marginTop + leafAreaH + 10;
+            const nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
+            const nodeY = marginTop + leafAreaH + 10;
 
             // Tracking for uplink lines (leaf-connected NICs) and storage downlinks
-            var uplinkPositions = [];
-            var storagePositions = [];
+            let uplinkPositions = [];
+            let storagePositions = [];
 
             function renderNicRow(groups, baseX, baseY, nodeLeft) {
-                var out = '';
-                var rw = rowWidth(groups);
-                var currentX = nodeLeft + (nodeW - rw) / 2;
+                let out = '';
+                const rw = rowWidth(groups);
+                let currentX = nodeLeft + (nodeW - rw) / 2;
                 // Track cluster bounding box for SET wrapper (drawn after the loop).
-                var clusterSetBoxX = null, clusterSetBoxW = null, clusterSetBoxBottomY = null;
+                let clusterSetBoxX = null, clusterSetBoxW = null, clusterSetBoxBottomY = null;
 
-                for (var gi = 0; gi < groups.length; gi++) {
-                    var grp = groups[gi];
-                    var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
-                    var boxX = currentX - 8;
-                    var boxTotalW = grpW + 16;
-                    var grpVnics = grp.vnicsAbove || [];
-                    var hasVnicsArr = grpVnics.length > 0;
-                    var vnicAreaHGrp = hasVnicsArr ? (vnicH + 12) : 0;
-                    var boxH = adapterH + 28 + vnicAreaHGrp;
-                    var boxY = baseY - 14 - vnicAreaHGrp;
-                    var rgb = colorRgb(grp.color);
+                for (let gi = 0; gi < groups.length; gi++) {
+                    const grp = groups[gi];
+                    const grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+                    const boxX = currentX - 8;
+                    const boxTotalW = grpW + 16;
+                    const grpVnics = grp.vnicsAbove || [];
+                    const hasVnicsArr = grpVnics.length > 0;
+                    const vnicAreaHGrp = hasVnicsArr ? (vnicH + 12) : 0;
+                    const boxH = adapterH + 28 + vnicAreaHGrp;
+                    const boxY = baseY - 14 - vnicAreaHGrp;
+                    const rgb = colorRgb(grp.color);
 
                     // Track merged cluster_set box for the Backup VLAN badge anchor.
                     if (grp.key === 'cluster_set') {
@@ -4653,10 +4654,10 @@
                     out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
 
                     // Suppress per-NIC labels for cluster zones when wrapped in a SET.
-                    var inSet = false; // merged cluster_set group renders its own label normally
+                    const inSet = false; // merged cluster_set group renders its own label normally
                     if (!inSet) {
                         // Label: below the box for iSCSI scenarios, above otherwise
-                        var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
+                        const labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
                         out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
                         if (grp.subLabel) {
                             out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (labelY + 11) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.70)">' + escapeHtml(grp.subLabel) + '</text>';
@@ -4665,29 +4666,29 @@
 
                     // vNICs above physical NICs — single horizontal row, splitting the box width.
                     if (hasVnicsArr) {
-                        var innerPad = 4;
-                        var slotW = (boxTotalW - innerPad * 2 - vnicGap * (grpVnics.length - 1)) / grpVnics.length;
-                        var vaY = boxY + 6;
-                        for (var vi = 0; vi < grpVnics.length; vi++) {
-                            var vnic = grpVnics[vi];
-                            var vaX = boxX + innerPad + vi * (slotW + vnicGap);
-                            var vRgb = vnic.color ? colorRgb(vnic.color) : rgb;
+                        const innerPad = 4;
+                        const slotW = (boxTotalW - innerPad * 2 - vnicGap * (grpVnics.length - 1)) / grpVnics.length;
+                        const vaY = boxY + 6;
+                        for (let vi = 0; vi < grpVnics.length; vi++) {
+                            const vnic = grpVnics[vi];
+                            const vaX = boxX + innerPad + vi * (slotW + vnicGap);
+                            const vRgb = vnic.color ? colorRgb(vnic.color) : rgb;
                             out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + slotW + '" height="' + vnicH + '" rx="6" fill="rgba(' + vRgb + ',0.10)" stroke="rgba(' + vRgb + ',0.55)" stroke-dasharray="4 2" />';
                             // Render name on two lines so neighbouring vNIC cards don't visually collide:
                             // primary identifier on row 1, the literal 'vNIC' on row 2, VLAN on row 3.
-                            var vnicNameMatch = /^(.*?)(?:\s+vNIC)$/.exec(vnic.name);
-                            var vnicPrimary = vnicNameMatch ? vnicNameMatch[1] : vnic.name;
-                            var vnicSuffix = vnicNameMatch ? 'vNIC' : '';
+                            const vnicNameMatch = /^(.*?)(?:\s+vNIC)$/.exec(vnic.name);
+                            const vnicPrimary = vnicNameMatch ? vnicNameMatch[1] : vnic.name;
+                            const vnicSuffix = vnicNameMatch ? 'vNIC' : '';
                             out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 12) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(vnicPrimary) + '</text>';
                             if (vnicSuffix) {
                                 out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 22) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(vnicSuffix) + '</text>';
                             }
                             out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 35) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(vnic.vlan) + '</text>';
                             // Anchor uplink at the vNIC's top-center; SET-bonded vNIC reaches every leaf its NICs touch.
-                            var uniqueLeaves = {};
-                            for (var nn = 0; nn < grp.nics.length; nn++) uniqueLeaves[grp.nics[nn].leaf] = true;
-                            var leafKeys = Object.keys(uniqueLeaves);
-                            for (var lk = 0; lk < leafKeys.length; lk++) {
+                            const uniqueLeaves = {};
+                            for (let nn = 0; nn < grp.nics.length; nn++) uniqueLeaves[grp.nics[nn].leaf] = true;
+                            const leafKeys = Object.keys(uniqueLeaves);
+                            for (let lk = 0; lk < leafKeys.length; lk++) {
                                 uplinkPositions.push({ x: vaX + slotW / 2, y: vaY, leaf: leafKeys[lk], color: vnic.color || grp.color });
                             }
                         }
@@ -4695,10 +4696,10 @@
                     }
 
                     // NIC adapter cards
-                    for (var ni = 0; ni < grp.nics.length; ni++) {
-                        var nic = grp.nics[ni];
-                        var x = currentX + ni * (adapterW + adapterGap);
-                        var y = baseY;
+                    for (let ni = 0; ni < grp.nics.length; ni++) {
+                        const nic = grp.nics[ni];
+                        const x = currentX + ni * (adapterW + adapterGap);
+                        const y = baseY;
 
                         out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
                         out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
@@ -4712,7 +4713,7 @@
 
                     // VLAN label below the port shape (for standalone cluster/iSCSI networks; suppressed inside SET)
                     if (grp.vlanBelow && !inSet) {
-                        var vlanY = grp.subLabel ? (boxY + boxH + 34) : (hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12));
+                        const vlanY = grp.subLabel ? (boxY + boxH + 34) : (hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12));
                         out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
                     }
 
@@ -4722,10 +4723,10 @@
                 // Backup VLAN trunk badge (clusterbackup mode only) — anchored under the merged
                 // cluster_set group's dashed box (which is now the SET visual wrapper itself).
                 if (clusterSetMode === 'clusterbackup' && clusterSetBoxX !== null) {
-                    var bRgb = colorRgb('#f97316');
-                    var badgeW = 220, badgeH = 22;
-                    var badgeX = clusterSetBoxX + (clusterSetBoxW - badgeW) / 2;
-                    var badgeY = clusterSetBoxBottomY + 26;
+                    const bRgb = colorRgb('#f97316');
+                    const badgeW = 220, badgeH = 22;
+                    const badgeX = clusterSetBoxX + (clusterSetBoxW - badgeW) / 2;
+                    const badgeY = clusterSetBoxBottomY + 26;
                     out += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="5" fill="rgba(' + bRgb + ',0.12)" stroke="rgba(' + bRgb + ',0.6)" stroke-dasharray="3 2" />';
                     out += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 14) + '" text-anchor="middle" font-size="8" fill="rgba(' + bRgb + ',0.95)" font-weight="600">Backup VLAN ' + escapeHtml(String(vlansState.backup || '800')) + ' — trunk, no host vNIC</text>';
                 }
@@ -4734,23 +4735,23 @@
 
             function renderStorageAdapters(nodeLeft, nodeTop) {
                 if (storageAdapters.length === 0) return '';
-                var out = '';
-                var saY = nodeTop + nodeH - adapterH - 20;
-                var saStartX = nodeLeft + (nodeW - storageW) / 2;
+                let out = '';
+                const saY = nodeTop + nodeH - adapterH - 20;
+                const saStartX = nodeLeft + (nodeW - storageW) / 2;
 
                 // Storage section label
-                var storageLabel2 = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
-                var rgb = colorRgb('#8b5cf6');
+                const storageLabel2 = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
+                const rgb = colorRgb('#8b5cf6');
                 out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (saY - 18) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(storageLabel2) + '</text>';
 
                 // Separator line
                 out += '<line x1="' + (nodeLeft + 20) + '" y1="' + (saY - 24) + '" x2="' + (nodeLeft + nodeW - 20) + '" y2="' + (saY - 24) + '" stroke="rgba(' + rgb + ',0.2)" stroke-dasharray="4 3" />';
 
-                for (var si = 0; si < storageAdapters.length; si++) {
-                    var sa = storageAdapters[si];
-                    var x = saStartX + si * (adapterW + adapterGap);
-                    var y = saY;
-                    var saRgb = colorRgb(sa.color);
+                for (let si = 0; si < storageAdapters.length; si++) {
+                    const sa = storageAdapters[si];
+                    const x = saStartX + si * (adapterW + adapterGap);
+                    const y = saY;
+                    const saRgb = colorRgb(sa.color);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + saRgb + ',0.15)" stroke="rgba(' + saRgb + ',0.55)" stroke-dasharray="4 2" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sa.name) + '</text>';
@@ -4764,26 +4765,26 @@
             }
 
             function renderNode(posX, nodeTop, nodeIdx) {
-                var out = '';
+                let out = '';
                 // Node box
                 out += '<rect x="' + posX + '" y="' + nodeTop + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
 
                 // Node name
-                var nodeLabel = 'Node ' + (nodeIdx + 1);
+                let nodeLabel = 'Node ' + (nodeIdx + 1);
                 if (state.nodeSettings && state.nodeSettings[nodeIdx] && state.nodeSettings[nodeIdx].name) {
                     nodeLabel = String(state.nodeSettings[nodeIdx].name).trim() || nodeLabel;
                 }
                 out += '<text x="' + (posX + nodeW / 2) + '" y="' + (nodeTop + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeLabel) + '</text>';
 
                 // BMC (top-right corner)
-                var bmcX = posX + nodeW - 75;
-                var bmcY = nodeTop + 12;
+                const bmcX = posX + nodeW - 75;
+                const bmcY = nodeTop + 12;
                 out += '<rect x="' + bmcX + '" y="' + bmcY + '" width="' + 55 + '" height="' + 22 + '" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
                 out += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">' + escapeHtml(bmcName) + '</text>';
                 out += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
 
                 // Single NIC row: all intents (Mgmt+Compute, Cluster 1, Cluster 2, Backup)
-                var nicRowY = nodeTop + 80 + mgmtVnicAreaH;
+                const nicRowY = nodeTop + 80 + mgmtVnicAreaH;
                 out += renderNicRow(nicGroups, posX, nicRowY, posX);
 
                 // Bottom: Storage adapters (FC HBA or iSCSI) — below NIC row
@@ -4793,46 +4794,46 @@
             }
 
             function renderUplinks() {
-                var out = '';
-                var leafBottomY = leafY + leafH;
-                for (var ai = 0; ai < uplinkPositions.length; ai++) {
-                    var ap = uplinkPositions[ai];
-                    var targetX = (ap.leaf === 'A') ? (leaf1X + leafW / 2) : (leaf2X + leafW / 2);
-                    var rgb = colorRgb(ap.color);
+                let out = '';
+                const leafBottomY = leafY + leafH;
+                for (let ai = 0; ai < uplinkPositions.length; ai++) {
+                    const ap = uplinkPositions[ai];
+                    const targetX = (ap.leaf === 'A') ? (leaf1X + leafW / 2) : (leaf2X + leafW / 2);
+                    const rgb = colorRgb(ap.color);
                     out += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetX + '" y2="' + leafBottomY + '" stroke="rgba(' + rgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
                 }
                 return out;
             }
 
             function renderStorageDownlinks(sanY) {
-                var out = '';
+                let out = '';
                 // SAN / iSCSI target shapes
-                var sanW = 160;
-                var sanH = 36;
-                var sanGap = 60;
-                var totalSanW = 2 * sanW + sanGap;
-                var sanStartX = (svgW - totalSanW) / 2;
-                var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
-                var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
-                var sanColor = '#8b5cf6';
-                var rgb = colorRgb(sanColor);
+                const sanW = 160;
+                const sanH = 36;
+                const sanGap = 60;
+                const totalSanW = 2 * sanW + sanGap;
+                const sanStartX = (svgW - totalSanW) / 2;
+                const targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
+                const targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
+                const sanColor = '#8b5cf6';
+                const rgb = colorRgb(sanColor);
 
                 // Target A
                 out += '<rect x="' + sanStartX + '" y="' + sanY + '" width="' + sanW + '" height="' + sanH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.55)" stroke-width="1.5" />';
                 out += '<text x="' + (sanStartX + sanW / 2) + '" y="' + (sanY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + rgb + ',0.9)" font-weight="600">' + escapeHtml(targetLabelA) + '</text>';
 
                 // Target B
-                var sanBX = sanStartX + sanW + sanGap;
+                const sanBX = sanStartX + sanW + sanGap;
                 out += '<rect x="' + sanBX + '" y="' + sanY + '" width="' + sanW + '" height="' + sanH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.55)" stroke-width="1.5" />';
                 out += '<text x="' + (sanBX + sanW / 2) + '" y="' + (sanY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + rgb + ',0.9)" font-weight="600">' + escapeHtml(targetLabelB) + '</text>';
 
                 // Connection lines from storage adapter positions to targets
-                var targetAcx = sanStartX + sanW / 2;
-                var targetBcx = sanBX + sanW / 2;
-                for (var si2 = 0; si2 < storagePositions.length; si2++) {
-                    var sp = storagePositions[si2];
-                    var targetCx = (sp.target === 'A') ? targetAcx : targetBcx;
-                    var spRgb = colorRgb(sp.color);
+                const targetAcx = sanStartX + sanW / 2;
+                const targetBcx = sanBX + sanW / 2;
+                for (let si2 = 0; si2 < storagePositions.length; si2++) {
+                    const sp = storagePositions[si2];
+                    const targetCx = (sp.target === 'A') ? targetAcx : targetBcx;
+                    const spRgb = colorRgb(sp.color);
                     out += '<line x1="' + sp.x + '" y1="' + sp.y + '" x2="' + targetCx + '" y2="' + sanY + '" stroke="rgba(' + spRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
                 }
 
@@ -4840,10 +4841,10 @@
             }
 
             function renderSharedIscsiStorageArray() {
-                var out = '';
-                var rgb = colorRgb('#8b5cf6');
-                var aX = iscsiArrayX;
-                var aY = iscsiArrayY;
+                let out = '';
+                const rgb = colorRgb('#8b5cf6');
+                const aX = iscsiArrayX;
+                const aY = iscsiArrayY;
 
                 // Storage Array box
                 out += '<rect x="' + aX + '" y="' + aY + '" width="' + iscsiArrayW + '" height="' + iscsiArrayH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.6)" stroke-width="2" />';
@@ -4852,12 +4853,12 @@
                 out += '<text x="' + (aX + iscsiArrayW / 2) + '" y="' + (aY + 50) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">MPIO Active/Active</text>';
 
                 // Connection lines from Leaf-A and Leaf-B to Storage Array
-                var leafAcx = leaf1X + leafW;
-                var leafBcx = leaf2X + leafW;
-                var arrayLeftX = aX;
+                const leafAcx = leaf1X + leafW;
+                const leafBcx = leaf2X + leafW;
+                const arrayLeftX = aX;
 
                 // Leaf-A → Storage Array (routed above Leaf-B to stay visible)
-                var routeY = leafY - 18;
+                const routeY = leafY - 18;
                 out += '<polyline points="' + leafAcx + ',' + leafY + ' ' + leafAcx + ',' + routeY + ' ' + arrayLeftX + ',' + routeY + ' ' + arrayLeftX + ',' + (aY + 16) + '" fill="none" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
                 // Leaf-B → Storage Array
                 out += '<line x1="' + leafBcx + '" y1="' + (leafY + leafH - 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + iscsiArrayH - 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
@@ -4866,8 +4867,8 @@
             }
 
             // Build intro text
-            var storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
-            var intro = ''
+            const storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
+            const intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
                 + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'Cluster A/B + iSCSI Path A/B (Physical NIC3/NIC4, no SET)' : 'Cluster 1 &amp; 2 (Standalone)')
@@ -4877,14 +4878,14 @@
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
 
-            var svg = '';
+            let svg = '';
             svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Disaggregated host networking diagram">';
 
             // Outer container ends at the base diagram height — the legend sits below it.
             svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (baseSvgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
 
             // Title
-            var titleText = 'Disaggregated ' + storageLabel + ' connectivity — ' + portCount + ' ports' + (backupEnabled ? ' + Backup' : '') + ' — Total nodes: ' + totalNodes;
+            const titleText = 'Disaggregated ' + storageLabel + ' connectivity — ' + portCount + ' ports' + (backupEnabled ? ' + Backup' : '') + ' — Total nodes: ' + totalNodes;
             svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + escapeHtml(titleText) + '</text>';
 
             // Leaf-A
@@ -4896,17 +4897,17 @@
             svg += '<text x="' + (leaf2X + leafW / 2) + '" y="' + (leafY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">Leaf-B</text>';
 
             // iBGP link between leaves (Port 49)
-            var ibgpX1 = leaf1X + leafW;
-            var ibgpX2 = leaf2X;
-            var ibgpY2 = leafY + leafH / 2;
-            var ibgpMidX = (ibgpX1 + ibgpX2) / 2;
+            const ibgpX1 = leaf1X + leafW;
+            const ibgpX2 = leaf2X;
+            const ibgpY2 = leafY + leafH / 2;
+            const ibgpMidX = (ibgpX1 + ibgpX2) / 2;
             svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpY2 + '" x2="' + ibgpX2 + '" y2="' + ibgpY2 + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
             svg += '<text x="' + ibgpMidX + '" y="' + (ibgpY2 - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP P49</text>';
 
             // Render nodes — accumulate storagePositions across all nodes for downlinks
             storagePositions = [];
-            for (var ni3 = 0; ni3 < n; ni3++) {
-                var posX = nodesStartX + ni3 * (nodeW + gapX);
+            for (let ni3 = 0; ni3 < n; ni3++) {
+                const posX = nodesStartX + ni3 * (nodeW + gapX);
                 uplinkPositions = [];
                 svg += renderNode(posX, nodeY, ni3);
                 svg += renderUplinks();
@@ -4917,37 +4918,37 @@
             if (hasIscsi) {
                 svg += renderSharedIscsiStorageArray();
             } else {
-                var sanY = nodeY + nodeH + 20;
+                const sanY = nodeY + nodeH + 20;
                 svg += renderStorageDownlinks(sanY);
             }
 
             // "+N more nodes" badge — inside the outer container
             if (totalNodes > 2) {
-                var more = totalNodes - 2;
-                var badgeW = 180;
-                var badgeH = 26;
-                var badgeX = svgW - 60 - badgeW;
-                var badgeY = baseSvgH - 85 - badgeH + 15;
+                const more = totalNodes - 2;
+                const badgeW = 180;
+                const badgeH = 26;
+                const badgeX = svgW - 60 - badgeW;
+                const badgeY = baseSvgH - 85 - badgeH + 15;
                 svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + more + ' more node' + (more === 1 ? '' : 's') + '</text>';
             }
 
             // ─── Legend rendered inside the SVG (so it's part of the downloaded image) ───
             if (legendEntries.length > 0) {
-                var legX = 40;
-                var legW = svgW - 80;
-                var legY = baseSvgH - 30;
+                const legX = 40;
+                const legW = svgW - 80;
+                let legY = baseSvgH - 30;
                 svg += '<text x="' + legX + '" y="' + (legY + 12) + '" font-size="12" font-weight="700" fill="var(--text-primary)">Net Adapter Team Mapping</text>';
                 legY += legendTitleH + 6;
-                for (var li = 0; li < legendEntries.length; li++) {
-                    var ent = legendEntries[li];
-                    var eRgb = colorRgb(ent.color);
-                    var entH = legendEntryTitleH + ent.lines.length * legendLineH + legendEntryPadY * 2;
+                for (let li = 0; li < legendEntries.length; li++) {
+                    const ent = legendEntries[li];
+                    const eRgb = colorRgb(ent.color);
+                    const entH = legendEntryTitleH + ent.lines.length * legendLineH + legendEntryPadY * 2;
                     svg += '<rect x="' + legX + '" y="' + legY + '" width="' + legW + '" height="' + entH + '" rx="4" fill="rgba(' + eRgb + ',0.06)" stroke="rgba(' + eRgb + ',0.4)" />';
                     svg += '<rect x="' + legX + '" y="' + legY + '" width="3" height="' + entH + '" fill="rgba(' + eRgb + ',0.85)" />';
                     svg += '<text x="' + (legX + 10) + '" y="' + (legY + legendEntryPadY + 10) + '" font-size="11" font-weight="700" fill="rgba(' + eRgb + ',0.95)">' + escapeHtml(ent.title) + '</text>';
-                    for (var lj = 0; lj < ent.lines.length; lj++) {
-                        var ly = legY + legendEntryPadY + legendEntryTitleH + lj * legendLineH + 8;
+                    for (let lj = 0; lj < ent.lines.length; lj++) {
+                        const ly = legY + legendEntryPadY + legendEntryTitleH + lj * legendLineH + 8;
                         svg += '<text x="' + (legX + 10) + '" y="' + ly + '" font-size="10" fill="var(--text-secondary)">' + escapeHtml(ent.lines[lj]) + '</text>';
                     }
                     legY += entH + legendEntryGap;
@@ -4956,7 +4957,7 @@
 
             svg += '</svg>';
 
-            var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). '
+            const note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). '
                 + (hasSharedIscsi ? 'Standalone physical NIC3/NIC4 (green) carry Cluster A/B and iSCSI Path A/B on the same VLAN/subnet/source IP. iSCSI target portal /32 routes are pinned to those physical adapters through the leaf switch fabric. ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
                 + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to the iSCSI storage array (MPIO Active/Active, dual controllers). ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
@@ -4971,17 +4972,17 @@
         function renderRackAwareTorArchitectureDiagram(state) {
             if (!state || state.scale !== 'rack_aware') return '';
 
-            var arch = state.rackAwareTorArchitecture ? String(state.rackAwareTorArchitecture) : '';
-            var torsPerRoom = state.rackAwareTorsPerRoom ? String(state.rackAwareTorsPerRoom) : '';
+            const arch = state.rackAwareTorArchitecture ? String(state.rackAwareTorArchitecture) : '';
+            const torsPerRoom = state.rackAwareTorsPerRoom ? String(state.rackAwareTorsPerRoom) : '';
 
-            var z = state.rackAwareZones || {};
-            var zone1Name = (z.zone1Name ? String(z.zone1Name).trim() : '') || 'Zone1';
-            var zone2Name = (z.zone2Name ? String(z.zone2Name).trim() : '') || 'Zone2';
-            var assignments = (z.assignments && typeof z.assignments === 'object') ? z.assignments : {};
+            const z = state.rackAwareZones || {};
+            const zone1Name = (z.zone1Name ? String(z.zone1Name).trim() : '') || 'Zone1';
+            const zone2Name = (z.zone2Name ? String(z.zone2Name).trim() : '') || 'Zone2';
+            const assignments = (z.assignments && typeof z.assignments === 'object') ? z.assignments : {};
 
             function getNodeName(idx0) {
                 if (state.nodeSettings && state.nodeSettings[idx0] && state.nodeSettings[idx0].name) {
-                    var nm = String(state.nodeSettings[idx0].name).trim();
+                    const nm = String(state.nodeSettings[idx0].name).trim();
                     if (nm) return nm;
                 }
                 return 'Node ' + (idx0 + 1);
@@ -5001,25 +5002,25 @@
 
             function intentShortLabel(intent) {
                 // Keep Rack Aware diagram labels compact (avoid repeating the word "intent").
-                var s = intentLabelForSet(intent);
+                const s = intentLabelForSet(intent);
                 return String(s).replace(/\s+intent\(s\)\s*$/i, '').replace(/\s+intent\s*$/i, '');
             }
 
-            var nodeCountAll = parseInt(state.nodes, 10);
+            let nodeCountAll = parseInt(state.nodes, 10);
             if (isNaN(nodeCountAll) || nodeCountAll < 2) nodeCountAll = 2;
-            var shownPerZone = 2;
+            const shownPerZone = 2;
 
-            var z1Nodes = [];
-            var z2Nodes = [];
-            for (var i = 0; i < nodeCountAll; i++) {
-                var nodeId1 = String(i + 1);
-                var zone = Number(assignments[nodeId1]);
+            const z1Nodes = [];
+            const z2Nodes = [];
+            for (let i = 0; i < nodeCountAll; i++) {
+                const nodeId1 = String(i + 1);
+                const zone = Number(assignments[nodeId1]);
                 if (zone === 1) z1Nodes.push(getNodeName(i));
                 else z2Nodes.push(getNodeName(i));
             }
             // Fallback if assignments are missing.
             if (z1Nodes.length === 0 && z2Nodes.length === 0) {
-                for (var j = 0; j < nodeCountAll; j++) {
+                for (let j = 0; j < nodeCountAll; j++) {
                     (j % 2 === 0 ? z1Nodes : z2Nodes).push(getNodeName(j));
                 }
             }
@@ -5032,89 +5033,89 @@
                 return 'Rack Aware TOR architecture';
             }
 
-            var learnRef = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-reference-architecture?view=azloc-2511#tor-switch-architecture';
-            var intro = '<div style="margin-bottom:0.5rem;">'
+            const learnRef = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-reference-architecture?view=azloc-2511#tor-switch-architecture';
+            const intro = '<div style="margin-bottom:0.5rem;">'
                 + '<div style="font-weight:700; color:var(--text-primary);">' + escapeHtml(titleForArch(arch)) + '</div>'
                 + '<div style="color:var(--text-secondary);">Reference: <a href="' + learnRef + '" target="_blank" rel="noopener" style="color:var(--accent-blue); text-decoration:underline;">Microsoft Learn</a></div>'
                 + '</div>';
 
             // Diagram layout is intentionally fixed-size for export stability.
             // This version renders intent groups + port tiles + explicit cabling lines.
-            var svgW = 1080;
-            var svgH = 680;
-            var raMgmtVnicH = 30;
-            var raMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
-            var pad = 40;
-            var roomGap = 26;
-            var roomW = Math.floor((svgW - (pad * 2) - roomGap) / 2);
-            var roomH = 540;
-            var roomY = 86;
-            var room1X = pad;
-            var room2X = pad + roomW + roomGap;
+            const svgW = 1080;
+            const svgH = 680;
+            const raMgmtVnicH = 30;
+            const raMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            const pad = 40;
+            const roomGap = 26;
+            const roomW = Math.floor((svgW - (pad * 2) - roomGap) / 2);
+            const roomH = 540;
+            const roomY = 86;
+            const room1X = pad;
+            const room2X = pad + roomW + roomGap;
 
             // Push TORs (and therefore nodes) down to create more headroom for
             // inter-room trunks and upstream Switch/Router trunk connectors.
-            var torY = roomY + 116;
-            var torH = 56;
-            var torW = 150;
-            var torGap = 18;
+            const torY = roomY + 116;
+            const torH = 56;
+            const torW = 150;
+            const torGap = 18;
 
-            var nodesY = torY + torH + 42;
+            const nodesY = torY + torH + 42;
             // Two nodes must fit within one room (roomW ~ 487). Keep cards compact.
-            var nodeW = 232;
-            var nodeH = 240 + raMgmtVnicH;
-            var nodeGap = 16;
+            const nodeW = 232;
+            const nodeH = 240 + raMgmtVnicH;
+            const nodeGap = 16;
 
             function torXsForRoom(roomX, torCount) {
                 if (torCount === 2) {
-                    var totalW = (2 * torW) + torGap;
-                    var startX = roomX + Math.floor((roomW - totalW) / 2);
+                    const totalW = (2 * torW) + torGap;
+                    const startX = roomX + Math.floor((roomW - totalW) / 2);
                     return [startX, startX + torW + torGap];
                 }
                 return [roomX + Math.floor((roomW - torW) / 2)];
             }
 
             function nodeXsForRoom(roomX, count) {
-                var shown = Math.min(count, shownPerZone);
-                var totalW = (shown * nodeW) + ((shown - 1) * nodeGap);
-                var startX = roomX + Math.floor((roomW - totalW) / 2);
-                var xs = [];
-                for (var i2 = 0; i2 < shown; i2++) xs.push(startX + (i2 * (nodeW + nodeGap)));
+                const shown = Math.min(count, shownPerZone);
+                const totalW = (shown * nodeW) + ((shown - 1) * nodeGap);
+                const startX = roomX + Math.floor((roomW - totalW) / 2);
+                const xs = [];
+                for (let i2 = 0; i2 < shown; i2++) xs.push(startX + (i2 * (nodeW + nodeGap)));
                 return xs;
             }
 
             // Precompute the node X positions per room so we can align TORs above them.
             // This helps create horizontal space for a clear in-room LAG drawing.
-            var room1NodeXs = nodeXsForRoom(room1X, z1Nodes.length);
-            var room2NodeXs = nodeXsForRoom(room2X, z2Nodes.length);
+            const room1NodeXs = nodeXsForRoom(room1X, z1Nodes.length);
+            const room2NodeXs = nodeXsForRoom(room2X, z2Nodes.length);
 
             function label(x, y, txt, color, size, weight) {
                 return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-size="' + (size || 12) + '" fill="' + (color || 'var(--text-secondary)') + '" font-weight="' + (weight || '400') + '">' + escapeHtml(txt) + '</text>';
             }
 
-            var torCountPerRoom = (torsPerRoom === '2') ? 2 : (torsPerRoom === '1' ? 1 : (arch === 'option_a' || arch === 'option_b' ? 2 : 1));
-            var room1TorXs = torXsForRoom(room1X, torCountPerRoom);
-            var room2TorXs = torXsForRoom(room2X, torCountPerRoom);
+            const torCountPerRoom = (torsPerRoom === '2') ? 2 : (torsPerRoom === '1' ? 1 : (arch === 'option_a' || arch === 'option_b' ? 2 : 1));
+            let room1TorXs = torXsForRoom(room1X, torCountPerRoom);
+            let room2TorXs = torXsForRoom(room2X, torCountPerRoom);
 
             function alignTorPairToTwoNodes(roomX, torXs, nodeXs) {
                 // Only align when we are actually showing two nodes in the room.
                 if (!nodeXs || nodeXs.length !== 2) return torXs;
                 if (!torXs || torXs.length !== 2) return torXs;
 
-                var c1 = nodeXs[0] + Math.floor(nodeW / 2);
-                var c2 = nodeXs[1] + Math.floor(nodeW / 2);
-                var x1 = c1 - Math.floor(torW / 2);
-                var x2 = c2 - Math.floor(torW / 2);
+                const c1 = nodeXs[0] + Math.floor(nodeW / 2);
+                const c2 = nodeXs[1] + Math.floor(nodeW / 2);
+                let x1 = c1 - Math.floor(torW / 2);
+                let x2 = c2 - Math.floor(torW / 2);
 
                 // Clamp within room bounds.
-                var minX = roomX + 12;
-                var maxX = (roomX + roomW) - torW - 12;
+                const minX = roomX + 12;
+                const maxX = (roomX + roomW) - torW - 12;
                 x1 = Math.max(minX, Math.min(maxX, x1));
                 x2 = Math.max(minX, Math.min(maxX, x2));
 
                 // Ensure ordering.
                 if (x2 < x1) {
-                    var t = x1; x1 = x2; x2 = t;
+                    const t = x1; x1 = x2; x2 = t;
                 }
 
                 // If they overlap due to extreme clamping, fall back to default centered layout.
@@ -5126,8 +5127,8 @@
                 // Keep dual-TOR layout consistent across node counts.
                 // For 2-node Rack Aware (one node shown per room), align TORs using a virtual 2-node layout
                 // so TOR spacing matches 6/8-node diagrams (which also show two nodes per room).
-                var room1AlignNodeXs = room1NodeXs;
-                var room2AlignNodeXs = room2NodeXs;
+                let room1AlignNodeXs = room1NodeXs;
+                let room2AlignNodeXs = room2NodeXs;
                 if (room1AlignNodeXs && room1AlignNodeXs.length === 1) room1AlignNodeXs = nodeXsForRoom(room1X, 2);
                 if (room2AlignNodeXs && room2AlignNodeXs.length === 1) room2AlignNodeXs = nodeXsForRoom(room2X, 2);
 
@@ -5135,7 +5136,7 @@
                 room2TorXs = alignTorPairToTwoNodes(room2X, room2TorXs, room2AlignNodeXs);
             }
 
-            var svg = '';
+            let svg = '';
             svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Rack Aware TOR architecture diagram">';
 
             // Room containers
@@ -5146,7 +5147,7 @@
 
             // TORs
             function torBox(x, y, text) {
-                var cx = x + torW / 2;
+                const cx = x + torW / 2;
                 svg += '<rect x="' + x + '" y="' + y + '" width="' + torW + '" height="' + torH + '" rx="12" fill="rgba(0,120,212,0.12)" stroke="rgba(0,120,212,0.35)" />';
                 svg += label(cx, y + 24, text, 'var(--text-primary)', 13, '700');
                 svg += label(cx, y + 44, 'TOR', 'var(--text-secondary)', 11, '400');
@@ -5155,20 +5156,20 @@
             function lagLinkForRoom(roomTorXs, y) {
                 // Render an explicit LAG box between the two TORs (Learn-style), using TWO parallel connectors.
                 // Place it in the gap between TORs and align to the TOR vertical midpoint.
-                var leftInner = roomTorXs[0] + torW;
-                var rightInner = roomTorXs[1];
-                var midX = Math.floor((leftInner + rightInner) / 2);
+                const leftInner = roomTorXs[0] + torW;
+                const rightInner = roomTorXs[1];
+                const midX = Math.floor((leftInner + rightInner) / 2);
 
-                var innerGap = Math.max(0, rightInner - leftInner);
-                var boxW = Math.min(58, Math.max(34, innerGap - 14));
-                var boxH = 22;
-                var bx = midX - Math.floor(boxW / 2);
-                var by = y - Math.floor(boxH / 2);
+                const innerGap = Math.max(0, rightInner - leftInner);
+                const boxW = Math.min(58, Math.max(34, innerGap - 14));
+                const boxH = 22;
+                const bx = midX - Math.floor(boxW / 2);
+                const by = y - Math.floor(boxH / 2);
 
                 // TOR-to-TOR (in-room) LAG links should be SOLID.
-                var stroke = 'var(--accent-blue)';
-                var strokeOpacity = 0.70;
-                var gap = 8;
+                const stroke = 'var(--accent-blue)';
+                const strokeOpacity = 0.70;
+                const gap = 8;
 
                 // Two parallel runs (upper/lower) that meet the LAG box edges.
                 svg += '<path d="M ' + leftInner + ' ' + (y - Math.floor(gap / 2)) + ' L ' + bx + ' ' + (y - Math.floor(gap / 2)) + '" stroke="' + stroke + '" stroke-opacity="' + strokeOpacity + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
@@ -5195,17 +5196,17 @@
             }
 
             // Nodes (show up to 2 per zone) with intent groups + per-port tiles.
-            var ports = parseInt(state.ports, 10);
+            let ports = parseInt(state.ports, 10);
             if (isNaN(ports) || ports < 0) ports = 0;
 
             // Determine which ports belong to which intent based on adapter mapping
-            var hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
-            var mgmtComputePorts = [];
-            var storagePorts = [];
+            const hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
+            const mgmtComputePorts = [];
+            const storagePorts = [];
 
             if (hasAdapterMapping) {
-                for (var pi = 1; pi <= ports; pi++) {
-                    var assignment = state.adapterMapping[pi] || 'pool';
+                for (let pi = 1; pi <= ports; pi++) {
+                    const assignment = state.adapterMapping[pi] || 'pool';
                     if (assignment === 'storage') {
                         storagePorts.push(pi);
                     } else {
@@ -5215,7 +5216,7 @@
                 }
             } else {
                 // Default assumption: ports 1-2 for Mgmt+Compute, ports 3+ for Storage
-                for (var dpi = 1; dpi <= ports; dpi++) {
+                for (let dpi = 1; dpi <= ports; dpi++) {
                     if (dpi <= 2) {
                         mgmtComputePorts.push(dpi);
                     } else {
@@ -5224,44 +5225,44 @@
                 }
             }
 
-            var showStorageGroup = (state.intent !== 'all_traffic') && storagePorts.length > 0;
-            var storagePortCount = showStorageGroup ? storagePorts.length : 0;
+            const showStorageGroup = (state.intent !== 'all_traffic') && storagePorts.length > 0;
+            const storagePortCount = showStorageGroup ? storagePorts.length : 0;
 
             function renderSetGroup(nodeLeft, nodeTop, placeOnLeft) {
                 // Intent blocks are side-by-side (same vertical level) to match Learn diagrams.
-                var padX = 12;
-                var gapB = 10;
-                var boxW = Math.floor((nodeW - (padX * 2) - gapB) / 2);
-                var setW = boxW;
-                var setH = 114 + raMgmtVnicH;
-                var setX = placeOnLeft ? (nodeLeft + padX) : (nodeLeft + padX + boxW + gapB);
-                var setY = nodeTop + 74;
+                const padX = 12;
+                const gapB = 10;
+                const boxW = Math.floor((nodeW - (padX * 2) - gapB) / 2);
+                const setW = boxW;
+                const setH = 114 + raMgmtVnicH;
+                const setX = placeOnLeft ? (nodeLeft + padX) : (nodeLeft + padX + boxW + gapB);
+                const setY = nodeTop + 74;
 
                 // Keep tiles compact so side-by-side groups fit within the node card.
-                var nicW = 44;
-                var nicH = 28;
-                var gap = 8;
-                var rowW = (2 * nicW) + gap;
-                var nic1X = setX + Math.floor((setW - rowW) / 2);
-                var nic2X = nic1X + nicW + gap;
+                const nicW = 44;
+                const nicH = 28;
+                const gap = 8;
+                const rowW = (2 * nicW) + gap;
+                const nic1X = setX + Math.floor((setW - rowW) / 2);
+                const nic2X = nic1X + nicW + gap;
                 // Align NIC and SMB tiles to the same vertical level.
-                var nicY = setY + 28 + raMgmtVnicH;
+                const nicY = setY + 28 + raMgmtVnicH;
 
-                var tilesBottomY = nicY + nicH;
-                var setLabelY = tilesBottomY + 22;
+                const tilesBottomY = nicY + nicH;
+                const setLabelY = tilesBottomY + 22;
 
-                var setLabelText = intentShortLabel(state.intent);
+                let setLabelText = intentShortLabel(state.intent);
                 // When Storage uses RDMA, keep the SET label focused on Mgmt/Compute.
                 if (showStorageGroup) setLabelText = 'Management + Compute';
 
-                var out = '';
+                let out = '';
                 out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
 
                 // Mgmt vNIC card at the top of the SET box
-                var vaCardW = 72;
-                var vaCardH = 24;
-                var vaX = setX + Math.floor((setW - vaCardW) / 2);
-                var vaY = setY + 6;
+                const vaCardW = 72;
+                const vaCardH = 24;
+                const vaX = setX + Math.floor((setW - vaCardW) / 2);
+                const vaY = setY + 6;
                 out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="5" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="3 2" />';
                 out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 10) + '" text-anchor="middle" font-size="7" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
                 out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 20) + '" text-anchor="middle" font-size="6" fill="var(--text-secondary)">' + escapeHtml(raMgmtVlanLabel) + '</text>';
@@ -5270,9 +5271,9 @@
                 out += '<text x="' + (setX + setW / 2) + '" y="' + setLabelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(setLabelText) + '</text>';
 
                 function nicTile(x, y, labelText, idx) {
-                    var t = '';
+                    let t = '';
                     // Center text vertically if label is 11 characters or less, otherwise stagger
-                    var textY = (labelText.length <= 11) ? (y + 18) : ((idx % 2 === 0) ? (y + 14) : (y + 22));
+                    const textY = (labelText.length <= 11) ? (y + 18) : ((idx % 2 === 0) ? (y + 14) : (y + 22));
                     t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                     t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
                     return t;
@@ -5297,48 +5298,48 @@
                     };
                 }
 
-                var padX = 12;
-                var gapB = 10;
-                var boxW = Math.floor((nodeW - (padX * 2) - gapB) / 2);
-                var gW = boxW;
-                var gX = placeOnLeft ? (nodeLeft + padX) : (nodeLeft + padX + boxW + gapB);
-                var gY = nodeTop + 74;
+                const padX = 12;
+                const gapB = 10;
+                const boxW = Math.floor((nodeW - (padX * 2) - gapB) / 2);
+                const gW = boxW;
+                const gX = placeOnLeft ? (nodeLeft + padX) : (nodeLeft + padX + boxW + gapB);
+                const gY = nodeTop + 74;
 
                 // Keep storage compact: show up to 4 SMB tiles (2x2). If more, show a "+N" badge.
-                var maxShown = Math.min(count, 4);
-                var tileW = 44;
-                var tileH = 28;
-                var gapX2 = 8;
-                var gapY2 = 10;
-                var cols2 = 2;
-                var rows2 = Math.max(1, Math.ceil(maxShown / cols2));
+                const maxShown = Math.min(count, 4);
+                const tileW = 44;
+                const tileH = 28;
+                const gapX2 = 8;
+                const gapY2 = 10;
+                const cols2 = 2;
+                const rows2 = Math.max(1, Math.ceil(maxShown / cols2));
                 // Align SMB tiles with NIC tiles and place the Storage label below the tiles.
-                var tilesTopPad = 28 + raMgmtVnicH;
-                var tilesH = (rows2 * tileH) + ((rows2 - 1) * gapY2);
-                var labelH = 22;
-                var padBottom = 12;
-                var gH = tilesTopPad + tilesH + labelH + padBottom;
+                const tilesTopPad = 28 + raMgmtVnicH;
+                const tilesH = (rows2 * tileH) + ((rows2 - 1) * gapY2);
+                const labelH = 22;
+                const padBottom = 12;
+                let gH = tilesTopPad + tilesH + labelH + padBottom;
                 // Ensure the storage box is at least as tall as SET for visual alignment.
                 gH = Math.max(gH, 114 + raMgmtVnicH);
 
-                var totalRowW = (cols2 * tileW) + ((cols2 - 1) * gapX2);
-                var startX = gX + Math.floor((gW - totalRowW) / 2);
-                var startY = gY + tilesTopPad;
+                const totalRowW = (cols2 * tileW) + ((cols2 - 1) * gapX2);
+                const startX = gX + Math.floor((gW - totalRowW) / 2);
+                const startY = gY + tilesTopPad;
 
-                var out = '';
+                let out = '';
                 out += '<rect x="' + gX + '" y="' + gY + '" width="' + gW + '" height="' + gH + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
 
-                var portsOut = [];
-                for (var iS = 0; iS < maxShown; iS++) {
-                    var rS = Math.floor(iS / cols2);
-                    var cS = iS % cols2;
-                    var xS = startX + (cS * (tileW + gapX2));
-                    var yS = startY + (rS * (tileH + gapY2));
+                const portsOut = [];
+                for (let iS = 0; iS < maxShown; iS++) {
+                    const rS = Math.floor(iS / cols2);
+                    const cS = iS % cols2;
+                    const xS = startX + (cS * (tileW + gapX2));
+                    const yS = startY + (rS * (tileH + gapY2));
                     // Use the actual storage port index from storagePorts array
-                    var portIdx = storagePorts[iS] || (iS + 3);
-                    var lbl = getNicLabel(portIdx);
+                    const portIdx = storagePorts[iS] || (iS + 3);
+                    const lbl = getNicLabel(portIdx);
                     // Center text vertically if label is 11 characters or less, otherwise stagger
-                    var textY = (lbl.length <= 11) ? (yS + 18) : ((iS % 2 === 0) ? (yS + 14) : (yS + 22));
+                    const textY = (lbl.length <= 11) ? (yS + 18) : ((iS % 2 === 0) ? (yS + 14) : (yS + 22));
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                     out += '<text x="' + (xS + tileW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
@@ -5346,14 +5347,14 @@
                 }
 
                 // Place the intent label below the SMB tiles so cabling stays clear.
-                var labelY = startY + tilesH + 22;
+                const labelY = startY + tilesH + 22;
                 out += '<text x="' + (gX + gW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage (RDMA)</text>';
 
                 if (count > maxShown) {
-                    var badgeW = 54;
-                    var badgeH = 20;
-                    var bx = gX + gW - badgeW - 10;
-                    var by = gY + gH - badgeH - 10;
+                    const badgeW = 54;
+                    const badgeH = 20;
+                    const bx = gX + gW - badgeW - 10;
+                    const by = gY + gH - badgeH - 10;
                     out += '<rect x="' + bx + '" y="' + by + '" width="' + badgeW + '" height="' + badgeH + '" rx="10" fill="rgba(255,255,255,0.06)" stroke="var(--glass-border)" />';
                     out += '<text x="' + (bx + badgeW / 2) + '" y="' + (by + 14) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">+' + escapeHtml(String(count - maxShown)) + '</text>';
                 }
@@ -5362,8 +5363,8 @@
             }
 
             function nodeFrame(nodeLeft, nodeTop, text) {
-                var cx = nodeLeft + nodeW / 2;
-                var out = '';
+                const cx = nodeLeft + nodeW / 2;
+                let out = '';
                 // Slightly more opaque fill so cabling lines behind don't visually clash with text.
                 out += '<rect x="' + nodeLeft + '" y="' + nodeTop + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.06)" stroke="var(--glass-border)" />';
                 // Move the node name below the intent blocks for readability.
@@ -5372,23 +5373,23 @@
             }
 
             // Build a render list so we can draw cabling behind nodes.
-            var nodeRenders = [];
-            for (var a1 = 0; a1 < room1NodeXs.length; a1++) {
+            const nodeRenders = [];
+            for (let a1 = 0; a1 < room1NodeXs.length; a1++) {
                 nodeRenders.push({ room: 1, sideInRoom: (a1 === 0 ? 'L' : 'R'), x: room1NodeXs[a1], y: nodesY, name: z1Nodes[a1] });
             }
-            for (var a2 = 0; a2 < room2NodeXs.length; a2++) {
+            for (let a2 = 0; a2 < room2NodeXs.length; a2++) {
                 nodeRenders.push({ room: 2, sideInRoom: (a2 === 0 ? 'L' : 'R'), x: room2NodeXs[a2], y: nodesY, name: z2Nodes[a2] });
             }
 
             // Precompute node port anchors.
-            for (var nr = 0; nr < nodeRenders.length; nr++) {
-                var n0 = nodeRenders[nr];
+            for (let nr = 0; nr < nodeRenders.length; nr++) {
+                const n0 = nodeRenders[nr];
                 // Mirror layout per node side within the room:
                 // - Left nodes: SET (Mgmt+Compute + NICs) on left, Storage on right
                 // - Right nodes: Storage on left, SET (Mgmt+Compute + NICs) on right
-                var isLeftNode = (n0.sideInRoom !== 'R');
-                var set = renderSetGroup(n0.x, n0.y, isLeftNode);
-                var stor = renderStorageGroup(n0.x, n0.y, storagePortCount, !isLeftNode);
+                const isLeftNode = (n0.sideInRoom !== 'R');
+                const set = renderSetGroup(n0.x, n0.y, isLeftNode);
+                const stor = renderStorageGroup(n0.x, n0.y, storagePortCount, !isLeftNode);
                 n0._set = set;
                 n0._stor = stor;
             }
@@ -5397,8 +5398,8 @@
             // Key requirement: each connector must have its own path and land on a unique point
             // along the TOR bottom edge (so lines don't stack through labels).
             function torLeftX(room, which) {
-                var xs = (room === 1) ? room1TorXs : room2TorXs;
-                var idx = Math.max(0, Math.min(xs.length - 1, which));
+                const xs = (room === 1) ? room1TorXs : room2TorXs;
+                const idx = Math.max(0, Math.min(xs.length - 1, which));
                 return xs[idx];
             }
 
@@ -5408,43 +5409,43 @@
                 // Requested bundling:
                 // - Left side: Storage OUTSIDE, SET INSIDE
                 // - Right side: SET INSIDE, Storage OUTSIDE
-                var left = torLeftX(room, which);
-                var padIn = 14;
-                var usable = Math.max(10, torW - (padIn * 2));
+                const left = torLeftX(room, which);
+                const padIn = 14;
+                const usable = Math.max(10, torW - (padIn * 2));
 
                 // Special case: only one node per room (e.g., 2-node Rack Aware).
                 // Keep anchors visually centered while preserving the 4-node style ordering:
                 // left half = SET (NIC1 outer-left, NIC2 inner-left), right half = Storage
                 // (SMB1 inner-right, SMB2 outer-right).
                 if (side === 'C') {
-                    var denomC = Math.max(1, total + 1);
-                    var leftHalf = Math.max(10, Math.floor(usable / 2));
-                    var rightHalf = Math.max(10, usable - leftHalf);
+                    const denomC = Math.max(1, total + 1);
+                    const leftHalf = Math.max(10, Math.floor(usable / 2));
+                    const rightHalf = Math.max(10, usable - leftHalf);
 
-                    var segStartC = (band === 'storage') ? leftHalf : 0;
-                    var segUsableC = (band === 'storage') ? rightHalf : leftHalf;
-                    var xC = left + padIn + segStartC + Math.floor(((slot + 1) * segUsableC) / denomC);
+                    const segStartC = (band === 'storage') ? leftHalf : 0;
+                    const segUsableC = (band === 'storage') ? rightHalf : leftHalf;
+                    let xC = left + padIn + segStartC + Math.floor(((slot + 1) * segUsableC) / denomC);
 
                     // Clamp to stay within TOR bounds.
-                    var minX = left + padIn + 2;
-                    var maxX = left + padIn + usable - 2;
+                    const minX = left + padIn + 2;
+                    const maxX = left + padIn + usable - 2;
                     if (xC < minX) xC = minX;
                     if (xC > maxX) xC = maxX;
-                    var yC = torY + torH;
+                    const yC = torY + torH;
                     return { x: xC, y: yC };
                 }
 
-                var half = Math.floor(usable / 2);
-                var sideStart = (side === 'R') ? (padIn + half) : padIn;
-                var sideUsable = (side === 'R') ? (usable - half) : half;
+                const half = Math.floor(usable / 2);
+                const sideStart = (side === 'R') ? (padIn + half) : padIn;
+                let sideUsable = (side === 'R') ? (usable - half) : half;
                 sideUsable = Math.max(10, sideUsable);
 
                 // Split the side segment into two bands.
-                var bandHalf = Math.max(10, Math.floor(sideUsable / 2));
-                var insideStart = sideStart;
-                var insideUsable = bandHalf;
-                var outsideStart = sideStart + bandHalf;
-                var outsideUsable = Math.max(10, sideUsable - bandHalf);
+                const bandHalf = Math.max(10, Math.floor(sideUsable / 2));
+                let insideStart = sideStart;
+                let insideUsable = bandHalf;
+                let outsideStart = sideStart + bandHalf;
+                let outsideUsable = Math.max(10, sideUsable - bandHalf);
 
                 // For left side, outside should be the *outermost* portion (left), inside toward center (right).
                 if (side === 'L') {
@@ -5455,14 +5456,14 @@
                 }
 
                 // Landing rule: Mgmt+Compute (SET) lands OUTSIDE, Storage lands INSIDE.
-                var useInside = (band === 'storage');
-                var segStart = useInside ? insideStart : outsideStart;
-                var segUsable = useInside ? insideUsable : outsideUsable;
+                const useInside = (band === 'storage');
+                const segStart = useInside ? insideStart : outsideStart;
+                const segUsable = useInside ? insideUsable : outsideUsable;
 
-                var denom = Math.max(1, total + 1);
-                var x = left + segStart + Math.floor(((slot + 1) * segUsable) / denom);
+                const denom = Math.max(1, total + 1);
+                const x = left + segStart + Math.floor(((slot + 1) * segUsable) / denom);
                 // Land on the TOR bottom edge (border).
-                var y = torY + torH;
+                const y = torY + torH;
                 return { x: x, y: y };
             }
 
@@ -5481,15 +5482,15 @@
 
                 // Multi-elbow route with a per-lane approachY (stacked levels) to avoid overlaps.
                 // Ensure cables land straight into the TOR (final segment is vertical at the landing X).
-                var torBottom = torY + torH + 1;
-                var srcY = from.y;
+                const torBottom = torY + torH + 1;
+                const srcY = from.y;
                 // Keep Storage (SMB) cabling in a lower band than Mgmt+Compute (SET)
                 // so the horizontal runs under the TOR don't overlap.
-                var bandOffset = (band === 'storage') ? 16 : 0;
+                const bandOffset = (band === 'storage') ? 16 : 0;
                 // Keep storage turn heights mirrored left/right.
-                var upper = torBottom + 22 + bandOffset;
-                var laneStep = 8;
-                var approachY = upper + (laneIdx * laneStep);
+                const upper = torBottom + 22 + bandOffset;
+                const laneStep = 8;
+                let approachY = upper + (laneIdx * laneStep);
                 if (approachY > (srcY - 18)) approachY = srcY - 18;
 
                 // Make the first segment always straight up from the port anchor.
@@ -5501,8 +5502,8 @@
             }
 
             function drawCable(from, room, whichTor, side, band, stroke, dash, groupKey, laneIdx, slot, totalSlots) {
-                var to = torLandingPoint(room, whichTor, side, band, slot, totalSlots);
-                var d = cablePath(from, to, laneIdx, band, side);
+                const to = torLandingPoint(room, whichTor, side, band, slot, totalSlots);
+                const d = cablePath(from, to, laneIdx, band, side);
                 return '<path d="' + d + '" stroke="' + stroke + '" stroke-width="2" fill="none"' + (dash ? (' stroke-dasharray="' + dash + '"') : '') + ' />';
             }
 
@@ -5515,15 +5516,15 @@
             }
 
             // Build a list of all cables first, then assign unique landing slots per TOR and per side.
-            var cables = [];
-            for (var nr2 = 0; nr2 < nodeRenders.length; nr2++) {
-                var nn = nodeRenders[nr2];
-                var room = nn.room;
+            const cables = [];
+            for (let nr2 = 0; nr2 < nodeRenders.length; nr2++) {
+                const nn = nodeRenders[nr2];
+                const room = nn.room;
 
                 function sideForDestRoom(destRoom, fromX) {
                     // When there's only one node shown in the destination room (e.g., 2-node Rack Aware),
                     // treat cabling as centered on that TOR so landing points don't cluster on one half.
-                    var nodesShownDestRoom = (destRoom === 1) ? room1NodeXs.length : room2NodeXs.length;
+                    const nodesShownDestRoom = (destRoom === 1) ? room1NodeXs.length : room2NodeXs.length;
                     if (nodesShownDestRoom === 1) return 'C';
                     return sideForCable(destRoom, fromX);
                 }
@@ -5538,18 +5539,18 @@
                     cables.push({ room: 2, tor: 0, kind: 'set', port: 'nic2', from: nn._set.nic2, side: sideForDestRoom(2, nn._set.nic2.x), stroke: 'rgba(255,255,255,0.38)', dash: null });
 
                     // Storage (RDMA): odd SMB ports -> Room 1 TOR, even SMB ports -> Room 2 TOR
-                    var spD = (nn._stor && nn._stor.ports) ? nn._stor.ports : [];
-                    for (var siD = 0; siD < spD.length; siD++) {
-                        var smbD = spD[siD];
-                        var destRoomD = ((smbD.idx % 2) === 0) ? 2 : 1;
+                    const spD = (nn._stor && nn._stor.ports) ? nn._stor.ports : [];
+                    for (let siD = 0; siD < spD.length; siD++) {
+                        const smbD = spD[siD];
+                        const destRoomD = ((smbD.idx % 2) === 0) ? 2 : 1;
                         cables.push({ room: destRoomD, tor: 0, kind: 'storage', port: 'smb' + String(smbD.idx), from: { x: smbD.x, y: smbD.y }, side: sideForDestRoom(destRoomD, smbD.x), stroke: 'rgba(139,92,246,0.70)', dash: null });
                     }
                 } else {
                     // Default behavior (Options A/B/C and generic scenarios)
                     // When there's only one node shown in a room, treat cabling as centered on the TOR
                     // so landing points don't all cluster on one half.
-                    var nodesShownThisRoom = (room === 1) ? room1NodeXs.length : room2NodeXs.length;
-                    var nodeSide = (nodesShownThisRoom === 1) ? 'C' : (nn.sideInRoom || 'L');
+                    const nodesShownThisRoom = (room === 1) ? room1NodeXs.length : room2NodeXs.length;
+                    const nodeSide = (nodesShownThisRoom === 1) ? 'C' : (nn.sideInRoom || 'L');
 
                     // Mgmt/Compute (SET): NIC1->left TOR, NIC2->right TOR (or both->single TOR).
                     if (torCountPerRoom === 2) {
@@ -5561,10 +5562,10 @@
                     }
 
                     // Storage (RDMA): alternate SMB ports across TORs when dual-TOR.
-                    var sp = (nn._stor && nn._stor.ports) ? nn._stor.ports : [];
-                    for (var si = 0; si < sp.length; si++) {
-                        var smb = sp[si];
-                        var whichTor = 0;
+                    const sp = (nn._stor && nn._stor.ports) ? nn._stor.ports : [];
+                    for (let si = 0; si < sp.length; si++) {
+                        const smb = sp[si];
+                        let whichTor = 0;
                         if (torCountPerRoom === 2) {
                             whichTor = ((smb.idx % 2) === 0) ? 1 : 0;
                         }
@@ -5574,42 +5575,42 @@
             }
 
             function sideXSort(side) {
-                return function (a, b) {
-                    var ax = (a.from.x || 0);
-                    var bx = (b.from.x || 0);
+                return function(a, b) {
+                    const ax = (a.from.x || 0);
+                    const bx = (b.from.x || 0);
                     return (side === 'R') ? (bx - ax) : (ax - bx);
                 };
             }
 
             // Bundle by (room, tor, nodeSide) so lane levels are shared across intents.
-            var bundles = {};
-            for (var ci = 0; ci < cables.length; ci++) {
-                var c = cables[ci];
-                var k = String(c.room) + '-' + String(c.tor) + '-' + String(c.side || 'L');
+            const bundles = {};
+            for (let ci = 0; ci < cables.length; ci++) {
+                const c = cables[ci];
+                const k = String(c.room) + '-' + String(c.tor) + '-' + String(c.side || 'L');
                 if (!bundles[k]) bundles[k] = [];
                 bundles[k].push(c);
             }
 
-            Object.keys(bundles).sort().forEach(function (k) {
-                var listAll = bundles[k];
-                var side = k.split('-')[2] || 'L';
+            Object.keys(bundles).sort().forEach(function(k) {
+                const listAll = bundles[k];
+                const side = k.split('-')[2] || 'L';
 
                 // Global lane ordering (controls the stacked approachY levels).
                 // For centered single-node-per-room (2-node Rack Aware), enforce symmetry across rooms:
                 // give each port a deterministic lane index so the first horizontal turn height matches
                 // the corresponding port on the opposite room.
-                var laneMap = {};
+                const laneMap = {};
                 if (side === 'C') {
-                    for (var liC = 0; liC < listAll.length; liC++) {
-                        var cC = listAll[liC];
-                        var pC = String(cC.port || '');
-                        var idxC = 0;
+                    for (let liC = 0; liC < listAll.length; liC++) {
+                        const cC = listAll[liC];
+                        const pC = String(cC.port || '');
+                        let idxC = 0;
                         if (pC === 'nic1') idxC = 0;
                         else if (pC === 'nic2') idxC = 1;
                         else {
-                            var m = pC.match(/^smb(\d+)$/i);
+                            const m = pC.match(/^smb(\d+)$/i);
                             if (m) {
-                                var nIdx = parseInt(m[1], 10);
+                                const nIdx = parseInt(m[1], 10);
                                 // Use negative indices for SMB so Storage bandOffset (+16) is cancelled:
                                 // SMB2 (idx 2) -> lane -2 aligns with NIC1 (lane 0)
                                 // SMB1 (idx 1) -> lane -1 aligns with NIC2 (lane 1)
@@ -5619,8 +5620,8 @@
                         laneMap[pC] = idxC;
                     }
                 } else {
-                    var laneSorted = listAll.slice().sort(sideXSort(side));
-                    for (var li0 = 0; li0 < laneSorted.length; li0++) {
+                    const laneSorted = listAll.slice().sort(sideXSort(side));
+                    for (let li0 = 0; li0 < laneSorted.length; li0++) {
                         laneMap[laneSorted[li0].port] = li0;
                     }
                 }
@@ -5628,32 +5629,32 @@
                 // Landing slots remain per band (set vs storage) to keep inside/outside TOR spacing clean.
                 // SET (Mgmt+Compute) landing order: keep left-to-right so NIC1 lands left of NIC2.
                 // (Right-side nodes still keep their vertical lane ordering via laneSorted above.)
-                var setList = listAll.filter(function (c) { return c.kind !== 'storage'; }).slice().sort(function (a, b) {
+                const setList = listAll.filter(function(c) { return c.kind !== 'storage'; }).slice().sort(function(a, b) {
                     return (a.from.x || 0) - (b.from.x || 0);
                 });
                 // Storage landing order: keep left-to-right so SMB1 lands left of SMB2.
                 // (Right-side nodes still keep their vertical lane ordering via laneSorted above.)
-                var storList = listAll.filter(function (c) { return c.kind === 'storage'; }).slice().sort(function (a, b) {
+                const storList = listAll.filter(function(c) { return c.kind === 'storage'; }).slice().sort(function(a, b) {
                     return (a.from.x || 0) - (b.from.x || 0);
                 });
-                var setSlot = {};
-                var storSlot = {};
-                for (var si0 = 0; si0 < setList.length; si0++) setSlot[setList[si0].port] = si0;
-                for (var ti0 = 0; ti0 < storList.length; ti0++) storSlot[storList[ti0].port] = ti0;
+                const setSlot = {};
+                const storSlot = {};
+                for (let si0 = 0; si0 < setList.length; si0++) setSlot[setList[si0].port] = si0;
+                for (let ti0 = 0; ti0 < storList.length; ti0++) storSlot[storList[ti0].port] = ti0;
 
-                for (var i0 = 0; i0 < listAll.length; i0++) {
-                    var cc = listAll[i0];
-                    var band = (cc.kind === 'storage') ? 'storage' : 'set';
-                    var laneIdx = laneMap[cc.port] || 0;
-                    var slot = (band === 'storage') ? (storSlot[cc.port] || 0) : (setSlot[cc.port] || 0);
-                    var total = (band === 'storage') ? storList.length : setList.length;
+                for (let i0 = 0; i0 < listAll.length; i0++) {
+                    const cc = listAll[i0];
+                    const band = (cc.kind === 'storage') ? 'storage' : 'set';
+                    const laneIdx = laneMap[cc.port] || 0;
+                    const slot = (band === 'storage') ? (storSlot[cc.port] || 0) : (setSlot[cc.port] || 0);
+                    const total = (band === 'storage') ? storList.length : setList.length;
                     svg += drawCable(cc.from, cc.room, cc.tor, (cc.side || 'L'), band, cc.stroke, cc.dash, k, laneIdx, slot, total);
                 }
             });
 
             // Nodes on top of lines.
-            for (var nr3 = 0; nr3 < nodeRenders.length; nr3++) {
-                var nd = nodeRenders[nr3];
+            for (let nr3 = 0; nr3 < nodeRenders.length; nr3++) {
+                const nd = nodeRenders[nr3];
                 svg += nodeFrame(nd.x, nd.y, nd.name);
                 svg += nd._set.html;
                 svg += nd._stor.html;
@@ -5661,146 +5662,146 @@
 
             // Room-to-room link patterns (draw above TOR boxes, in the top band).
             // Keep them close enough to visually connect to TORs.
-            var linkYBase = torY - 30;
+            const linkYBase = torY - 30;
             if (arch === 'option_a' && torCountPerRoom === 2) {
                 // Add the upstream Switch/Router and Mgmt/Compute trunks (Learn-style components).
-                var swW = 240;
-                var swH = 54;
-                var swX = Math.floor((svgW - swW) / 2);
-                var swY = 18;
+                const swW = 240;
+                const swH = 54;
+                const swX = Math.floor((svgW - swW) / 2);
+                const swY = 18;
                 svg += '<rect x="' + swX + '" y="' + swY + '" width="' + swW + '" height="' + swH + '" rx="12" fill="rgba(255,255,255,0.06)" stroke="var(--glass-border)" />';
                 svg += label(swX + swW / 2, swY + 26, 'Switch / Router', 'var(--text-primary)', 12, '700');
 
                 // TOR-to-Switch/Router trunks: dotted + slightly transparent (blue), similar style to dotted trunks.
-                var trunkStroke = 'var(--accent-blue)';
-                var trunkOpacity = 0.55;
-                var trunkDash = '1 7';
+                const trunkStroke = 'var(--accent-blue)';
+                const trunkOpacity = 0.55;
+                const trunkDash = '1 7';
                 // One connector per TOR, anchored at the TOR (top-center) and landing on Switch/Router sides.
                 // Use two distinct landing Y offsets per side to avoid overlap.
-                var attachLeftX = swX;
-                var attachRightX = swX + swW;
-                var attachYTop = swY + Math.floor(swH * 0.35);
-                var attachYBot = swY + Math.floor(swH * 0.65);
+                const attachLeftX = swX;
+                const attachRightX = swX + swW;
+                const attachYTop = swY + Math.floor(swH * 0.35);
+                const attachYBot = swY + Math.floor(swH * 0.65);
                 // Label placement: keep close to the Switch/Router side landings (near the upper dotted run), just outside the box.
-                var labelLeftX = swX - 86;
-                var labelRightX = swX + swW + 86;
-                var labelNearY = attachYTop + 14;
+                const labelLeftX = swX - 86;
+                const labelRightX = swX + swW + 86;
+                const labelNearY = attachYTop + 14;
 
                 function torTopCenter(x) {
                     return { x: x + Math.floor(torW / 2), y: torY };
                 }
 
                 // Room 1 TORs -> left side
-                var r1t1 = torTopCenter(room1TorXs[0]);
-                var r1t2 = torTopCenter(room1TorXs[1]);
+                const r1t1 = torTopCenter(room1TorXs[0]);
+                const r1t2 = torTopCenter(room1TorXs[1]);
                 svg += '<path d="M ' + r1t1.x + ' ' + r1t1.y + ' L ' + r1t1.x + ' ' + attachYTop + ' L ' + attachLeftX + ' ' + attachYTop + '" stroke="' + trunkStroke + '" stroke-opacity="' + trunkOpacity + '" stroke-width="2" stroke-dasharray="' + trunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += '<path d="M ' + r1t2.x + ' ' + r1t2.y + ' L ' + r1t2.x + ' ' + attachYBot + ' L ' + attachLeftX + ' ' + attachYBot + '" stroke="' + trunkStroke + '" stroke-opacity="' + trunkOpacity + '" stroke-width="2" stroke-dasharray="' + trunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label(labelLeftX, labelNearY, 'Management, Compute trunk', 'var(--text-secondary)', 11, '400');
 
                 // Room 2 TORs -> right side
-                var r2t3 = torTopCenter(room2TorXs[0]);
-                var r2t4 = torTopCenter(room2TorXs[1]);
+                const r2t3 = torTopCenter(room2TorXs[0]);
+                const r2t4 = torTopCenter(room2TorXs[1]);
                 // Mirror the left-side ordering: TOR-4 lands above TOR-3.
                 svg += '<path d="M ' + r2t4.x + ' ' + r2t4.y + ' L ' + r2t4.x + ' ' + attachYTop + ' L ' + attachRightX + ' ' + attachYTop + '" stroke="' + trunkStroke + '" stroke-opacity="' + trunkOpacity + '" stroke-width="2" stroke-dasharray="' + trunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += '<path d="M ' + r2t3.x + ' ' + r2t3.y + ' L ' + r2t3.x + ' ' + attachYBot + ' L ' + attachRightX + ' ' + attachYBot + '" stroke="' + trunkStroke + '" stroke-opacity="' + trunkOpacity + '" stroke-width="2" stroke-dasharray="' + trunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label(labelRightX, labelNearY, 'Management, Compute trunk', 'var(--text-secondary)', 11, '400');
 
-                var y1 = linkYBase;
-                var y2 = linkYBase - 18;
+                const y1 = linkYBase;
+                const y2 = linkYBase - 18;
                 // Inter-room SMB trunks (TOR↔TOR) should use the SMB accent (purple), while keeping dotted style.
-                var smbTrunkStroke = 'var(--accent-purple)';
-                var smbTrunkOpacity = 0.55;
-                var smbTrunkDash = '1 7';
+                const smbTrunkStroke = 'var(--accent-purple)';
+                const smbTrunkOpacity = 0.55;
+                const smbTrunkDash = '1 7';
 
                 function insideTorTopX(torX, dir) {
                     // Nudge toward the diagram interior to avoid overlapping the TOR→Switch/Router anchor at top-center.
                     // dir: +1 (nudge right), -1 (nudge left)
-                    var nudge = 12;
-                    var x = torX + Math.floor(torW / 2) + (dir * nudge);
-                    var minX = torX + 8;
-                    var maxX = torX + torW - 8;
+                    const nudge = 12;
+                    let x = torX + Math.floor(torW / 2) + (dir * nudge);
+                    const minX = torX + 8;
+                    const maxX = torX + torW - 8;
                     if (x < minX) x = minX;
                     if (x > maxX) x = maxX;
                     return x;
                 }
 
                 // SMB1 trunk: TOR-1 ↔ TOR-3 (connect to TOR top edge)
-                var a1x = insideTorTopX(room1TorXs[0], +1);
-                var b1x = insideTorTopX(room2TorXs[0], -1);
+                const a1x = insideTorTopX(room1TorXs[0], +1);
+                const b1x = insideTorTopX(room2TorXs[0], -1);
                 svg += '<path d="M ' + a1x + ' ' + torY + ' L ' + a1x + ' ' + y1 + ' L ' + b1x + ' ' + y1 + ' L ' + b1x + ' ' + torY + '" stroke="' + smbTrunkStroke + '" stroke-opacity="' + smbTrunkOpacity + '" stroke-width="2" stroke-dasharray="' + smbTrunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label((a1x + b1x) / 2, y1 - 6, 'SMB1 trunk (TOR-1 ↔ TOR-3) — VLAN 711', 'var(--text-secondary)', 11, '400');
 
                 // SMB2 trunk: TOR-2 ↔ TOR-4 (connect to TOR top edge)
-                var a2x = insideTorTopX(room1TorXs[1], +1);
-                var b2x = insideTorTopX(room2TorXs[1], -1);
+                const a2x = insideTorTopX(room1TorXs[1], +1);
+                const b2x = insideTorTopX(room2TorXs[1], -1);
                 svg += '<path d="M ' + a2x + ' ' + torY + ' L ' + a2x + ' ' + y2 + ' L ' + b2x + ' ' + y2 + ' L ' + b2x + ' ' + torY + '" stroke="' + smbTrunkStroke + '" stroke-opacity="' + smbTrunkOpacity + '" stroke-width="2" stroke-dasharray="' + smbTrunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label((a2x + b2x) / 2, y2 - 6, 'SMB2 trunk (TOR-2 ↔ TOR-4) — VLAN 712', 'var(--text-secondary)', 11, '400');
             } else if (arch === 'option_b' && torCountPerRoom === 2) {
                 // Option B: Aggregated storage links.
                 // Add the upstream Switch/Router and Mgmt/Compute trunks (same visual style as Option A).
-                var swWb = 240;
-                var swHb = 54;
-                var swXb = Math.floor((svgW - swWb) / 2);
-                var swYb = 18;
+                const swWb = 240;
+                const swHb = 54;
+                const swXb = Math.floor((svgW - swWb) / 2);
+                const swYb = 18;
                 svg += '<rect x="' + swXb + '" y="' + swYb + '" width="' + swWb + '" height="' + swHb + '" rx="12" fill="rgba(255,255,255,0.06)" stroke="var(--glass-border)" />';
                 svg += label(swXb + swWb / 2, swYb + 26, 'Switch / Router', 'var(--text-primary)', 12, '700');
 
-                var upStroke = 'var(--accent-blue)';
-                var upOpacity = 0.55;
-                var upDash = '1 7';
-                var attachLeftXb = swXb;
-                var attachRightXb = swXb + swWb;
-                var attachYTopb = swYb + Math.floor(swHb * 0.35);
-                var attachYBotb = swYb + Math.floor(swHb * 0.65);
-                var labelLeftXb = swXb - 86;
-                var labelRightXb = swXb + swWb + 86;
-                var labelNearYb = attachYTopb + 14;
+                const upStroke = 'var(--accent-blue)';
+                const upOpacity = 0.55;
+                const upDash = '1 7';
+                const attachLeftXb = swXb;
+                const attachRightXb = swXb + swWb;
+                const attachYTopb = swYb + Math.floor(swHb * 0.35);
+                const attachYBotb = swYb + Math.floor(swHb * 0.65);
+                const labelLeftXb = swXb - 86;
+                const labelRightXb = swXb + swWb + 86;
+                const labelNearYb = attachYTopb + 14;
 
                 function torTopCenterB(x) {
                     return { x: x + Math.floor(torW / 2), y: torY };
                 }
 
                 // Room 1 TORs -> left side (TOR-1 top, TOR-2 bottom)
-                var b_r1t1 = torTopCenterB(room1TorXs[0]);
-                var b_r1t2 = torTopCenterB(room1TorXs[1]);
+                const b_r1t1 = torTopCenterB(room1TorXs[0]);
+                const b_r1t2 = torTopCenterB(room1TorXs[1]);
                 svg += '<path d="M ' + b_r1t1.x + ' ' + b_r1t1.y + ' L ' + b_r1t1.x + ' ' + attachYTopb + ' L ' + attachLeftXb + ' ' + attachYTopb + '" stroke="' + upStroke + '" stroke-opacity="' + upOpacity + '" stroke-width="2" stroke-dasharray="' + upDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += '<path d="M ' + b_r1t2.x + ' ' + b_r1t2.y + ' L ' + b_r1t2.x + ' ' + attachYBotb + ' L ' + attachLeftXb + ' ' + attachYBotb + '" stroke="' + upStroke + '" stroke-opacity="' + upOpacity + '" stroke-width="2" stroke-dasharray="' + upDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label(labelLeftXb, labelNearYb, 'Management, Compute trunk', 'var(--text-secondary)', 11, '400');
 
                 // Room 2 TORs -> right side (mirror: TOR-4 lands above TOR-3)
-                var b_r2t3 = torTopCenterB(room2TorXs[0]);
-                var b_r2t4 = torTopCenterB(room2TorXs[1]);
+                const b_r2t3 = torTopCenterB(room2TorXs[0]);
+                const b_r2t4 = torTopCenterB(room2TorXs[1]);
                 svg += '<path d="M ' + b_r2t4.x + ' ' + b_r2t4.y + ' L ' + b_r2t4.x + ' ' + attachYTopb + ' L ' + attachRightXb + ' ' + attachYTopb + '" stroke="' + upStroke + '" stroke-opacity="' + upOpacity + '" stroke-width="2" stroke-dasharray="' + upDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += '<path d="M ' + b_r2t3.x + ' ' + b_r2t3.y + ' L ' + b_r2t3.x + ' ' + attachYBotb + ' L ' + attachRightXb + ' ' + attachYBotb + '" stroke="' + upStroke + '" stroke-opacity="' + upOpacity + '" stroke-width="2" stroke-dasharray="' + upDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label(labelRightXb, labelNearYb, 'Management, Compute trunk', 'var(--text-secondary)', 11, '400');
 
                 // TOR-to-TOR storage trunk (single shared trunk with one connector per TOR).
                 // Style matches SMB trunks: dotted + slightly transparent purple.
-                var smbStrokeB = 'var(--accent-purple)';
-                var smbOpacityB = 0.55;
-                var smbDashB = '1 7';
+                const smbStrokeB = 'var(--accent-purple)';
+                const smbOpacityB = 0.55;
+                const smbDashB = '1 7';
 
                 function insideTorTopXb(torX, dir) {
                     // Nudge toward the diagram interior so anchors don't overlap TOR→Switch/Router (top-center).
-                    var nudge = 12;
-                    var x = torX + Math.floor(torW / 2) + (dir * nudge);
-                    var minX = torX + 8;
-                    var maxX = torX + torW - 8;
+                    const nudge = 12;
+                    let x = torX + Math.floor(torW / 2) + (dir * nudge);
+                    const minX = torX + 8;
+                    const maxX = torX + torW - 8;
                     if (x < minX) x = minX;
                     if (x > maxX) x = maxX;
                     return x;
                 }
 
                 // Anchor points: one per TOR.
-                var b_t1 = insideTorTopXb(room1TorXs[0], +1);
-                var b_t2 = insideTorTopXb(room1TorXs[1], +1);
-                var b_t3 = insideTorTopXb(room2TorXs[0], -1);
-                var b_t4 = insideTorTopXb(room2TorXs[1], -1);
+                const b_t1 = insideTorTopXb(room1TorXs[0], +1);
+                const b_t2 = insideTorTopXb(room1TorXs[1], +1);
+                const b_t3 = insideTorTopXb(room2TorXs[0], -1);
+                const b_t4 = insideTorTopXb(room2TorXs[1], -1);
 
                 // Shared trunk bus slightly above the TOR row.
-                var trunkYB = linkYBase - 18;
-                var xMinB = Math.min(Math.min(b_t1, b_t2), Math.min(b_t3, b_t4));
-                var xMaxB = Math.max(Math.max(b_t1, b_t2), Math.max(b_t3, b_t4));
+                const trunkYB = linkYBase - 18;
+                const xMinB = Math.min(Math.min(b_t1, b_t2), Math.min(b_t3, b_t4));
+                const xMaxB = Math.max(Math.max(b_t1, b_t2), Math.max(b_t3, b_t4));
 
                 // Horizontal trunk bus
                 svg += '<path d="M ' + xMinB + ' ' + trunkYB + ' L ' + xMaxB + ' ' + trunkYB + '" stroke="' + smbStrokeB + '" stroke-opacity="' + smbOpacityB + '" stroke-width="2" stroke-dasharray="' + smbDashB + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
@@ -5816,15 +5817,15 @@
             } else if (arch === 'option_c' && torCountPerRoom === 1) {
                 // Draw the bundled link as a direct TOR-to-TOR connector between the TOR boxes.
                 // Place it at the vertical middle of the TOR boxes.
-                var yC = torY + Math.floor(torH / 2);
+                const yC = torY + Math.floor(torH / 2);
                 // TOR-to-TOR link styling: dotted + slightly transparent.
                 svg += '<path d="M ' + (room1TorXs[0] + torW) + ' ' + yC + ' L ' + room2TorXs[0] + ' ' + yC + '" stroke="var(--accent-blue)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
                 svg += label((room1TorXs[0] + torW + room2TorXs[0]) / 2, yC - 6, 'Bundled link (SMB1 + SMB2)', 'var(--text-secondary)', 11, '400');
             } else if (arch === 'option_d' && torCountPerRoom === 1) {
                 // Option D: TOR-to-TOR links support management and compute intent traffic.
                 // Storage RDMA does not rely on TOR-to-TOR links (nodes cross-connect to both TORs).
-                var yD = torY + Math.floor(torH / 2);
-                var trunkGap = 10;
+                const yD = torY + Math.floor(torH / 2);
+                const trunkGap = 10;
                 // TOR-to-TOR trunks: dotted + slightly transparent + non-SMB accent.
                 svg += '<line x1="' + (room1TorXs[0] + torW) + '" y1="' + (yD - Math.floor(trunkGap / 2)) + '" x2="' + room2TorXs[0] + '" y2="' + (yD - Math.floor(trunkGap / 2)) + '" stroke="var(--accent-blue)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" />';
                 svg += '<line x1="' + (room1TorXs[0] + torW) + '" y1="' + (yD + Math.floor(trunkGap / 2)) + '" x2="' + room2TorXs[0] + '" y2="' + (yD + Math.floor(trunkGap / 2)) + '" stroke="var(--accent-blue)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" />';
@@ -5834,17 +5835,17 @@
             }
 
             // Badge for additional nodes not shown (per room/zone).
-            var shown1 = Math.min(z1Nodes.length, shownPerZone);
-            var shown2 = Math.min(z2Nodes.length, shownPerZone);
-            var remaining1 = Math.max(0, z1Nodes.length - shown1);
-            var remaining2 = Math.max(0, z2Nodes.length - shown2);
+            const shown1 = Math.min(z1Nodes.length, shownPerZone);
+            const shown2 = Math.min(z2Nodes.length, shownPerZone);
+            const remaining1 = Math.max(0, z1Nodes.length - shown1);
+            const remaining2 = Math.max(0, z2Nodes.length - shown2);
 
             function moreBadge(roomX, remainingCount) {
                 if (!remainingCount || remainingCount <= 0) return;
-                var badgeW = 200;
-                var badgeH = 26;
-                var bx = roomX + Math.floor((roomW - badgeW) / 2);
-                var by = roomY + roomH - 38;
+                const badgeW = 200;
+                const badgeH = 26;
+                const bx = roomX + Math.floor((roomW - badgeW) / 2);
+                const by = roomY + roomH - 38;
                 svg += '<rect x="' + bx + '" y="' + by + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.06)" stroke="var(--glass-border)" />';
                 svg += label(roomX + roomW / 2, by + 18, '+' + remainingCount + ' more node(s) not shown', 'var(--text-secondary)', 11, '400');
             }
@@ -5853,7 +5854,7 @@
             moreBadge(room2X, remaining2);
 
             svg += '</svg>';
-            var foot = '<div class="switchless-diagram__note">This is a simplified, wizard-oriented diagram intended for planning; validate exact cabling/VLAN behavior against your switch vendor guidance and the Microsoft Learn reference architecture.</div>';
+            const foot = '<div class="switchless-diagram__note">This is a simplified, wizard-oriented diagram intended for planning; validate exact cabling/VLAN behavior against your switch vendor guidance and the Microsoft Learn reference architecture.</div>';
 
             return '<div class="switchless-diagram">' + intro + svg + foot + '</div>';
         }
@@ -5861,30 +5862,30 @@
         function renderSwitchlessStorageDiagram(state) {
             if (!state || state.storage !== 'switchless') return '';
 
-            var n = parseInt(state.nodes, 10);
+            const n = parseInt(state.nodes, 10);
             if (isNaN(n) || n < 2 || n > 4) {
                 return '<div style="color:var(--text-secondary);">Diagram is available for 2–4 node switchless scenarios only.</div>';
             }
 
             var ports = parseInt(state.ports, 10) || 0;
 
-            var slMgmtVnicH = 38;
-            var slMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            const slMgmtVnicH = 38;
+            const slMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
 
             function renderMgmtVnicSl(centerX, topY) {
-                var cardW = 80;
-                var cardH = 28;
-                var cx = centerX - cardW / 2;
-                var cy = topY;
-                var vo = '';
+                const cardW = 80;
+                const cardH = 28;
+                const cx = centerX - cardW / 2;
+                const cy = topY;
+                let vo = '';
                 vo += '<rect x="' + cx + '" y="' + cy + '" width="' + cardW + '" height="' + cardH + '" rx="6" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
                 vo += '<text x="' + centerX + '" y="' + (cy + 12) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
                 vo += '<text x="' + centerX + '" y="' + (cy + 22) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(slMgmtVlanLabel) + '</text>';
                 return vo;
             }
 
-            var REF_3NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-two-links?view=azloc-2511';
-            var REF_3NODE_SWITCHLESS_SINGLE = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-one-link?view=azloc-2511';
+            const REF_3NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-two-links?view=azloc-2511';
+            const REF_3NODE_SWITCHLESS_SINGLE = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-one-link?view=azloc-2511';
 
             function getNodeLabel(idx) {
                 if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
@@ -5901,57 +5902,57 @@
 
             // Special-case: detailed 3-node switchless storage connectivity (SMB1-4, 6 subnets)
             if (n === 2) {
-                var REF_2NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/two-node-switchless-two-switches-two-links?view=azloc-2511';
+                const REF_2NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/two-node-switchless-two-switches-two-links?view=azloc-2511';
 
-                var svgW2 = 760;
-                var svgH2 = 420 + slMgmtVnicH;
+                const svgW2 = 760;
+                const svgH2 = 420 + slMgmtVnicH;
 
                 // Node panels
-                var nodeW2 = 300;
-                var nodeH2 = 250 + slMgmtVnicH;
-                var nodeY2 = 100;
-                var nodeX2 = [70, 390];
+                const nodeW2 = 300;
+                const nodeH2 = 250 + slMgmtVnicH;
+                const nodeY2 = 100;
+                const nodeX2 = [70, 390];
 
                 function getNicLabel2(idx1Based) {
                     return getPortCustomName(state, idx1Based, 'nic');
                 }
 
                 // Resolve actual port assignments from adapter mapping or defaults
-                var mgmtComputePorts2 = [1, 2];
-                var storagePorts2 = [3, 4];
+                let mgmtComputePorts2 = [1, 2];
+                let storagePorts2 = [3, 4];
                 if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
                     mgmtComputePorts2 = [];
                     storagePorts2 = [];
-                    for (var ami = 1; ami <= ports; ami++) {
-                        var amAssign = state.adapterMapping[ami] || 'pool';
+                    for (let ami = 1; ami <= ports; ami++) {
+                        const amAssign = state.adapterMapping[ami] || 'pool';
                         if (amAssign === 'storage') storagePorts2.push(ami);
                         else mgmtComputePorts2.push(ami);
                     }
                 }
 
                 function renderSetTeam2(nodeLeft, nodeTop) {
-                    var setW = 220;
-                    var setH = 62;
-                    var setX = nodeLeft + (nodeW2 - setW) / 2;
-                    var setY = nodeTop + 78 + slMgmtVnicH;
+                    const setW = 220;
+                    const setH = 62;
+                    const setX = nodeLeft + (nodeW2 - setW) / 2;
+                    const setY = nodeTop + 78 + slMgmtVnicH;
 
-                    var nicW = 76;
-                    var nicH = 34;
-                    var gap = 14;
-                    var nic1X = setX + 20;
-                    var nic2X = nic1X + nicW + gap;
-                    var nicY = setY + 18;
+                    const nicW = 76;
+                    const nicH = 34;
+                    const gap = 14;
+                    const nic1X = setX + 20;
+                    const nic2X = nic1X + nicW + gap;
+                    const nicY = setY + 18;
 
-                    var out = '';
+                    let out = '';
                     out += renderMgmtVnicSl(nodeLeft + nodeW2 / 2, nodeTop + 50);
                     out += '<text x="' + (nodeLeft + nodeW2 / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
                     function nicTile(x, y, label, idx) {
-                        var t = '';
+                        let t = '';
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        const textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -5963,30 +5964,30 @@
                 }
 
                 // Storage intent group (2 RDMA ports per node)
-                var storageGroupW2 = 260;
-                var storageGroupH2 = 92;
-                var storageTileW2 = 54;
-                var storageTileH2 = 38;
-                var storageTileGap2 = 18;
+                const storageGroupW2 = 260;
+                const storageGroupH2 = 92;
+                const storageTileW2 = 54;
+                const storageTileH2 = 38;
+                const storageTileGap2 = 18;
 
                 function storageGroupRect2(nodeIdx) {
-                    var nodeLeft = nodeX2[nodeIdx];
-                    var x = nodeLeft + (nodeW2 - storageGroupW2) / 2;
-                    var y = nodeY2 + 150 + slMgmtVnicH;
+                    const nodeLeft = nodeX2[nodeIdx];
+                    const x = nodeLeft + (nodeW2 - storageGroupW2) / 2;
+                    const y = nodeY2 + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW2, h: storageGroupH2 };
                 }
 
                 function storageTileRect2(nodeIdx, portIdx) {
-                    var g = storageGroupRect2(nodeIdx);
-                    var totalW = (storageTileW2 * 2) + storageTileGap2;
-                    var startX = g.x + (g.w - totalW) / 2;
-                    var x = startX + (portIdx * (storageTileW2 + storageTileGap2));
-                    var y = g.y + 36;
+                    const g = storageGroupRect2(nodeIdx);
+                    const totalW = (storageTileW2 * 2) + storageTileGap2;
+                    const startX = g.x + (g.w - totalW) / 2;
+                    const x = startX + (portIdx * (storageTileW2 + storageTileGap2));
+                    const y = g.y + 36;
                     return { x: x, y: y, w: storageTileW2, h: storageTileH2 };
                 }
 
                 function storagePortPos2(nodeIdx, portIdx) {
-                    var r = storageTileRect2(nodeIdx, portIdx);
+                    const r = storageTileRect2(nodeIdx, portIdx);
                     return { x: r.x + (r.w / 2), y: r.y + r.h };
                 }
 
@@ -5995,14 +5996,14 @@
                     return subnetNumber === 1 ? 'hsla(215, 78%, 62%, 0.95)' : 'hsla(330, 78%, 62%, 0.95)';
                 }
 
-                var intro2 = ''
+                const intro2 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                     + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
                     + '2-node switchless uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1–SMB2), and uses <strong style="color:var(--text-primary);">two storage subnets</strong> between the pair.'
                     + '</div>';
 
-                var edges2 = [
+                const edges2 = [
                     { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
                     { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 }
                 ];
@@ -6015,66 +6016,66 @@
                         + ' L ' + b.x + ' ' + b.y;
                 }
 
-                var svg2 = '';
+                let svg2 = '';
                 svg2 += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW2 + ' ' + svgH2 + '" role="img" aria-label="2-node switchless storage connectivity diagram">';
 
                 svg2 += '<rect x="35" y="55" width="' + (svgW2 - 70) + '" height="' + (svgH2 - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                 svg2 += '<text x="' + (svgW2 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
-                for (var i2 = 0; i2 < 2; i2++) {
-                    var x2 = nodeX2[i2];
+                for (let i2 = 0; i2 < 2; i2++) {
+                    const x2 = nodeX2[i2];
                     svg2 += '<rect x="' + x2 + '" y="' + nodeY2 + '" width="' + nodeW2 + '" height="' + nodeH2 + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                     svg2 += '<text x="' + (x2 + nodeW2 / 2) + '" y="' + (nodeY2 + 34) + '" text-anchor="middle" font-size="16" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(i2)) + '</text>';
                     svg2 += renderSetTeam2(x2, nodeY2);
 
-                    var sg2 = storageGroupRect2(i2);
+                    const sg2 = storageGroupRect2(i2);
                     svg2 += '<rect x="' + sg2.x + '" y="' + sg2.y + '" width="' + sg2.w + '" height="' + sg2.h + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                     svg2 += '<text x="' + (sg2.x + sg2.w / 2) + '" y="' + (sg2.y + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
 
-                    for (var p2 = 0; p2 < 2; p2++) {
-                        var tr2 = storageTileRect2(i2, p2);
+                    for (let p2 = 0; p2 < 2; p2++) {
+                        const tr2 = storageTileRect2(i2, p2);
                         // Use actual storage port indices from adapter mapping
-                        var lbl2 = getNicLabel2(storagePorts2[p2] || (p2 + 3));
+                        const lbl2 = getNicLabel2(storagePorts2[p2] || (p2 + 3));
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY2 = (lbl2.length <= 11) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
+                        const textY2 = (lbl2.length <= 11) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + textY2 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
                     }
                 }
 
-                var laneBaseY2 = nodeY2 + nodeH2 + 22;
-                var laneGap2 = 20;
-                var midXOffsets2 = [0, 18];
+                const laneBaseY2 = nodeY2 + nodeH2 + 22;
+                const laneGap2 = 20;
+                const midXOffsets2 = [0, 18];
 
-                for (var e2 = 0; e2 < edges2.length; e2++) {
-                    var ed2 = edges2[e2];
+                for (let e2 = 0; e2 < edges2.length; e2++) {
+                    const ed2 = edges2[e2];
                     var a2 = storagePortPos2(ed2.a.n, ed2.a.p);
                     var b2 = storagePortPos2(ed2.b.n, ed2.b.p);
-                    var busY2 = laneBaseY2 + (ed2.lane * laneGap2);
-                    var midX2 = ((a2.x + b2.x) / 2) + (midXOffsets2[ed2.lane] || 0);
-                    var d2 = pathBetween2Clean(a2, b2, busY2, midX2);
-                    var stroke2 = subnetColor2(ed2.subnet);
+                    const busY2 = laneBaseY2 + (ed2.lane * laneGap2);
+                    const midX2 = ((a2.x + b2.x) / 2) + (midXOffsets2[ed2.lane] || 0);
+                    const d2 = pathBetween2Clean(a2, b2, busY2, midX2);
+                    const stroke2 = subnetColor2(ed2.subnet);
                     svg2 += '<path d="' + d2 + '" fill="none" stroke="' + stroke2 + '" stroke-width="2.6" opacity="0.95" />';
                     svg2 += '<text x="' + midX2 + '" y="' + (busY2 - 6) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Subnet ' + ed2.subnet + '</text>';
                 }
 
                 svg2 += '</svg>';
 
-                var subnetExamples2 = {
+                const subnetExamples2 = {
                     1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
                     2: getStorageSubnetCidr(state, 2, '10.0.2.0/24')
                 };
-                var legendTitle2 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
-                var legendNote2 = getStorageSubnetNote(state, "CIDRs shown are the default Network ATC values for 2-node switchless storage connectivity; these are automatically assigned.");
+                const legendTitle2 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                const legendNote2 = getStorageSubnetNote(state, 'CIDRs shown are the default Network ATC values for 2-node switchless storage connectivity; these are automatically assigned.');
 
-                var legend2 = '<div class="switchless-diagram__legend">'
+                const legend2 = '<div class="switchless-diagram__legend">'
                     + '<div class="switchless-diagram__legend-title">' + legendTitle2 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
-                    + [1, 2].map(function (num) {
-                        var edge = edges2.filter(function (e) { return e.subnet === num; })[0];
-                        var pair = edge ? edge.pair : '';
-                        var ex = subnetExamples2[num] ? (' — ' + subnetExamples2[num]) : '';
-                        var preview = ''
+                    + [1, 2].map(function(num) {
+                        const edge = edges2.filter(function(e) { return e.subnet === num; })[0];
+                        const pair = edge ? edge.pair : '';
+                        const ex = subnetExamples2[num] ? (' — ' + subnetExamples2[num]) : '';
+                        const preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                             + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColor2(num) + '" stroke-width="2" opacity="0.95" />'
                             + '</svg>';
@@ -6087,7 +6088,7 @@
                     + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote2 + '</div>'
                     + '</div>';
 
-                var foot2 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
+                const foot2 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
                     + 'Reference pattern (2-node switchless dual-TOR dual-link): '
                     + '<a href="' + REF_2NODE_SWITCHLESS + '" target="_blank" rel="noopener">Microsoft Learn</a>'
                     + '</div>';
@@ -6097,51 +6098,51 @@
 
             // Special-case: detailed 3-node switchless storage connectivity (SMB1-4, 6 subnets)
             if (n === 3) {
-                var linkMode = state && state.switchlessLinkMode ? String(state.switchlessLinkMode) : 'dual_link';
+                const linkMode = state && state.switchlessLinkMode ? String(state.switchlessLinkMode) : 'dual_link';
 
                 // Single-link (one storage link per node-pair; 2 RDMA ports per node)
                 if (linkMode === 'single_link') {
-                    var svgWS = 980;
-                    var svgHS = 490 + slMgmtVnicH;
+                    const svgWS = 980;
+                    const svgHS = 490 + slMgmtVnicH;
 
-                    var nodeWS = 280;
-                    var nodeHS = 240 + slMgmtVnicH;
-                    var nodeYS = 110;
-                    var nodeXS = [60, 350, 640];
+                    const nodeWS = 280;
+                    const nodeHS = 240 + slMgmtVnicH;
+                    const nodeYS = 110;
+                    const nodeXS = [60, 350, 640];
 
-                    var storageGroupWS = 210;
-                    var storageGroupHS = 86;
-                    var storageTileWS = 54;
-                    var storageTileHS = 38;
-                    var storageTileGapS = 18;
+                    const storageGroupWS = 210;
+                    const storageGroupHS = 86;
+                    const storageTileWS = 54;
+                    const storageTileHS = 38;
+                    const storageTileGapS = 18;
 
                     function getNicLabelS(idx1Based) {
                         return getPortCustomName(state, idx1Based, 'nic');
                     }
 
                     function renderSetTeamS(nodeLeft, nodeTop) {
-                        var setW = 210;
-                        var setH = 62;
-                        var setX = nodeLeft + (nodeWS - setW) / 2;
-                        var setY = nodeTop + 78 + slMgmtVnicH;
+                        const setW = 210;
+                        const setH = 62;
+                        const setX = nodeLeft + (nodeWS - setW) / 2;
+                        const setY = nodeTop + 78 + slMgmtVnicH;
 
-                        var nicW = 70;
-                        var nicH = 34;
-                        var gap = 14;
-                        var nic1X = setX + 18;
-                        var nic2X = nic1X + nicW + gap;
-                        var nicY = setY + 18;
+                        const nicW = 70;
+                        const nicH = 34;
+                        const gap = 14;
+                        const nic1X = setX + 18;
+                        const nic2X = nic1X + nicW + gap;
+                        const nicY = setY + 18;
 
-                        var out = '';
+                        let out = '';
                         out += renderMgmtVnicSl(nodeLeft + nodeWS / 2, nodeTop + 50);
                         out += '<text x="' + (nodeLeft + nodeWS / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                         out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                         out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
                         function nicTile(x, y, label, idx) {
-                            var t = '';
+                            let t = '';
                             // Center text vertically if label is 11 characters or less, otherwise stagger
-                            var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                            const textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                             t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                             t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                             return t;
@@ -6153,34 +6154,34 @@
                     }
 
                     function storageGroupRectS(nodeIdx) {
-                        var nodeLeft = nodeXS[nodeIdx];
-                        var x = nodeLeft + (nodeWS - storageGroupWS) / 2;
-                        var y = nodeYS + 150 + slMgmtVnicH;
+                        const nodeLeft = nodeXS[nodeIdx];
+                        const x = nodeLeft + (nodeWS - storageGroupWS) / 2;
+                        const y = nodeYS + 150 + slMgmtVnicH;
                         return { x: x, y: y, w: storageGroupWS, h: storageGroupHS };
                     }
 
                     function storageTileRectS(nodeIdx, portIdx) {
-                        var g = storageGroupRectS(nodeIdx);
-                        var totalW = (storageTileWS * 2) + storageTileGapS;
-                        var startX = g.x + (g.w - totalW) / 2;
-                        var x = startX + (portIdx * (storageTileWS + storageTileGapS));
-                        var y = g.y + 36;
+                        const g = storageGroupRectS(nodeIdx);
+                        const totalW = (storageTileWS * 2) + storageTileGapS;
+                        const startX = g.x + (g.w - totalW) / 2;
+                        const x = startX + (portIdx * (storageTileWS + storageTileGapS));
+                        const y = g.y + 36;
                         return { x: x, y: y, w: storageTileWS, h: storageTileHS };
                     }
 
                     function storagePortPosS(nodeIdx, portIdx) {
-                        var r = storageTileRectS(nodeIdx, portIdx);
+                        const r = storageTileRectS(nodeIdx, portIdx);
                         return { x: r.x + (r.w / 2), y: r.y + r.h };
                     }
 
                     function subnetColorS(subnetNumber) {
-                        var idx = Math.max(1, Math.min(3, subnetNumber)) - 1;
-                        var hues = [210, 290, 30];
-                        var h = hues[idx % hues.length];
+                        const idx = Math.max(1, Math.min(3, subnetNumber)) - 1;
+                        const hues = [210, 290, 30];
+                        const h = hues[idx % hues.length];
                         return 'hsla(' + h + ', 78%, 62%, 0.95)';
                     }
 
-                    var introS = ''
+                    const introS = ''
                         + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                         + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                         + '<br>'
@@ -6190,7 +6191,7 @@
                     // Full-mesh single-link mapping:
                     // - Each node connects to both peers with a single link.
                     // - With 2 ports per node, each node dedicates one port per peer.
-                    var edgesS = [
+                    const edgesS = [
                         { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
                         { subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 1 },
                         { subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 }, pair: 'Node2↔Node3', lane: 2 }
@@ -6204,66 +6205,66 @@
                             + ' L ' + b.x + ' ' + b.y;
                     }
 
-                    var svgS = '';
+                    let svgS = '';
                     svgS += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgWS + ' ' + svgHS + '" role="img" aria-label="3-node switchless (single-link) storage connectivity diagram">';
 
                     svgS += '<rect x="35" y="55" width="' + (svgWS - 70) + '" height="' + (svgHS - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                     svgS += '<text x="' + (svgWS / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, Link=Single-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
-                    for (var iS = 0; iS < 3; iS++) {
-                        var xS = nodeXS[iS];
+                    for (let iS = 0; iS < 3; iS++) {
+                        const xS = nodeXS[iS];
                         svgS += '<rect x="' + xS + '" y="' + nodeYS + '" width="' + nodeWS + '" height="' + nodeHS + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                         svgS += '<text x="' + (xS + nodeWS / 2) + '" y="' + (nodeYS + 34) + '" text-anchor="middle" font-size="16" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(iS)) + '</text>';
                         svgS += renderSetTeamS(xS, nodeYS);
 
-                        var sgS = storageGroupRectS(iS);
+                        const sgS = storageGroupRectS(iS);
                         svgS += '<rect x="' + sgS.x + '" y="' + sgS.y + '" width="' + sgS.w + '" height="' + sgS.h + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                         svgS += '<text x="' + (sgS.x + sgS.w / 2) + '" y="' + (sgS.y + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
 
-                        for (var pS = 0; pS < 2; pS++) {
-                            var trS = storageTileRectS(iS, pS);
+                        for (let pS = 0; pS < 2; pS++) {
+                            const trS = storageTileRectS(iS, pS);
                             // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                            var labelS = getNicLabelS(pS + 3);
+                            const labelS = getNicLabelS(pS + 3);
                             // Center text vertically if label is 11 characters or less, otherwise stagger
-                            var textYS = (labelS.length <= 11) ? (trS.y + 23) : ((pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28));
+                            const textYS = (labelS.length <= 11) ? (trS.y + 23) : ((pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28));
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                             svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + textYS + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
                         }
                     }
 
-                    var laneBaseYS = nodeYS + nodeHS + 26;
-                    var laneGapS = 22;
-                    var midXOffsetsS = [0, 10, -10];
+                    const laneBaseYS = nodeYS + nodeHS + 26;
+                    const laneGapS = 22;
+                    const midXOffsetsS = [0, 10, -10];
 
-                    for (var eS = 0; eS < edgesS.length; eS++) {
-                        var edS = edgesS[eS];
-                        var aS = storagePortPosS(edS.a.n, edS.a.p);
-                        var bS = storagePortPosS(edS.b.n, edS.b.p);
-                        var busYS = laneBaseYS + (edS.lane * laneGapS);
-                        var midXS = ((aS.x + bS.x) / 2) + (midXOffsetsS[edS.lane] || 0);
-                        var dS = pathBetweenS(aS, bS, busYS, midXS);
+                    for (let eS = 0; eS < edgesS.length; eS++) {
+                        const edS = edgesS[eS];
+                        const aS = storagePortPosS(edS.a.n, edS.a.p);
+                        const bS = storagePortPosS(edS.b.n, edS.b.p);
+                        const busYS = laneBaseYS + (edS.lane * laneGapS);
+                        const midXS = ((aS.x + bS.x) / 2) + (midXOffsetsS[edS.lane] || 0);
+                        const dS = pathBetweenS(aS, bS, busYS, midXS);
                         svgS += '<path d="' + dS + '" fill="none" stroke="' + subnetColorS(edS.subnet) + '" stroke-width="2.6" opacity="0.95" />';
                         svgS += '<text x="' + midXS + '" y="' + (busYS - 6) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Subnet ' + edS.subnet + '</text>';
                     }
 
                     svgS += '</svg>';
 
-                    var subnetExamplesS = {
+                    const subnetExamplesS = {
                         1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
                         2: getStorageSubnetCidr(state, 2, '10.0.2.0/24'),
                         3: getStorageSubnetCidr(state, 3, '10.0.3.0/24')
                     };
-                    var legendTitleS = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
-                    var legendNoteS = getStorageSubnetNote(state, 'CIDRs shown are an extrapolated example; use your own addressing plan.');
+                    const legendTitleS = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                    const legendNoteS = getStorageSubnetNote(state, 'CIDRs shown are an extrapolated example; use your own addressing plan.');
 
-                    var legendS = '<div class="switchless-diagram__legend">'
+                    const legendS = '<div class="switchless-diagram__legend">'
                         + '<div class="switchless-diagram__legend-title">' + legendTitleS + '</div>'
                         + '<div class="switchless-diagram__legend-grid">'
-                        + [1, 2, 3].map(function (num) {
-                            var edge = edgesS.filter(function (e) { return e.subnet === num; })[0];
-                            var pair = edge ? edge.pair : '';
-                            var ex = subnetExamplesS[num] ? (' — ' + subnetExamplesS[num]) : '';
-                            var preview = ''
+                        + [1, 2, 3].map(function(num) {
+                            const edge = edgesS.filter(function(e) { return e.subnet === num; })[0];
+                            const pair = edge ? edge.pair : '';
+                            const ex = subnetExamplesS[num] ? (' — ' + subnetExamplesS[num]) : '';
+                            const preview = ''
                                 + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                                 + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColorS(num) + '" stroke-width="2" opacity="0.95" />'
                                 + '</svg>';
@@ -6276,7 +6277,7 @@
                         + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNoteS + '</div>'
                         + '</div>';
 
-                    var footS = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
+                    const footS = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
                         + 'Reference pattern (3-node switchless dual-TOR single-link): '
                         + '<a href="' + REF_3NODE_SWITCHLESS_SINGLE + '" target="_blank" rel="noopener">Microsoft Learn</a>'
                         + '</div>';
@@ -6284,67 +6285,67 @@
                     return '<div class="switchless-diagram">' + introS + svgS + legendS + footS + '</div>';
                 }
 
-                var svgW3 = 980;
+                const svgW3 = 980;
                 // Increase height so all subnet lanes remain visible.
-                var svgH3 = 520 + slMgmtVnicH;
+                const svgH3 = 520 + slMgmtVnicH;
 
                 // Node panels
-                var nodeW = 280;
-                var nodeH = 240 + slMgmtVnicH;
-                var nodeY = 110;
-                var nodeX = [60, 350, 640];
+                const nodeW = 280;
+                const nodeH = 240 + slMgmtVnicH;
+                const nodeY = 110;
+                const nodeX = [60, 350, 640];
 
                 // Port layout
                 // Mgmt+Compute SET team shown above; storage ports below it.
-                var storageGroupW = 240;
-                var storageGroupH = 86;
+                const storageGroupW = 240;
+                const storageGroupH = 86;
 
-                var storageTileW = 46;
-                var storageTileH = 38;
-                var storageTileGap = 12;
+                const storageTileW = 46;
+                const storageTileH = 38;
+                const storageTileGap = 12;
 
                 function getNicLabel(idx1Based) {
                     return getPortCustomName(state, idx1Based, 'nic');
                 }
 
                 function storageGroupRect(nodeIdx) {
-                    var nodeLeft = nodeX[nodeIdx];
-                    var x = nodeLeft + (nodeW - storageGroupW) / 2;
-                    var y = nodeY + 150 + slMgmtVnicH;
+                    const nodeLeft = nodeX[nodeIdx];
+                    const x = nodeLeft + (nodeW - storageGroupW) / 2;
+                    const y = nodeY + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW, h: storageGroupH };
                 }
 
                 function storageTileRect(nodeIdx, portIdx) {
                     // 4 storage RDMA ports per node, shown as tiles.
-                    var g = storageGroupRect(nodeIdx);
-                    var totalW = (storageTileW * 4) + (storageTileGap * 3);
-                    var startX = g.x + (g.w - totalW) / 2;
-                    var x = startX + (portIdx * (storageTileW + storageTileGap));
-                    var y = g.y + 36;
+                    const g = storageGroupRect(nodeIdx);
+                    const totalW = (storageTileW * 4) + (storageTileGap * 3);
+                    const startX = g.x + (g.w - totalW) / 2;
+                    const x = startX + (portIdx * (storageTileW + storageTileGap));
+                    const y = g.y + 36;
                     return { x: x, y: y, w: storageTileW, h: storageTileH };
                 }
 
                 function storagePortPos(nodeIdx, portIdx) {
                     // Connection anchor at the bottom-center of the tile.
-                    var r = storageTileRect(nodeIdx, portIdx);
+                    const r = storageTileRect(nodeIdx, portIdx);
                     return { x: r.x + (r.w / 2), y: r.y + r.h };
                 }
 
                 function renderSetTeam(nodeLeft, nodeTop) {
                     // Render a small SET group with two NIC tiles.
-                    var setW = 210;
-                    var setH = 62;
-                    var setX = nodeLeft + (nodeW - setW) / 2;
-                    var setY = nodeTop + 78 + slMgmtVnicH;
+                    const setW = 210;
+                    const setH = 62;
+                    const setX = nodeLeft + (nodeW - setW) / 2;
+                    const setY = nodeTop + 78 + slMgmtVnicH;
 
-                    var nicW = 70;
-                    var nicH = 34;
-                    var gap = 14;
-                    var nic1X = setX + 18;
-                    var nic2X = nic1X + nicW + gap;
-                    var nicY = setY + 18;
+                    const nicW = 70;
+                    const nicH = 34;
+                    const gap = 14;
+                    const nic1X = setX + 18;
+                    const nic2X = nic1X + nicW + gap;
+                    const nicY = setY + 18;
 
-                    var out = '';
+                    let out = '';
                     out += renderMgmtVnicSl(nodeLeft + nodeW / 2, nodeTop + 50);
                     out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
@@ -6352,9 +6353,9 @@
 
                     // NIC tiles
                     function nicTile(x, y, label, idx) {
-                        var t = '';
+                        let t = '';
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        const textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -6364,7 +6365,7 @@
                     return out;
                 }
 
-                var intro3 = ''
+                const intro3 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                     + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
@@ -6372,7 +6373,7 @@
                     + '</div>';
 
                 // Subnet line styles (no new colors; differentiate via dash patterns and opacity)
-                var subnetStyles = [
+                const subnetStyles = [
                     { id: 'S1', dash: '', opacity: 0.95 },
                     { id: 'S2', dash: '', opacity: 0.95 },
                     { id: 'S3', dash: '', opacity: 0.95 },
@@ -6384,9 +6385,9 @@
                 function subnetColor3(subnetNumber) {
                     // Distinct 6-color palette (same approach as 4-node but fewer entries).
                     // Chosen to be visually distinct on a dark background.
-                    var idx = Math.max(1, Math.min(6, subnetNumber)) - 1;
-                    var hues = [210, 250, 290, 330, 30, 160];
-                    var h = hues[idx % hues.length];
+                    const idx = Math.max(1, Math.min(6, subnetNumber)) - 1;
+                    const hues = [210, 250, 290, 330, 30, 160];
+                    const h = hues[idx % hues.length];
                     return 'hsla(' + h + ', 78%, 62%, 0.95)';
                 }
 
@@ -6394,7 +6395,7 @@
                 // - Two subnets per node-pair.
                 // - Numbering aligns to the 4-node reference pattern numbering style:
                 //   1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
-                var edges = [
+                const edges = [
                     // Node1 <-> Node2 (two lanes)
                     { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
                     { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
@@ -6416,7 +6417,7 @@
                         + ' L ' + b.x + ' ' + b.y;
                 }
 
-                var svg3 = '';
+                let svg3 = '';
                 svg3 += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW3 + ' ' + svgH3 + '" role="img" aria-label="3-node switchless storage connectivity diagram">';
                 svg3 += '<defs>'
                     + '<linearGradient id="swg" x1="0" y1="0" x2="1" y2="1">'
@@ -6430,44 +6431,44 @@
                 svg3 += '<text x="' + (svgW3 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, Link=Dual-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                 // Node cards + ports
-                for (var i3 = 0; i3 < 3; i3++) {
-                    var x0 = nodeX[i3];
+                for (let i3 = 0; i3 < 3; i3++) {
+                    const x0 = nodeX[i3];
                     svg3 += '<rect x="' + x0 + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                     svg3 += '<text x="' + (x0 + nodeW / 2) + '" y="' + (nodeY + 34) + '" text-anchor="middle" font-size="16" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(i3)) + '</text>';
                     svg3 += renderSetTeam(x0, nodeY);
 
                     // Storage intent group (RDMA ports)
-                    var sg = storageGroupRect(i3);
+                    const sg = storageGroupRect(i3);
                     svg3 += '<rect x="' + sg.x + '" y="' + sg.y + '" width="' + sg.w + '" height="' + sg.h + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                     svg3 += '<text x="' + (sg.x + sg.w / 2) + '" y="' + (sg.y + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
 
-                    for (var p3 = 0; p3 < 4; p3++) {
-                        var tr = storageTileRect(i3, p3);
+                    for (let p3 = 0; p3 < 4; p3++) {
+                        const tr = storageTileRect(i3, p3);
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        var label = getNicLabel(p3 + 3);
+                        const label = getNicLabel(p3 + 3);
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY3 = (label.length <= 11) ? (tr.y + 23) : ((p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28));
+                        const textY3 = (label.length <= 11) ? (tr.y + 23) : ((p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28));
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + textY3 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                     }
                 }
 
                 // Edges
-                var laneBaseY = nodeY + nodeH + 26;
-                var laneGap = 18;
-                var midXOffsets = [0, 10, -6, 6, -18, 18];
-                for (var e3 = 0; e3 < edges.length; e3++) {
-                    var ed = edges[e3];
-                    var st = subnetStyles[ed.subnet - 1];
-                    var a = storagePortPos(ed.a.n, ed.a.p);
+                const laneBaseY = nodeY + nodeH + 26;
+                const laneGap = 18;
+                const midXOffsets = [0, 10, -6, 6, -18, 18];
+                for (let e3 = 0; e3 < edges.length; e3++) {
+                    const ed = edges[e3];
+                    const st = subnetStyles[ed.subnet - 1];
+                    const a = storagePortPos(ed.a.n, ed.a.p);
                     var b = storagePortPos(ed.b.n, ed.b.p);
 
                     // Assign each subnet a dedicated lane to avoid overlap.
-                    var busY = laneBaseY + (ed.lane * laneGap);
-                    var midX = ((a.x + b.x) / 2) + (midXOffsets[ed.lane] || 0);
-                    var d = pathBetween(a, b, busY, midX);
+                    const busY = laneBaseY + (ed.lane * laneGap);
+                    const midX = ((a.x + b.x) / 2) + (midXOffsets[ed.lane] || 0);
+                    const d = pathBetween(a, b, busY, midX);
 
-                    var stroke3 = subnetColor3(ed.subnet);
+                    const stroke3 = subnetColor3(ed.subnet);
                     svg3 += '<path d="' + d + '" fill="none" stroke="' + stroke3 + '" stroke-width="2.6" opacity="' + st.opacity + '"' + (st.dash ? (' stroke-dasharray="' + st.dash + '"') : '') + ' />';
 
                     // Subnet label on its own lane for readability
@@ -6477,7 +6478,7 @@
                 svg3 += '</svg>';
 
                 // Legend
-                var subnetExamples3 = {
+                const subnetExamples3 = {
                     1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
                     2: getStorageSubnetCidr(state, 2, '10.0.2.0/24'),
                     3: getStorageSubnetCidr(state, 3, '10.0.3.0/24'),
@@ -6485,19 +6486,19 @@
                     5: getStorageSubnetCidr(state, 5, '10.0.5.0/24'),
                     6: getStorageSubnetCidr(state, 6, '10.0.6.0/24')
                 };
-                var legendTitle3 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
-                var legendNote3 = getStorageSubnetNote(state, "CIDRs shown are an extrapolated example based on Microsoft Learn's 4-node switchless storage intent pattern (same logic, fewer node pairs). Use your own addressing plan.");
+                const legendTitle3 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                const legendNote3 = getStorageSubnetNote(state, "CIDRs shown are an extrapolated example based on Microsoft Learn's 4-node switchless storage intent pattern (same logic, fewer node pairs). Use your own addressing plan.");
 
-                var legend = '<div class="switchless-diagram__legend">'
+                const legend = '<div class="switchless-diagram__legend">'
                     + '<div class="switchless-diagram__legend-title">' + legendTitle3 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
-                    + subnetStyles.map(function (st, idx) {
-                        var num = idx + 1;
-                        var edge = edges.filter(function (e) { return e.subnet === num; })[0];
-                        var pair = edge ? edge.pair : '';
-                        var ex = subnetExamples3[num] ? (' — ' + subnetExamples3[num]) : '';
+                    + subnetStyles.map(function(st, idx) {
+                        const num = idx + 1;
+                        const edge = edges.filter(function(e) { return e.subnet === num; })[0];
+                        const pair = edge ? edge.pair : '';
+                        const ex = subnetExamples3[num] ? (' — ' + subnetExamples3[num]) : '';
                         // Use inline SVG line preview with the same per-subnet color.
-                        var preview = ''
+                        const preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                             + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColor3(num) + '" stroke-width="2" ' + (st.dash ? ('stroke-dasharray="' + st.dash + '"') : '') + ' opacity="' + st.opacity + '" />'
                             + '</svg>';
@@ -6510,7 +6511,7 @@
                     + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote3 + '</div>'
                     + '</div>';
 
-                var foot3 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
+                const foot3 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
                     + 'Reference pattern (3-node switchless dual-TOR dual-link): '
                     + '<a href="' + REF_3NODE_SWITCHLESS + '" target="_blank" rel="noopener">Microsoft Learn</a>'
                     + '</div>';
@@ -6520,16 +6521,16 @@
 
             // Special-case: detailed 4-node switchless storage connectivity (SMB1-6, 12 subnets)
             if (n === 4) {
-                var REF_4NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/four-node-switchless-two-switches-two-links?view=azloc-2511';
+                const REF_4NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/four-node-switchless-two-switches-two-links?view=azloc-2511';
 
-                var svgW4 = 1220;
-                var svgH4 = 700 + slMgmtVnicH;
+                const svgW4 = 1220;
+                const svgH4 = 700 + slMgmtVnicH;
 
                 // Node panels (single row)
-                var nodeW4 = 260;
-                var nodeH4 = 270 + slMgmtVnicH;
-                var nodeY4 = 110;
-                var nodeX4 = [60, 340, 620, 900];
+                const nodeW4 = 260;
+                const nodeH4 = 270 + slMgmtVnicH;
+                const nodeY4 = 110;
+                const nodeX4 = [60, 340, 620, 900];
 
                 // Shared helper: prefer wizard adapter names if available; else use NIC 1/NIC 2.
                 function getNicLabel4(idx1Based) {
@@ -6537,28 +6538,28 @@
                 }
 
                 function renderSetTeam4(nodeLeft, nodeTop) {
-                    var setW = 210;
-                    var setH = 62;
-                    var setX = nodeLeft + (nodeW4 - setW) / 2;
-                    var setY = nodeTop + 78 + slMgmtVnicH;
+                    const setW = 210;
+                    const setH = 62;
+                    const setX = nodeLeft + (nodeW4 - setW) / 2;
+                    const setY = nodeTop + 78 + slMgmtVnicH;
 
-                    var nicW = 70;
-                    var nicH = 34;
-                    var gap = 14;
-                    var nic1X = setX + 18;
-                    var nic2X = nic1X + nicW + gap;
-                    var nicY = setY + 18;
+                    const nicW = 70;
+                    const nicH = 34;
+                    const gap = 14;
+                    const nic1X = setX + 18;
+                    const nic2X = nic1X + nicW + gap;
+                    const nicY = setY + 18;
 
-                    var out = '';
+                    let out = '';
                     out += renderMgmtVnicSl(nodeLeft + nodeW4 / 2, nodeTop + 50);
                     out += '<text x="' + (nodeLeft + nodeW4 / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
                     function nicTile(x, y, label, idx) {
-                        var t = '';
+                        let t = '';
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        const textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -6570,49 +6571,49 @@
                 }
 
                 // Storage intent group (6 RDMA ports per node)
-                var storageGroupW4 = 240;
-                var storageGroupH4 = 118;
-                var storageTileW4 = 46;
-                var storageTileH4 = 38;
-                var storageTileGapX4 = 12;
-                var storageTileGapY4 = 10;
+                const storageGroupW4 = 240;
+                const storageGroupH4 = 118;
+                const storageTileW4 = 46;
+                const storageTileH4 = 38;
+                const storageTileGapX4 = 12;
+                const storageTileGapY4 = 10;
 
                 function storageGroupRect4(nodeIdx) {
-                    var nodeLeft = nodeX4[nodeIdx];
-                    var x = nodeLeft + (nodeW4 - storageGroupW4) / 2;
-                    var y = nodeY4 + 150 + slMgmtVnicH;
+                    const nodeLeft = nodeX4[nodeIdx];
+                    const x = nodeLeft + (nodeW4 - storageGroupW4) / 2;
+                    const y = nodeY4 + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW4, h: storageGroupH4 };
                 }
 
                 function storageTileRect4(nodeIdx, portIdx) {
                     // 6 tiles: 3 columns x 2 rows (SMB1..SMB6)
-                    var g = storageGroupRect4(nodeIdx);
-                    var cols = 3;
-                    var col = portIdx % cols;
-                    var row = Math.floor(portIdx / cols);
+                    const g = storageGroupRect4(nodeIdx);
+                    const cols = 3;
+                    const col = portIdx % cols;
+                    const row = Math.floor(portIdx / cols);
 
-                    var totalW = (storageTileW4 * cols) + (storageTileGapX4 * (cols - 1));
-                    var startX = g.x + (g.w - totalW) / 2;
-                    var x = startX + (col * (storageTileW4 + storageTileGapX4));
+                    const totalW = (storageTileW4 * cols) + (storageTileGapX4 * (cols - 1));
+                    const startX = g.x + (g.w - totalW) / 2;
+                    let x = startX + (col * (storageTileW4 + storageTileGapX4));
                     // Stagger the second row so SMB4-6 aren't perfectly vertically aligned
                     // with SMB1-3. This reduces stacked vertical routing segments.
                     if (row === 1) {
-                        var stagger = (storageTileW4 + storageTileGapX4) / 2;
+                        const stagger = (storageTileW4 + storageTileGapX4) / 2;
                         x += stagger;
                         // Keep within the group bounds.
-                        var maxX = g.x + g.w - storageTileW4;
+                        const maxX = g.x + g.w - storageTileW4;
                         if (x > maxX) x -= stagger;
                     }
-                    var y = g.y + 32 + (row * (storageTileH4 + storageTileGapY4));
+                    const y = g.y + 32 + (row * (storageTileH4 + storageTileGapY4));
                     return { x: x, y: y, w: storageTileW4, h: storageTileH4 };
                 }
 
                 function storagePortPos4(nodeIdx, portIdx) {
-                    var r = storageTileRect4(nodeIdx, portIdx);
+                    const r = storageTileRect4(nodeIdx, portIdx);
                     return { x: r.x + (r.w / 2), y: r.y + r.h };
                 }
 
-                var intro4 = ''
+                const intro4 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                     + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
@@ -6622,7 +6623,7 @@
                     + '</div>';
 
                 // 12 subnet styles (no new colors; vary dash/opacity)
-                var subnetStyles4 = [
+                const subnetStyles4 = [
                     { id: 'S1', dash: '', opacity: 0.95 },
                     { id: 'S2', dash: '', opacity: 0.95 },
                     { id: 'S3', dash: '', opacity: 0.95 },
@@ -6640,15 +6641,15 @@
                 function subnetColor4(subnetNumber) {
                     // Use a clearly distinguishable palette (12 hues) so each subnet is easy to trace.
                     // Keep saturation/lightness slightly muted to fit the report's dark theme.
-                    var idx = Math.max(1, Math.min(12, subnetNumber)) - 1;
-                    var hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
-                    var h = hues[idx % hues.length];
+                    const idx = Math.max(1, Math.min(12, subnetNumber)) - 1;
+                    const hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
+                    const h = hues[idx % hues.length];
                     return 'hsla(' + h + ', 78%, 62%, 0.95)';
                 }
 
                 // Port/subnet mapping: two subnets per node-pair.
                 // Each node has 3 peers; dual-link means 6 RDMA ports and each SMB port maps to exactly one peer.
-                var edges4 = [
+                const edges4 = [
                     // Node1 <-> Node2
                     { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
                     { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
@@ -6681,7 +6682,7 @@
                         + ' L ' + b.x + ' ' + b.y;
                 }
 
-                var svg4 = '';
+                let svg4 = '';
                 svg4 += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW4 + ' ' + svgH4 + '" role="img" aria-label="4-node switchless storage connectivity diagram">';
                 svg4 += '<defs>'
                     + '<linearGradient id="swg4" x1="0" y1="0" x2="1" y2="1">'
@@ -6695,42 +6696,42 @@
                 svg4 += '<text x="' + (svgW4 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                 // Nodes
-                for (var i4 = 0; i4 < 4; i4++) {
-                    var x4 = nodeX4[i4];
+                for (let i4 = 0; i4 < 4; i4++) {
+                    const x4 = nodeX4[i4];
                     svg4 += '<rect x="' + x4 + '" y="' + nodeY4 + '" width="' + nodeW4 + '" height="' + nodeH4 + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                     svg4 += '<text x="' + (x4 + nodeW4 / 2) + '" y="' + (nodeY4 + 34) + '" text-anchor="middle" font-size="16" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(i4)) + '</text>';
                     svg4 += renderSetTeam4(x4, nodeY4);
 
-                    var sg4 = storageGroupRect4(i4);
+                    const sg4 = storageGroupRect4(i4);
                     svg4 += '<rect x="' + sg4.x + '" y="' + sg4.y + '" width="' + sg4.w + '" height="' + sg4.h + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
                     svg4 += '<text x="' + (sg4.x + sg4.w / 2) + '" y="' + (sg4.y + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
 
-                    for (var p4 = 0; p4 < 6; p4++) {
-                        var tr4 = storageTileRect4(i4, p4);
+                    for (let p4 = 0; p4 < 6; p4++) {
+                        const tr4 = storageTileRect4(i4, p4);
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        var lbl4 = getNicLabel4(p4 + 3);
+                        const lbl4 = getNicLabel4(p4 + 3);
                         // Center text vertically if label is 11 characters or less, otherwise stagger
-                        var textY4 = (lbl4.length <= 11) ? (tr4.y + 23) : ((p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28));
+                        const textY4 = (lbl4.length <= 11) ? (tr4.y + 23) : ((p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28));
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + textY4 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
                     }
                 }
 
                 // Edges (12 dedicated lanes)
-                var laneBaseY4 = nodeY4 + nodeH4 + 30;
-                var laneGap4 = 20;
-                var midXOffsets4 = [0, 14, -14, 18, -22, 24, -30, 32, -40, 42, -48, 50];
-                for (var e4 = 0; e4 < edges4.length; e4++) {
-                    var ed4 = edges4[e4];
-                    var st4 = subnetStyles4[ed4.subnet - 1];
-                    var a4 = storagePortPos4(ed4.a.n, ed4.a.p);
-                    var b4 = storagePortPos4(ed4.b.n, ed4.b.p);
-                    var busY4 = laneBaseY4 + (ed4.lane * laneGap4);
-                    var midX4 = ((a4.x + b4.x) / 2) + (midXOffsets4[ed4.lane] || 0);
+                const laneBaseY4 = nodeY4 + nodeH4 + 30;
+                const laneGap4 = 20;
+                const midXOffsets4 = [0, 14, -14, 18, -22, 24, -30, 32, -40, 42, -48, 50];
+                for (let e4 = 0; e4 < edges4.length; e4++) {
+                    const ed4 = edges4[e4];
+                    const st4 = subnetStyles4[ed4.subnet - 1];
+                    const a4 = storagePortPos4(ed4.a.n, ed4.a.p);
+                    const b4 = storagePortPos4(ed4.b.n, ed4.b.p);
+                    const busY4 = laneBaseY4 + (ed4.lane * laneGap4);
+                    const midX4 = ((a4.x + b4.x) / 2) + (midXOffsets4[ed4.lane] || 0);
 
-                    var d4 = pathBetween4Clean(a4, b4, busY4, midX4);
+                    const d4 = pathBetween4Clean(a4, b4, busY4, midX4);
 
-                    var stroke4 = subnetColor4(ed4.subnet);
+                    const stroke4 = subnetColor4(ed4.subnet);
                     svg4 += '<path d="' + d4 + '" fill="none" stroke="' + stroke4 + '" stroke-width="2.6" opacity="' + st4.opacity + '"' + (st4.dash ? (' stroke-dasharray="' + st4.dash + '"') : '') + ' />';
                     svg4 += '<text x="' + midX4 + '" y="' + (busY4 - 6) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Subnet ' + ed4.subnet + '</text>';
                 }
@@ -6738,18 +6739,18 @@
                 svg4 += '</svg>';
 
                 // Legend
-                var legendTitle4 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
-                var legendNote4 = getStorageSubnetNote(state, "CIDRs shown are the example values from Microsoft Learn's 4-node switchless storage intent section; use your own addressing plan.");
+                const legendTitle4 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                const legendNote4 = getStorageSubnetNote(state, "CIDRs shown are the example values from Microsoft Learn's 4-node switchless storage intent section; use your own addressing plan.");
 
-                var legend4 = '<div class="switchless-diagram__legend">'
+                const legend4 = '<div class="switchless-diagram__legend">'
                     + '<div class="switchless-diagram__legend-title">' + legendTitle4 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
-                    + subnetStyles4.map(function (st, idx) {
-                        var num = idx + 1;
-                        var edge = edges4.filter(function (e) { return e.subnet === num; })[0];
-                        var pair = edge ? edge.pair : '';
-                        var ex4 = getStorageSubnetCidr(state, num, '10.0.' + num + '.0/24');
-                        var preview = ''
+                    + subnetStyles4.map(function(st, idx) {
+                        const num = idx + 1;
+                        const edge = edges4.filter(function(e) { return e.subnet === num; })[0];
+                        const pair = edge ? edge.pair : '';
+                        const ex4 = getStorageSubnetCidr(state, num, '10.0.' + num + '.0/24');
+                        const preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                             + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColor4(num) + '" stroke-width="2" ' + (st.dash ? ('stroke-dasharray="' + st.dash + '"') : '') + ' opacity="' + st.opacity + '" />'
                             + '</svg>';
@@ -6762,7 +6763,7 @@
                     + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote4 + '</div>'
                     + '</div>';
 
-                var foot4 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
+                const foot4 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
                     + 'Reference pattern (4-node switchless dual-TOR dual-link): '
                     + '<a href="' + REF_4NODE_SWITCHLESS + '" target="_blank" rel="noopener">Microsoft Learn</a>'
                     + '</div>';
@@ -6773,14 +6774,14 @@
             // Generic (2-node): show storage-only full mesh concept with correct RDMA-port count.
             // RDMA ports per node for dual-link full mesh is 2*(n-1) (storage-only).
             // This is intentionally abstract because detailed subnet/port mapping is pattern-specific.
-            var rdmaPerNode = 2 * (n - 1);
-            var intro = '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
+            const rdmaPerNode = 2 * (n - 1);
+            const intro = '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only (conceptual). '
                 + 'Dual-link full mesh implies <strong style="color:var(--text-primary);">' + rdmaPerNode + ' RDMA storage ports per node</strong>.'
                 + '</div>';
 
             // Layout presets (center points)
-            var positions;
+            let positions;
             if (n === 2) {
                 positions = [
                     { x: 240, y: 170 },
@@ -6796,10 +6797,10 @@
                 ];
             }
 
-            var boxW = 200;
-            var boxH = 78;
-            var portR2 = 4;
-            var offsetPattern = [-14, 14, -28, 28, -42, 42, -56, 56];
+            const boxW = 200;
+            const boxH = 78;
+            const portR2 = 4;
+            const offsetPattern = [-14, 14, -28, 28, -42, 42, -56, 56];
 
             function boxFor(pos) {
                 return {
@@ -6812,10 +6813,10 @@
                 };
             }
 
-            var alloc = positions.map(function () { return { top: 0, right: 0, bottom: 0, left: 0 }; });
+            const alloc = positions.map(function() { return { top: 0, right: 0, bottom: 0, left: 0 }; });
             function sideToward(i, j) {
-                var dx = positions[j].x - positions[i].x;
-                var dy = positions[j].y - positions[i].y;
+                const dx = positions[j].x - positions[i].x;
+                const dy = positions[j].y - positions[i].y;
                 if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
                 return dy >= 0 ? 'bottom' : 'top';
             }
@@ -6826,25 +6827,25 @@
                 return 'top';
             }
             function allocateAnchor(nodeIndex, side) {
-                var b = boxFor(positions[nodeIndex]);
-                var idx = alloc[nodeIndex][side] || 0;
+                const b = boxFor(positions[nodeIndex]);
+                const idx = alloc[nodeIndex][side] || 0;
                 alloc[nodeIndex][side] = idx + 1;
-                var off = offsetPattern[idx] !== undefined ? offsetPattern[idx] : (idx * 14);
+                const off = offsetPattern[idx] !== undefined ? offsetPattern[idx] : (idx * 14);
                 if (side === 'left') return { x: b.left, y: b.cy + off };
                 if (side === 'right') return { x: b.right, y: b.cy + off };
                 if (side === 'top') return { x: b.cx + off, y: b.top };
                 return { x: b.cx + off, y: b.bottom };
             }
 
-            var links = [];
+            const links = [];
             var ports = [];
-            for (var i = 0; i < n; i++) {
-                for (var j = i + 1; j < n; j++) {
-                    var s1 = sideToward(i, j);
-                    var s2 = opposite(s1);
-                    var a1 = allocateAnchor(i, s1);
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    const s1 = sideToward(i, j);
+                    const s2 = opposite(s1);
+                    const a1 = allocateAnchor(i, s1);
                     var a2 = allocateAnchor(i, s1);
-                    var b1 = allocateAnchor(j, s2);
+                    const b1 = allocateAnchor(j, s2);
                     var b2 = allocateAnchor(j, s2);
                     links.push({ x1: a1.x, y1: a1.y, x2: b1.x, y2: b1.y, dash: '' });
                     links.push({ x1: a2.x, y1: a2.y, x2: b2.x, y2: b2.y, dash: '6 4' });
@@ -6852,9 +6853,9 @@
                 }
             }
 
-            var svgW = 800;
-            var svgH = (n === 4) ? 380 : 300;
-            var svg = '';
+            const svgW = 800;
+            const svgH = (n === 4) ? 380 : 300;
+            let svg = '';
             svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Switchless storage connectivity diagram">';
             svg += '<defs>'
                 + '<linearGradient id="swg" x1="0" y1="0" x2="1" y2="1">'
@@ -6866,26 +6867,26 @@
             svg += '<rect x="35" y="45" width="' + (svgW - 70) + '" height="' + (svgH - 80) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
             svg += '<text x="' + (svgW / 2) + '" y="32" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
-            for (var l = 0; l < links.length; l++) {
-                var ln = links[l];
+            for (let l = 0; l < links.length; l++) {
+                const ln = links[l];
                 svg += '<line x1="' + ln.x1 + '" y1="' + ln.y1 + '" x2="' + ln.x2 + '" y2="' + ln.y2 + '" stroke="url(#swg)" stroke-width="2" opacity="0.9"' + (ln.dash ? (' stroke-dasharray="' + ln.dash + '"') : '') + ' />';
             }
 
-            for (var k = 0; k < n; k++) {
+            for (let k = 0; k < n; k++) {
                 var b = boxFor(positions[k]);
-                var name = getNodeLabel(k);
+                const name = getNodeLabel(k);
                 svg += '<rect x="' + b.left + '" y="' + b.top + '" width="' + boxW + '" height="' + boxH + '" rx="12" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + b.cx + '" y="' + (b.top + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(name) + '</text>';
                 svg += '<text x="' + b.cx + '" y="' + (b.top + 50) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">RDMA storage ports: ' + rdmaPerNode + '</text>';
             }
 
-            for (var p = 0; p < ports.length; p++) {
-                var pt = ports[p];
+            for (let p = 0; p < ports.length; p++) {
+                const pt = ports[p];
                 svg += '<circle cx="' + pt.x + '" cy="' + pt.y + '" r="' + portR2 + '" fill="rgba(139,92,246,0.95)" stroke="rgba(0,0,0,0.35)" stroke-width="1" />';
             }
             svg += '</svg>';
 
-            var foot = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
+            const foot = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
                 + (n === 3 ? ('Reference pattern: <a href="' + REF_3NODE_SWITCHLESS + '" target="_blank" rel="noopener">Microsoft Learn</a>') : 'Reference patterns vary by topology; use Microsoft Learn guidance for detailed subnet/adapter mapping.')
                 + '</div>';
 
@@ -6929,7 +6930,7 @@
 
         // Azure Cloud + Local Instance Region (or Autonomous Cloud FQDN for disconnected)
         if (s.scenario === 'disconnected' && s.clusterRole) {
-            var disconnectedNotes = [];
+            const disconnectedNotes = [];
             disconnectedNotes.push('Disconnected operations use an Autonomous Cloud FQDN instead of a public Azure cloud endpoint.');
             disconnectedNotes.push('Cluster Role: ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
             if (s.autonomousCloudFqdn) {
@@ -6948,7 +6949,7 @@
                 + renderValidationInline(validations.byArea.Cloud)
             ));
         } else {
-            var cloudNotes = [];
+            const cloudNotes = [];
             cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
             if (s.region === 'azure_commercial') {
                 cloudNotes.push('Azure Local supported regions for Azure Public (per Microsoft) include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
@@ -6968,7 +6969,7 @@
         }
 
         // Scale + Nodes
-        var scaleNotes = [];
+        const scaleNotes = [];
         if (s.scale === 'low_capacity') {
             scaleNotes.push('Low Capacity targets smaller deployments and limits certain network intent combinations.');
         }
@@ -6986,15 +6987,15 @@
         ));
 
         // Storage + Ports
-        var storageNotes = [];
+        const storageNotes = [];
         if (s.storage === 'switchless') {
             storageNotes.push('Switchless storage typically reduces the number of storage networks and impacts intent options in the wizard.');
             storageNotes.push('Planning note: switchless storage is generally intended for smaller clusters; larger clusters require switched storage connectivity for supportability and scale-out workflows.');
 
             // For the conditional 3-node low-capacity switchless flow, call out the selected wiring pattern.
-            var nodeCountForLinkMode = parseInt(s.nodes, 10);
+            const nodeCountForLinkMode = parseInt(s.nodes, 10);
             if (!isNaN(nodeCountForLinkMode) && nodeCountForLinkMode === 3 && s.scale === 'low_capacity' && s.switchlessLinkMode) {
-                var lm = String(s.switchlessLinkMode);
+                const lm = String(s.switchlessLinkMode);
                 storageNotes.push('Switchless link mode selected in the wizard: ' + (lm === 'single_link' ? 'Single-Link (one link per node-pair, no redundancy).' : 'Dual-Link (two links per node-pair, redundant).'));
             }
         }
@@ -7039,7 +7040,7 @@
         }
 
         // Intent + Mapping
-        var intentNotes = [];
+        const intentNotes = [];
         if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
         if (s.intent === 'mgmt_compute') intentNotes.push('Splits storage traffic away from mgmt/compute to reduce contention and isolate storage behavior.');
         if (s.intent === 'compute_storage') intentNotes.push('Keeps management isolated while converging compute+storage; useful when mgmt isolation is prioritized.');
@@ -7055,7 +7056,7 @@
         ));
 
         // Outbound / Arc / Proxy
-        var outboundNotes = [];
+        const outboundNotes = [];
         if (s.outbound === 'private') {
             outboundNotes.push('Private outbound assumes controlled egress (for example, via your firewall/proxy) and the wizard forces Arc Gateway + explicit proxy behavior.');
             outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint, which reduces the number of outbound destinations you typically need to allow compared to managing many individual Azure service endpoints.');
@@ -7068,14 +7069,14 @@
         }
 
         // Generate proxy bypass string when proxy is enabled
-        var proxyBypassHtml = '';
+        let proxyBypassHtml = '';
         if (s.proxy === 'proxy') {
-            var bypassItems = [];
-            
+            const bypassItems = [];
+
             // Always add localhost and loopback
             bypassItems.push('localhost');
             bypassItems.push('127.0.0.1');
-            
+
             // Add node names if available
             if (s.nodeSettings && s.nodeSettings.length) {
                 s.nodeSettings.forEach(function(node, idx) {
@@ -7084,35 +7085,35 @@
                     }
                 });
             }
-            
+
             // Add node IPs if available
             if (s.nodeSettings && s.nodeSettings.length) {
                 s.nodeSettings.forEach(function(node, idx) {
                     if (node && node.ipCidr) {
                         // Extract IP from CIDR notation
-                        var ip = node.ipCidr.split('/')[0];
+                        const ip = node.ipCidr.split('/')[0];
                         if (ip) bypassItems.push(ip);
                     }
                 });
             }
-            
+
             // Add domain name wildcard if AD domain is specified
             if (s.adDomain) {
                 bypassItems.push('*.' + s.adDomain);
             }
-            
+
             // Add infrastructure subnet as wildcard
             if (s.infraCidr) {
-                var infraSubnetWildcard = convertCidrToWildcard(s.infraCidr);
+                const infraSubnetWildcard = convertCidrToWildcard(s.infraCidr);
                 if (infraSubnetWildcard) {
                     bypassItems.push(infraSubnetWildcard);
                 }
             }
-            
+
             // Add Private Endpoint bypass entries if PE is enabled
             if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
                 s.privateEndpointsList.forEach(function(peKey) {
-                    var info = PRIVATE_ENDPOINT_INFO[peKey];
+                    const info = PRIVATE_ENDPOINT_INFO[peKey];
                     if (info && info.proxyBypass) {
                         info.proxyBypass.forEach(function(bypass) {
                             if (bypassItems.indexOf(bypass) === -1) {
@@ -7122,7 +7123,7 @@
                     }
                 });
             }
-            
+
             proxyBypassHtml = '<div style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">'
                 + '<strong style="color: var(--accent-blue);">Minimum Proxy Bypass String:</strong>'
                 + '<div style="margin-top: 0.5rem; font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px; word-break: break-all;">'
@@ -7133,11 +7134,11 @@
         }
 
         // Generate Private Endpoints section HTML
-        var privateEndpointsHtml = '';
+        let privateEndpointsHtml = '';
         if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
-            var peItems = '';
+            let peItems = '';
             s.privateEndpointsList.forEach(function(peKey) {
-                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                const info = PRIVATE_ENDPOINT_INFO[peKey];
                 if (info) {
                     peItems += '<div style="padding: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 0.5rem;">'
                         + '<div style="display: flex; align-items: flex-start; gap: 0.75rem;">'
@@ -7147,7 +7148,7 @@
                         + '<div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;"><code>' + escapeHtml(info.fqdn) + '</code></div>'
                         + '<div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Private Link: <code>' + escapeHtml(info.privateLink) + '</code></div>'
                         + '<div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">' + escapeHtml(info.notes) + '</div>';
-                    
+
                     // Add considerations if available
                     if (info.considerations && info.considerations.length > 0) {
                         peItems += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.15); border-radius: 4px;">'
@@ -7158,33 +7159,33 @@
                         });
                         peItems += '</ul></div>';
                     }
-                    
+
                     // Add proxy bypass examples if available (when Arc Gateway is enabled OR proxy is enabled)
-                    var showBypassInfo = s.arc === 'arc_gateway' || s.proxy === 'proxy';
+                    const showBypassInfo = s.arc === 'arc_gateway' || s.proxy === 'proxy';
                     if (showBypassInfo && info.proxyBypass && info.proxyBypass.length > 0) {
                         peItems += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 4px;">'
                             + '<strong style="font-size: 0.8rem; color: var(--accent-blue);">Proxy Bypass Examples:</strong>'
                             + '<div style="font-family: monospace; font-size: 0.8rem; margin-top: 0.25rem; word-break: break-all;">' + escapeHtml(info.proxyBypass.join(', ')) + '</div>'
                             + '</div>';
                     }
-                    
+
                     // Add documentation link if available
                     if (info.docUrl) {
                         peItems += '<div style="margin-top: 0.5rem;">'
                             + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">📚 View documentation ↗</a>'
                             + '</div>';
                     }
-                    
+
                     peItems += '</div>'
                         + '</div>'
                         + '</div>';
                 }
             });
-            
+
             // Generate PE bypass additions with actual proxy bypass examples
-            var peBypassItems = [];
+            const peBypassItems = [];
             s.privateEndpointsList.forEach(function(peKey) {
-                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                const info = PRIVATE_ENDPOINT_INFO[peKey];
                 if (info && info.proxyBypass) {
                     info.proxyBypass.forEach(function(bypass) {
                         if (peBypassItems.indexOf(bypass) === -1) {
@@ -7195,13 +7196,13 @@
                     peBypassItems.push('*.' + info.privateLink);
                 }
             });
-            
+
             // Show bypass info when Arc Gateway is enabled OR proxy is enabled
-            var showBypassSection = s.arc === 'arc_gateway' || s.proxy === 'proxy';
-            var peDescription = showBypassSection 
+            const showBypassSection = s.arc === 'arc_gateway' || s.proxy === 'proxy';
+            const peDescription = showBypassSection
                 ? 'The following Azure services will use Private Link endpoints. Add these FQDNs to your proxy bypass list and configure DNS to resolve them to private IPs.'
                 : 'The following Azure services will use Private Link endpoints. Configure DNS to resolve them to private IPs.';
-            
+
             privateEndpointsHtml = '<div style="margin-top: 1.5rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">'
                 + '<h4 style="margin: 0 0 1rem 0; color: var(--success);">🔒 Private Endpoints Configuration</h4>'
                 + '<p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">' + peDescription + '</p>'
@@ -7224,12 +7225,12 @@
             + '<br><strong>Arc Gateway:</strong> ' + escapeHtml(s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-'))
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
-            + (function () {
+            + (function() {
                 if (s.scenario === 'disconnected') {
                     return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Plan your network for disconnected operations</a>';
                 }
                 if (!s.arc && !s.localInstanceRegion) return '';
-                var fwInfoHtml = getFirewallEndpointInfo(s);
+                const fwInfoHtml = getFirewallEndpointInfo(s);
                 return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
             })()
             + (outboundNotes.length ? list(outboundNotes) : '')
@@ -7239,7 +7240,7 @@
         ));
 
         // IP + Infra VLAN
-        var mgmtNotes = [];
+        const mgmtNotes = [];
         mgmtNotes.push('Management IP strategy affects provisioning workflow and long-term operations.');
         mgmtNotes.push('Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.');
         mgmtNotes.push('Planning note: management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration; the deployment orchestrator carries this VLAN configuration into infrastructure VMs.');
@@ -7251,13 +7252,13 @@
             + (s.infraCidr ? ('<br><strong>Infra Network:</strong> <span class="summary-value mono">' + escapeHtml(s.infraCidr) + '</span>') : '')
             + (s.infra && s.infra.start && s.infra.end ? ('<br><strong>Infra Range:</strong> <span class="summary-value mono">' + escapeHtml(s.infra.start + ' - ' + s.infra.end) + '</span>') : '')
             + list(mgmtNotes)
-            + (function () {
+            + (function() {
                 // Embed the same Infrastructure Subnet Utilisation bar that
                 // ships in the PPT export, when we have a valid CIDR + the
                 // shared SVG builder has been loaded.
                 if (!s.infraCidr) return '';
                 if (!window.OdinSubnetUtil || typeof window.OdinSubnetUtil.buildInfraSubnetBarSvg !== 'function') return '';
-                var svg = window.OdinSubnetUtil.buildInfraSubnetBarSvg(s, { width: 1600, height: 320 });
+                const svg = window.OdinSubnetUtil.buildInfraSubnetBarSvg(s, { width: 1600, height: 320 });
                 if (!svg) return '';
                 return '<div style="margin-top:1rem; padding:0.75rem; background:rgba(11, 18, 32, 0.6); border:1px solid var(--glass-border); border-radius:8px;">' + svg + '</div>';
             })()
@@ -7265,7 +7266,7 @@
         ));
 
         // Identity + DNS
-        var idNotes = [];
+        const idNotes = [];
         if (s.activeDirectory === 'azure_ad') {
             idNotes.push('Domain-joined deployments require correct AD DNS resolution and domain membership planning.');
         }
@@ -7286,7 +7287,7 @@
         ));
 
         // SDN
-        var sdnNotes = [];
+        const sdnNotes = [];
         if (s.sdnFeatures && s.sdnFeatures.length) {
             sdnNotes.push('SDN features require a management model decision (Arc-managed vs on-prem tooling).');
         } else {
@@ -7303,8 +7304,8 @@
     }
 
     function computeValidations(s) {
-        var results = [];
-        var byArea = {
+        const results = [];
+        const byArea = {
             Scenario: [],
             Cloud: [],
             ScaleNodes: [],
@@ -7317,26 +7318,26 @@
         };
 
         function add(area, name, passed, details, refs) {
-            var item = { area: area, name: name, passed: !!passed, details: details || '', refs: refs || [] };
+            const item = { area: area, name: name, passed: !!passed, details: details || '', refs: refs || [] };
             results.push(item);
             if (byArea[area]) byArea[area].push(item);
         }
 
         // Helpers
-        var ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
         function ipToLong(ip) {
-            return String(ip).split('.').reduce(function (acc, octet) {
+            return String(ip).split('.').reduce(function(acc, octet) {
                 return (acc << 8) + parseInt(octet, 10);
             }, 0) >>> 0;
         }
 
         function isValidIpv4Cidr(value) {
             if (!value) return false;
-            var trimmed = String(value).trim();
-            var parts = trimmed.split('/');
+            const trimmed = String(value).trim();
+            const parts = trimmed.split('/');
             if (parts.length !== 2) return false;
-            var ip = parts[0];
-            var prefix = parseInt(parts[1], 10);
+            const ip = parts[0];
+            const prefix = parseInt(parts[1], 10);
             if (!ipv4Regex.test(ip)) return false;
             if (isNaN(prefix) || prefix < 0 || prefix > 32) return false;
             return true;
@@ -7344,32 +7345,32 @@
 
         function extractIpFromCidr(value) {
             if (!value) return '';
-            var trimmed = String(value).trim();
-            var parts = trimmed.split('/');
+            const trimmed = String(value).trim();
+            const parts = trimmed.split('/');
             return parts[0] ? String(parts[0]).trim() : '';
         }
 
         // Microsoft Learn references used in explanations
         // Prefer the exact links already present in the wizard UI when available.
-        var REF_PRIVATE_IP = 'https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/private-ip-addresses';
+        const REF_PRIVATE_IP = 'https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/private-ip-addresses';
 
         // Wizard UI links
-        var REF_AZLOC_MULTIRACK = 'https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511';
-        var REF_ARB_IP_RANGES = 'https://learn.microsoft.com/en-us/azure/azure-arc/resource-bridge/network-requirements#designated-ip-ranges-for-arc-resource-bridge';
-        var REF_AZLOC_FIREWALL = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511';
-        var REF_AZLOC_VLAN = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id';
-        var REF_AZLOC_NET_CONSIDERATIONS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511';
+        const REF_AZLOC_MULTIRACK = 'https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511';
+        const REF_ARB_IP_RANGES = 'https://learn.microsoft.com/en-us/azure/azure-arc/resource-bridge/network-requirements#designated-ip-ranges-for-arc-resource-bridge';
+        const REF_AZLOC_FIREWALL = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511';
+        const REF_AZLOC_VLAN = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id';
+        const REF_AZLOC_NET_CONSIDERATIONS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511';
 
         // Additional official references (not in wizard UI but still Microsoft Learn)
-        var REF_AZLOC_PREREQS = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prerequisites?view=azloc-2511';
-        var REF_AZLOC_AD_PREP = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prep-active-directory?view=azloc-2511';
-        var REF_AZLOC_LOCAL_ID = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-local-identity-with-key-vault?view=azloc-2511';
-        var REF_ARC_GATEWAY = 'https://learn.microsoft.com/en-us/azure/azure-arc/servers/arc-gateway';
-        var REF_ARC_GATEWAY_DEEPDIVE = 'https://github.com/Azure/AzureLocal-Supportability/blob/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/DeepDive-ArcGateway-Outbound-Traffic.md';
-        var REF_AZLOC_SDN_OVERVIEW = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/sdn-overview?view=azloc-2511';
-        var REF_AZLOC_SDN = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/software-defined-networking?view=azloc-2511';
-        var REF_AZLOC_SYSREQ_PUBLIC = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-23h2?view=azloc-2511&tabs=azure-public';
-        var REF_AZLOC_SYSREQ_GOV = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-23h2?view=azloc-2511&tabs=azure-government';
+        const REF_AZLOC_PREREQS = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prerequisites?view=azloc-2511';
+        const REF_AZLOC_AD_PREP = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prep-active-directory?view=azloc-2511';
+        const REF_AZLOC_LOCAL_ID = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-local-identity-with-key-vault?view=azloc-2511';
+        const REF_ARC_GATEWAY = 'https://learn.microsoft.com/en-us/azure/azure-arc/servers/arc-gateway';
+        const REF_ARC_GATEWAY_DEEPDIVE = 'https://github.com/Azure/AzureLocal-Supportability/blob/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/DeepDive-ArcGateway-Outbound-Traffic.md';
+        const REF_AZLOC_SDN_OVERVIEW = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/sdn-overview?view=azloc-2511';
+        const REF_AZLOC_SDN = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/software-defined-networking?view=azloc-2511';
+        const REF_AZLOC_SYSREQ_PUBLIC = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-23h2?view=azloc-2511&tabs=azure-public';
+        const REF_AZLOC_SYSREQ_GOV = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-23h2?view=azloc-2511&tabs=azure-government';
 
         function supportedLocalRegionsForCloud(cloud) {
             // These are the region options this wizard exposes. The authoritative list of supported Azure regions is in the System requirements doc.
@@ -7415,8 +7416,8 @@
 
         // Region support (aligns with wizard filtering + official supported region list)
         if (s.region === 'azure_commercial') {
-            var allowedPub = supportedLocalRegionsForCloud('azure_commercial');
-            var okPub = !!s.localInstanceRegion && allowedPub.indexOf(String(s.localInstanceRegion)) >= 0;
+            const allowedPub = supportedLocalRegionsForCloud('azure_commercial');
+            const okPub = !!s.localInstanceRegion && allowedPub.indexOf(String(s.localInstanceRegion)) >= 0;
             add(
                 'Cloud',
                 'Azure Local region is supported for Azure Public cloud',
@@ -7425,8 +7426,8 @@
                 [REF_AZLOC_SYSREQ_PUBLIC]
             );
         } else if (s.region === 'azure_government') {
-            var allowedGov = supportedLocalRegionsForCloud('azure_government');
-            var okGov = !!s.localInstanceRegion && allowedGov.indexOf(String(s.localInstanceRegion)) >= 0;
+            const allowedGov = supportedLocalRegionsForCloud('azure_government');
+            const okGov = !!s.localInstanceRegion && allowedGov.indexOf(String(s.localInstanceRegion)) >= 0;
             add(
                 'Cloud',
                 'Azure Local region is supported for Azure Government cloud',
@@ -7448,7 +7449,7 @@
         }
 
         if (s.scale === 'low_capacity') {
-            var nLow = parseInt(s.nodes, 10);
+            const nLow = parseInt(s.nodes, 10);
             add('ScaleNodes', 'Low Capacity node limits', (String(s.nodes) !== '16+' && !isNaN(nLow) && nLow <= 3), 'Wizard disables >3 nodes for Low Capacity.');
         }
         if (s.scale === 'medium') {
@@ -7463,7 +7464,7 @@
         add('StoragePorts', 'Ports selected', !!s.ports, s.ports ? ('Selected: ' + s.ports) : '');
 
         // Nodes >= 5 -> switchless disabled
-        var nodeVal = (s.nodes === '16+') ? 17 : parseInt(s.nodes, 10);
+        const nodeVal = (s.nodes === '16+') ? 17 : parseInt(s.nodes, 10);
         if (!isNaN(nodeVal) && nodeVal >= 5) {
             add('StoragePorts', '>=5 nodes requires Switched storage', s.storage !== 'switchless', 'Wizard disables Switchless at 5+ nodes.');
         }
@@ -7496,12 +7497,12 @@
 
         // Single node cluster intent rules (takes priority)
         if (s.nodes === '1') {
-            var singleNodePorts = parseInt(s.ports, 10);
-            
+            const singleNodePorts = parseInt(s.ports, 10);
+
             // Single node: always disable All Traffic and Compute+Storage
             add('Intent', 'Single node disables All Traffic', s.intent !== 'all_traffic', 'Single node deployments cannot use Group All Traffic.');
             add('Intent', 'Single node disables Compute+Storage', s.intent !== 'compute_storage', 'Compute+Storage intent is not available for single node deployments.');
-            
+
             if (!isNaN(singleNodePorts) && singleNodePorts >= 4) {
                 add('Intent', 'Single node (4+ ports) allows Mgmt+Compute or Custom', (s.intent === 'mgmt_compute' || s.intent === 'custom'), 'Only Mgmt+Compute or Custom intents are available for single node with 4+ ports.');
             } else {
@@ -7569,42 +7570,42 @@
         add('Infrastructure', 'Infrastructure VLAN selected', !!s.infraVlan, '');
 
         if (s.infraVlan === 'custom') {
-            var v = parseInt(s.infraVlanId, 10);
+            const v = parseInt(s.infraVlanId, 10);
             add('Infrastructure', 'Infra VLAN ID is valid (1-4096)', (!isNaN(v) && String(v) === String(s.infraVlanId) && v >= 1 && v <= 4096), 'Valid VLAN IDs are integers 1–4096. Azure Local guidance emphasizes that management VLAN tagging must be configured on the physical adapters before Azure Arc registration so connectivity is preserved through deployment.', [REF_AZLOC_VLAN, REF_AZLOC_NET_CONSIDERATIONS]);
         }
 
         // Infra network validation (mirrors updateInfraNetwork)
         if (s.infraCidr) {
-            var parts = String(s.infraCidr).split('/');
-            var cidrIp = parts[0];
-            var prefix = parts.length === 2 ? parseInt(parts[1], 10) : NaN;
+            const parts = String(s.infraCidr).split('/');
+            const cidrIp = parts[0];
+            const prefix = parts.length === 2 ? parseInt(parts[1], 10) : NaN;
             add('Infrastructure', 'Infra CIDR format is valid', (parts.length === 2 && ipv4Regex.test(cidrIp) && !isNaN(prefix) && prefix >= 0 && prefix <= 32), 'Example: 192.168.1.0/24');
         }
 
         if (s.infra && s.infra.start && s.infra.end) {
-            var startOk = ipv4Regex.test(s.infra.start);
-            var endOk = ipv4Regex.test(s.infra.end);
+            const startOk = ipv4Regex.test(s.infra.start);
+            const endOk = ipv4Regex.test(s.infra.end);
             add('Infrastructure', 'Infra IP range has valid IPv4 start/end', startOk && endOk, '');
 
             if (startOk && endOk) {
-                var startL = ipToLong(s.infra.start);
-                var endL = ipToLong(s.infra.end);
+                const startL = ipToLong(s.infra.start);
+                const endL = ipToLong(s.infra.end);
                 add('Infrastructure', 'Infra range end >= start', endL >= startL, '');
-                var count = endL - startL + 1;
+                const count = endL - startL + 1;
                 add('Infrastructure', 'Infra range has at least 6 IPs', count >= 6, 'Azure Local guidance requires a management/infrastructure IP pool of at least six consecutive available IPs for infrastructure services (cluster IP, Arc Resource Bridge VM and components, and other platform services).', [REF_AZLOC_PREREQS, REF_AZLOC_NET_CONSIDERATIONS]);
 
                 // Node IPs must not be inside the reserved Infrastructure IP Pool
                 if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
-                    var offendersPool = [];
-                    for (var nn = 0; nn < s.nodeSettings.length; nn++) {
-                        var nodeP = s.nodeSettings[nn] || {};
-                        var nodeIpCidrP = String(nodeP.ipCidr || '').trim();
+                    const offendersPool = [];
+                    for (let nn = 0; nn < s.nodeSettings.length; nn++) {
+                        const nodeP = s.nodeSettings[nn] || {};
+                        const nodeIpCidrP = String(nodeP.ipCidr || '').trim();
                         if (!isValidIpv4Cidr(nodeIpCidrP)) continue;
-                        var nodeIpP = extractIpFromCidr(nodeIpCidrP);
+                        const nodeIpP = extractIpFromCidr(nodeIpCidrP);
                         if (!ipv4Regex.test(nodeIpP)) continue;
-                        var nodeLP = ipToLong(nodeIpP);
+                        const nodeLP = ipToLong(nodeIpP);
                         if (nodeLP >= startL && nodeLP <= endL) {
-                            var nodeLabelP = String(nodeP.name || '').trim() || ('Node ' + (nn + 1));
+                            const nodeLabelP = String(nodeP.name || '').trim() || ('Node ' + (nn + 1));
                             offendersPool.push(nodeLabelP + ' (' + nodeIpP + ')');
                         }
                     }
@@ -7621,8 +7622,8 @@
                 }
 
                 // RFC1918 private IP guidance
-                var startPrivate = isRfc1918Long(startL);
-                var endPrivate = isRfc1918Long(endL);
+                const startPrivate = isRfc1918Long(startL);
+                const endPrivate = isRfc1918Long(endL);
                 add(
                     'Infrastructure',
                     'Infra range uses private IPv4 space (RFC1918)',
@@ -7634,13 +7635,13 @@
                 );
 
                 // Reserved subnet overlap
-                var reservedRanges = [
+                const reservedRanges = [
                     { name: '10.96.0.0/12', min: ipToLong('10.96.0.0'), max: ipToLong('10.111.255.255') },
                     { name: '10.244.0.0/16', min: ipToLong('10.244.0.0'), max: ipToLong('10.244.255.255') }
                 ];
-                var overlapsReserved = false;
-                for (var i = 0; i < reservedRanges.length; i++) {
-                    var r = reservedRanges[i];
+                let overlapsReserved = false;
+                for (let i = 0; i < reservedRanges.length; i++) {
+                    const r = reservedRanges[i];
                     if (startL <= r.max && endL >= r.min) overlapsReserved = true;
                 }
                 add(
@@ -7653,20 +7654,20 @@
 
                 // If CIDR exists, range must be within CIDR and CIDR must not overlap reserved ranges
                 if (s.infraCidr) {
-                    var cidrParts = String(s.infraCidr).split('/');
-                    var ip = cidrParts[0];
-                    var pfx = cidrParts.length === 2 ? parseInt(cidrParts[1], 10) : NaN;
+                    const cidrParts = String(s.infraCidr).split('/');
+                    const ip = cidrParts[0];
+                    const pfx = cidrParts.length === 2 ? parseInt(cidrParts[1], 10) : NaN;
                     if (ipv4Regex.test(ip) && !isNaN(pfx) && pfx >= 0 && pfx <= 32) {
-                        var cidrIpL = ipToLong(ip);
-                        var mask = pfx === 0 ? 0 : ((0xFFFFFFFF << (32 - pfx)) >>> 0);
-                        var networkL = (cidrIpL & mask) >>> 0;
-                        var broadcastL = (networkL | ((~mask) >>> 0)) >>> 0;
+                        const cidrIpL = ipToLong(ip);
+                        const mask = pfx === 0 ? 0 : ((0xFFFFFFFF << (32 - pfx)) >>> 0);
+                        const networkL = (cidrIpL & mask) >>> 0;
+                        const broadcastL = (networkL | ((~mask) >>> 0)) >>> 0;
 
                         add('Infrastructure', 'Infra range is within Infra CIDR', (startL >= networkL && endL <= broadcastL), 'Wizard requires range to be within the provided CIDR.');
 
-                        var overlapsCidrReserved = false;
-                        for (var j = 0; j < reservedRanges.length; j++) {
-                            var rr = reservedRanges[j];
+                        let overlapsCidrReserved = false;
+                        for (let j = 0; j < reservedRanges.length; j++) {
+                            const rr = reservedRanges[j];
                             if (networkL <= rr.max && broadcastL >= rr.min) overlapsCidrReserved = true;
                         }
                         add(
@@ -7679,17 +7680,17 @@
 
                         // Node IP containment (mirrors wizard Step 14 validation)
                         if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
-                            var outside = [];
+                            const outside = [];
                             for (var n = 0; n < s.nodeSettings.length; n++) {
-                                var node = s.nodeSettings[n] || {};
-                                var nodeIpCidr = String(node.ipCidr || '').trim();
+                                const node = s.nodeSettings[n] || {};
+                                const nodeIpCidr = String(node.ipCidr || '').trim();
                                 if (!isValidIpv4Cidr(nodeIpCidr)) continue;
-                                var nodeIp = extractIpFromCidr(nodeIpCidr);
+                                const nodeIp = extractIpFromCidr(nodeIpCidr);
                                 if (!ipv4Regex.test(nodeIp)) continue;
-                                var nodeL = ipToLong(nodeIp);
-                                var inHostRange = (nodeL > networkL && nodeL < broadcastL);
+                                const nodeL = ipToLong(nodeIp);
+                                const inHostRange = (nodeL > networkL && nodeL < broadcastL);
                                 if (!inHostRange) {
-                                    var nodeLabel = String(node.name || '').trim() || ('Node ' + (n + 1));
+                                    const nodeLabel = String(node.name || '').trim() || ('Node ' + (n + 1));
                                     outside.push(nodeLabel + ' (' + nodeIp + ')');
                                 }
                             }
@@ -7712,35 +7713,35 @@
         }
 
         // DNS validations (mirrors validateAllDnsServers)
-        var dnsServers = (s.dnsServers || []).filter(function (x) { return x && String(x).trim(); }).map(function (x) { return String(x).trim(); });
+        const dnsServers = (s.dnsServers || []).filter(function(x) { return x && String(x).trim(); }).map(function(x) { return String(x).trim(); });
         add('DNS', 'At least 1 DNS server configured', dnsServers.length > 0, 'DNS is required so the nodes and infrastructure components can resolve required names (domain controllers, Arc endpoints, etc). Azure Local guidance also states DNS server IPs used by nodes/infrastructure are not supported to change after deployment, so plan this input carefully.', [REF_AZLOC_PREREQS, REF_AZLOC_NET_CONSIDERATIONS]);
-        var dnsAllIpv4 = true;
-        for (var d = 0; d < dnsServers.length; d++) {
+        let dnsAllIpv4 = true;
+        for (let d = 0; d < dnsServers.length; d++) {
             if (!ipv4Regex.test(dnsServers[d])) dnsAllIpv4 = false;
         }
         add('DNS', 'All DNS servers are valid IPv4', dnsAllIpv4, 'Each DNS server must be a valid IPv4 address to ensure correct resolver configuration.', [REF_AZLOC_PREREQS]);
 
         if (dnsServers.length > 0 && dnsAllIpv4) {
-            var reservedDnsRanges = [
+            const reservedDnsRanges = [
                 { name: '10.96.0.0/12', min: ipToLong('10.96.0.0'), max: ipToLong('10.111.255.255') },
                 { name: '10.244.0.0/16', min: ipToLong('10.244.0.0'), max: ipToLong('10.244.255.255') }
             ];
-            var dnsOverlapsReserved = false;
-            for (var k = 0; k < dnsServers.length; k++) {
-                var dl = ipToLong(dnsServers[k]);
-                for (var m = 0; m < reservedDnsRanges.length; m++) {
-                    var rr2 = reservedDnsRanges[m];
+            let dnsOverlapsReserved = false;
+            for (let k = 0; k < dnsServers.length; k++) {
+                const dl = ipToLong(dnsServers[k]);
+                for (let m = 0; m < reservedDnsRanges.length; m++) {
+                    const rr2 = reservedDnsRanges[m];
                     if (dl >= rr2.min && dl <= rr2.max) dnsOverlapsReserved = true;
                 }
             }
             add('DNS', 'DNS servers do not overlap AKS reserved networks (10.96.0.0/12, 10.244.0.0/16)', !dnsOverlapsReserved, 'Ensures the DNS servers are not placed inside the reserved Kubernetes ranges used by Arc Resource Bridge and Azure Local infrastructure.', [REF_ARB_IP_RANGES, REF_AZLOC_PREREQS]);
 
             if (s.infra && s.infra.start && s.infra.end && ipv4Regex.test(s.infra.start) && ipv4Regex.test(s.infra.end)) {
-                var infraStartL = ipToLong(s.infra.start);
-                var infraEndL = ipToLong(s.infra.end);
-                var dnsInsideInfra = false;
-                for (var q = 0; q < dnsServers.length; q++) {
-                    var dl2 = ipToLong(dnsServers[q]);
+                const infraStartL = ipToLong(s.infra.start);
+                const infraEndL = ipToLong(s.infra.end);
+                let dnsInsideInfra = false;
+                for (let q = 0; q < dnsServers.length; q++) {
+                    const dl2 = ipToLong(dnsServers[q]);
                     if (dl2 >= infraStartL && dl2 <= infraEndL) dnsInsideInfra = true;
                 }
                 add('DNS', 'DNS servers are outside Infra range', !dnsInsideInfra, 'Wizard blocks DNS servers from being inside the Infra IP pool.');
@@ -7756,13 +7757,13 @@
         }
 
         // SDN management rules
-        var f = s.sdnFeatures || [];
-        var hasVnet = f.indexOf('vnet') >= 0;
-        var hasSlb = f.indexOf('slb') >= 0;
-        var hasLnet = f.indexOf('lnet') >= 0;
-        var hasNsg = f.indexOf('nsg') >= 0;
-        var onlyLnetNsg = (hasLnet || hasNsg) && !hasVnet && !hasSlb;
-        var hasVnetOrSlb = hasVnet || hasSlb;
+        const f = s.sdnFeatures || [];
+        const hasVnet = f.indexOf('vnet') >= 0;
+        const hasSlb = f.indexOf('slb') >= 0;
+        const hasLnet = f.indexOf('lnet') >= 0;
+        const hasNsg = f.indexOf('nsg') >= 0;
+        const onlyLnetNsg = (hasLnet || hasNsg) && !hasVnet && !hasSlb;
+        const hasVnetOrSlb = hasVnet || hasSlb;
 
         if (f.length === 0) {
             add('SDN', 'No SDN features selected (management not required)', true, 'Wizard hides SDN management section when no features are selected.');
@@ -7782,10 +7783,10 @@
     function renderRefs(refs) {
         if (!refs || !refs.length) return '';
         // De-dup while preserving order
-        var seen = {};
-        var uniq = [];
-        for (var i = 0; i < refs.length; i++) {
-            var u = refs[i];
+        const seen = {};
+        const uniq = [];
+        for (let i = 0; i < refs.length; i++) {
+            const u = refs[i];
             if (!u || seen[u]) continue;
             seen[u] = true;
             uniq.push(u);
@@ -7806,7 +7807,7 @@
 
         return '<div style="margin-top:0.25rem;">'
             + '<span style="color:var(--text-secondary);">Learn more:</span> '
-            + uniq.map(function (u) {
+            + uniq.map(function(u) {
                 return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noreferrer" style="color:var(--accent-blue); text-decoration:underline;">' + escapeHtml(labelFor(u)) + '</a>';
             }).join(' &nbsp; ')
             + '</div>';
@@ -7814,9 +7815,9 @@
 
     function renderValidationInline(items) {
         if (!items || items.length === 0) return '';
-        var failed = items.filter(function (x) { return !x.passed; });
+        const failed = items.filter(function(x) { return !x.passed; });
 
-        var html = '<div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--glass-border);">'
+        let html = '<div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--glass-border);">'
             + '<strong>Validation checks</strong>';
 
         if (failed.length) {
@@ -7824,8 +7825,8 @@
         }
 
         html += '<ul style="margin:0.4rem 0 0 1.25rem; color:var(--text-primary);">'
-            + items.slice(0, 6).map(function (v) {
-                var mark = v.passed ? '<span style="color:var(--success);">✓</span>' : '<span style="color:var(--accent-purple);">⚠</span>';
+            + items.slice(0, 6).map(function(v) {
+                const mark = v.passed ? '<span style="color:var(--success);">✓</span>' : '<span style="color:var(--accent-purple);">⚠</span>';
                 return '<li>'
                     + mark + ' ' + escapeHtml(v.name)
                     + (v.details ? (' — <span style="color:var(--text-secondary);">' + escapeHtml(v.details) + '</span>') : '')
@@ -7838,21 +7839,21 @@
     }
 
     function renderValidationSummary(validations) {
-        var all = validations.results || [];
-        var passCount = all.filter(function (x) { return x.passed; }).length;
-        var failCount = all.length - passCount;
+        const all = validations.results || [];
+        const passCount = all.filter(function(x) { return x.passed; }).length;
+        const failCount = all.length - passCount;
 
-        var header = '<div class="summary-section">'
+        const header = '<div class="summary-section">'
             + '<div class="summary-section-title summary-section-title--mgmt">Validation Results</div>'
             + '<div style="color:var(--text-primary);">'
             + '<strong>Passed:</strong> <span style="color:var(--success);">' + passCount + '</span>'
             + ' &nbsp; <strong>Warnings/Failures:</strong> <span style="color:var(--accent-purple);">' + failCount + '</span>'
             + '</div>';
 
-        var rows = all.map(function (v) {
-            var mark = v.passed ? '<span style="color:var(--success); font-weight:700;">✓</span>' : '<span style="color:var(--accent-purple); font-weight:700;">⚠</span>';
-            var detail = v.details ? ('<div style="color:var(--text-secondary); margin-top:0.15rem;">' + escapeHtml(v.details) + '</div>') : '';
-            var refs = (v.refs && v.refs.length) ? renderRefs(v.refs) : '';
+        const rows = all.map(function(v) {
+            const mark = v.passed ? '<span style="color:var(--success); font-weight:700;">✓</span>' : '<span style="color:var(--accent-purple); font-weight:700;">⚠</span>';
+            const detail = v.details ? ('<div style="color:var(--text-secondary); margin-top:0.15rem;">' + escapeHtml(v.details) + '</div>') : '';
+            const refs = (v.refs && v.refs.length) ? renderRefs(v.refs) : '';
             return '<div style="padding:0.55rem 0; border-top:1px solid var(--glass-border);">'
                 + '<div style="display:flex; gap:0.5rem; align-items:flex-start;">'
                 + '<div style="width:18px;">' + mark + '</div>'
@@ -7878,7 +7879,7 @@
         }
 
         // Step 01–05: Scenario & Scale
-        var scenarioScaleRows = '';
+        let scenarioScaleRows = '';
         if (s.scenario) scenarioScaleRows += row('Scenario', formatScenario(s.scenario, s));
         scenarioScaleRows += row('Architecture', s.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
         if (s.scenario === 'disconnected' && s.clusterRole) {
@@ -7893,7 +7894,7 @@
         if (s.witnessType) scenarioScaleRows += row('Cloud Witness', s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness');
 
         // Step 06–08: Host Networking
-        var hostNetworkingRows = '';
+        let hostNetworkingRows = '';
         if (s.storage) hostNetworkingRows += row('Storage', s.storage.charAt(0).toUpperCase() + s.storage.slice(1));
         if (s.ports) hostNetworkingRows += row('Ports', s.ports, true);
         if (s.intent) hostNetworkingRows += row('Intent', formatIntent(s.intent));
@@ -7905,42 +7906,42 @@
             hostNetworkingRows += row('Storage Subnets', 'Default Network ATC (10.71.0.0/16) - IPs assigned automatically');
         } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
             // Show custom storage subnets when Auto IP is disabled
-            var validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
+            const validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
             if (validSubnets.length > 0) {
                 hostNetworkingRows += row('Storage Subnets', validSubnets.join(', '), true);
                 // Calculate and display storage adapter IPs for each node
-                var nodeCount = parseInt(s.nodes, 10) || 0;
+                const nodeCount = parseInt(s.nodes, 10) || 0;
                 if (nodeCount > 0) {
-                    var storageIpDetails = [];
-                    
+                    const storageIpDetails = [];
+
                     // Helper function to get subnet prefix from CIDR
-                    var getSubnetPrefix = function(cidr) {
-                        var cidrParts = String(cidr).trim().split('/');
+                    const getSubnetPrefix = function(cidr) {
+                        const cidrParts = String(cidr).trim().split('/');
                         if (cidrParts.length >= 1) {
-                            var ipParts = cidrParts[0].split('.');
+                            const ipParts = cidrParts[0].split('.');
                             if (ipParts.length === 4) {
                                 return ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
                             }
                         }
                         return null;
                     };
-                    
+
                     // Helper to get node name
-                    var getNodeName = function(nodeIdx) {
-                        return (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
+                    const getNodeName = function(nodeIdx) {
+                        return (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name)
                             ? s.nodeSettings[nodeIdx].name : ('node' + (nodeIdx + 1));
                     };
-                    
+
                     if (s.storage === 'switched') {
                         // For switched storage, show IPs from the first two subnets
                         // All nodes share the same two subnets
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
+                        for (let subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
                             var prefix = getSubnetPrefix(validSubnets[subnetIdx]);
                             if (prefix) {
-                                var adapterName = getPortCustomName(s, subnetIdx + 3, 'nic');
+                                const adapterName = getPortCustomName(s, subnetIdx + 3, 'nic');
                                 var nodeIps = [];
-                                for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
+                                for (let nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
                                     nodeIps.push(getNodeName(nodeIdx) + ': ' + prefix + '.' + (nodeIdx + 2));
                                 }
                                 storageIpDetails.push(adapterName + ': ' + nodeIps.join(', '));
@@ -7949,7 +7950,7 @@
                     } else if (s.storage === 'switchless') {
                         // For switchless storage, organize by SMB adapter like the ARM template
                         // Each SMB adapter shows which node gets which IP from which subnet
-                        
+
                         if (nodeCount === 2) {
                             // 2-node switchless: 2 SMB adapters, 2 subnets
                             // SMB1: both nodes use Subnet1, SMB2: both nodes use Subnet2
@@ -7967,9 +7968,9 @@
                         } else if (nodeCount === 3) {
                             // 3-node switchless dual-link: 4 SMB adapters, 6 subnets
                             // Subnet pairs: 1-2 (Node1↔Node2), 3-4 (Node1↔Node3), 5-6 (Node2↔Node3)
-                            var subnetPairs3 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [2, 3], 6: [2, 3] };
-                            var nodeToSubnetBySmb3 = { 1: [1, 2, 3, 4], 2: [1, 2, 5, 6], 3: [3, 4, 5, 6] };
-                            
+                            const subnetPairs3 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [2, 3], 6: [2, 3] };
+                            const nodeToSubnetBySmb3 = { 1: [1, 2, 3, 4], 2: [1, 2, 5, 6], 3: [3, 4, 5, 6] };
+
                             for (var smbIdx = 1; smbIdx <= 4; smbIdx++) {
                                 var nodeIps = [];
                                 for (var nodeNum = 1; nodeNum <= 3; nodeNum++) {
@@ -7990,11 +7991,11 @@
                             }
                         } else if (nodeCount === 4) {
                             // 4-node switchless dual-link: 6 SMB adapters, 12 subnets
-                            var subnetPairs4 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [1, 4], 6: [1, 4],
-                                                 7: [2, 3], 8: [2, 3], 9: [2, 4], 10: [2, 4], 11: [3, 4], 12: [3, 4] };
-                            var nodeToSubnetBySmb4 = { 1: [1, 2, 3, 4, 5, 6], 2: [1, 2, 7, 8, 9, 10], 
-                                                       3: [3, 4, 7, 8, 11, 12], 4: [5, 6, 9, 10, 11, 12] };
-                            
+                            const subnetPairs4 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [1, 4], 6: [1, 4],
+                                7: [2, 3], 8: [2, 3], 9: [2, 4], 10: [2, 4], 11: [3, 4], 12: [3, 4] };
+                            const nodeToSubnetBySmb4 = { 1: [1, 2, 3, 4, 5, 6], 2: [1, 2, 7, 8, 9, 10],
+                                3: [3, 4, 7, 8, 11, 12], 4: [5, 6, 9, 10, 11, 12] };
+
                             for (var smbIdx = 1; smbIdx <= 6; smbIdx++) {
                                 var nodeIps = [];
                                 for (var nodeNum = 1; nodeNum <= 4; nodeNum++) {
@@ -8022,14 +8023,14 @@
             }
         }
         if (s.storagePoolConfiguration) {
-            var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' : 
-                          s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
+            const spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
+                s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
             hostNetworkingRows += row('Storage Pool Configuration', spConfig);
         }
 
         // Disaggregated host networking summary
         if (s.architecture === 'disaggregated') {
-            var stLabel = s.disaggStorageType === 'fc_san' ? 'FC SAN' : s.disaggStorageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : s.disaggStorageType === 'iscsi_6nic' ? 'iSCSI 6-NIC' : '';
+            const stLabel = s.disaggStorageType === 'fc_san' ? 'FC SAN' : s.disaggStorageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : s.disaggStorageType === 'iscsi_6nic' ? 'iSCSI 6-NIC' : '';
             if (stLabel) hostNetworkingRows += row('Storage Type', stLabel);
             if (s.disaggPortCount) hostNetworkingRows += row('Ports per Node', s.disaggPortCount, true);
             if (s.disaggBackupEnabled) hostNetworkingRows += row('Backup Network', 'Enabled');
@@ -8038,32 +8039,32 @@
             if (s.disaggSpineCount) hostNetworkingRows += row('Spine Switches', String(s.disaggSpineCount), true);
 
             // Intent mapping — read from adapter mapping when available
-            var adapterMap = s.disaggAdapterMapping || {};
-            var hasMappingData = Object.keys(adapterMap).length > 0;
+            const adapterMap = s.disaggAdapterMapping || {};
+            const hasMappingData = Object.keys(adapterMap).length > 0;
 
             // Determine which ports are in mgmt_compute
-            var mgmtPorts = [];
-            var cluster1Ports = [];
-            var cluster2Ports = [];
+            const mgmtPorts = [];
+            const cluster1Ports = [];
+            const cluster2Ports = [];
             if (hasMappingData) {
-                for (var mk in adapterMap) {
+                for (const mk in adapterMap) {
                     if (adapterMap[mk] === 'mgmt_compute') mgmtPorts.push(mk.replace(/_p\d+$/, '').toUpperCase());
                     else if (adapterMap[mk] === 'cluster_1') cluster1Ports.push(mk.replace(/_p\d+$/, '').toUpperCase());
                     else if (adapterMap[mk] === 'cluster_2') cluster2Ports.push(mk.replace(/_p\d+$/, '').toUpperCase());
                 }
             }
-            var mgmtDesc = mgmtPorts.length > 0 ? 'SET Team (' + mgmtPorts.filter(function(v, i, a) { return a.indexOf(v) === i; }).join(' + ') + ' ports)' : 'SET Team (OCP ports)';
+            const mgmtDesc = mgmtPorts.length > 0 ? 'SET Team (' + mgmtPorts.filter(function(v, i, a) { return a.indexOf(v) === i; }).join(' + ') + ' ports)' : 'SET Team (OCP ports)';
             hostNetworkingRows += row('Mgmt + Compute Intent', mgmtDesc);
-            var clVlan1 = (s.disaggVlans && s.disaggVlans.cluster1) || '711';
-            var clVlan2 = (s.disaggVlans && s.disaggVlans.cluster2) || '712';
+            const clVlan1 = (s.disaggVlans && s.disaggVlans.cluster1) || '711';
+            const clVlan2 = (s.disaggVlans && s.disaggVlans.cluster2) || '712';
             hostNetworkingRows += row('Cluster Network 1', 'Standalone, VLAN ' + clVlan1 + ' → Leaf-A');
             hostNetworkingRows += row('Cluster Network 2', 'Standalone, VLAN ' + clVlan2 + ' → Leaf-B');
 
             if (s.disaggStorageType === 'iscsi_4nic') {
                 hostNetworkingRows += row('iSCSI', 'Shared with physical NIC3/NIC4 Cluster paths (same VLAN/subnet/source IP)');
             } else if (s.disaggStorageType === 'iscsi_6nic') {
-                var iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '300';
-                var iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '400';
+                const iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '300';
+                const iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '400';
                 hostNetworkingRows += row('iSCSI Storage A', 'Standalone, VLAN ' + iscsiA + ' → Leaf-A');
                 hostNetworkingRows += row('iSCSI Storage B', 'Standalone, VLAN ' + iscsiB + ' → Leaf-B');
             } else if (s.disaggStorageType === 'fc_san') {
@@ -8071,7 +8072,7 @@
             }
 
             if (s.disaggBackupEnabled) {
-                var bkVlan = (s.disaggVlans && s.disaggVlans.backup) || '800';
+                const bkVlan = (s.disaggVlans && s.disaggVlans.backup) || '800';
                 hostNetworkingRows += row('Backup Intent', 'Compute Intent (SET), VLAN ' + bkVlan);
             }
 
@@ -8086,9 +8087,8 @@
         }
 
 
-
         // Step 12–14: Infrastructure Network
-        var infraNetworkRows = '';
+        let infraNetworkRows = '';
         if (s.ip) infraNetworkRows += row('IP', s.ip.charAt(0).toUpperCase() + s.ip.slice(1));
         if (s.infraVlan) infraNetworkRows += row('Infra VLAN', s.infraVlan === 'custom' ? 'Custom VLAN' : 'Default VLAN');
         if (s.infraVlan === 'custom' && s.infraVlanId) infraNetworkRows += row('Infra VLAN ID', s.infraVlanId, true);
@@ -8097,7 +8097,7 @@
         if (s.infraGateway) infraNetworkRows += row('Default Gateway', s.infraGateway, true);
         // Display appliance IPs for disconnected management cluster
         if (s.scenario === 'disconnected' && (s.applianceIp1 || s.applianceIp2)) {
-            var ipLabel = '';
+            let ipLabel = '';
             if (s.applianceIp1) ipLabel += 'Ingress vNIC: ' + s.applianceIp1;
             if (s.applianceIp1 && s.applianceIp2) ipLabel += ' · ';
             if (s.applianceIp2) ipLabel += 'Mgmt vNIC: ' + s.applianceIp2;
@@ -8105,11 +8105,11 @@
         }
         // Display node IP addresses for ARM template (always shown when nodeSettings is populated)
         if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
-            var nodeIpList = s.nodeSettings
-                .map(function(n, idx) { 
+            const nodeIpList = s.nodeSettings
+                .map(function(n, idx) {
                     if (!n) return null;
-                    var nodeName = n.name ? String(n.name).trim() : ('Node' + (idx + 1));
-                    var ip = n.ipCidr ? String(n.ipCidr).split('/')[0] : null;
+                    const nodeName = n.name ? String(n.name).trim() : ('Node' + (idx + 1));
+                    const ip = n.ipCidr ? String(n.ipCidr).split('/')[0] : null;
                     if (ip) {
                         return nodeName + ': ' + ip;
                     }
@@ -8122,7 +8122,7 @@
         }
 
         // Step 15: Active Directory
-        var activeDirectoryRows = '';
+        let activeDirectoryRows = '';
         if (s.activeDirectory) activeDirectoryRows += row('Identity', s.activeDirectory === 'azure_ad' ? 'Active Directory' : 'Local Identity');
         if (s.adDomain) activeDirectoryRows += row('AD Domain', s.adDomain, true);
         if (s.adOuPath) activeDirectoryRows += row('AD OU Path', s.adOuPath, true);
@@ -8131,13 +8131,13 @@
         if (s.localDnsZone) activeDirectoryRows += row('Local DNS Zone', s.localDnsZone, true);
 
         // Step 16: Security Configuration
-        var securityRows = '';
+        let securityRows = '';
         if (s.securityConfiguration) {
             securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
             // Always list all 7 controls. Recommended mode = all enforced (matches wizard
             // defaults); Customized mode reflects the user's per-control selections.
-            var secSettings = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
-            var secOn = function (key) { return secSettings ? (secSettings[key] !== undefined ? secSettings[key] : true) : true; };
+            const secSettings = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            const secOn = function(key) { return secSettings ? (secSettings[key] !== undefined ? secSettings[key] : true) : true; };
             securityRows += row('WDAC', secOn('wdacEnforced') ? 'Enabled' : 'Disabled');
             securityRows += row('Credential Guard', secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled');
             securityRows += row('Drift Control', secOn('driftControlEnforced') ? 'Enabled' : 'Disabled');
@@ -8148,13 +8148,13 @@
         }
 
         // Step 17: Software Defined Networking
-        var sdnRows = '';
+        let sdnRows = '';
         if (s.sdnFeatures && s.sdnFeatures.length) sdnRows += row('SDN Features', s.sdnFeatures.join(', '));
         if (s.sdnManagement) sdnRows += row('SDN Management', s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed');
 
         function section(title, cls, rowsHtml, dataKey) {
             if (!rowsHtml) return '';
-            var dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
+            const dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
             return '<div class="summary-section"' + dataAttr + '>'
                 + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
                 + rowsHtml
@@ -8163,7 +8163,7 @@
 
         function sectionWithExtra(title, cls, rowsHtml, extraHtml, dataKey) {
             if (!rowsHtml && !extraHtml) return '';
-            var dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
+            const dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
             return '<div class="summary-section"' + dataAttr + '>'
                 + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
                 + (rowsHtml || '')
@@ -8172,9 +8172,9 @@
         }
 
         // Sizer Hardware Configuration (only present when imported from Sizer)
-        var sizerHardwareRows = '';
+        let sizerHardwareRows = '';
         if (s.sizerHardware) {
-            var hw = s.sizerHardware;
+            const hw = s.sizerHardware;
             if (hw.cpu) {
                 sizerHardwareRows += row('CPU', hw.cpu.generation || '-');
                 sizerHardwareRows += row('Cores per Socket', String(hw.cpu.coresPerSocket || '-'));
@@ -8191,12 +8191,12 @@
                 sizerHardwareRows += row('vCPU Ratio (pCPU:vCPU)', hw.vcpuRatio + ':1');
             }
             if (hw.storage) {
-                var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
-                                   hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
-                                   hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
+                const storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
+                    hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
+                        hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
                 sizerHardwareRows += row('Storage Configuration', storageLabel);
                 if (hw.storage.diskConfig) {
-                    var dc = hw.storage.diskConfig;
+                    const dc = hw.storage.diskConfig;
                     if (dc.isTiered && dc.cache && dc.capacity) {
                         sizerHardwareRows += row('Cache Disks', dc.cache.count + '× ' + (dc.cache.sizeGB >= 1024 ? (dc.cache.sizeGB / 1024).toFixed(1) + ' TB' : dc.cache.sizeGB + ' GB') + ' (' + (dc.cache.type || '') + ')');
                         sizerHardwareRows += row('Capacity Disks', dc.capacity.count + '× ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ')');
@@ -8206,20 +8206,20 @@
                 }
             }
             if (hw.resiliency) {
-                var resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
-                               hw.resiliency === '2way' ? 'Two-way Mirror' :
-                               hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
+                const resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
+                    hw.resiliency === '2way' ? 'Two-way Mirror' :
+                        hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
                 sizerHardwareRows += row('Storage Resiliency', resLabel);
             }
             if (hw.futureGrowth && hw.futureGrowth !== '0') {
                 sizerHardwareRows += row('Future Growth', hw.futureGrowth + '%');
             }
             if (hw.clusterType) {
-                var ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+                const ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
                 sizerHardwareRows += row('Cluster Type', ctLabels[hw.clusterType] || hw.clusterType);
             }
             if (hw.workloadSummary) {
-                var ws = hw.workloadSummary;
+                const ws = hw.workloadSummary;
                 sizerHardwareRows += row('Workloads', String(ws.count || 0));
                 sizerHardwareRows += row('Total vCPUs Required', String(ws.totalVcpus || 0));
                 sizerHardwareRows += row('Total Memory Required', (ws.totalMemoryGB || 0) + ' GB');
@@ -8229,9 +8229,9 @@
 
         // Power, Heat & Rack Space (from Sizer) — only present when imported
         // from the Sizer with a populated power estimate.
-        var sizerPowerRows = '';
+        let sizerPowerRows = '';
         if (s.sizerHardware && s.sizerHardware.power) {
-            var pw = s.sizerHardware.power;
+            const pw = s.sizerHardware.power;
             sizerPowerRows += row('Per-Node Power (est.)', (pw.perNodeW || 0).toLocaleString() + ' Watts');
             sizerPowerRows += row('Total Instance Power (est.)', (pw.totalW || 0).toLocaleString() + ' Watts');
             sizerPowerRows += row('Heat Output (est.)', (pw.totalBtu || 0).toLocaleString() + ' BTU/hr');
@@ -8243,8 +8243,8 @@
                     + (pw.infraPowerNote ? ' <span style="font-size: 0.85em; opacity: 0.75;">(' + escapeHtml(pw.infraPowerNote) + ')</span>' : ''));
             }
             if (pw.components) {
-                var c = pw.components;
-                var perNodeBreakdown = 'CPU ' + (c.cpuW || 0) + 'W'
+                const c = pw.components;
+                const perNodeBreakdown = 'CPU ' + (c.cpuW || 0) + 'W'
                     + ' + Memory ' + (c.memoryW || 0) + 'W'
                     + ' + Disks ' + ((c.dataDisksW || 0) + (c.bootDisksW || 0)) + 'W'
                     + (c.gpuW > 0 ? ' + GPU ' + c.gpuW + 'W' : '')
@@ -8255,14 +8255,14 @@
         }
 
         // Sizer Workloads (individual workload details from Sizer)
-        var sizerWorkloadsRows = '';
+        let sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
-            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
-            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
-                var wl = s.sizerWorkloads[wi];
-                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
+            const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                const wl = s.sizerWorkloads[wi];
+                const wlLabel = wl.name || typeLabels[wl.type] || wl.type;
                 // Workload summary row
                 sizerWorkloadsRows += '<div class="summary-row" style="border-top: 1px solid var(--glass-border); margin-top: 0.5rem; padding-top: 0.5rem;">'
                     + '<div class="summary-label" style="font-weight: 600;">' + escapeHtml(wlLabel) + '</div>'
@@ -8303,7 +8303,7 @@
                     sizerWorkloadsRows += row('Worker VMs', '4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ')');
                     sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
                 } else if (wl.type === 'videoindexer') {
-                    var viIsMinH = wl.configuration === 'minimum';
+                    const viIsMinH = wl.configuration === 'minimum';
                     sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
                     sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
                     sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
@@ -8318,7 +8318,7 @@
         // their cluster later, so the port table + docs link is always
         // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
         // AI Video Indexer all run on AKS Arc and inherit these requirements.
-        var aksNetworkRows = '';
+        let aksNetworkRows = '';
         {
             aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
                 + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
@@ -8339,17 +8339,17 @@
         }
 
         // vNIC Configuration section removed — no longer applicable
-        var vnicConfigSection = '';
+        const vnicConfigSection = '';
 
         // Outbound, Arc, Proxy & Private Endpoints (connectivity summary)
-        var connectivityRows = '';
+        let connectivityRows = '';
         if (s.outbound) connectivityRows += row('Outbound', formatOutbound(s.outbound));
         if (s.arc) {
-            var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
+            const arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
             connectivityRows += row('Arc Gateway', arcText);
         }
         if (s.proxy) {
-            var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
+            const proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
             connectivityRows += row('Proxy', proxyText);
         }
         if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
@@ -8359,21 +8359,21 @@
                 + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
                 + '</div>';
         } else if (s.arc || s.localInstanceRegion) {
-            var fwInfo = getFirewallEndpointInfo(s);
+            const fwInfo = getFirewallEndpointInfo(s);
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
                 + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
                 + '</div>';
         }
 
-        var connectivityExtra = '';
-        var connDiagramKey = getOutboundDiagramKey(s);
+        let connectivityExtra = '';
+        const connDiagramKey = getOutboundDiagramKey(s);
         if (connDiagramKey && OUTBOUND_DIAGRAMS[connDiagramKey]) {
-            var connDiagramUrl = OUTBOUND_DIAGRAMS[connDiagramKey];
-            var connDiagramTitle = getOutboundDiagramTitle(s);
-            var connIsDisconnected = s.scenario === 'disconnected';
-            var connHasDrawio = connIsDisconnected && OUTBOUND_DRAWIO[connDiagramKey];
-            var connClusterRoleAttr = (connIsDisconnected && s.clusterRole) ? ' data-cluster-role="' + escapeHtml(s.clusterRole) + '"' : '';
+            const connDiagramUrl = OUTBOUND_DIAGRAMS[connDiagramKey];
+            const connDiagramTitle = getOutboundDiagramTitle(s);
+            const connIsDisconnected = s.scenario === 'disconnected';
+            const connHasDrawio = connIsDisconnected && OUTBOUND_DRAWIO[connDiagramKey];
+            const connClusterRoleAttr = (connIsDisconnected && s.clusterRole) ? ' data-cluster-role="' + escapeHtml(s.clusterRole) + '"' : '';
             connectivityExtra = '<div id="outbound-connectivity-diagram" style="margin-top:1.5rem;">'
                 + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">' + escapeHtml(connDiagramTitle) + '</h4>'
                 + '<div style="border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.15);">'
@@ -8415,11 +8415,11 @@
     }
 
     function init() {
-        var payload = tryParsePayload();
-        var metaEl = document.getElementById('report-meta');
-        var sumEl = document.getElementById('report-summary');
-        var valEl = document.getElementById('report-validations');
-        var ratEl = document.getElementById('report-rationale');
+        const payload = tryParsePayload();
+        const metaEl = document.getElementById('report-meta');
+        const sumEl = document.getElementById('report-summary');
+        const valEl = document.getElementById('report-validations');
+        const ratEl = document.getElementById('report-rationale');
 
         if (!payload || !payload.state) {
             if (metaEl) {
@@ -8428,7 +8428,7 @@
             return;
         }
 
-        var s = payload.state;
+        const s = payload.state;
         CURRENT_REPORT_STATE = s;
 
         if (metaEl) {
@@ -8440,16 +8440,16 @@
 
         // Rack diagram (SVG) — shown when we know the topology
         if (typeof generateRackSvg === 'function') {
-            var rackSection = document.getElementById('rack-diagram-section');
-            var rackContainer = document.getElementById('rack-diagram-container');
-            var rackActions = document.getElementById('rack-diagram-actions');
+            const rackSection = document.getElementById('rack-diagram-section');
+            const rackContainer = document.getElementById('rack-diagram-container');
+            const rackActions = document.getElementById('rack-diagram-actions');
             if (rackSection && rackContainer) {
-                var svgStr;
+                let svgStr;
 
                 // Resolve real node display names (#233) from the saved config's
                 // nodeSettings, indexed by global node order. Falls back to
                 // 'Node N' inside the generators when a name is blank/unset.
-                var rackNodeNames = (Array.isArray(s.nodeSettings) ? s.nodeSettings : []).map(function (node) {
+                const rackNodeNames = (Array.isArray(s.nodeSettings) ? s.nodeSettings : []).map(function(node) {
                     return node && node.name ? String(node.name).trim() : '';
                 });
 
@@ -8465,11 +8465,11 @@
                     });
                 } else {
                     // HCI: existing rack diagram
-                    var hw = s.sizerHardware || {};
-                    var rackNodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
-                    var rackHasGpu = (hw.gpu && hw.gpu.countPerNode > 0) || false;
+                    const hw = s.sizerHardware || {};
+                    const rackNodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
+                    const rackHasGpu = (hw.gpu && hw.gpu.countPerNode > 0) || false;
 
-                    var rackClusterType = 'standard';
+                    let rackClusterType = 'standard';
                     if (hw.clusterType) {
                         rackClusterType = hw.clusterType;
                     } else if (s.scale === 'rack_aware') {
@@ -8492,14 +8492,14 @@
                 // Download SVG button
                 if (rackActions) {
                     rackActions.style.display = '';
-                    var dlBtn = document.createElement('button');
+                    const dlBtn = document.createElement('button');
                     dlBtn.type = 'button';
                     dlBtn.className = 'report-action-button';
                     dlBtn.textContent = 'Download Rack Diagram SVG';
-                    dlBtn.addEventListener('click', function () {
-                        var blob = new Blob([svgStr], { type: 'image/svg+xml' });
-                        var url = URL.createObjectURL(blob);
-                        var a = document.createElement('a');
+                    dlBtn.addEventListener('click', function() {
+                        const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
                         a.href = url;
                         a.download = s.architecture === 'disaggregated' ? 'disaggregated-rack-layout.svg' : 'rack-layout.svg';
                         document.body.appendChild(a);
@@ -8510,12 +8510,12 @@
                     rackActions.appendChild(dlBtn);
 
                     // Download Draw.io button
-                    var drawioBtn = document.createElement('button');
+                    const drawioBtn = document.createElement('button');
                     drawioBtn.type = 'button';
                     drawioBtn.className = 'report-action-button';
                     drawioBtn.textContent = 'Download Rack Diagram Draw.io';
-                    drawioBtn.addEventListener('click', function () {
-                        var drawioXml;
+                    drawioBtn.addEventListener('click', function() {
+                        let drawioXml;
                         if (s.architecture === 'disaggregated' && typeof generateDisaggregatedRackDrawio === 'function') {
                             drawioXml = generateDisaggregatedRackDrawio({
                                 storageType: s.disaggStorageType || 'fc_san',
@@ -8526,19 +8526,17 @@
                                 nodeNames: rackNodeNames
                             });
                         } else if (typeof generateRackDrawio === 'function') {
-                            var hw2 = s.sizerHardware || {};
-                            var rn2 = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
-                            var gpu2 = (hw2.gpu && hw2.gpu.countPerNode > 0) || false;
-                            var ct2 = 'standard';
-                            if (hw2.clusterType) { ct2 = hw2.clusterType; }
-                            else if (s.scale === 'rack_aware') { ct2 = 'rack-aware'; }
-                            else if (s.scale === 'low_capacity' && rn2 === 1) { ct2 = 'single'; }
+                            const hw2 = s.sizerHardware || {};
+                            const rn2 = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
+                            const gpu2 = (hw2.gpu && hw2.gpu.countPerNode > 0) || false;
+                            let ct2 = 'standard';
+                            if (hw2.clusterType) { ct2 = hw2.clusterType; } else if (s.scale === 'rack_aware') { ct2 = 'rack-aware'; } else if (s.scale === 'low_capacity' && rn2 === 1) { ct2 = 'single'; }
                             drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2, nodeNames: rackNodeNames });
                         }
                         if (!drawioXml) return;
-                        var blob2 = new Blob([drawioXml], { type: 'application/xml' });
-                        var url2 = URL.createObjectURL(blob2);
-                        var a2 = document.createElement('a');
+                        const blob2 = new Blob([drawioXml], { type: 'application/xml' });
+                        const url2 = URL.createObjectURL(blob2);
+                        const a2 = document.createElement('a');
                         a2.href = url2;
                         a2.download = s.architecture === 'disaggregated' ? 'disaggregated-rack-layout.drawio' : 'rack-layout.drawio';
                         document.body.appendChild(a2);
@@ -8558,43 +8556,43 @@
         }
 
         if (valEl) {
-            var validations = computeValidations(s);
+            const validations = computeValidations(s);
             valEl.innerHTML = renderValidationSummary(validations);
         }
 
         if (ratEl) {
             // User request: show the diagram under Host Networking summary, not in Decisions & Rationale.
             // We generate the rationale HTML, extract any diagram blocks, and inject them into the summary.
-            var rationaleHtml = rationaleForState(s);
-            var movedDiagramInnerHtml = '';
+            const rationaleHtml = rationaleForState(s);
+            let movedDiagramInnerHtml = '';
 
             try {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString('<div id="__wrap">' + rationaleHtml + '</div>', 'text/html');
-                var wrap = doc.getElementById('__wrap');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString('<div id="__wrap">' + rationaleHtml + '</div>', 'text/html');
+                const wrap = doc.getElementById('__wrap');
 
                 function extractDiagramBodyByTitle(titleText) {
                     if (!wrap) return '';
-                    var titles = wrap.querySelectorAll('.summary-section-title');
-                    for (var i = 0; i < titles.length; i++) {
-                        var t = titles[i];
+                    const titles = wrap.querySelectorAll('.summary-section-title');
+                    for (let i = 0; i < titles.length; i++) {
+                        const t = titles[i];
                         if (!t || !t.textContent) continue;
                         if (t.textContent.trim() !== titleText) continue;
-                        var sectionEl = t.closest('.summary-section');
+                        const sectionEl = t.closest('.summary-section');
                         if (!sectionEl) continue;
 
                         // body is the block() wrapper inner div
-                        var bodyEl = null;
-                        var divs = sectionEl.getElementsByTagName('div');
-                        for (var j = 0; j < divs.length; j++) {
-                            var d = divs[j];
+                        let bodyEl = null;
+                        const divs = sectionEl.getElementsByTagName('div');
+                        for (let j = 0; j < divs.length; j++) {
+                            const d = divs[j];
                             if (d && d.getAttribute && (d.getAttribute('style') || '').indexOf('line-height') >= 0) {
                                 bodyEl = d;
                                 break;
                             }
                         }
 
-                        var inner = bodyEl ? bodyEl.innerHTML : sectionEl.innerHTML;
+                        const inner = bodyEl ? bodyEl.innerHTML : sectionEl.innerHTML;
                         sectionEl.parentNode.removeChild(sectionEl);
                         return inner || '';
                     }
@@ -8602,11 +8600,11 @@
                 }
 
                 // Pull either diagram (only one should apply for a given storage selection).
-                var swl = extractDiagramBodyByTitle('Switchless Storage Connectivity (Diagram)');
-                var swd = extractDiagramBodyByTitle('Switched Connectivity (Diagram)');
-                var snc = extractDiagramBodyByTitle('Network Connectivity (Diagram)');  // Single-node clusters
-                var rac = extractDiagramBodyByTitle('Rack Aware TOR Architecture (Diagram)');
-                var dag = extractDiagramBodyByTitle('Disaggregated Host Networking (Diagram)');
+                const swl = extractDiagramBodyByTitle('Switchless Storage Connectivity (Diagram)');
+                const swd = extractDiagramBodyByTitle('Switched Connectivity (Diagram)');
+                const snc = extractDiagramBodyByTitle('Network Connectivity (Diagram)');  // Single-node clusters
+                const rac = extractDiagramBodyByTitle('Rack Aware TOR Architecture (Diagram)');
+                const dag = extractDiagramBodyByTitle('Disaggregated Host Networking (Diagram)');
                 movedDiagramInnerHtml = (swl || rac || swd || snc || dag || '');
 
                 ratEl.innerHTML = wrap ? wrap.innerHTML : rationaleHtml;
@@ -8619,9 +8617,9 @@
             // Inject diagram under Host Networking section in the summary.
             try {
                 if (movedDiagramInnerHtml && sumEl) {
-                    var hostSec = sumEl.querySelector('[data-summary-section="host-networking"]');
+                    const hostSec = sumEl.querySelector('[data-summary-section="host-networking"]');
                     if (hostSec) {
-                        var container = document.createElement('div');
+                        const container = document.createElement('div');
                         container.style.marginTop = '0.75rem';
                         container.style.paddingTop = '0.75rem';
                         container.style.borderTop = '1px solid var(--glass-border)';
@@ -8629,39 +8627,39 @@
                         hostSec.appendChild(container);
 
                         // Add a button below the diagram for SVG export.
-                        var svg = hostSec.querySelector('svg.switchless-diagram__svg');
+                        const svg = hostSec.querySelector('svg.switchless-diagram__svg');
                         if (svg) {
-                            var btnWrap = document.createElement('div');
+                            const btnWrap = document.createElement('div');
                             btnWrap.className = 'no-print';
                             btnWrap.style.marginTop = '0.75rem';
                             btnWrap.style.display = 'flex';
                             btnWrap.style.gap = '0.5rem';
 
-                            var btnLight = document.createElement('button');
+                            const btnLight = document.createElement('button');
                             btnLight.type = 'button';
                             btnLight.className = 'report-action-button';
                             btnLight.textContent = 'Download SVG (Light)';
-                            btnLight.addEventListener('click', function () {
+                            btnLight.addEventListener('click', function() {
                                 window.downloadHostNetworkingDiagramSvg('light');
                             });
 
-                            var btnDark = document.createElement('button');
+                            const btnDark = document.createElement('button');
                             btnDark.type = 'button';
                             btnDark.className = 'report-action-button';
                             btnDark.textContent = 'Download SVG (Dark)';
-                            btnDark.addEventListener('click', function () {
+                            btnDark.addEventListener('click', function() {
                                 window.downloadHostNetworkingDiagramSvg('dark');
                             });
 
                             btnWrap.appendChild(btnLight);
                             btnWrap.appendChild(btnDark);
 
-                            var btnDrawio = document.createElement('button');
+                            const btnDrawio = document.createElement('button');
                             btnDrawio.type = 'button';
                             btnDrawio.className = 'report-action-button';
                             btnDrawio.textContent = 'Download .drawio';
                             btnDrawio.title = 'Download diagram as a draw.io file (editable in draw.io / diagrams.net)';
-                            btnDrawio.addEventListener('click', function () {
+                            btnDrawio.addEventListener('click', function() {
                                 window.downloadHostNetworkingDrawio();
                             });
                             btnWrap.appendChild(btnDrawio);
