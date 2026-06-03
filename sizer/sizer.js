@@ -3040,7 +3040,7 @@ const GHEL_TIERS = {
 const FOUNDRY_MODEL_CLASSES = {
     small: {
         name: 'Small SLM',
-        description: 'Phi-3.5-mini, Llama-3.2-3B (~3B params)',
+        description: 'Phi-3.5-mini, Phi-4-mini, Phi-4-mini-reasoning, Qwen3 (0.6b–14b), Qwen2.5, Whisper (~1–7B params)',
         vcpus: 4,
         memory: 8,
         storage: 20,
@@ -3048,7 +3048,7 @@ const FOUNDRY_MODEL_CLASSES = {
     },
     medium: {
         name: 'Medium SLM',
-        description: 'OpenAI gpt-oss-20b, Phi-4, Mistral-7B, Llama-3.1-8B (~7-20B params)',
+        description: 'Phi-4, Phi-4-reasoning, gpt-oss-20b, Mistral-7B-v0.2, DeepSeek-R1 (7b/14b), NVIDIA Nemotron (~7–20B params)',
         vcpus: 8,
         memory: 16,
         storage: 40,
@@ -3056,7 +3056,7 @@ const FOUNDRY_MODEL_CLASSES = {
     },
     large: {
         name: 'Large LLM',
-        description: 'OpenAI gpt-oss-120b, DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 (~32-120B params)',
+        description: 'gpt-oss-120b (vLLM-only), plus larger BYO models served via vLLM on GPU (~30–120B+ params)',
         vcpus: 16,
         memory: 64,
         storage: 100,
@@ -3927,8 +3927,11 @@ function getFoundryModalContent() {
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
         </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
-            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local" target="_blank" style="color: var(--link-color);">What is Foundry Local on Azure Local?</a>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCD6</span><a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local" target="_blank" style="color: var(--link-color);">What is Foundry Local on Azure Local?</a></div>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCDA</span><a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/azure-local/ai-workloads-overview" target="_blank" style="color: var(--link-color);">AI workloads on Azure Local (overview)</a></div>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCE2</span><a href="https://aka.ms/build26blog" target="_blank" style="color: var(--link-color);">Build 2026: Foundry Local on Azure Local announcement</a></div>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83E\uDDE0</span><a href="https://aka.ms/FoundryLoca_Techcommunity_Build_blog" target="_blank" style="color: var(--link-color);">Multi-node inference, vLLM &amp; expanded model catalog</a></div>
+            <div><span style="margin-right: 4px;">\uD83E\uDD16</span><a href="https://aka.ms/AgentsAndToolsBuildBlog2026" target="_blank" style="color: var(--link-color);">Agentic Retrieval, Knowledge &amp; Chat UI in Foundry Local</a></div>
         </div>
         <div class="form-group">
             <label>Workload Name</label>
@@ -3958,8 +3961,8 @@ function getFoundryModalContent() {
                     <span class="info-icon" title="ONNX-GenAI runs on CPU or GPU. vLLM is GPU-only and provides higher-throughput batched inference.">ⓘ</span>
                 </label>
                 <select id="foundry-engine" onchange="onFoundryEngineChange()">
-                    <option value="onnx-genai" selected>ONNX-GenAI (CPU or GPU)</option>
-                    <option value="vllm">vLLM (GPU only)</option>
+                    <option value="onnx-genai" selected>ONNX-GenAI (CPU or GPU — broadest compatibility)</option>
+                    <option value="vllm">vLLM (GPU only — high-throughput batched, multi-user)</option>
                 </select>
             </div>
         </div>
@@ -4002,7 +4005,7 @@ function getFoundryModalContent() {
             </div>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas, and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
+            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas (scheduled across cluster-wide GPU / CPU capacity for multi-node inference), and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.

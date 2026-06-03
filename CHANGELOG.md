@@ -20,6 +20,7 @@ Adds **GitHub Enterprise Local (GHEL)** as a first-class Sizer workload type (wi
 ### Changed
 
 - **`SIZER_VERSION` bumped 1 → 2** to reflect the new `tier` / `ha` / `replicas` fields on GHEL workloads in the Sizer export payload. The Sizer importer continues to accept v1 payloads (forward-compatible).
+- **Foundry Local references refreshed for Build 2026** in the Sizer (`sizer/sizer.js`, `sizer/index.html`). Updated the SLM / LLM model-class examples to the current Foundry Local catalog (Phi-4, Phi-4-reasoning, gpt-oss-20b, gpt-oss-120b (vLLM-only), Mistral-7B-v0.2, DeepSeek-R1 7b/14b, Qwen3, NVIDIA Nemotron, Whisper), removed model names that aren't in the catalog (Llama variants, Qwen3-72B, Nemotron-Super), clarified the ONNX-GenAI (CPU or GPU) vs vLLM (GPU only) engine choice in the modal, called out multi-node inference scheduling across cluster-wide GPU / CPU capacity, and refreshed the *Learn more* links block — now including [What is Foundry Local on Azure Local?](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local), [AI workloads on Azure Local (overview)](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/azure-local/ai-workloads-overview), the [Build 2026 announcement](https://aka.ms/build26blog), [Multi-node inference, vLLM & expanded model catalog](https://aka.ms/FoundryLoca_Techcommunity_Build_blog), and [Agentic Retrieval, Knowledge & Chat UI in Foundry Local](https://aka.ms/AgentsAndToolsBuildBlog2026).
 
 ### Tests
 
