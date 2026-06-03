@@ -145,10 +145,12 @@ import behaviour.
 
 ## Keeping the schemas accurate
 
-These schemas are maintained by hand alongside ODIN's source-of-truth state objects
-(`getInitialWizardState()` for the Designer, `getSizerState()` for the Sizer, and the per-workload
-shapes in `sizer/sizer.js`). **They are not currently CI-validated against live exports**, so the
-responsibility to keep them in step sits with the PR that changes the export shape — see the
-[contributor guidance in `.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
-(*JSON Schemas* section) for what counts as a schema-affecting change. If you spot drift between an
-exported file and the published schema, please [open an issue](https://github.com/Azure/odinforazurelocal/issues).
+These schemas are guarded by CI tests (`scripts/run-tests.js`) that compare them against ODIN's
+source-of-truth state objects — `getInitialWizardState()` for the Designer, `getSizerState()` for the
+Sizer, and `WORKLOAD_DEFAULTS` for the Sizer's workload `type` enum. If an ODIN state field is added,
+renamed, or removed — or a new Sizer workload type is added — without updating the matching schema,
+the build fails, so the published schemas can't silently drift out of date at the structural level.
+
+Value-level drift (a new enum value on an existing field, a new per-workload field, an envelope-shape
+change) is not CI-enforced — contributor guidance for those cases lives in
+[`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) (*JSON Schemas* section).

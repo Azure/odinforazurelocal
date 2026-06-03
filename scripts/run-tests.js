@@ -82,14 +82,29 @@ function extractTopLevelObjectKeys(src, fnName) {
     if (fnIdx === -1) throw new Error(`Could not find function ${fnName} in source`);
     const retIdx = src.indexOf('return {', fnIdx);
     if (retIdx === -1) throw new Error(`Could not find 'return {' for ${fnName}`);
+    return walkTopLevelObjectKeys(src, src.indexOf('{', retIdx));
+}
 
+// Same idea, but for `const <varName> = { ... }` / `let` / `var` top-level
+// object literals. Used for source-of-truth maps like WORKLOAD_DEFAULTS that
+// aren't wrapped in a function.
+function extractTopLevelObjectKeysFromConst(src, varName) {
+    const re = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*\\{`);
+    const m = re.exec(src);
+    if (!m) throw new Error(`Could not find 'const ${varName} = {' in source`);
+    return walkTopLevelObjectKeys(src, m.index + m[0].length - 1);
+}
+
+// Walk an object literal starting at the index of its opening '{' and return
+// the bare-identifier keys at depth 1. Shared by both extractors above.
+function walkTopLevelObjectKeys(src, startBraceIdx) {
     const keys = [];
     let depth = 0;
     let inString = false, stringChar = '';
     let inLineComment = false, inBlockComment = false;
     let expectKey = false;
 
-    for (let i = src.indexOf('{', retIdx); i < src.length; i++) {
+    for (let i = startBraceIdx; i < src.length; i++) {
         const c = src[i];
         const next = src[i + 1];
 
@@ -193,6 +208,46 @@ function checkSchemaDrift() {
             console.error(`❌ Schema drift check failed for ${c.label}: ${err.message}`);
         }
     });
+
+    // Workload-type enum drift: the set of workload types the Sizer can
+    // produce (keys of WORKLOAD_DEFAULTS in sizer/sizer.js) must equal the
+    // `type` enum in the Sizer schema's workload definition. This is what
+    // would have caught GHEL (v0.22.62) being added without the schema being
+    // updated.
+    try {
+        const sizerSrc = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.js'), 'utf8');
+        const workloadTypes = extractTopLevelObjectKeysFromConst(sizerSrc, 'WORKLOAD_DEFAULTS');
+
+        const sizerSchemaPath = path.join('docs', 'json-schema', 'odin-sizer.schema.json');
+        const sizerSchema = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), sizerSchemaPath), 'utf8'));
+        const enumTypes = sizerSchema.definitions.workload.properties.type.enum;
+        if (!Array.isArray(enumTypes)) {
+            throw new Error(`workload.properties.type.enum missing or not an array in ${sizerSchemaPath}`);
+        }
+
+        const inDefaults = new Set(workloadTypes);
+        const inEnum = new Set(enumTypes);
+        const missingFromEnum = workloadTypes.filter(t => !inEnum.has(t));
+        const missingFromDefaults = enumTypes.filter(t => !inDefaults.has(t));
+
+        if (missingFromEnum.length === 0 && missingFromDefaults.length === 0) {
+            console.log(`✅ Schema drift OK: Sizer workload types (WORKLOAD_DEFAULTS ↔ odin-sizer.schema.json type enum) (${workloadTypes.length} types in sync)`);
+        } else {
+            allOk = false;
+            console.error('❌ Schema drift detected: Sizer workload types');
+            if (missingFromEnum.length) {
+                console.error(`     Workload types missing from schema enum (add to definitions.workload.properties.type.enum AND add a oneOf branch in ${sizerSchemaPath}):`);
+                missingFromEnum.forEach(t => console.error(`       + ${t}`));
+            }
+            if (missingFromDefaults.length) {
+                console.error(`     Schema enum values no longer in WORKLOAD_DEFAULTS (remove from enum + oneOf in ${sizerSchemaPath} or restore in sizer/sizer.js):`);
+                missingFromDefaults.forEach(t => console.error(`       - ${t}`));
+            }
+        }
+    } catch (err) {
+        allOk = false;
+        console.error(`❌ Sizer workload type drift check failed: ${err.message}`);
+    }
 
     return allOk;
 }
