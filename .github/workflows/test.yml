@@ -71,7 +71,7 @@ jobs:
         run: node scripts/run-tests.js
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-results
@@ -79,7 +79,7 @@ jobs:
           retention-days: 30
 
       - name: Publish JUnit Test Report
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: always()
         with:
           name: ODIN Unit Tests
