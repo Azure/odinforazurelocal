@@ -5695,7 +5695,12 @@ function calculateRequirements(options) {
                 + '<a href="#vcpu-ratio" class="per-node-ratio-link" '
                 + 'onclick="document.getElementById(\'vcpu-ratio\').scrollIntoView({behavior:\'smooth\',block:\'center\'});'
                 + 'document.getElementById(\'vcpu-ratio\').focus();return false;">'
-                + getVcpuRatio() + ':1 vCPU overcommit ratio</a>';
+                + getVcpuRatio() + ':1 vCPU overcommit ratio</a>'
+                + ' &middot; '
+                + '<a href="#" class="per-node-ratio-link" '
+                + 'onclick="showHardwareWeightingInfo(); return false;" '
+                + 'title="How the auto-scaler picks node count, memory, ratio, and cluster type">'
+                + 'how is this calculated?</a>';
         }
 
         // For disaggregated, show SAN storage requirement instead of per-node raw/usable

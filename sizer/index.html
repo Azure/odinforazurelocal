@@ -677,7 +677,7 @@
                 <!-- Per-Node Requirements -->
                 <div class="per-node-section">
                     <h3 id="per-node-title">Nodes Hardware Requirements:</h3>
-                    <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 nodes (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a></p>
+                    <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 nodes (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a> &middot; <a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">how is this calculated?</a></p>
                     <div class="per-node-grid">
                         <div class="per-node-item">
                             <span class="label">Physical Cores</span>
