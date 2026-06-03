@@ -55,7 +55,7 @@ Stable URLs (suitable for a `$schema` reference):
 {
   "_meta": {
     "tool": "ODIN Sizer for Azure Local",
-    "version": 1,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
+    "version": 2,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
     "exportedAt": "2026-06-02T10:00:00.000Z",
     "url": "https://azure.github.io/odinforazurelocal/sizer/index.html"
   },
@@ -75,9 +75,11 @@ Stable URLs (suitable for a `$schema` reference):
 - The importer also accepts the **bare `data` object** (no `{ _meta, data }` wrapper) — both forms are
   modelled by the schema's top-level `oneOf`.
 - Each `workloads[]` item is discriminated by `type` (`vm` / `aks` / `avd` / `foundry` / `edgerag` /
-  `videoindexer`); the remaining fields depend on the type. See the schema's `workload` definition.
+  `videoindexer` / `ghel`); the remaining fields depend on the type. See the schema's `workload`
+  definition.
 - `_meta.version` (`SIZER_VERSION`) is a **payload-format** integer — it only bumps when the Sizer
-  payload shape changes, not on every release.
+  payload shape changes, not on every release. Bumped 1 → 2 in v0.22.62 when GitHub Enterprise Local
+  (GHEL) became a first-class workload type.
 
 ## Validate an export
 
@@ -143,7 +145,10 @@ import behaviour.
 
 ## Keeping the schemas accurate
 
-These schemas are guarded by CI tests that compare them against ODIN's source-of-truth state objects
-(`getInitialWizardState()` for the Designer, `getSizerState()` for the Sizer). If an ODIN state field
-is added, renamed, or removed without updating the matching schema, the build fails — so the published
-schemas can't silently drift out of date.
+These schemas are maintained by hand alongside ODIN's source-of-truth state objects
+(`getInitialWizardState()` for the Designer, `getSizerState()` for the Sizer, and the per-workload
+shapes in `sizer/sizer.js`). **They are not currently CI-validated against live exports**, so the
+responsibility to keep them in step sits with the PR that changes the export shape — see the
+[contributor guidance in `.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
+(*JSON Schemas* section) for what counts as a schema-affecting change. If you spot drift between an
+exported file and the published schema, please [open an issue](https://github.com/Azure/odinforazurelocal/issues).
