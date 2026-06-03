@@ -421,7 +421,7 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
@@ -1926,8 +1926,14 @@
             const hasS = t.indexOf('s') >= 0;
             const hasM = t.indexOf('m') >= 0;
             const hasC = t.indexOf('c') >= 0;
-            if (hasS && !hasM && !hasC) { storPorts.push(pi + 1); } else if (hasS) { storPorts.push(pi + 1); mgmtPorts.push(pi + 1); } // all_traffic: both
-            else { mgmtPorts.push(pi + 1); }
+            if (hasS && !hasM && !hasC) {
+                storPorts.push(pi + 1);
+            } else if (hasS) {
+                storPorts.push(pi + 1);
+                mgmtPorts.push(pi + 1);
+            } else { // all_traffic: both
+                mgmtPorts.push(pi + 1);
+            }
         }
         // For all_traffic, all ports go to mgmtPorts only (one group)
         if (intent === 'all_traffic') {
@@ -1959,7 +1965,8 @@
         // --- Layout constants ---
         const torW = 160, torH = 50;
         const mgmtVnicAreaHD = 48;
-        let nodeW = 300, nodeH = 200 + mgmtVnicAreaHD;
+        let nodeW = 300;
+        const nodeH = 200 + mgmtVnicAreaHD;
         const portW = 56, portH = 34;
         const portGap = 10;
         const nodeGap = 60;

@@ -6,7 +6,6 @@
  * https://github.com/microsoft/Azure_Local_Physical_Network_Config_Tool
  * (input/jinja2_templates/cisco/nxos/)
  */
-/* global window */
 (function() {
     'use strict';
 

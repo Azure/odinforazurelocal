@@ -4,7 +4,7 @@
  * Reads Designer state from localStorage, populates form fields,
  * orchestrates config generation, and renders output.
  */
-/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS, initializeAnalytics, trackPageView, trackFormCompletion */
+/* global SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS */
 (function() {
     'use strict';
 
@@ -1399,7 +1399,7 @@
         const a = document.createElement('a');
         a.href = url;
         // Sanitize filename
-        const safeName = hostname.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const safeName = hostname.replace(/[^a-zA-Z0-9_-]/g, '_');
         a.download = safeName + '_config.cfg';
         document.body.appendChild(a);
         a.click();
@@ -1418,7 +1418,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const safeName = hostname.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const safeName = hostname.replace(/[^a-zA-Z0-9_-]/g, '_');
         a.download = safeName + '_config.json';
         document.body.appendChild(a);
         a.click();
@@ -1432,7 +1432,6 @@
 })();
 
 // ── Compute VLAN add/remove (global for onclick) ─────────────────
-/* global addComputeVlan, removeComputeVlan */
 window.addComputeVlan = function() {
     for (let i = 2; i <= 3; i++) {
         const block = document.getElementById('sc-compute-vlan-' + i);
@@ -1496,10 +1495,9 @@ function updateAddComputeBtn() {
 // the ToR Switch page already loads. First-visit auto-trigger is gated on
 // the localStorage key below; the nav-bar Help button calls
 // showSwitchOnboarding() on demand and is wired up in js/nav.js.
-/* global showSwitchOnboarding */
-var SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
+const SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
 
-var switchOnboardingSteps = [
+const switchOnboardingSteps = [
     {
         icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
@@ -1536,7 +1534,7 @@ var switchOnboardingSteps = [
     }
 ];
 
-var currentSwitchOnboardingStep = 0;
+let currentSwitchOnboardingStep = 0;
 
 window.showSwitchOnboarding = function() {
     currentSwitchOnboardingStep = 0;

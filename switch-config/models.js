@@ -5,7 +5,6 @@
  * Based on upstream: https://github.com/microsoft/Azure_Local_Physical_Network_Config_Tool
  * (input/switch_interface_templates/)
  */
-/* global window */
 
 window.SWITCH_MODELS = {
     // ── Cisco TOR Models ─────────────────────────────────────────────

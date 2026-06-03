@@ -3474,7 +3474,7 @@ function updateNodeOptionsForClusterType() {
             nodeSelect.selectedIndex = 0;
         }
         // Update label to say "Nodes per Rack"
-        var nodeLabel = document.querySelector('label[for="node-count"]');
+        const nodeLabel = document.querySelector('label[for="node-count"]');
         if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
     } else {
         // Standard cluster: 2-16 nodes
@@ -3492,7 +3492,7 @@ function updateNodeOptionsForClusterType() {
 
     // Reset node label back to default for non-disaggregated types
     if (clusterType !== 'disaggregated') {
-        var nodeLabel = document.querySelector('label[for="node-count"]');
+        const nodeLabel = document.querySelector('label[for="node-count"]');
         if (nodeLabel) nodeLabel.textContent = 'Number of Physical Nodes';
     }
 }
@@ -4911,11 +4911,12 @@ function getWorkloadDetails(w) {
                 detail = `${w.count} VMs \u00d7 ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
             }
             break;
-        case 'aks':
+        case 'aks': {
             const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
             detail = `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
             break;
-        case 'avd':
+        }
+        case 'avd': {
             const sessionLabel = (w.sessionType || 'multi') === 'multi' ? 'multi-session' : 'single-session';
             const conc = w.concurrency != null ? w.concurrency : 100;
             const concurrentUsers = Math.ceil(w.userCount * conc / 100);
@@ -4930,6 +4931,7 @@ function getWorkloadDetails(w) {
             if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
             detail = avdDesc;
             break;
+        }
         case 'foundry': {
             const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
             const className = w.modelClass === 'custom'
@@ -4988,7 +4990,7 @@ function calculateWorkloadRequirements(w) {
             memory = w.memory * w.count;
             storage = w.storage * w.count;
             break;
-        case 'aks':
+        case 'aks': {
             // Control plane requirements per cluster
             const cpVcpus = w.controlPlaneNodes * w.controlPlaneVcpus;
             const cpMemory = w.controlPlaneNodes * w.controlPlaneMemory;
@@ -5005,6 +5007,7 @@ function calculateWorkloadRequirements(w) {
             memory = (cpMemory + workerMemory) * w.clusterCount;
             storage = (cpStorage + workerStorage) * w.clusterCount;
             break;
+        }
         case 'avd': {
             // Single-session = every user gets a dedicated VM, so concurrency is always 100%
             const concPct = (w.sessionType === 'single') ? 1 : (w.concurrency != null ? w.concurrency : 100) / 100;
@@ -5926,21 +5929,22 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     let infraPowerW = 0;
     let infraPowerNote = '';
     const clusterType = document.getElementById('cluster-type').value;
+    let drc, dst, spineCount, torSwitchPower, torCount, bmcSwitchPower, bmcCount, fcSwitchPower, fcCount, spineSwitchPower;
     if (clusterType === 'disaggregated') {
-        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
-        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
-        var spineCount = 2;
+        drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+        dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+        spineCount = 2;
         // ToR/Leaf switches: ~250W each (Cisco 93180YC-FX class)
-        var torSwitchPower = 250;
-        var torCount = drc * 2;
+        torSwitchPower = 250;
+        torCount = drc * 2;
         // BMC switches: ~150W each (Cisco 9348GC class)
-        var bmcSwitchPower = 150;
-        var bmcCount = drc;
+        bmcSwitchPower = 150;
+        bmcCount = drc;
         // FC switches: ~200W each (if FC SAN)
-        var fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
-        var fcCount = (dst === 'fc_san') ? drc * 2 : 0;
+        fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
+        fcCount = (dst === 'fc_san') ? drc * 2 : 0;
         // Spine switches: ~350W each
-        var spineSwitchPower = 350;
+        spineSwitchPower = 350;
         infraPowerW = (torCount * torSwitchPower) + (bmcCount * bmcSwitchPower) + (fcCount * fcSwitchPower) + (spineCount * spineSwitchPower);
         infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
         if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
@@ -6661,7 +6665,7 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
         const storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
         const maxPct = Math.max(vcpuPct, memPct, storPct);
 
-        var status;
+        let status;
         if (maxPct >= 90) {
             status = '🚫 ' + maxPct + '%';
             if (runwayYear === null && y > 0) runwayYear = y;
@@ -7008,10 +7012,10 @@ function exportSizerWord() {
     let diskDesc = '';
     if (hwConfig.diskConfig.isTiered) {
         const cache = hwConfig.diskConfig.cache;
-        var cap = hwConfig.diskConfig.capacity;
+        const cap = hwConfig.diskConfig.capacity;
         diskDesc = 'Cache: ' + cache.count + 'x ' + formatDiskSize(cache.sizeGB) + ' (' + cache.type + ') + Capacity: ' + cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
     } else if (hwConfig.diskConfig.capacity) {
-        var cap = hwConfig.diskConfig.capacity;
+        const cap = hwConfig.diskConfig.capacity;
         diskDesc = cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
     }
 
@@ -8075,7 +8079,7 @@ function switchImportTab(tab) { // eslint-disable-line no-unused-vars
 
 // Inject the vendored SheetJS <script> at most once per page load. Returns a
 // Promise that resolves when XLSX is available (or rejects on load failure).
-var _sheetJSPromise = null;
+let _sheetJSPromise = null;
 function ensureSheetJSLoaded() {
     if (typeof window.XLSX !== 'undefined') return Promise.resolve();
     if (_sheetJSPromise) return _sheetJSPromise;
@@ -8160,16 +8164,16 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return;
     }
 
-    var clusterName, coreCount, memoryGiB, model, manufacturer, cpuMfr, processorName, sockets;
+    let coreCount, memoryGiB, cpuMfr, sockets;
 
     // Node-level JSON — rich data available
     const nProps = data.properties;
     const hwProfile = nProps && nProps.hardwareProfile;
     const detected = nProps && nProps.detectedProperties;
 
-    clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
-    manufacturer = (detected && detected.manufacturer) || 'Unknown';
-    model = (detected && detected.model) || 'Unknown';
+    const clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
+    const manufacturer = (detected && detected.manufacturer) || 'Unknown';
+    const model = (detected && detected.model) || 'Unknown';
 
     // Extract sockets, total cores, and processor name from the JSON.
     //
@@ -8187,7 +8191,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // machine. We now prefer `detected` (which is unambiguous) and fall back to
     // hwProfile only when `detected` is missing or invalid.
     const procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
-    processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+    const processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
 
     // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
     const detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
@@ -8224,7 +8228,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     const nodeCount = 2; // default — user sets in preview
 
     // Determine CPU manufacturer from processor name or heuristics
-    var cpuMfr = 'intel'; // default
+    cpuMfr = 'intel'; // default
     const cpuNameLower = (processorName || '').toLowerCase();
     if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
         cpuMfr = 'amd';
@@ -8727,13 +8731,14 @@ function closePostImportOverlay() { // eslint-disable-line no-unused-vars
 // for the life of the modal interaction and discarded on close.
 
 // Holds the extracted { vInfo, vCluster, vHost } row arrays between parse and
-// apply. Never persisted.
-var _rvtoolsSheets = null;
+// apply. Never persisted. Exposed as window._rvtoolsSheets for test harness reset.
+var _rvtoolsSheets = null; // eslint-disable-line no-var
 
 // Last cluster-name value WE auto-populated from an RVTools import. Lets a
 // subsequent import refresh the field to the newly-selected cluster, while
 // still never clobbering a name the user typed themselves. Issue #230.
-var _rvtoolsAutoClusterName = '';
+// Exposed as window._rvtoolsAutoClusterName for test harness reset.
+var _rvtoolsAutoClusterName = ''; // eslint-disable-line no-var
 
 function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
     const input = document.getElementById('rvtools-file');
@@ -9455,7 +9460,7 @@ function initHardwareDefaults() {
 }
 
 // Initialize on page load
-var isInitialLoad = true;
+let isInitialLoad = true;
 document.addEventListener('DOMContentLoaded', function() {
     // Skip UI initialization when running in test harness (no sizer DOM elements present)
     if (window.__SIZER_TEST_MODE__) return;

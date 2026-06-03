@@ -7,7 +7,7 @@
  * Based on: https://github.com/microsoft/Azure_Local_Physical_Network_Config_Tool
  * (src/convertors/convertors_lab_switch_json.py — StandardJSONBuilder)
  */
-/* global window, SWITCH_MODELS */
+/* global SWITCH_MODELS */
 (function() {
     'use strict';
 

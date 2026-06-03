@@ -95,7 +95,7 @@
 
     // ── Draw a device in a specific U position ──
     // uStart is 1-based from bottom; height is in U
-    function drawDevice(ox, oy, uStart, heightU, color, label, labelColor, isLight) {
+    function drawDevice(ox, oy, uStart, heightU, color, label, labelColor, _isLight) {
         const innerH = TOTAL_U * U_H;
         const deviceW = RACK_W - 4;          // small inset from inner area
         const deviceH = heightU * U_H - 2;   // small gap between devices

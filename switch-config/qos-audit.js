@@ -21,7 +21,6 @@
  *   - Interface-level QoS service-policy on storage trunks
  *   - VLAN trunking on host interfaces
  */
-/* global window, trackFormCompletion */
 (function() {
     'use strict';
 
@@ -196,7 +195,7 @@
                 if (mtuMatch) {
                     currentIntf.mtu = parseInt(mtuMatch[1], 10);
                 }
-                const vlanMatch = trimmed.match(/switchport\s+trunk\s+allowed\s+vlan\s+([\d,\-]+)/i);
+                const vlanMatch = trimmed.match(/switchport\s+trunk\s+allowed\s+vlan\s+([\d,-]+)/i);
                 if (vlanMatch) {
                     currentIntf.vlans = vlanMatch[1];
                 }

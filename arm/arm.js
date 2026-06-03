@@ -1,4 +1,7 @@
 (function() {
+    /* exported deployToAzure, scrollToAndCopyJson, generateDevOpsPipeline, generateGitHubWorkflow,
+       showRestApiInfo, updateParameters, generatePowerShellScript, generateAzCLIScript,
+       showBicepTerraformAlternatives */
     // Debug logging — enable by setting localStorage.setItem('odinDebug','1') or
     // loading the page with #debug=1 in the hash.  Off by default so the browser
     // console stays clean for end users.
@@ -15,7 +18,7 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
@@ -98,7 +101,7 @@
 
             // Numbers
             if (ch === '-' || (ch >= '0' && ch <= '9')) {
-                const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+                const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?/);
                 if (numMatch && numMatch[0]) {
                     const numTok = numMatch[0];
                     out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
@@ -151,7 +154,7 @@
                     bytes[i] = binary.charCodeAt(i);
                 }
                 const json = new TextDecoder('utf-8').decode(bytes);
-                var parsed = JSON.parse(json);
+                const parsed = JSON.parse(json);
                 dlog('Successfully parsed from hash:', parsed);
                 return parsed;
             }
@@ -164,7 +167,7 @@
             const raw = localStorage.getItem('azloc_arm_payload');
             dlog('localStorage data exists:', !!raw);
             if (raw) {
-                var parsed = JSON.parse(raw);
+                const parsed = JSON.parse(raw);
                 dlog('Successfully parsed from localStorage:', parsed);
                 return parsed;
             }
@@ -270,7 +273,7 @@
         // Show/hide Cloud Witness Storage field based on witness type
         const witnessContainer = document.getElementById('witness-storage-container');
         if (witnessContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
-            var params = window.armPayload.parametersFile.parameters;
+            const params = window.armPayload.parametersFile.parameters;
             // Show if witnessType is Cloud and storage account is a placeholder
             const witnessType = params.witnessType && params.witnessType.value;
             const witnessStorage = params.clusterWitnessStorageAccountName && params.clusterWitnessStorageAccountName.value;
@@ -287,7 +290,7 @@
         // Show/hide OU Path field based on identity provider and whether value is already provided
         const ouContainer = document.getElementById('ou-path-container');
         if (ouContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
-            var params = window.armPayload.parametersFile.parameters;
+            const params = window.armPayload.parametersFile.parameters;
             const identityProvider = params.identityProvider && params.identityProvider.value;
             const adouPath = params.adouPath && params.adouPath.value;
             // Hide OU path for Local_Identity (AD-less) deployments
@@ -693,14 +696,14 @@ stages:
     - task: AzureCLI@2
       displayName: 'Validate ARM Template'
       inputs:
-        azureSubscription: '\$(azureServiceConnection)'
+        azureSubscription: '$(azureServiceConnection)'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
           az deployment group validate \\
-            --resource-group \$(resourceGroupName) \\
-            --template-file \$(templateFile) \\
-            --parameters @\$(parametersFile)
+            --resource-group $(resourceGroupName) \\
+            --template-file $(templateFile) \\
+            --parameters @$(parametersFile)
 
 - stage: Deploy
   displayName: 'Deploy Azure Local'
@@ -717,14 +720,14 @@ stages:
           - task: AzureCLI@2
             displayName: 'Deploy ARM Template'
             inputs:
-              azureSubscription: '\$(azureServiceConnection)'
+              azureSubscription: '$(azureServiceConnection)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
                 az deployment group create \\
-                  --resource-group \$(resourceGroupName) \\
-                  --template-file \$(templateFile) \\
-                  --parameters @\$(parametersFile) \\
+                  --resource-group $(resourceGroupName) \\
+                  --template-file $(templateFile) \\
+                  --parameters @$(parametersFile) \\
                   --mode Incremental
 `;
 
@@ -801,9 +804,9 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "## Deployment Complete :rocket:" >> \$GITHUB_STEP_SUMMARY
-          echo "Resource Group: \${{ env.RESOURCE_GROUP }}" >> \$GITHUB_STEP_SUMMARY
-          echo "Location: \${{ env.LOCATION }}" >> \$GITHUB_STEP_SUMMARY
+          echo "## Deployment Complete :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "Resource Group: \${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "Location: \${{ env.LOCATION }}" >> $GITHUB_STEP_SUMMARY
 `;
 
     downloadFile('.github-workflows-deploy.yml', workflow);
@@ -888,7 +891,7 @@ function downloadFile(filename, content) {
     URL.revokeObjectURL(url);
 }
 
-function showNotification(message, type) {
+function showNotification(message, type) { // eslint-disable-line no-redeclare
     type = type || 'success';
     const bgColor = type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)';
 
@@ -1040,7 +1043,7 @@ function highlightJsonInline(rawJsonText) {
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
@@ -1100,7 +1103,7 @@ function highlightJsonInline(rawJsonText) {
 
         // Numbers
         if (ch === '-' || (ch >= '0' && ch <= '9')) {
-            const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+            const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?/);
             if (numMatch && numMatch[0]) {
                 const numTok = numMatch[0];
                 out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';

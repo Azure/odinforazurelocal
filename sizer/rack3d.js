@@ -4,7 +4,7 @@
    ============================================ */
 
 // Module-scoped state (attach to globalThis to survive re-evaluation)
-var _rack3d = ((typeof window !== 'undefined' ? window : globalThis)._rack3d) || {
+const _rack3d = ((typeof window !== 'undefined' ? window : globalThis)._rack3d) || {
     scene: null,
     camera: null,
     renderer: null,
@@ -20,7 +20,7 @@ var _rack3d = ((typeof window !== 'undefined' ? window : globalThis)._rack3d) ||
 (typeof window !== 'undefined' ? window : globalThis)._rack3d = _rack3d;
 
 // ── Constants ────────────────────────────────
-var RACK = {
+const RACK = {
     U_HEIGHT: 0.04445,    // 1U = 44.45 mm → 0.04445 m
     TOTAL_U: 42,
     WIDTH: 0.6,           // 600 mm standard rack width
@@ -34,7 +34,7 @@ RACK.INNER_HEIGHT = RACK.TOTAL_U * RACK.U_HEIGHT;  // ~1.867 m
 RACK.OUTER_HEIGHT = RACK.INNER_HEIGHT + 0.12;       // top/bottom frame
 
 // Colors
-var COLORS = {
+const COLORS = {
     RACK_FRAME:  0x2a2a2a,
     RACK_RAIL:   0x3a3a3a,
     EMPTY_SLOT:  0x1a1a1a,
@@ -169,7 +169,7 @@ function buildRackFrame(scene, offsetX, offsetZ, facing) {
     const railGeo = new THREE.BoxGeometry(RACK.RAIL_DEPTH, 0.002, RACK.POST_SIZE);
     const baseY = 0.06; // bottom offset inside frame
     for (let u = 0; u <= RACK.TOTAL_U; u++) {
-        var y = baseY + u * RACK.U_HEIGHT;
+        const y = baseY + u * RACK.U_HEIGHT;
         [-RACK.WIDTH / 2 + RACK.POST_SIZE + RACK.RAIL_DEPTH / 2,
             RACK.WIDTH / 2 - RACK.POST_SIZE - RACK.RAIL_DEPTH / 2].forEach(function(x) {
             const rail = new THREE.Mesh(railGeo, railMat);
@@ -859,7 +859,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     // either single-row or two-row disaggregated layouts) land on the
     // spine's rear face.
     for (let ri = 0; ri < allRackCount; ri++) {
-        var rackX_i, rackZ_i, rackFacing_i;
+        let rackX_i, rackZ_i, rackFacing_i;
         if (rackPositions && rackPositions[ri]) {
             rackX_i = rackPositions[ri].x;
             rackZ_i = rackPositions[ri].z;
@@ -911,7 +911,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         const smbCableR = 0.004;
 
         // Helper: build a clean 4-point up-across-down cable (no zero-length segments)
-        function makeHCable(startX, endX, portY, arcH, z, mat) {
+        const makeHCable = function(startX, endX, portY, arcH, z, mat) {
             const topY = portY + arcH;
             const pts = [
                 new THREE.Vector3(startX, portY, z),
@@ -926,7 +926,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
                 );
                 scene.add(new THREE.Mesh(seg, mat));
             }
-        }
+        };
 
         // SMB1 Trunk: TOR 1 (Rack 1) ↔ TOR 3 (Rack 2) — upper cable, left side of switches
         makeHCable(rack1X - 0.12, rack2X - 0.12, smbUpperY, smbArcHeight, torBackZ, pinkMat);
@@ -1110,7 +1110,7 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
 
 // ── Main render function ─────────────────────
 
-function renderRack3D(config) {
+function renderRack3D(config) { // eslint-disable-line no-redeclare, no-unused-vars
     if (typeof THREE === 'undefined') {
         console.warn('rack3d: Three.js not loaded');
         return;
@@ -1224,7 +1224,7 @@ function renderRack3D(config) {
         }
 
         // Animation loop (pauses when not visible)
-        function animate() {
+        const animate = function() {
             if (!_rack3d.visible) {
                 _rack3d.animId = null;
                 return;
@@ -1232,7 +1232,7 @@ function renderRack3D(config) {
             _rack3d.animId = requestAnimationFrame(animate);
             _rack3d.controls.update();
             _rack3d.renderer.render(_rack3d.scene, _rack3d.camera);
-        }
+        };
         animate();
         _rack3d.initialized = true;
     }
@@ -1319,7 +1319,7 @@ function renderRack3D(config) {
         startX = -totalWidth / 2 + RACK.WIDTH / 2;
         for (let si = 0; si < rackCount; si++) {
             // Keep original reverse-build convention so Rack 1 appears on viewer's left
-            var rackIndex = (isRackAware || isDisaggregated) ? (rackCount - 1 - si) : si;
+            const rackIndex = (isRackAware || isDisaggregated) ? (rackCount - 1 - si) : si;
             rackPositions.push({
                 x: startX + si * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: 0,
@@ -1356,7 +1356,7 @@ function renderRack3D(config) {
 
     for (let r = 0; r < rackCount; r++) {
         const pos = rackPositions[r];
-        var rackIndex = pos.rackIndex;
+        const rackIndex = pos.rackIndex;
         const offsetX = pos.x;
         const offsetZ = pos.z;
         const facing = pos.facing || 1;
@@ -1541,6 +1541,7 @@ function renderRack3D(config) {
 
 // ── Toggle collapse ──────────────────────────
 
+/* exported toggleRackViz */
 function toggleRackViz() {
     const container = document.getElementById('rack-viz-container');
     const arrow = document.getElementById('rack-viz-toggle-arrow');

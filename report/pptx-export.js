@@ -783,7 +783,7 @@
         }
         if (plan.diagramSrcMatch) {
             for (let j = 0; j < blocks.length; j++) {
-                var bj = blocks[j];
+                const bj = blocks[j];
                 const hitJ = plan.match.some(function(p) { return titleMatches(bj.title, p); });
                 if (!hitJ) continue;
                 const pick = (bj.imgs || []).find(function(img) {
@@ -793,7 +793,7 @@
             }
         }
         for (let i = 0; i < blocks.length; i++) {
-            var b = blocks[i];
+            const b = blocks[i];
             const hit = plan.match.some(function(p) { return titleMatches(b.title, p); });
             if (!hit) continue;
             if (b.svgs && b.svgs.length) return { svgEl: b.svgs[0], title: b.title };
@@ -1574,7 +1574,7 @@
             const wl = s.sizerWorkloads[i];
             const name = wl.name || typeLabels[wl.type] || wl.type;
             const typeLabel = typeLabels[wl.type] || wl.type;
-            var headline;
+            let headline;
             if (wl.type === 'vm') {
                 headline = (wl.count || 0) + ' VMs \u00d7 '
                     + (wl.vcpusPerVm || 0) + ' vCPU / '
