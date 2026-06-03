@@ -622,16 +622,25 @@ header .header-description {
 
 /* Workload Types */
 .workload-types {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 12px;
     margin-bottom: 24px;
 }
 
 .workload-type-btn {
+    /* 4 tiles per row at desktop, with a 12px gap (3 gaps per row = 36px total
+       → 9px subtracted from each tile so 4 × (25% − 9px) + 36px = 100%). When
+       a 5th-8th tile is added, flex-wrap moves them to a centered second row. */
+    flex: 0 1 calc(25% - 9px);
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* Within a wrapped row, all tiles stretch to the tallest sibling's height
+       (driven by two-line labels like "GitHub Enterprise Local"). Centre the
+       icon + label vertically so single-line tiles don't sit top-aligned. */
+    justify-content: center;
     gap: 10px;
     padding: 20px 16px;
     background: var(--subtle-bg);
@@ -640,6 +649,10 @@ header .header-description {
     cursor: pointer;
     transition: all 0.2s ease;
     color: var(--text-primary);
+    /* Centre multi-line labels (e.g. "Azure Virtual Desktop",
+       "GitHub Enterprise Local") — without this they wrap left-aligned
+       inside the shrink-to-fit label span. */
+    text-align: center;
     position: relative;
 }
 
@@ -688,6 +701,14 @@ header .header-description {
 .workload-icon.videoindexer {
     --workload-icon-bg: rgba(236, 72, 153, 0.15);
     --workload-icon-color: var(--accent-pink, #ec4899);
+}
+
+/* GitHub Enterprise Local: the supplied github-logo.png already includes its
+   own white plate, so the tile uses the same neutral tinted plate as the
+   other workload icons rather than an extra white background. */
+.workload-icon.ghel {
+    --workload-icon-bg: rgba(148, 163, 184, 0.15);
+    --workload-icon-color: var(--text-primary);
 }
 
 /* Modern "PREVIEW" banner pinned to the top-left corner of a workload-type
@@ -1755,9 +1776,13 @@ header .header-description {
     }
     
     .workload-types {
-        grid-template-columns: repeat(3, 1fr);
+        /* 3 tiles per row on tablet (2 gaps per row = 24px → 8px per tile). */
     }
-    
+
+    .workload-type-btn {
+        flex: 0 1 calc(33.333% - 8px);
+    }
+
     .per-node-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1803,7 +1828,8 @@ header .header-description {
     }
 
     .nav-feedback-text,
-    .nav-help-text {
+    .nav-help-text,
+    .nav-optout-text {
         display: none;
     }
 
@@ -1854,9 +1880,13 @@ header .header-description {
     }
     
     .workload-types {
-        grid-template-columns: 1fr;
+        /* Single column on phones — flex container, no grid-template-columns needed. */
     }
-    
+
+    .workload-type-btn {
+        flex: 0 1 100%;
+    }
+
     .requirements-grid {
         grid-template-columns: 1fr;
     }

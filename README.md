@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.61 - Available here: https://aka.ms/ODIN
+## Version 0.22.62 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -14,6 +14,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ## Table of Contents
 
+- [What's New](#whats-new)
 - [Features](#features)
 - [Getting Started](#getting-started)
 - [Prerequisites Checklist](#prerequisites-checklist)
@@ -50,21 +51,18 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.22.61 - Latest Release
+<a id="whats-new"></a>
+### 🎉 Version 0.22.62 - Latest Release
 
-> **Documents ODIN's export/import format as machine-readable JSON Schemas and hardens the importers** (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 JSON Schemas plus import-side hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
+> **Adds GitHub Enterprise Local (GHEL) as a first-class Sizer workload type, introduces a Sizer hardware scaling weighting logic info popup, and adds a memory-density 2-node → 3-node soft preference** so a high-RAM 2-node cluster is auto-bumped to 3 nodes for a stronger 3-way mirror.
 
 **What's new**
-- **Two JSON Schemas** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }`, with a `workloads[]` model discriminated by workload `type`). Both are draft-07, permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation. Published on GitHub Pages so they can be referenced by URL in a `"$schema"` key.
-- **Format docs** (`docs/json-schema/README.md`) — both envelopes side by side, required vs optional fields, an annotated example each, and how to validate an ODIN export from CI / Terraform / any language (ajv, python-jsonschema, or VS Code `$schema`) with no ODIN code required.
-- **Schema-drift CI tests** — assert every Designer `getInitialWizardState()` key and every Sizer `getSizerState()` key matches its schema (both directions), so the schemas can't silently rot as ODIN evolves.
-- **Sizer Estimated Power now shows Annual Energy (kWh/yr) and an optional running cost** — the *Estimated Power, Heat & Rack Space* panel adds an estimated yearly energy figure (total Watts run 24/7/365) plus an optional, **currency-agnostic Electricity Price (per kWh)** box that estimates the annual running cost in whatever currency you enter (with an ⓘ hover tip), alongside the existing per-machine Watts, total Watts, and BTU/hr.
-- **Import hardening** — prototype-pollution guard in the Designer importer, dangerous-key guard + `workloads[]` shape validation in the Sizer importer, with non-blocking warnings for unknown fields so existing files keep working.
-- **Sizer JSON-import confirmation** — importing a Sizer Configuration JSON file now shows a success toast (cluster name + workload count), matching the Azure Local Instance and RVTools import flows that previously were the only ones giving feedback.
-- **RVTools picker no longer forces a selection** — after parsing an RVTools export, the cluster picker starts with nothing selected and lets you clear the last ticked cluster (it used to auto-select the first cluster and spring back).
-- **Sizer Reset fully clears Disaggregated Storage** — resetting from a Disaggregated Storage config now hides the *Number of Racks* / *Storage Connectivity* rows and re-enables the S2D fields instead of leaving them behind.
-- **3D Sizer SAN overlap & disaggregated text fixes** (issue [#245](https://github.com/Azure/odinforazurelocal/issues/245)) — the 3D rack view no longer draws the first node overlapping the SAN appliance by 1U on Disaggregated Storage deployments, and the *host compute overhead* assumptions text no longer references the S2D stack / Software Storage Bus / storage-repair headroom for external-SAN hosts (the reservation math is unchanged).
-- **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift.
+- **GitHub Enterprise Local (GHEL) workload type** in the Sizer — new tile alongside the existing VM / AKS / AVD / Foundry workloads, with **tier-driven sizing** (Trial through 8000–10000 seats from the [GHES minimum recommended requirements](https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements)), an HA Yes/No basic dropdown, and an **Advanced configuration** panel for picking 0–7 replicas (1 primary + N) with a link to the [GHES HA docs](https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration) and a throughput note.
+- **"Info: Sizer hardware scaling weighting logic" popup** in the *Physical Node(s) – Example Hardware Configuration* section of the Sizer — documents the auto-scaler's rules in order: prefer-more-nodes-over-bigger-nodes (1.5 TB / 2 TB memory cap), cores → sockets → ratio escalation, two-pass memory limits (1.5 TB conservative / 4 TB aggressive), the new 768 GB / 2-node → 3-node preference, the auto-upgrade to Disaggregated Storage at 16 nodes, and the step-back-down reduction loop — plus an explicit override note: every auto-decision is advisory and manually setting any field locks that choice.
+- **2-node memory-density 3-node preference** in `calculateRequirements()` — when the conservative pass lands on exactly 2 nodes but per-node memory has climbed above 768 GB (`NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB`), the Sizer now auto-bumps to 3 nodes and re-runs auto-scale so per-node memory drops to the next-lower DIMM tier. This unlocks a **three-way mirror** (full data redundancy after any single node failure) and spreads workloads across smaller, cheaper DIMMs. Only runs when conservative scaling already succeeded, the user has not pinned the node count, and the 3-node solution stays under 90 % utilisation; otherwise the Sizer reverts to 2 nodes.
+- **`SIZER_VERSION` bumped 1 → 2** to reflect the new `tier` / `ha` / `replicas` fields on GHEL workloads in the Sizer export payload. The importer continues to accept v1 payloads (forward-compatible). ESLint clean; HTML validation clean; full suite passes **1,325 / 1,325**.
+- **Foundry Local references refreshed for Build 2026** — updated the SLM / LLM model-class examples in the Sizer to the current Foundry Local catalog (Phi-4, Phi-4-reasoning, gpt-oss-20b, gpt-oss-120b (vLLM-only), Mistral-7B-v0.2, DeepSeek-R1 7b/14b, Qwen3, NVIDIA Nemotron, Whisper), clarified the **ONNX-GenAI (CPU or GPU) vs vLLM (GPU only)** engine choice, called out **multi-node inference** scheduling across cluster-wide GPU / CPU capacity, and refreshed the *Learn more* links block — now including [What is Foundry Local on Azure Local?](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local), [AI workloads on Azure Local (overview)](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/azure-local/ai-workloads-overview), the [Build 2026 announcement](https://aka.ms/build26blog), [Multi-node inference, vLLM &amp; expanded model catalog](https://aka.ms/FoundryLoca_Techcommunity_Build_blog), and [Agentic Retrieval, Knowledge &amp; Chat UI in Foundry Local](https://aka.ms/AgentsAndToolsBuildBlog2026).
+- **Privacy footer refreshed + analytics opt-out added** across all 5 pages (Designer, Sizer, ARM, Report, ToR Switch). The footer now clearly states that user inputs / configurations / template data stay in the browser and discloses that anonymous integer-only usage counters (page views and feature use, no IP / identifier) are incremented to populate the header stats. A new **Page views opt-out** checkbox sits in the top navigation bar (right of the light/dark theme toggle) — preference persisted in `localStorage` (`odin-analytics-opt-out=1`) — and analytics also auto-disables when the browser sends `navigator.doNotTrack` or `navigator.globalPrivacyControl`. Footer links to the analytics source on GitHub for transparency.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -398,7 +396,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.22.61  
+**Version**: 0.22.62  
 **Last Updated**: June 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -413,6 +411,21 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.61 - JSON Schemas for Designer + Sizer exports, import hardening, Sizer power running-cost
+
+> **Documents ODIN's export/import format as machine-readable JSON Schemas and hardens the importers** (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 JSON Schemas plus import-side hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
+
+- **Two JSON Schemas** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }`, with a `workloads[]` model discriminated by workload `type`). Both are draft-07, permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation. Published on GitHub Pages so they can be referenced by URL in a `"$schema"` key.
+- **Format docs** (`docs/json-schema/README.md`) — both envelopes side by side, required vs optional fields, an annotated example each, and how to validate an ODIN export from CI / Terraform / any language (ajv, python-jsonschema, or VS Code `$schema`) with no ODIN code required.
+- **Schema-drift CI tests** — assert every Designer `getInitialWizardState()` key and every Sizer `getSizerState()` key matches its schema (both directions), so the schemas can't silently rot as ODIN evolves.
+- **Sizer Estimated Power now shows Annual Energy (kWh/yr) and an optional running cost** — the *Estimated Power, Heat & Rack Space* panel adds an estimated yearly energy figure (total Watts run 24/7/365) plus an optional, **currency-agnostic Electricity Price (per kWh)** box that estimates the annual running cost in whatever currency you enter (with an ⓘ hover tip), alongside the existing per-machine Watts, total Watts, and BTU/hr.
+- **Import hardening** — prototype-pollution guard in the Designer importer, dangerous-key guard + `workloads[]` shape validation in the Sizer importer, with non-blocking warnings for unknown fields so existing files keep working.
+- **Sizer JSON-import confirmation** — importing a Sizer Configuration JSON file now shows a success toast (cluster name + workload count), matching the Azure Local Instance and RVTools import flows that previously were the only ones giving feedback.
+- **RVTools picker no longer forces a selection** — after parsing an RVTools export, the cluster picker starts with nothing selected and lets you clear the last ticked cluster (it used to auto-select the first cluster and spring back).
+- **Sizer Reset fully clears Disaggregated Storage** — resetting from a Disaggregated Storage config now hides the *Number of Racks* / *Storage Connectivity* rows and re-enables the S2D fields instead of leaving them behind.
+- **3D Sizer SAN overlap & disaggregated text fixes** (issue [#245](https://github.com/Azure/odinforazurelocal/issues/245)) — the 3D rack view no longer draws the first node overlapping the SAN appliance by 1U on Disaggregated Storage deployments, and the *host compute overhead* assumptions text no longer references the S2D stack / Software Storage Bus / storage-repair headroom for external-SAN hosts (the reservation math is unchanged).
+- **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift.
 
 #### 0.22.55 - RVTools Excel import for the Sizer + auto-scale node-count fix
 

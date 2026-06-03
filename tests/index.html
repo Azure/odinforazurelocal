@@ -5106,7 +5106,43 @@
             assert(NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB === 2048,
                 'Large cluster memory cap = 2048 GB (2 TB)', 2048, NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB),
             assert(NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD === 10,
-                'Large cluster threshold = 10 nodes', 10, NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD)
+                'Large cluster threshold = 10 nodes', 10, NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD),
+            assert(NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB === 768,
+                '2-node memory-density threshold = 768 GB (prefer 3 nodes above this)',
+                768, NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB),
+            // The preference triggers at the next DIMM tier above 768, which is 1024 GB.
+            // This guards against silently shifting the trigger point (e.g. by removing
+            // 768 from MEMORY_OPTIONS_GB, or by changing the threshold to >= rather than >).
+            assert(MEMORY_OPTIONS_GB.indexOf(768) !== -1,
+                '768 GB is a valid DIMM option (memory-density threshold sits on a tier)',
+                'present', MEMORY_OPTIONS_GB.indexOf(768) !== -1 ? 'present' : 'missing'),
+            assert(MEMORY_OPTIONS_GB.indexOf(1024) !== -1,
+                '1024 GB is a valid DIMM option (first tier that triggers 3-node preference)',
+                'present', MEMORY_OPTIONS_GB.indexOf(1024) !== -1 ? 'present' : 'missing'),
+            // Spot-check the comparison semantics: a 1024 GB 2-node config must trigger
+            // the preference, a 768 GB 2-node config must NOT. (Strictly > 768.)
+            assert(1024 > NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB,
+                '1024 GB per node triggers 3-node preference (> 768)', true,
+                1024 > NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB),
+            assert(!(768 > NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB),
+                '768 GB per node does NOT trigger 3-node preference (boundary stays at 2 nodes)',
+                true, !(768 > NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB))
+        ]);
+
+        // --- Sizer hardware scaling weighting logic info popup ---
+        // The "Info: Sizer hardware scaling weighting logic" link in the Physical Node(s) section
+        // opens a modal that documents the auto-scaler's decisions. The popup is
+        // important because the auto-scaler now makes several judgement calls
+        // (1.5 TB memory cap, 768 GB / 2-node→3-node bump, 16-node disaggregated
+        // auto-upgrade) — users need a way to read those rules and the explicit
+        // statement that any field can be overridden manually.
+        testSuite('Sizer hardware scaling weighting logic popup', 'sizer.js + sizer/index.html', [
+            assert(typeof showHardwareWeightingInfo === 'function',
+                'showHardwareWeightingInfo() is exposed',
+                true, typeof showHardwareWeightingInfo === 'function'),
+            assert(typeof closeHardwareWeightingInfo === 'function',
+                'closeHardwareWeightingInfo() is exposed',
+                true, typeof closeHardwareWeightingInfo === 'function')
         ]);
 
         // --- buildMaxHardwareConfig: deterministic memory cap (always 1.5 TB) ---
