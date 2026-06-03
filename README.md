@@ -63,6 +63,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer JSON-import confirmation** — importing a Sizer Configuration JSON file now shows a success toast (cluster name + workload count), matching the Azure Local Instance and RVTools import flows that previously were the only ones giving feedback.
 - **RVTools picker no longer forces a selection** — after parsing an RVTools export, the cluster picker starts with nothing selected and lets you clear the last ticked cluster (it used to auto-select the first cluster and spring back).
 - **Sizer Reset fully clears Disaggregated Storage** — resetting from a Disaggregated Storage config now hides the *Number of Racks* / *Storage Connectivity* rows and re-enables the S2D fields instead of leaving them behind.
+- **3D Sizer SAN overlap & disaggregated text fixes** (issue [#245](https://github.com/Azure/odinforazurelocal/issues/245)) — the 3D rack view no longer draws the first node overlapping the SAN appliance by 1U on Disaggregated Storage deployments, and the *host compute overhead* assumptions text no longer references the S2D stack / Software Storage Bus / storage-repair headroom for external-SAN hosts (the reservation math is unchanged).
 - **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.

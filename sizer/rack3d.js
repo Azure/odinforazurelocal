@@ -1394,7 +1394,12 @@ function renderRack3D(config) {
         // heavy servers low, switches stay at the top). The first node sits at the
         // lowest free U above any SAN appliance and each node stacks upward.
         var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // highest U below switches + BMC + FC
-        var bottomLimit = sanApplianceU + 1; // don't overlap SAN appliance at bottom
+        // placeServer() is called with (serverStartU - 1), so a server occupies real
+        // U (serverStartU-1)..(serverStartU). When a 5U SAN appliance sits at U1-U5,
+        // the first server must start at serverStartU = sanApplianceU + 2 so its
+        // bottom (serverStartU-1) lands at U6 — directly on top of the SAN, not
+        // overlapping its top U. Standard racks (no SAN) keep the original bottom of 1.
+        var bottomLimit = sanApplianceU > 0 ? sanApplianceU + 2 : 1; // don't overlap SAN appliance at bottom
         var nodeOffset = 0;
         for (let pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
         for (let n = 0; n < rackInfo.nodes; n++) {
