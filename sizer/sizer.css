@@ -1216,6 +1216,10 @@ header .header-description {
     opacity: 0.85;
 }
 
+.per-node-subtitle + .per-node-subtitle {
+    margin-top: -12px;
+}
+
 .per-node-subtitle .per-node-ratio-link {
     color: var(--accent-blue);
     text-decoration: none;
