@@ -5687,7 +5687,15 @@ function calculateRequirements(options) {
         // Reflect the current node count and vCPU overcommit ratio in the per-node heading
         var perNodeTitleEl = document.getElementById('per-node-title');
         if (perNodeTitleEl) {
-            perNodeTitleEl.textContent = nodeCount + ' x Nodes Hardware Requirements (with N+1) using ' + getVcpuRatio() + ':1 vCPU Overcommit Ratio';
+            perNodeTitleEl.textContent = nodeCount + ' x Nodes Hardware Requirements:';
+        }
+        var perNodeSubtitleEl = document.getElementById('per-node-subtitle');
+        if (perNodeSubtitleEl) {
+            perNodeSubtitleEl.innerHTML = '- includes N+1 nodes (for HA and update resiliency) and compute using a '
+                + '<a href="#vcpu-ratio" class="per-node-ratio-link" '
+                + 'onclick="document.getElementById(\'vcpu-ratio\').scrollIntoView({behavior:\'smooth\',block:\'center\'});'
+                + 'document.getElementById(\'vcpu-ratio\').focus();return false;">'
+                + getVcpuRatio() + ':1 vCPU overcommit ratio</a>';
         }
 
         // For disaggregated, show SAN storage requirement instead of per-node raw/usable
@@ -7079,7 +7087,8 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>' + nodeCount + ' x Nodes Hardware Requirements (with N+1) using ' + getVcpuRatio() + ':1 vCPU Overcommit Ratio</h3>';
+    html += '<h3>' + nodeCount + ' x Nodes Hardware Requirements:</h3>';
+    html += '<p style="font-size:10pt; color:#555; margin:0 0 8pt;">- includes N+1 nodes (for HA and update resiliency) and compute using a ' + getVcpuRatio() + ':1 vCPU overcommit ratio</p>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
     html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';

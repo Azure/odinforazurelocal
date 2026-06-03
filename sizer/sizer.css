@@ -1204,8 +1204,26 @@ header .header-description {
 .per-node-section h3 {
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: 4px;
     color: var(--text-secondary);
+}
+
+.per-node-subtitle {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+    opacity: 0.85;
+}
+
+.per-node-subtitle .per-node-ratio-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.per-node-subtitle .per-node-ratio-link:hover,
+.per-node-subtitle .per-node-ratio-link:focus {
+    text-decoration: underline;
 }
 
 .per-node-grid {
