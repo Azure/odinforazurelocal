@@ -5,7 +5,9 @@
 // LocalStorage keys for sizer state persistence
 const SIZER_STATE_KEY = 'odinSizerState';
 const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
-const SIZER_VERSION = 1;
+// Bumped 1 → 2 in v0.22.62: GitHub Enterprise Local (GHEL) became a
+// first-class workload type (tier + HA fields added to the export shape).
+const SIZER_VERSION = 2;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 
@@ -820,6 +822,7 @@ function workloadTypeDisplayName(t) {
         case 'videoindexer': return 'Video Indexer';
         case 'vm': return 'VM';
         case 'avd': return 'AVD';
+        case 'ghel': return 'GitHub Enterprise Local';
         default: return t || 'this workload';
     }
 }
@@ -1409,6 +1412,15 @@ const NODE_WEIGHT_PREFERRED_MEMORY_GB = 1536;
 const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = 2048;
 // Threshold above which autoScaleHardware allows higher memory headroom
 const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
+
+// When a 2-node hyperconverged solution would need more than this much memory
+// per node, the auto-scaler prefers adding a third node instead. Rationale:
+// (a) 2 nodes only supports a 2-way mirror (single fault domain after one node
+// fails); 3 nodes unlocks 3-way mirror for stronger data resiliency, and
+// (b) DIMM cost climbs steeply above 768 GB/node, so a third node is usually
+// cheaper than packing two nodes with 1 TB+ DIMMs. User-set node count always
+// wins. See "Sizer hardware scaling weighting logic" info popup for the full rules.
+const NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB = 768;
 
 // ALDO Management Cluster minimum hardware requirements
 // Source: https://learn.microsoft.com/en-us/azure/azure-local/manage/disconnected-operations-overview#eligibility-criteria
@@ -2949,6 +2961,75 @@ const WORKLOAD_DEFAULTS = {
     videoindexer: {
         name: 'AI Video Indexer',
         configuration: 'recommended' // 'minimum' (1 worker) or 'recommended' (2 workers, HA)
+    },
+    ghel: {
+        name: 'GitHub Enterprise Local',
+        tier: 'up-to-1000', // see GHEL_TIERS
+        ha: true,           // GHES replica-based HA (doubles the VM footprint); defaults to Yes per production guidance
+        replicas: 1         // 0-7 additional replicas (GitHub caps total HA replicas at 8). Mirrors `ha` for the basic case; Advanced section can override up to 7.
+    }
+};
+
+// GitHub Enterprise Server "Minimum recommended requirements" table, as
+// published by GitHub for GHES 3.20 (the version GHEL ships).
+// Source: https://docs.github.com/en/enterprise-server@3.20/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements
+// Storage = root disk + data disk, both presented to the GHEL VM as a single
+// total in the Sizer (Azure Local doesn't surface root vs data separately at
+// sizing time). Network-throughput column is informational only.
+const GHEL_TIERS = {
+    'trial': {
+        name: 'Trial / demo (10 light users)',
+        users: 'Up to 10 light users',
+        vcpus: 4,
+        memory: 32,        // GB
+        rootStorage: 400,  // GB
+        dataStorage: 500,  // GB
+        throughputMbps: 600
+    },
+    'up-to-1000': {
+        name: 'Up to 1,000 users',
+        users: 'Up to 1,000 users',
+        vcpus: 8,
+        memory: 48,
+        rootStorage: 400,
+        dataStorage: 500,
+        throughputMbps: 3000
+    },
+    '1000-to-3000': {
+        name: '1,000 to 3,000 users',
+        users: '1,000\u20133,000 users',
+        vcpus: 16,
+        memory: 64,
+        rootStorage: 400,
+        dataStorage: 1000,
+        throughputMbps: 6000
+    },
+    '3000-to-5000': {
+        name: '3,000 to 5,000 users',
+        users: '3,000\u20135,000 users',
+        vcpus: 32,
+        memory: 128,
+        rootStorage: 400,
+        dataStorage: 1500,
+        throughputMbps: 9000
+    },
+    '5000-to-8000': {
+        name: '5,000 to 8,000 users',
+        users: '5,000\u20138,000 users',
+        vcpus: 48,
+        memory: 256,
+        rootStorage: 400,
+        dataStorage: 3000,
+        throughputMbps: 12000
+    },
+    '8000-to-10000': {
+        name: '8,000 to 10,000+ users',
+        users: '8,000\u201310,000+ users',
+        vcpus: 64,
+        memory: 512,
+        rootStorage: 400,
+        dataStorage: 5000,
+        throughputMbps: 15000
     }
 };
 
@@ -3561,8 +3642,13 @@ function showAddWorkloadModal(type) {
             title.textContent = 'Add Video Indexer enabled by Arc';
             body.innerHTML = getVideoIndexerModalContent();
             break;
+        case 'ghel':
+            title.textContent = 'Add GitHub Enterprise Local (Preview)';
+            body.innerHTML = getGhelModalContent();
+            updateGhelTierDescription();
+            break;
     }
-    
+
     modal.classList.add('active');
     overlay.classList.add('active');
     // Focus first input for keyboard accessibility
@@ -4049,6 +4135,142 @@ function updateEdgeRagComputeMode() {
     }
 }
 
+// GitHub Enterprise Local (Preview) modal.
+// Sizing is driven by the official GHES "Minimum recommended requirements"
+// table (GHES 3.20 docs), selected via an active-seat-count tier dropdown.
+// The basic HA toggle adds 1 replica (primary + 1). An optional Advanced
+// section lets users override with up to 7 replicas (GitHub's documented
+// maximum of 8 HA replicas per instance). Each additional replica is sized
+// identically to the primary; GHES HA is active/passive so adding replicas
+// adds resilience / read locality, not write throughput.
+// All numbers and links here come from the public docs cited in the modal.
+function getGhelModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.ghel;
+    const tierOptions = Object.keys(GHEL_TIERS).map(function(key) {
+        const t = GHEL_TIERS[key];
+        const selected = key === defaults.tier ? ' selected' : '';
+        return `<option value="${key}"${selected}>${t.name} &mdash; ${t.vcpus} vCPU / ${t.memory} GB RAM / ${(t.rootStorage + t.dataStorage)} GB total disk</option>`;
+    }).join('');
+    // Advanced replica-count options: 0 through 7 additional replicas
+    // (GHES caps total HA replicas at 8 per instance).
+    let advancedReplicaOptions = '<option value="">(use basic selection above)</option>';
+    for (let r = 0; r <= 7; r++) {
+        const label = r === 0 ? '0 replicas \u2014 single VM (no HA)'
+            : r === 1 ? '1 replica (primary + 1)'
+            : r === 7 ? '7 replicas (primary + 7) \u2014 GitHub max'
+            : r + ' replicas (primary + ' + r + ')';
+        advancedReplicaOptions += '<option value="' + r + '">' + label + '</option>';
+    }
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Public Preview</strong> &mdash; GitHub Enterprise Local (GHEL) delivers GitHub Enterprise Server (GHES) as a prebuilt VM image on Azure Local, so you can run source control, Actions CI/CD, Packages, and DevSecOps fully on-prem in sovereign or disconnected environments.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+            <div style="margin-bottom: 6px;">
+                <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+                <a href="https://aka.ms/GHEL" target="_blank" rel="noopener" style="color: var(--link-color);">GitHub Enterprise Local on Azure Local</a>
+                <span style="margin: 0 6px;">|</span>
+                <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color);">GHES minimum recommended requirements</a>
+            </div>
+            <div>
+                <span style="margin-right: 4px;">\uD83D\uDCDD</span>
+                <a href="https://forms.office.com/pages/responsepage.aspx?id=v4j5cvGGr0GRqy180BHbRw9dxZ_D1b1FnjqEPJdlIB5UQTUxRUhUWExXNFQzNFRRSUJDVDFTSkFINC4u&origin=lprLink&route=shorturl" target="_blank" rel="noopener" style="color: var(--link-color);">Prepare for public preview onboarding</a>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., GitHub Enterprise Local (prod)">
+        </div>
+        <div class="form-group">
+            <label>Active developer seats (sizing tier)
+                <span class="info-icon" title="Pick the tier closest to your peak active-developer-seat count. Each tier maps to the vCPU / memory / root-disk / data-disk values published by GitHub in the GHES minimum recommended requirements table.">&#9432;</span>
+            </label>
+            <select id="ghel-tier" onchange="updateGhelTierDescription()">
+                ${tierOptions}
+            </select>
+            <span class="hint" id="ghel-tier-desc"></span>
+        </div>
+        <div class="form-group">
+            <label>GHES replica-based high availability
+                <span class="info-icon" title="Adds a second GHEL VM with the same spec as the primary. GHES replicates data from the primary to the replica; on failover the replica is promoted. Doubles the vCPU / memory / storage footprint for this workload.">&#9432;</span>
+            </label>
+            <select id="ghel-ha" onchange="updateGhelTierDescription()">
+                <option value="yes"${defaults.ha ? ' selected' : ''}>Yes &mdash; deploy 2 VMs (primary + replica)</option>
+                <option value="no"${defaults.ha ? '' : ' selected'}>No &mdash; single VM (PoC / non-production)</option>
+            </select>
+            <span class="hint">Recommended for production resilience. Doubles the workload footprint.</span>
+        </div>
+        <details id="ghel-advanced-details" style="margin-top: 4px; margin-bottom: 12px; padding: 8px 12px; background: var(--subtle-bg); border-radius: 6px;">
+            <summary style="cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-secondary);">Advanced configuration</summary>
+            <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
+                <label>Number of HA replicas (override)
+                    <span class="info-icon" title="Overrides the basic HA dropdown above. GitHub Enterprise Server supports up to 8 high availability replicas (passive HA, geo-replicas, and repository caches combined). Each replica is sized identically to the primary, so vCPU / memory / storage scales linearly with the replica count.">&#9432;</span>
+                </label>
+                <select id="ghel-replicas-advanced" onchange="updateGhelTierDescription()">
+                    ${advancedReplicaOptions}
+                </select>
+                <span class="hint">When set, overrides the basic HA dropdown. Total footprint = (1 + replicas) &times; per-VM spec. Includes passive HA, geo-replicas, and repository caches.</span>
+                <div style="margin-top: 10px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border-left: 2px solid var(--accent-orange); border-radius: 4px; font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+                    <strong style="color: var(--accent-orange);">Note:</strong> GHES HA is <em>active/passive</em> &mdash; additional replicas add resilience and read locality (geo / repo cache), <strong>not write throughput</strong>. Write performance remains limited to the primary appliance. See <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration" target="_blank" rel="noopener" style="color: var(--link-color);">About high availability configuration (GHES 3.20)</a>.
+                </div>
+            </div>
+        </details>
+        <div id="ghel-spec-panel" style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <!-- Populated by updateGhelTierDescription() -->
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Sizing tiers are taken directly from the GHES <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color);">minimum recommended requirements</a>. Actions logs / artifacts and Packages may require additional storage (Azure Blob Storage or S3-compatible object store) &mdash; not included in the on-cluster footprint above.
+        </div>
+    `;
+}
+
+// Read the effective replica count from the GHEL modal (Advanced override
+// wins over basic HA dropdown). Returns an integer 0-7.
+function getGhelReplicasFromModal() {
+    const advEl = document.getElementById('ghel-replicas-advanced');
+    if (advEl && advEl.value !== '') {
+        const n = parseInt(advEl.value, 10);
+        if (!isNaN(n) && n >= 0 && n <= 7) return n;
+    }
+    const haEl = document.getElementById('ghel-ha');
+    return (haEl && haEl.value === 'yes') ? 1 : 0;
+}
+
+// Read the effective replica count from a saved workload (handles legacy
+// w.ha boolean before w.replicas existed). Returns an integer 0-7.
+function getGhelReplicasFromWorkload(w) {
+    if (typeof w.replicas === 'number' && w.replicas >= 0 && w.replicas <= 7) {
+        return w.replicas;
+    }
+    return w.ha ? 1 : 0;
+}
+
+// Update the live spec readout under the GHEL tier dropdown.
+function updateGhelTierDescription() {
+    const tierEl = document.getElementById('ghel-tier');
+    const descEl = document.getElementById('ghel-tier-desc');
+    const panel = document.getElementById('ghel-spec-panel');
+    if (!tierEl || !panel) return;
+    const tier = GHEL_TIERS[tierEl.value] || GHEL_TIERS['up-to-1000'];
+    const replicas = getGhelReplicasFromModal();
+    const vmCount = 1 + replicas;
+    const totalVcpu = tier.vcpus * vmCount;
+    const totalMem = tier.memory * vmCount;
+    const totalStorage = (tier.rootStorage + tier.dataStorage) * vmCount;
+    if (descEl) {
+        descEl.textContent = tier.users + ' \u2014 ' + tier.vcpus + ' vCPU / ' + tier.memory + ' GB RAM per GHEL VM.';
+    }
+    const topology = replicas === 0 ? 'single VM (no HA)'
+        : replicas === 1 ? 'primary + 1 replica (HA pair)'
+        : 'primary + ' + replicas + ' replicas';
+    panel.innerHTML =
+        '<strong>Per GHEL VM:</strong> ' + tier.vcpus + ' vCPU \u00b7 ' + tier.memory + ' GB RAM \u00b7 ' +
+        tier.rootStorage + ' GB root disk + ' + tier.dataStorage + ' GB data disk' +
+        ' (' + (tier.rootStorage + tier.dataStorage) + ' GB total) \u00b7 ~' + tier.throughputMbps + ' Mbps network throughput.' +
+        '<br><strong>This workload (' + vmCount + ' VM' + (vmCount > 1 ? 's' : '') + ', ' + topology + '):</strong> ' +
+        totalVcpu + ' vCPU \u00b7 ' + totalMem + ' GB RAM \u00b7 ' + totalStorage + ' GB storage.';
+}
+
 // Get Video Indexer enabled by Arc modal content
 function getVideoIndexerModalContent() {
     const defaults = WORKLOAD_DEFAULTS.videoindexer;
@@ -4305,6 +4527,15 @@ function addWorkload() {
         case 'videoindexer':
             workload.configuration = document.getElementById('vi-configuration').value || 'recommended';
             break;
+        case 'ghel': {
+            const tierKey = document.getElementById('ghel-tier').value || 'up-to-1000';
+            workload.tier = GHEL_TIERS[tierKey] ? tierKey : 'up-to-1000';
+            workload.replicas = getGhelReplicasFromModal();
+            // Keep legacy boolean mirror in sync so older exports / Designer
+            // round-trips continue to behave (ha == any replicas present).
+            workload.ha = workload.replicas >= 1;
+            break;
+        }
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
             workload.userCount = parseInt(document.getElementById('avd-users').value) || 50;
@@ -4471,6 +4702,29 @@ function editWorkload(id) {
             document.getElementById('vi-configuration').value = w.configuration || 'recommended';
             updateVideoIndexerConfiguration();
             break;
+        case 'ghel': {
+            title.textContent = 'Edit GitHub Enterprise Local (Preview)';
+            body.innerHTML = getGhelModalContent();
+            document.getElementById('workload-name').value = w.name;
+            const tierKey = GHEL_TIERS[w.tier] ? w.tier : 'up-to-1000';
+            document.getElementById('ghel-tier').value = tierKey;
+            const replicas = getGhelReplicasFromWorkload(w);
+            const advEl = document.getElementById('ghel-replicas-advanced');
+            const haEl = document.getElementById('ghel-ha');
+            if (replicas <= 1) {
+                // Representable by the basic dropdown.
+                if (haEl) haEl.value = replicas === 1 ? 'yes' : 'no';
+                if (advEl) advEl.value = '';
+            } else {
+                // Needs the Advanced override; open the panel so it's visible.
+                if (haEl) haEl.value = 'yes';
+                if (advEl) advEl.value = String(replicas);
+                const det = document.getElementById('ghel-advanced-details');
+                if (det) det.open = true;
+            }
+            updateGhelTierDescription();
+            break;
+        }
     }
 
     // Restore GPU fields (common to all types)
@@ -4623,6 +4877,8 @@ function getWorkloadIcon(type) {
             return '<img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="20" height="20" style="vertical-align: middle;">';
         case 'videoindexer':
             return '<img src="../images/video-indexer-icon.svg" alt="Video Indexer" width="20" height="20" style="vertical-align: middle;">';
+        case 'ghel':
+            return '<img src="../images/github-logo.png" alt="GitHub Enterprise Local" width="20" height="20" style="vertical-align: middle;">';
         default:
             return '';
     }
@@ -4637,6 +4893,7 @@ function getWorkloadTypeName(type) {
         case 'foundry': return 'Foundry Local';
         case 'edgerag': return 'Edge RAG';
         case 'videoindexer': return 'AI Video Indexer';
+        case 'ghel': return 'GitHub Enterprise Local';
         default: return '';
     }
 }
@@ -4692,6 +4949,16 @@ function getWorkloadDetails(w) {
             const totVcpu = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
             const totMem = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
             detail = `${workers} worker${workers > 1 ? 's' : ''} \u2022 ${isMin ? 'Minimum' : 'Recommended'} \u2022 ${totVcpu} vCPU / ${totMem} GB cluster-wide`;
+            break;
+        }
+        case 'ghel': {
+            const ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
+            const ghelReplicas = getGhelReplicasFromWorkload(w);
+            const ghelVms = 1 + ghelReplicas;
+            const ghelTopology = ghelReplicas === 0 ? '1 VM'
+                : ghelReplicas === 1 ? '2 VMs (HA pair)'
+                : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
+            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>`;
             break;
         }
         default:
@@ -4828,6 +5095,19 @@ function calculateWorkloadRequirements(w) {
             vcpus = cpVcpus + workerVcpus + VI_OPERATOR_VCPU;
             memory = cpMemory + workerMemory + VI_OPERATOR_MEM_GB;
             storage = cpStorage + workerStorageOs + pvStorage;
+            break;
+        }
+        case 'ghel': {
+            // GHEL = GHES VM(s) sized from the "Minimum recommended
+            // requirements" table. 1 primary + 0-7 replicas (GitHub caps
+            // total HA replicas at 8). Each replica is sized identically
+            // to the primary; HA is active/passive so adding replicas does
+            // not add write throughput.
+            const ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
+            const vmCount = 1 + getGhelReplicasFromWorkload(w);
+            vcpus = ghelTier.vcpus * vmCount;
+            memory = ghelTier.memory * vmCount;
+            storage = (ghelTier.rootStorage + ghelTier.dataStorage) * vmCount;
             break;
         }
     }
@@ -5107,6 +5387,85 @@ function calculateRequirements(options) {
                     updateNodeRecommendation(finalRec);
                 }
 
+                // --- 2-node memory-density preference: prefer 3 nodes over high-DIMM 2-node ---
+                // When the conservative pass lands on exactly 2 nodes but per-node memory has
+                // climbed above NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB (default 768 GB),
+                // prefer a 3-node cluster instead. Rationale: 2 nodes only supports a 2-way
+                // mirror (single fault domain after one node failure); a 3rd node unlocks
+                // 3-way mirror and spreads memory across more (smaller, cheaper) DIMMs.
+                // Only runs when conservative scaling already succeeded (no >=90% pressure),
+                // user has not pinned the node count, and the cluster supports 3 nodes.
+                if (conservativeSuccess && nodeCount === 2 && hwConfig.memoryGB > NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB && nodeOptions.indexOf(3) !== -1) {
+                    const savedNodeCount2 = nodeCount;
+                    const savedHwConfig2 = hwConfig;
+                    const savedMem2 = parseInt(document.getElementById('node-memory').value) || 512;
+                    const savedResiliency2 = resiliency;
+                    const savedResiliencyMultiplier2 = resiliencyMultiplier;
+
+                    nodeCount = 3;
+                    document.getElementById('node-count').value = nodeCount;
+                    updateRepairDiskCountAuto();
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+                    resiliency = document.getElementById('resiliency').value;
+                    resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
+
+                    // Re-run conservative auto-scale so per-node memory can drop now that
+                    // the workload is spread across 3 nodes instead of 2.
+                    autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
+                    hwConfig = getHardwareConfig();
+
+                    // Verify the 3-node solution stays under the 90% utilisation threshold
+                    // across CPU / memory / storage / GPU. If anything is over, revert.
+                    const effNodes3 = nodeCount - 1;
+                    const vcpuToCore3 = getVcpuRatio();
+                    const physCores3 = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
+                    const memPerNode3 = hwConfig.memoryGB || 512;
+                    let rawGBPerNode3 = 0;
+                    if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                        rawGBPerNode3 = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                    }
+                    const rawTBPerNode3 = (rawGBPerNode3 / 1024) || DEFAULT_RAW_TB_PER_NODE;
+                    const hostReservedCores3 = getHostCpuReservedCores(hwConfig, clusterType);
+                    const availVcpus3 = Math.max(physCores3 - hostReservedCores3, 0) * effNodes3 * vcpuToCore3 - ARB_VCPU_OVERHEAD;
+                    const hostOverhead3 = getHostMemoryReservedGB(hwConfig, clusterType);
+                    const availMem3 = Math.max(memPerNode3 - hostOverhead3, 0) * effNodes3 - ARB_MEMORY_OVERHEAD_GB;
+                    const s2dRepair3TB = getS2dRepairReservedGB(nodeCount, rawGBPerNode3 > 0 ? (rawGBPerNode3 / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
+                    const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepair3TB / resiliencyMultiplier, 0);
+                    const cpuPct3 = availVcpus3 > 0 ? Math.round((totalVcpus / availVcpus3) * 100) : 0;
+                    const memPct3 = availMem3 > 0 ? Math.round((totalMemory / availMem3) * 100) : 0;
+                    const stoPct3 = availStorage3 > 0 ? Math.round(((totalStorage / 1000) / availStorage3) * 100) : 0;
+                    const gpuPerNode3 = hwConfig.gpuCount || 0;
+                    const availGpus3 = gpuPerNode3 * effNodes3;
+                    const gpuPct3 = (totalGpus > 0 && availGpus3 > 0) ? Math.round((totalGpus / availGpus3) * 100) : 0;
+
+                    if (cpuPct3 >= UTIL_THRESHOLD || memPct3 >= UTIL_THRESHOLD || stoPct3 >= UTIL_THRESHOLD || gpuPct3 >= UTIL_THRESHOLD) {
+                        // 3-node solution doesn't actually relieve pressure (e.g. resiliency
+                        // jump from 2-way → 3-way mirror chewed up the storage saving) — revert.
+                        nodeCount = savedNodeCount2;
+                        document.getElementById('node-count').value = savedNodeCount2;
+                        document.getElementById('node-memory').value = savedMem2;
+                        hwConfig = savedHwConfig2;
+                        resiliency = savedResiliency2;
+                        resiliencyMultiplier = savedResiliencyMultiplier2;
+                        updateResiliencyOptions();
+                        document.getElementById('resiliency').value = savedResiliency2;
+                        updateRepairDiskCountAuto();
+                        updateClusterInfo();
+                    } else {
+                        // Accepted — refresh recommendation banner to reflect the new node count
+                        markAutoScaled('node-count');
+                        const memDensityRec = getRecommendedNodeCount(
+                            totalVcpus, totalMemory, totalStorage,
+                            hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                        );
+                        if (memDensityRec) {
+                            memDensityRec.recommended = nodeCount;
+                            updateNodeRecommendation(memDensityRec);
+                        }
+                    }
+                }
+
                 // --- Final aggressive pass: allow ratio escalation and high memory ---
                 // Only run when the conservative node loop could NOT get all utilisation
                 // below the 90% threshold (e.g. hit max nodes with util still over 90%).
@@ -5373,7 +5732,7 @@ function calculateRequirements(options) {
         const isDisaggregated = clusterType === 'disaggregated';
         var storageLabelEl = document.getElementById('total-storage-label');
         if (storageLabelEl) {
-            storageLabelEl.textContent = isDisaggregated ? 'External SAN Storage Required' : 'Required Storage';
+            storageLabelEl.textContent = isDisaggregated ? 'Storage (SAN usable) required:' : 'Storage (usable) required:';
         }
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
@@ -6603,7 +6962,19 @@ function exportSizerWord() {
     var workloadRows = '';
     workloads.forEach(function(w) {
         var reqs = calculateWorkloadRequirements(w);
-        var typeLabel = w.type === 'vm' ? 'Virtual Machine' : w.type === 'aks' ? 'AKS Cluster' : 'Azure Virtual Desktop';
+        // Long-form labels for the report (kept distinct from the short
+        // workloadTypeDisplayName helper used in inline warnings).
+        var typeLabel;
+        switch (w.type) {
+            case 'vm':           typeLabel = 'Virtual Machine'; break;
+            case 'aks':          typeLabel = 'AKS Cluster'; break;
+            case 'avd':          typeLabel = 'Azure Virtual Desktop'; break;
+            case 'foundry':      typeLabel = 'Foundry Local'; break;
+            case 'edgerag':      typeLabel = 'Edge RAG'; break;
+            case 'videoindexer': typeLabel = 'AI Video Indexer'; break;
+            case 'ghel':         typeLabel = 'GitHub Enterprise Local'; break;
+            default:             typeLabel = w.type || 'Workload'; break;
+        }
         workloadRows += '<tr><td>' + escapeHtmlSizer(w.name || typeLabel) + '</td><td>' + typeLabel + '</td><td>' + reqs.vcpus + '</td><td>' + reqs.memory + ' GB</td><td>' + (reqs.storage / 1000).toFixed(2) + ' TB</td></tr>';
     });
 
@@ -7108,6 +7479,11 @@ function selectRegionAndConfigure(region, cloud) {
                 case 'videoindexer':
                     entry.configuration = w.configuration;
                     break;
+                case 'ghel':
+                    entry.tier = w.tier;
+                    entry.replicas = getGhelReplicasFromWorkload(w);
+                    entry.ha = entry.replicas >= 1;
+                    break;
             }
             return entry;
         })
@@ -7262,6 +7638,16 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     var viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
                     var viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
                     rows.push(['Workload', 'AI Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                } else if (w.type === 'ghel') {
+                    var ghelReqs = calculateWorkloadRequirements(w);
+                    var ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
+                    var ghelReplicas = getGhelReplicasFromWorkload(w);
+                    var ghelVms = 1 + ghelReplicas;
+                    var ghelTopo = ghelReplicas === 0 ? 'Single VM'
+                        : ghelReplicas === 1 ? 'HA pair (primary + 1 replica)'
+                        : 'Primary + ' + ghelReplicas + ' replicas';
+                    var ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB per VM';
+                    rows.push(['Workload', 'GitHub Enterprise Local', ghelDetail, ghelReqs.vcpus, ghelReqs.memory, ghelReqs.storage, 'No']);
                 }
             });
         }
@@ -7635,6 +8021,16 @@ function showImportModal(initialTab) {
 
 function closeImportModal() { // eslint-disable-line no-unused-vars
     var overlay = document.getElementById('import-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function showHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('hw-weighting-info-overlay');
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function closeHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('hw-weighting-info-overlay');
     if (overlay) overlay.style.display = 'none';
 }
 
@@ -8744,7 +9140,7 @@ function applyImportedSizerState(d) {
             }
         });
     }
-    var VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer'];
+    var VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer', 'ghel'];
     if (d && d.workloads !== undefined && d.workloads !== null) {
         if (!Array.isArray(d.workloads)) {
             console.warn('Import: workloads was not an array — ignoring it.');

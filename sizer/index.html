@@ -35,7 +35,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.22.61 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.22.62 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -99,7 +99,7 @@
                         </span>
                         <span>Azure Virtual Desktop</span>
                     </button>
-                    <button class="workload-type-btn" data-workload-type="foundry" onclick="showAddWorkloadModal('foundry')" data-tooltip="Foundry Local on Azure Local (Preview) — locally hosted AI model serving for SLMs and LLMs (DeepSeek, Microsoft, OpenAI, Qwen, Mistral, or BYO models) with optional GPU partitioning. Sized per model replica.">
+                    <button class="workload-type-btn" data-workload-type="foundry" onclick="showAddWorkloadModal('foundry')" data-tooltip="Foundry Local on Azure Local (Preview) — locally hosted AI model serving for SLMs and LLMs (DeepSeek, Microsoft, OpenAI, Qwen, Mistral, NVIDIA Nemotron, or BYO models) with optional GPU partitioning. Sized per model replica.">
                         <span class="workload-preview-badge">Preview</span>
                         <span class="workload-icon foundry">
                             <img src="../images/foundry-icon.png" alt="Foundry Local" width="28" height="28">
@@ -120,6 +120,13 @@
                         </span>
                         <span>AI Video Indexer</span>
                     </button>
+                    <button class="workload-type-btn" data-workload-type="ghel" onclick="showAddWorkloadModal('ghel')" data-tooltip="GitHub Enterprise Local (Public Preview) — GitHub Enterprise Server delivered as a prebuilt VM appliance on Azure Local for on-prem source control, Actions CI/CD, Packages, and DevSecOps in sovereign / disconnected environments. Single VM (PoC) or GHES replica-based HA on Azure Local.">
+                        <span class="workload-preview-badge">Preview</span>
+                        <span class="workload-icon ghel">
+                            <img src="../images/github-logo.png" alt="GitHub Enterprise Local" width="28" height="28">
+                        </span>
+                        <span>GitHub Enterprise Local</span>
+                    </button>
                 </div>
 
                 <!-- Workloads List -->
@@ -137,6 +144,7 @@
                                 <span>&#129504; Foundry Local</span>
                                 <span>&#128270; Edge RAG</span>
                                 <span>&#127916; AI Video Indexer</span>
+                                <span>&#128187; GitHub Enterprise Local</span>
                             </div>
                         </div>
                         <a href="#rack-viz-section" style="color: #60a5fa; text-decoration: underline; margin-top: 12px; display: inline-block; font-size: 13px;">View an example 3D visualization of the hardware below</a>
@@ -276,7 +284,7 @@
                         </svg>
                         Physical Node(s) - Example Hardware Configuration
                     </h2>
-                    <p class="section-desc">Define the physical hardware specifications for each node.</p>
+                    <p class="section-desc">Define the physical hardware specifications for each node. <a href="#" onclick="showHardwareWeightingInfo(); return false;" style="color: var(--accent-blue); font-size: 12px; margin-left: 6px; text-decoration: none;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">Info: Sizer hardware scaling weighting logic</a></p>
 
                     <!-- CPU Configuration -->
                     <h3 class="hw-subsection-title">CPU Configuration</h3>
@@ -591,7 +599,7 @@
                                 <path d="M13 17V5"/>
                                 <path d="M8 17v-3"/>
                             </svg>
-                            Hardware Requirements Summary
+                            Hardware Utilization Information
                         </h2>
                         <div class="section-header-actions">
                             <button id="share-url-btn-header" class="btn btn-secondary btn-sm" onclick="shareSizerURL()" title="Add workload(s) before you can share your Sizer configuration with others" disabled>
@@ -616,6 +624,17 @@
                 <!-- Total Requirements -->
                 <div class="requirements-grid">
                     <div class="requirement-card">
+                        <div class="req-icon workloads">
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                        </div>
+                        <div class="req-content">
+                            <span class="req-label">Number of workloads:</span>
+                            <span class="req-value" id="total-workloads">0</span>
+                        </div>
+                    </div>
+                    <div class="requirement-card">
                         <div class="req-icon cpu">
                             <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="4" y="4" width="16" height="16" rx="2"/>
@@ -624,7 +643,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Required vCPUs</span>
+                            <span class="req-label">Compute (vCPUs) required:</span>
                             <span class="req-value" id="total-vcpus">0</span>
                         </div>
                     </div>
@@ -636,7 +655,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Required Memory</span>
+                            <span class="req-label">Memory required:</span>
                             <span class="req-value" id="total-memory">0 GB</span>
                         </div>
                     </div>
@@ -649,19 +668,8 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label" id="total-storage-label">Required Storage</span>
+                            <span class="req-label" id="total-storage-label">Storage (usable) required:</span>
                             <span class="req-value" id="total-storage">0 TB</span>
-                        </div>
-                    </div>
-                    <div class="requirement-card">
-                        <div class="req-icon workloads">
-                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            </svg>
-                        </div>
-                        <div class="req-content">
-                            <span class="req-label">Number of Workloads</span>
-                            <span class="req-value" id="total-workloads">0</span>
                         </div>
                     </div>
                 </div>
@@ -1122,6 +1130,41 @@
                 <div style="text-align: center; margin-top: 12px;">
                     <button id="rvtools-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyRVToolsImport()" style="display: none;">Load Selected Cluster</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware Weighting Logic Info Modal -->
+    <div class="onboarding-overlay" id="hw-weighting-info-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 760px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 class="onboarding-title" style="margin: 0;">⚖️ Sizer hardware scaling weighting logic</h2>
+                <button onclick="closeHardwareWeightingInfo()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
+            </div>
+
+            <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">When you add or change workloads, the Sizer auto-picks a node count, per-node memory, and a vCPU:core ratio to keep all four resources (CPU / memory / storage / GPU) under 90 % utilisation while a node is offline for updates (the N+1 rule). The rules it follows, in order:</p>
+
+            <ol style="margin: 0 0 16px 18px; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.6;">
+                <li><strong>Prefer more nodes over bigger nodes.</strong> The recommender uses a fixed "preferred" per-node memory cap of <strong>1.5 TB</strong> (or 2 TB for clusters of 10+ nodes) when estimating the minimum node count. Adding a node is almost always cheaper than jumping a DIMM tier.</li>
+                <li><strong>Hardware scale-up order: cores → sockets → ratio.</strong> When demand outgrows the current per-node hardware, the Sizer first grows physical cores within the selected CPU SKU, then steps up to 2-socket, then loosens the vCPU:core ratio (4:1 → 6:1 → 8:1, etc.). Memory is bumped to the next DIMM tier as needed.</li>
+                <li><strong>Two-pass memory limits.</strong>
+                    <ul style="margin: 6px 0 0 16px; padding: 0;">
+                        <li><strong>Conservative pass</strong> — caps per-node memory at <strong>1.5 TB</strong>, then adds nodes if utilisation is still ≥ 90 %.</li>
+                        <li><strong>Aggressive pass</strong> — only if the node loop hit the 16-node cluster maximum, the Sizer escalates memory up to <strong>4 TB</strong> per node and loosens the vCPU:core ratio further.</li>
+                    </ul>
+                </li>
+                <li><strong>Prefer 3 nodes over a high-DIMM 2-node cluster.</strong> If a 2-node solution lands on more than <strong>768 GB</strong> per node, the Sizer auto-bumps to 3 nodes. That unlocks a <em>three-way mirror</em> (stronger resiliency — survives any single node failure with full data redundancy) and spreads the workload across smaller, cheaper DIMMs.</li>
+                <li><strong>Auto-upgrade to Disaggregated Storage at 16 nodes.</strong> If a hyperconverged cluster would need more than 16 nodes, the Sizer switches the cluster type to Disaggregated Storage (separate compute + storage racks) rather than packing 3-4 TB DIMMs into a maxed-out HCI cluster.</li>
+                <li><strong>Step back down when possible.</strong> After the aggressive pass, a reduction loop tries to lower the node count again if the bigger per-node hardware made it possible — keeping the cluster as small as the workload allows.</li>
+            </ol>
+
+            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
+                <strong style="color: var(--accent-blue); font-size: 13px;">💡 You are always in control.</strong>
+                <p style="margin: 6px 0 0 0; color: var(--text-primary); font-size: 13px; line-height: 1.5;">Every auto-decision is advisory. If you have a fixed requirement &mdash; a specific node count, a specific memory size per node, a specific CPU SKU, or a specific vCPU:core ratio &mdash; just set it manually. As soon as you change a field, the Sizer locks that choice and the auto-scaler respects it for all future workload changes.</p>
+            </div>
+
+            <div style="text-align: right; margin-top: 16px;">
+                <button onclick="closeHardwareWeightingInfo()" class="onboarding-btn onboarding-btn-primary">Got it</button>
             </div>
         </div>
     </div>

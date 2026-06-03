@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.62] - 2026-06-03
+
+Adds **GitHub Enterprise Local (GHEL)** as a first-class Sizer workload type (with tier-driven sizing and Advanced HA replica configuration), introduces a **Sizer hardware scaling weighting logic** info popup so users can see how the auto-scaler picks node count / memory / ratio / cluster type, and adds a **memory-density 2-node → 3-node soft preference** so a high-RAM 2-node cluster is auto-bumped to 3 nodes for a stronger 3-way mirror.
+
+### Added
+
+- **GitHub Enterprise Local (GHEL) workload type** in the Sizer (`sizer/sizer.js`, `sizer/index.html`). New tile alongside the existing VM / AKS / AVD / Foundry types, with tier-driven sizing (Trial through 8000–10000 seats from the [GHES minimum recommended requirements](https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements)), an HA Yes/No basic dropdown, and an **Advanced configuration** panel (collapsible `<details>`) for picking 0–7 replicas (1 primary + N) with a link to the [GHES HA docs](https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration) and a throughput note. Workload-card detail line shows the active topology (HA pair, Primary + N replicas) and includes a `(sizing info)` link straight to the GHES sizing reference.
+- **"Info: Sizer hardware scaling weighting logic" popup** in the *Physical Node(s) – Example Hardware Configuration* section of the Sizer (`sizer/index.html`, `sizer/sizer.js`). New blue inline link opens a modal that documents the auto-scaler's rules in order — prefer-more-nodes-over-bigger-nodes (1.5 TB / 2 TB memory cap), the cores → sockets → ratio escalation, the two-pass memory limits (1.5 TB conservative / 4 TB aggressive), the new 768 GB / 2-node → 3-node preference, the auto-upgrade to Disaggregated Storage at 16 nodes, and the step-back-down reduction loop — plus an explicit override note: every auto-decision is advisory and manually setting any field locks that choice.
+- **2-node memory-density 3-node preference** in `calculateRequirements()` (`sizer/sizer.js`). When the conservative pass lands on exactly 2 nodes but per-node memory has climbed above the new `NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB` (768 GB), the Sizer now auto-bumps to 3 nodes and re-runs the auto-scale so per-node memory drops to the next-lower DIMM tier. This unlocks a **three-way mirror** (single-node-failure resiliency with full data redundancy) and spreads the workload across smaller, cheaper DIMMs. The bump only runs when conservative scaling already succeeded (no >=90% pressure), the user has not pinned the node count, and the cluster supports 3 nodes; if the 3-node solution would push any resource over the 90% threshold, the Sizer reverts to 2 nodes. The trigger threshold and DIMM-tier alignment are guarded by new tests.
+
+### Changed
+
+- **`SIZER_VERSION` bumped 1 → 2** to reflect the new `tier` / `ha` / `replicas` fields on GHEL workloads in the Sizer export payload. The Sizer importer continues to accept v1 payloads (forward-compatible).
+
+### Tests
+
+- New constants test for `NODE_WEIGHT_2NODE_MEMORY_DENSITY_THRESHOLD_GB` (= 768) plus boundary assertions (1024 triggers, 768 does not) and DIMM-tier alignment (768 / 1024 both present in `MEMORY_OPTIONS_GB`).
+- New existence test for the `showHardwareWeightingInfo()` / `closeHardwareWeightingInfo()` modal handlers.
+- ESLint clean; HTML validation clean; full suite passes **1,325 / 1,325**.
+
+---
+
 ## [0.22.61] - 2026-06-02
 
 Documents ODIN's export/import format as machine-readable **JSON Schemas** and hardens the importers (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 schemas plus import hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
