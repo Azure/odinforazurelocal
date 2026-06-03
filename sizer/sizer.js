@@ -6223,7 +6223,9 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     // Assumptions + public references
     html += '<div style="font-weight: 600; margin: 10px 0 4px;">Assumptions</div>';
     html += '<ul style="margin: 0 0 4px 16px; padding: 0; font-size: 12px;">';
-    html += '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus, pool/ReFS runtime, CSV in-memory read cache), Arc/AMA/ATC/Defender agents, and live-migration / repair / patching headroom.</li>';
+    html += isDisaggregated
+        ? '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, external SAN connectivity (MPIO / HBA or iSCSI initiator), Arc/AMA/ATC/Defender agents, and live-migration / patching headroom. The S2D storage stack is not present on disaggregated hosts, so no Software Storage Bus / pool / CSV cache or storage-repair reservation applies.</li>'
+        : '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus, pool/ReFS runtime, CSV in-memory read cache), Arc/AMA/ATC/Defender agents, and live-migration / repair / patching headroom.</li>';
     html += '<li>The 8%-of-host-RAM term scales the reservation on large-memory nodes where fixed terms alone under-provision the root partition.</li>';
     html += '<li>Reserved capacity is excluded from workload-available vCPU and memory in all sizing calculations on this page.</li>';
     html += '</ul>';
