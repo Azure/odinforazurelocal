@@ -21,8 +21,7 @@
  *   - Interface-level QoS service-policy on storage trunks
  *   - VLAN trunking on host interfaces
  */
-/* global window, trackFormCompletion */
-(function () {
+(function() {
     'use strict';
 
     // ── Platform Detection ───────────────────────────────────────────
@@ -42,7 +41,7 @@
 
     // ── Cisco NX-OS Parser ───────────────────────────────────────────
     function parseNxos(config) {
-        var result = {
+        const result = {
             platform: 'nxos',
             pfcCos: [],
             classMapCos3: false,
@@ -61,13 +60,13 @@
             interfaceMtu: []
         };
 
-        var lines = config.split('\n');
-        var i, line, trimmed;
+        const lines = config.split('\n');
+        let i, line, trimmed;
 
         // Parse block-structured config line by line
-        var currentBlock = null;   // 'network-qos', 'qos-map', 'queuing', 'class-map', 'system-qos', 'interface'
-        var currentSubBlock = null;
-        var currentIntf = null;
+        let currentBlock = null;   // 'network-qos', 'qos-map', 'queuing', 'class-map', 'system-qos', 'interface'
+        let currentSubBlock = null;
+        let currentIntf = null;
 
         for (i = 0; i < lines.length; i++) {
             line = lines[i];
@@ -111,7 +110,7 @@
                     continue;
                 }
                 // interface Ethernet...
-                var intfMatch = trimmed.match(/^interface\s+(Ethernet\s*\d+\/\d+)/i);
+                const intfMatch = trimmed.match(/^interface\s+(Ethernet\s*\d+\/\d+)/i);
                 if (intfMatch) {
                     currentBlock = 'interface';
                     currentIntf = { name: intfMatch[1].replace(/\s+/g, ''), pfc: false, qosPolicy: false, trunk: false, mtu: null, vlans: '' };
@@ -123,7 +122,7 @@
             // Indented lines — children of current block
             // network-qos block: look for pause pfc-cos and mtu
             if (currentBlock === 'network-qos') {
-                var pfcMatch = trimmed.match(/pause\s+pfc-cos\s+(\d+)/i);
+                const pfcMatch = trimmed.match(/pause\s+pfc-cos\s+(\d+)/i);
                 if (pfcMatch) {
                     result.pfcCos.push(parseInt(pfcMatch[1], 10));
                 }
@@ -135,9 +134,9 @@
 
             // class-map block: look for match cos
             if (currentBlock === 'class-map') {
-                var cosMatch = trimmed.match(/match\s+cos\s+(\d+)/i);
+                const cosMatch = trimmed.match(/match\s+cos\s+(\d+)/i);
                 if (cosMatch) {
-                    var cos = parseInt(cosMatch[1], 10);
+                    const cos = parseInt(cosMatch[1], 10);
                     if (cos === 3) result.classMapCos3 = true;
                     if (cos === 7) result.classMapCos7 = true;
                     if (result.cosValues.indexOf(cos) === -1) result.cosValues.push(cos);
@@ -148,14 +147,14 @@
             // queuing block: look for bandwidth and ecn
             if (currentBlock === 'queuing') {
                 // Track which sub-class we're in
-                var qClassMatch = trimmed.match(/class\s+type\s+queuing\s+([\w-]+)/i);
+                const qClassMatch = trimmed.match(/class\s+type\s+queuing\s+([\w-]+)/i);
                 if (qClassMatch) {
                     currentSubBlock = qClassMatch[1].toLowerCase();
                     continue;
                 }
-                var bwMatch = trimmed.match(/bandwidth\s+(?:remaining\s+)?percent\s+(\d+)/i);
+                const bwMatch = trimmed.match(/bandwidth\s+(?:remaining\s+)?percent\s+(\d+)/i);
                 if (bwMatch) {
-                    var bw = parseInt(bwMatch[1], 10);
+                    const bw = parseInt(bwMatch[1], 10);
                     if (currentSubBlock && currentSubBlock.indexOf('q3') !== -1) {
                         result.etsBandwidthQueue3 = bw;
                     } else if (currentSubBlock && currentSubBlock.indexOf('q7') !== -1) {
@@ -192,11 +191,11 @@
                 if (/switchport\s+mode\s+trunk/i.test(trimmed)) {
                     currentIntf.trunk = true;
                 }
-                var mtuMatch = trimmed.match(/mtu\s+(\d+)/i);
+                const mtuMatch = trimmed.match(/mtu\s+(\d+)/i);
                 if (mtuMatch) {
                     currentIntf.mtu = parseInt(mtuMatch[1], 10);
                 }
-                var vlanMatch = trimmed.match(/switchport\s+trunk\s+allowed\s+vlan\s+([\d,\-]+)/i);
+                const vlanMatch = trimmed.match(/switchport\s+trunk\s+allowed\s+vlan\s+([\d,-]+)/i);
                 if (vlanMatch) {
                     currentIntf.vlans = vlanMatch[1];
                 }
@@ -241,7 +240,7 @@
                 }
                 currentIntf = null;
 
-                var im = trimmed.match(/^interface\s+(Ethernet\s*\d+\/\d+)/i);
+                const im = trimmed.match(/^interface\s+(Ethernet\s*\d+\/\d+)/i);
                 if (im) {
                     currentIntf = { name: im[1].replace(/\s+/g, ''), pfc: false, qosPolicy: false, trunk: false, mtu: null, shutdown: false };
                 }
@@ -249,7 +248,7 @@
                 if (/priority-flow-control\s+mode\s+on/i.test(trimmed)) currentIntf.pfc = true;
                 if (/service-policy\s+type\s+qos\s+input/i.test(trimmed)) currentIntf.qosPolicy = true;
                 if (/switchport\s+mode\s+trunk/i.test(trimmed)) currentIntf.trunk = true;
-                var mm = trimmed.match(/^mtu\s+(\d+)/i);
+                const mm = trimmed.match(/^mtu\s+(\d+)/i);
                 if (mm) currentIntf.mtu = parseInt(mm[1], 10);
                 if (/^shutdown$/i.test(trimmed)) currentIntf.shutdown = true;
             }
@@ -267,7 +266,7 @@
 
     // ── Dell OS10 Parser ─────────────────────────────────────────────
     function parseOs10(config) {
-        var result = {
+        const result = {
             platform: 'os10',
             pfcCos: [],
             classMapCos3: false,
@@ -287,11 +286,11 @@
             interfaceMtu: []
         };
 
-        var lines = config.split('\n');
-        var i, line, trimmed;
-        var currentBlock = null;
-        var currentSubBlock = null;
-        var currentIntf = null;
+        const lines = config.split('\n');
+        let i, line, trimmed;
+        let currentBlock = null;
+        let currentSubBlock = null;
+        let currentIntf = null;
 
         for (i = 0; i < lines.length; i++) {
             line = lines[i];
@@ -336,7 +335,7 @@
                     currentBlock = 'wred';
                     continue;
                 }
-                var intfMatch = trimmed.match(/^interface\s+(ethernet\s*\d+\/\d+\/\d+)/i);
+                const intfMatch = trimmed.match(/^interface\s+(ethernet\s*\d+\/\d+\/\d+)/i);
                 if (intfMatch) {
                     currentBlock = 'interface';
                     currentIntf = { name: intfMatch[1].replace(/\s+/g, ''), pfc: false, ets: false, qosPolicy: false, trunk: false, mtu: null, shutdown: false };
@@ -347,9 +346,9 @@
 
             // Children
             if (currentBlock === 'class-map-nq') {
-                var qgMatch = trimmed.match(/match\s+qos-group\s+(\d+)/i);
+                const qgMatch = trimmed.match(/match\s+qos-group\s+(\d+)/i);
                 if (qgMatch) {
-                    var qg = parseInt(qgMatch[1], 10);
+                    const qg = parseInt(qgMatch[1], 10);
                     if (qg === 3) result.classMapCos3 = true;
                     if (qg === 7) result.classMapCos7 = true;
                     if (result.cosValues.indexOf(qg) === -1) result.cosValues.push(qg);
@@ -358,7 +357,7 @@
             }
 
             if (currentBlock === 'pfc-policy') {
-                var pfcCosMatch = trimmed.match(/pfc-cos\s+(\d+)/i);
+                const pfcCosMatch = trimmed.match(/pfc-cos\s+(\d+)/i);
                 if (pfcCosMatch) {
                     result.pfcCos.push(parseInt(pfcCosMatch[1], 10));
                 }
@@ -366,9 +365,9 @@
             }
 
             if (currentBlock === 'ets-policy') {
-                var classMatch = trimmed.match(/class\s+([\w]+)/i);
+                const classMatch = trimmed.match(/class\s+([\w]+)/i);
                 if (classMatch) {
-                    var cn = classMatch[1].toLowerCase();
+                    const cn = classMatch[1].toLowerCase();
                     if (cn.indexOf('queue3') !== -1 || cn.indexOf('q3') !== -1 || cn === 'azlocal_queue3') {
                         currentSubBlock = 'q3';
                     } else if (cn.indexOf('queue7') !== -1 || cn.indexOf('q7') !== -1 || cn === 'azlocal_queue7') {
@@ -380,9 +379,9 @@
                     }
                     continue;
                 }
-                var bwMatch = trimmed.match(/bandwidth\s+percent\s+(\d+)/i);
+                const bwMatch = trimmed.match(/bandwidth\s+percent\s+(\d+)/i);
                 if (bwMatch) {
-                    var bw = parseInt(bwMatch[1], 10);
+                    const bw = parseInt(bwMatch[1], 10);
                     if (currentSubBlock === 'q3') result.etsBandwidthQueue3 = bw;
                     else if (currentSubBlock === 'q7') result.etsBandwidthQueue7 = bw;
                     else if (currentSubBlock === 'q0') result.etsBandwidthDefault = bw;
@@ -409,7 +408,7 @@
                 if (/ets\s+mode\s+on/i.test(trimmed)) currentIntf.ets = true;
                 if (/service-policy\s+input/i.test(trimmed)) currentIntf.qosPolicy = true;
                 if (/switchport\s+mode\s+trunk/i.test(trimmed)) currentIntf.trunk = true;
-                var mtuM = trimmed.match(/^mtu\s+(\d+)/i);
+                const mtuM = trimmed.match(/^mtu\s+(\d+)/i);
                 if (mtuM) currentIntf.mtu = parseInt(mtuM[1], 10);
                 if (/^shutdown$/i.test(trimmed)) currentIntf.shutdown = true;
             }
@@ -450,7 +449,7 @@
     //   hci_switched    — also used as fallback when no profile is supplied,
     //                     preserving the original behaviour from before profiles
     //                     existed.
-    var PROFILES = {
+    const PROFILES = {
         hci_switched: {
             label: 'Hyperconverged — Switched',
             rules: {
@@ -527,7 +526,7 @@
         }
     };
 
-    var NA_NOTES = {
+    const NA_NOTES = {
         hci_switchless: {
             'pfc-cos3':        'Switchless HCI — storage NICs are direct node-to-node; storage traffic never traverses the ToR.',
             'classmap-cos3':   'Switchless HCI — no storage traffic on the ToR.',
@@ -548,7 +547,7 @@
         }
     };
 
-    var RECOMMENDED_NOTES = {
+    const RECOMMENDED_NOTES = {
         disagg_iscsi: {
             'pfc-cos3':        'Recommended for iSCSI-based deployments to reduce drops under congestion, but not mandated as with RoCE. Guidance is evolving.',
             'classmap-cos3':   'Recommended to classify iSCSI storage traffic for PFC/ETS. Guidance is evolving.',
@@ -572,16 +571,16 @@
 
     // ── Validator ────────────────────────────────────────────────────
     function validate(parsed, profileKey) {
-        var profile = getProfile(profileKey);
-        var checks = rawChecks(parsed);
-        var filtered = [];
-        for (var i = 0; i < checks.length; i++) {
-            var ch = checks[i];
-            var rule = getRule(profile, ch.id);
+        const profile = getProfile(profileKey);
+        const checks = rawChecks(parsed);
+        const filtered = [];
+        for (let i = 0; i < checks.length; i++) {
+            const ch = checks[i];
+            const rule = getRule(profile, ch.id);
             if (rule === 'skip') {
                 // Emit an informational row rather than drop silently so
                 // operators can see we evaluated but intentionally skipped.
-                var naNote = (NA_NOTES[profileKey] && NA_NOTES[profileKey][ch.id]) || 'Not applicable for this deployment type.';
+                const naNote = (NA_NOTES[profileKey] && NA_NOTES[profileKey][ch.id]) || 'Not applicable for this deployment type.';
                 filtered.push({
                     id: ch.id,
                     name: ch.name,
@@ -593,7 +592,7 @@
                 continue;
             }
             if (rule === 'recommended' && ch.status === 'fail') {
-                var recNote = (RECOMMENDED_NOTES[profileKey] && RECOMMENDED_NOTES[profileKey][ch.id]) ||
+                const recNote = (RECOMMENDED_NOTES[profileKey] && RECOMMENDED_NOTES[profileKey][ch.id]) ||
                     'Recommended for this deployment type but not mandated.';
                 ch.status = 'warn';
                 ch.found = ch.found + ' — ' + recNote;
@@ -607,10 +606,10 @@
     // check based purely on the parsed config. validate() then re-maps status
     // according to the selected deployment profile.
     function rawChecks(parsed) {
-        var checks = [];
-        var isNxos = parsed.platform === 'nxos';
-        var detectedCos = parsed.cosValues && parsed.cosValues.length > 0 ? parsed.cosValues.sort(function(a,b){return a-b;}) : [];
-        var cosNote = detectedCos.length > 0 ? ' (detected CoS values: ' + detectedCos.join(', ') + ')' : '';
+        const checks = [];
+        const isNxos = parsed.platform === 'nxos';
+        const detectedCos = parsed.cosValues && parsed.cosValues.length > 0 ? parsed.cosValues.sort(function(a,b){return a-b;}) : [];
+        const cosNote = detectedCos.length > 0 ? ' (detected CoS values: ' + detectedCos.join(', ') + ')' : '';
 
         // 1. PFC on CoS 3 (or custom storage CoS)
         checks.push({
@@ -647,8 +646,8 @@
         });
 
         // 4. ETS: Storage queue ≥ 50%
-        var q3bw = parsed.etsBandwidthQueue3;
-        var q3Status = 'fail';
+        const q3bw = parsed.etsBandwidthQueue3;
+        let q3Status = 'fail';
         if (q3bw !== null && q3bw >= 50) q3Status = 'pass';
         else if (q3bw !== null && q3bw >= 40) q3Status = 'warn';
         checks.push({
@@ -661,8 +660,8 @@
         });
 
         // 5. ETS: Cluster queue 1–2%
-        var q7bw = parsed.etsBandwidthQueue7;
-        var q7Status = 'fail';
+        const q7bw = parsed.etsBandwidthQueue7;
+        let q7Status = 'fail';
         if (q7bw !== null && q7bw >= 1 && q7bw <= 2) q7Status = 'pass';
         else if (q7bw !== null && q7bw > 0) q7Status = 'warn';
         checks.push({
@@ -695,7 +694,7 @@
         });
 
         // 8. System QoS policy applied
-        var sysQosOk;
+        let sysQosOk;
         if (isNxos) {
             sysQosOk = parsed.systemQosNetworkPolicy && parsed.systemQosQueuingPolicy;
         } else {
@@ -716,16 +715,16 @@
         // The QoS service-policy is the definitive marker — interfaces with the QoS input
         // policy are the ones that classify storage traffic and MUST have PFC.
         // Interfaces without the policy (uplinks, BMC trunks, etc.) don't need PFC.
-        var trunkCount = parsed.interfaceTrunks.length;
-        var pfcCount = parsed.interfacePfc.length;
-        var qosPolicyInterfaces = parsed.interfaceQosPolicy;
-        var intfPfcStatus = 'fail';
-        var intfPfcFound;
+        const trunkCount = parsed.interfaceTrunks.length;
+        const pfcCount = parsed.interfacePfc.length;
+        const qosPolicyInterfaces = parsed.interfaceQosPolicy;
+        let intfPfcStatus = 'fail';
+        let intfPfcFound;
 
         if (qosPolicyInterfaces.length > 0) {
             // Smart check: compare PFC against QoS-policy interfaces (storage-facing)
-            var storageMissingPfc = qosPolicyInterfaces.filter(function (intf) { return parsed.interfacePfc.indexOf(intf) === -1; });
-            var nonStorageTrunks = parsed.interfaceTrunks.filter(function (t) { return qosPolicyInterfaces.indexOf(t) === -1; });
+            const storageMissingPfc = qosPolicyInterfaces.filter(function(intf) { return parsed.interfacePfc.indexOf(intf) === -1; });
+            const nonStorageTrunks = parsed.interfaceTrunks.filter(function(t) { return qosPolicyInterfaces.indexOf(t) === -1; });
 
             if (storageMissingPfc.length === 0 && qosPolicyInterfaces.length > 0) {
                 intfPfcStatus = 'pass';
@@ -747,7 +746,7 @@
             if (pfcCount === 0) {
                 intfPfcFound = 'Not found on any interface';
             } else if (intfPfcStatus === 'warn') {
-                var nonPfcTrunks = parsed.interfaceTrunks.filter(function (t) { return parsed.interfacePfc.indexOf(t) === -1; });
+                const nonPfcTrunks = parsed.interfaceTrunks.filter(function(t) { return parsed.interfacePfc.indexOf(t) === -1; });
                 intfPfcFound = pfcCount + ' of ' + trunkCount + ' trunk interface(s) have PFC. Enabled: ' + parsed.interfacePfc.join(', ') + '. Missing (requires validation): ' + nonPfcTrunks.join(', ');
             } else {
                 intfPfcFound = 'All ' + trunkCount + ' trunk interface(s) have PFC: ' + parsed.interfacePfc.join(', ');
@@ -763,8 +762,8 @@
         });
 
         // 10. Interface QoS service-policy
-        var qosPolicyCount = parsed.interfaceQosPolicy.length;
-        var intfQosStatus = 'fail';
+        const qosPolicyCount = parsed.interfaceQosPolicy.length;
+        let intfQosStatus = 'fail';
         if (qosPolicyCount > 0) intfQosStatus = 'pass';
         checks.push({
             id: 'intf-qos-policy',
@@ -792,20 +791,20 @@
 
     // ── Render Results ───────────────────────────────────────────────
     function renderResults(checks, platform, profileKey) {
-        var passCount = 0, warnCount = 0, failCount = 0, naCount = 0;
-        for (var c = 0; c < checks.length; c++) {
+        let passCount = 0, warnCount = 0, failCount = 0, naCount = 0;
+        for (let c = 0; c < checks.length; c++) {
             if (checks[c].status === 'pass') passCount++;
             else if (checks[c].status === 'warn') warnCount++;
             else if (checks[c].status === 'na') naCount++;
             else failCount++;
         }
 
-        var platformLabel = platform === 'nxos' ? 'Cisco NX-OS' : (platform === 'os10' ? 'Dell OS10' : 'Unknown');
-        var profile = getProfile(profileKey);
-        var overallStatus = failCount === 0 ? (warnCount === 0 ? 'COMPLIANT' : 'COMPLIANT WITH WARNINGS') : 'NOT COMPLIANT';
-        var overallClass = failCount === 0 ? (warnCount === 0 ? 'qa-pass' : 'qa-warn') : 'qa-fail';
+        const platformLabel = platform === 'nxos' ? 'Cisco NX-OS' : (platform === 'os10' ? 'Dell OS10' : 'Unknown');
+        const profile = getProfile(profileKey);
+        const overallStatus = failCount === 0 ? (warnCount === 0 ? 'COMPLIANT' : 'COMPLIANT WITH WARNINGS') : 'NOT COMPLIANT';
+        const overallClass = failCount === 0 ? (warnCount === 0 ? 'qa-pass' : 'qa-warn') : 'qa-fail';
 
-        var html = '';
+        let html = '';
 
         // Summary banner
         html += '<div class="qa-summary ' + overallClass + '">';
@@ -821,12 +820,12 @@
         html += '<table class="qa-table">';
         html += '<thead><tr><th></th><th>Check</th><th>Expected</th><th>Found</th></tr></thead>';
         html += '<tbody>';
-        for (var i = 0; i < checks.length; i++) {
-            var ch = checks[i];
-            var icon = ch.status === 'pass' ? '\u2705'
+        for (let i = 0; i < checks.length; i++) {
+            const ch = checks[i];
+            const icon = ch.status === 'pass' ? '\u2705'
                 : (ch.status === 'warn' ? '\u26A0\uFE0F'
-                : (ch.status === 'na' ? '\u2139\uFE0F' : '\u274C'));
-            var rowClass = 'qa-row-' + ch.status;
+                    : (ch.status === 'na' ? '\u2139\uFE0F' : '\u274C'));
+            const rowClass = 'qa-row-' + ch.status;
             html += '<tr class="' + rowClass + '">';
             html += '<td class="qa-icon">' + icon + '</td>';
             html += '<td><strong>' + escapeHtml(ch.name) + '</strong><br><span class="qa-desc">' + escapeHtml(ch.description) + '</span></td>';
@@ -848,12 +847,12 @@
     }
 
     // ── Public API ───────────────────────────────────────────────────
-    window.runQosAudit = function () {
-        var textarea = document.getElementById('sc-qos-audit-input');
-        var resultsDiv = document.getElementById('sc-qos-audit-results');
+    window.runQosAudit = function() {
+        const textarea = document.getElementById('sc-qos-audit-input');
+        const resultsDiv = document.getElementById('sc-qos-audit-results');
         if (!textarea || !resultsDiv) return;
 
-        var config = textarea.value;
+        const config = textarea.value;
         if (!config || config.trim().length < 50) {
             alert('Please paste a complete switch running-config output (minimum 50 characters).');
             return;
@@ -863,7 +862,7 @@
             return;
         }
 
-        var platform = detectPlatform(config);
+        const platform = detectPlatform(config);
         if (!platform) {
             alert('Unable to detect switch platform. Please paste a Cisco NX-OS or Dell OS10 running-config.');
             return;
@@ -871,12 +870,12 @@
 
         // Resolve deployment profile from the dropdown. "auto" inspects the
         // Designer handoff in localStorage to pick a sensible default.
-        var profileSelect = document.getElementById('sc-qos-audit-profile');
-        var profileKey = profileSelect ? profileSelect.value : 'hci_switched';
+        const profileSelect = document.getElementById('sc-qos-audit-profile');
+        let profileKey = profileSelect ? profileSelect.value : 'hci_switched';
         if (profileKey === 'auto') profileKey = resolveAutoProfile();
 
-        var parsed = platform === 'nxos' ? parseNxos(config) : parseOs10(config);
-        var checks = validate(parsed, profileKey);
+        const parsed = platform === 'nxos' ? parseNxos(config) : parseOs10(config);
+        const checks = validate(parsed, profileKey);
         resultsDiv.innerHTML = renderResults(checks, platform, profileKey);
         resultsDiv.style.display = 'block';
         resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -892,9 +891,9 @@
     // nothing is stored (fresh visit to the validator without Designer context).
     function resolveAutoProfile() {
         try {
-            var raw = localStorage.getItem('odinDesignerToSwitchConfig');
+            const raw = localStorage.getItem('odinDesignerToSwitchConfig');
             if (!raw) return 'hci_switched';
-            var ds = JSON.parse(raw);
+            const ds = JSON.parse(raw);
             if (ds && ds.architecture === 'disaggregated') {
                 if (ds.disaggStorageType === 'fc_san') return 'disagg_fc';
                 if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') return 'disagg_iscsi';

@@ -561,6 +561,28 @@ function getVcpuRatio() {
     return el ? parseInt(el.value) || 4 : 4;
 }
 
+// Debounce the "VM exceeds per-machine capacity" toast. calculateRequirements()
+// runs in cascades during Designer import, RVTools import, cluster-type
+// changes, etc. — and intermediate passes can see a too-small hardware default
+// that auto-scale immediately resolves. Only surface the toast if the
+// condition is still true after the cascade settles.
+let _vmExceedsToastTimer = null;
+function _scheduleVmExceedsToast() {
+    if (_vmExceedsToastTimer) clearTimeout(_vmExceedsToastTimer);
+    _vmExceedsToastTimer = setTimeout(function() {
+        _vmExceedsToastTimer = null;
+        if (window._sizerVmExceedsNode) {
+            showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+        }
+    }, 300);
+}
+function _clearVmExceedsToast() {
+    if (_vmExceedsToastTimer) {
+        clearTimeout(_vmExceedsToastTimer);
+        _vmExceedsToastTimer = null;
+    }
+}
+
 // Get human-readable GPU label from GPU type key
 function getGpuLabel(gpuType) {
     const model = GPU_MODELS[gpuType];
@@ -622,9 +644,9 @@ function getGpuRequirementFields(workloadType) {
     // DDA label varies by workload type
     const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host'
         : workloadType === 'foundry' ? 'GPUs per replica'
-        : workloadType === 'edgerag' ? 'GPUs per worker node'
-        : workloadType === 'videoindexer' ? 'GPUs per worker node'
-        : 'GPUs per VM';
+            : workloadType === 'edgerag' ? 'GPUs per worker node'
+                : workloadType === 'videoindexer' ? 'GPUs per worker node'
+                    : 'GPUs per VM';
     const ddaTooltip = workloadType === 'avd'
         ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
         : workloadType === 'foundry'
@@ -1120,7 +1142,7 @@ function buildMaxHardwareConfig(hwConfig) {
         maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
     }
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
-    var MAX_SOCKETS = 2;
+    const MAX_SOCKETS = 2;
 
     // Use a fixed per-node memory cap (1.5 TB) for node estimation to prefer adding
     // nodes over expensive high-capacity DIMMs. This cap must NOT depend on the current
@@ -1135,7 +1157,7 @@ function buildMaxHardwareConfig(hwConfig) {
         ? Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0)
         : NODE_WEIGHT_PREFERRED_MEMORY_GB;
 
-    var effectiveMaxMemory = PREFERRED_MAX_MEMORY_GB;
+    const effectiveMaxMemory = PREFERRED_MAX_MEMORY_GB;
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -1196,11 +1218,11 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     // Add per-cluster ARB overhead to total demand before dividing by per-node capacity
     const totalVcpusWithARB = totalVcpus + ARB_VCPU_OVERHEAD;
     const totalMemoryWithARB = totalMemoryGB + ARB_MEMORY_OVERHEAD_GB;
-    let computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpusWithARB / vcpusPerNode) : 1;
-    let memoryNodes = usableMemoryPerNode > 0 ? Math.ceil(totalMemoryWithARB / usableMemoryPerNode) : 1;
+    const computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpusWithARB / vcpusPerNode) : 1;
+    const memoryNodes = usableMemoryPerNode > 0 ? Math.ceil(totalMemoryWithARB / usableMemoryPerNode) : 1;
     // Disaggregated storage: external SAN, no S2D — skip storage node sizing
     const isDisaggCluster = document.getElementById('cluster-type') && document.getElementById('cluster-type').value === 'disaggregated';
-    let storageNodes = (!isDisaggCluster && maxRawStoragePerNodeGB > 0) ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 0;
+    const storageNodes = (!isDisaggCluster && maxRawStoragePerNodeGB > 0) ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 0;
 
     // GPU node calculation: GPUs need N+1 for maintenance (same as compute/memory)
     let gpuNodes = 0;
@@ -1214,9 +1236,9 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 
     // Base minimum from workload
     // N+1 only applies to compute, memory, and GPU (storage remains accessible during node drain)
-    let computeWithN1 = computeNodes >= 2 ? computeNodes + 1 : computeNodes;
-    let memoryWithN1 = memoryNodes >= 2 ? memoryNodes + 1 : memoryNodes;
-    let gpuWithN1 = gpuNodes >= 2 ? gpuNodes + 1 : gpuNodes;
+    const computeWithN1 = computeNodes >= 2 ? computeNodes + 1 : computeNodes;
+    const memoryWithN1 = memoryNodes >= 2 ? memoryNodes + 1 : memoryNodes;
+    const gpuWithN1 = gpuNodes >= 2 ? gpuNodes + 1 : gpuNodes;
     let recommended = Math.max(computeWithN1, memoryWithN1, storageNodes, gpuWithN1);
 
     // Enforce resiliency minimum
@@ -1250,7 +1272,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 // budget allows up to 16 nodes, so effective limit = min(16, floor(64 / racks)).
 // Results: 1–4 racks → 16/rack; 5 → 12; 6 → 10; 7 → 9; 8 → 8.
 function getDisaggMaxNodesPerRack(rackCount) {
-    var rc = parseInt(rackCount, 10) || 1;
+    let rc = parseInt(rackCount, 10) || 1;
     if (rc < 1) rc = 1;
     return Math.min(16, Math.floor(64 / rc));
 }
@@ -1263,11 +1285,11 @@ function getDisaggMaxNodesPerRack(rackCount) {
 function getConservativeNodeOptions(clusterType, rackCount) {
     if (clusterType === 'rack-aware') return [2, 4, 6, 8];
     if (clusterType === 'disaggregated') {
-        var rc = parseInt(rackCount, 10) || 1;
+        let rc = parseInt(rackCount, 10) || 1;
         if (rc < 1) rc = 1;
-        var maxPerRack = getDisaggMaxNodesPerRack(rc);
-        var opts = [];
-        for (var i = 1; i <= maxPerRack; i++) opts.push(i * rc);
+        const maxPerRack = getDisaggMaxNodesPerRack(rc);
+        const opts = [];
+        for (let i = 1; i <= maxPerRack; i++) opts.push(i * rc);
         return opts;
     }
     return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
@@ -1280,20 +1302,20 @@ function getConservativeNodeOptions(clusterType, rackCount) {
 // memory/ratio scaling should be tried first (cheaper than adding a SAN).
 // Returns { upgrade: false } or { upgrade: true, racks, estimatedNodes }.
 function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
-    var HCI_MAX = 16;
-    var cur = parseInt(currentNodeCount, 10) || 0;
+    const HCI_MAX = 16;
+    const cur = parseInt(currentNodeCount, 10) || 0;
     if (cur < HCI_MAX) return { upgrade: false };
-    var rec = parseInt(disaggRecommended, 10) || 0;
+    const rec = parseInt(disaggRecommended, 10) || 0;
     if (rec <= HCI_MAX) return { upgrade: false };
-    var racks = Math.min(4, Math.max(1, Math.ceil(rec / 16)));
+    const racks = Math.min(4, Math.max(1, Math.ceil(rec / 16)));
     return { upgrade: true, racks: racks, estimatedNodes: rec };
 }
 
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
-    var ct = document.getElementById('cluster-type').value;
+    const ct = document.getElementById('cluster-type').value;
     if (ct === 'disaggregated') {
-        var rc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
+        const rc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
         return rc * getDisaggMaxNodesPerRack(rc);
     }
     if (ct === 'rack-aware') return 8;
@@ -1308,11 +1330,11 @@ function snapToAvailableNodeCount(recommended) {
     if (clusterType === 'single') return 1;
     if (clusterType === 'aldo-mgmt') return 3;
     if (clusterType === 'disaggregated') {
-        var rackCountEl = document.getElementById('disagg-rack-count');
-        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        const rackCountEl = document.getElementById('disagg-rack-count');
+        const rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
         // Snap to nearest multiple of rackCount (capped by Designer-matched per-rack max)
-        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
-        var snapped = Math.ceil(recommended / rackCount) * rackCount;
+        const maxPerRack = getDisaggMaxNodesPerRack(rackCount);
+        const snapped = Math.ceil(recommended / rackCount) * rackCount;
         return Math.min(snapped, maxPerRack * rackCount);
     }
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
@@ -1353,7 +1375,7 @@ function updateNodeRecommendation(recommendation) {
         } else {
             msg = `Auto-configured ${snapped} node(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
-                msg += ` Includes N+1 maintenance capacity for compute and memory.`;
+                msg += ' Includes N+1 maintenance capacity for compute and memory.';
             }
         }
 
@@ -1623,10 +1645,10 @@ let _diskConsolidationInfo = null;
 let _storageLimitExceeded = false;
 
 // Track which hardware fields were auto-scaled so we can highlight them
-let _autoScaledFields = new Set();
+const _autoScaledFields = new Set();
 
 // Track which hardware fields were manually set by the user
-let _manualFields = new Set();
+const _manualFields = new Set();
 
 // Mark a field element as manually set by the user (add green highlight + MANUAL badge with × dismiss)
 function markManualSet(elementId) {
@@ -1655,7 +1677,7 @@ function markManualSet(elementId) {
                 dismiss.title = 'Remove this override';
                 dismiss.setAttribute('role', 'button');
                 dismiss.setAttribute('aria-label', 'Remove ' + (_MANUAL_FIELD_LABELS[elementId] || elementId) + ' override');
-                dismiss.addEventListener('click', function (e) {
+                dismiss.addEventListener('click', function(e) {
                     e.stopPropagation();
                     clearSingleManualOverride(elementId);
                 });
@@ -2114,7 +2136,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
         // Set disk count to the required amount, clamped between min (2) and max for storage type
-        let maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
         const minDisksForType = MIN_DISK_COUNT;
         let targetDisks = Math.max(minDisksForType, Math.min(disksNeeded, maxDisksForType));
 
@@ -2351,7 +2373,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Skip when the user has manually set memory (respect user override).
     if (!_memoryUserSet) {
         const baseMemCap = allowHighMemory ? MAX_MEMORY_GB : PREFERRED_MEM_CAP_GB;
-        let memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
+        const memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
             ? Math.min(NODE_WEIGHT_PREFERRED_MEMORY_GB, baseMemCap)
             : baseMemCap;
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
@@ -2550,14 +2572,14 @@ function checkForDesignerImport() {
 
         // For disaggregated, apply rack count before updating node options
         if (payload.clusterType === 'disaggregated' && payload.disaggRackCount) {
-            var rackCountSelect = document.getElementById('disagg-rack-count');
+            const rackCountSelect = document.getElementById('disagg-rack-count');
             if (rackCountSelect) {
                 rackCountSelect.value = String(payload.disaggRackCount);
             }
         }
 
         // Trigger cluster type change handlers to update node options, storage, etc.
-        var isDisaggImport = payload.clusterType === 'disaggregated';
+        const isDisaggImport = payload.clusterType === 'disaggregated';
         updateNodeOptionsForClusterType();
         updateStorageForClusterType();
         if (isDisaggImport) updateDisaggregatedUI(true);
@@ -2575,7 +2597,7 @@ function checkForDesignerImport() {
             _designerSpineCount = parseInt(payload.spineCount, 10) || 2;
         }
         if (payload.disaggStorageType) {
-            var storageTypeSelect = document.getElementById('disagg-storage-type');
+            const storageTypeSelect = document.getElementById('disagg-storage-type');
             if (storageTypeSelect) storageTypeSelect.value = payload.disaggStorageType;
         }
 
@@ -2630,7 +2652,7 @@ function checkForDesignerImport() {
         const banner = document.createElement('div');
         banner.id = 'designer-import-banner';
         banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg,rgba(139,92,246,0.95),rgba(59,130,246,0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
-        var subtitleText = typeLabel + ' \u2022 ' + nodeLabel;
+        let subtitleText = typeLabel + ' \u2022 ' + nodeLabel;
         if (restoredCount > 0) {
             subtitleText += ' \u2022 ' + restoredCount + ' workload' + (restoredCount > 1 ? 's' : '') + ' restored \u2014 add more or review sizing';
         } else {
@@ -2713,14 +2735,14 @@ function resumeSizerState() {
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
-    var clusterNameEl = document.getElementById('cluster-name');
+    const clusterNameEl = document.getElementById('cluster-name');
     if (clusterNameEl) {
         clusterNameEl.value = d.clusterName || '';
         if (typeof onClusterNameInput === 'function') onClusterNameInput();
     }
     // Restore disaggregated rack count before updating node options
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
-        var rackEl = document.getElementById('disagg-rack-count');
+        const rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
     }
     if (d.disaggSpineCount) {
@@ -2876,19 +2898,19 @@ function dismissSizerResumeBanner() {
 // Show a toast notification in the Sizer
 function showSizerToast(message, type) {
     // Remove any existing toast
-    var existing = document.getElementById('sizer-toast');
+    const existing = document.getElementById('sizer-toast');
     if (existing) existing.remove();
 
-    var bgColor = type === 'info' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))'
-                : type === 'success' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))'
-                : type === 'error' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))'
+    const bgColor = type === 'info' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))'
+        : type === 'success' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))'
+            : type === 'error' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))'
                 : 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))';
 
-    var icon = type === 'info' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 9v5M10 6.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>'
-             : type === 'success' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-             : '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 6v5M10 13.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    const icon = type === 'info' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 9v5M10 6.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>'
+        : type === 'success' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 6v5M10 13.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
-    var toast = document.createElement('div');
+    const toast = document.createElement('div');
     toast.id = 'sizer-toast';
     toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:14px 24px;background:' + bgColor + ';color:white;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;animation:slideDown 0.3s ease;max-width:600px;cursor:pointer;';
     toast.innerHTML = icon + '<span>' + message + '</span>';
@@ -3177,7 +3199,6 @@ const RESILIENCY_CONFIG = {
 };
 
 
-
 // Current modal state
 let currentModalType = null;
 
@@ -3246,13 +3267,13 @@ function onDisaggStorageTypeChange() { // eslint-disable-line no-unused-vars
 
 // Update legend items for disaggregated vs rack-aware
 function updateDisaggLegend() {
-    var clusterType = document.getElementById('cluster-type').value;
-    var isDisagg = clusterType === 'disaggregated';
-    var storageType = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
-    var smbEl = document.getElementById('legend-smb-trunk');
-    var lagEl = document.getElementById('legend-lag');
-    var fcEl = document.getElementById('legend-fc-switch');
-    var sanEl = document.getElementById('legend-san-appliance');
+    const clusterType = document.getElementById('cluster-type').value;
+    const isDisagg = clusterType === 'disaggregated';
+    const storageType = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+    const smbEl = document.getElementById('legend-smb-trunk');
+    const lagEl = document.getElementById('legend-lag');
+    const fcEl = document.getElementById('legend-fc-switch');
+    const sanEl = document.getElementById('legend-san-appliance');
     if (smbEl) smbEl.style.display = isDisagg ? 'none' : '';
     if (lagEl) lagEl.style.display = isDisagg ? 'none' : '';
     if (fcEl) fcEl.style.display = (isDisagg && storageType === 'fc_san') ? '' : 'none';
@@ -3262,26 +3283,26 @@ function updateDisaggLegend() {
 // Show/hide disaggregated-specific UI and disable storage fields
 function updateDisaggregatedUI(isDisagg) {
     // Show/hide rack count row
-    var rackRow = document.getElementById('disagg-rack-count-row');
+    const rackRow = document.getElementById('disagg-rack-count-row');
     if (rackRow) rackRow.style.display = isDisagg ? '' : 'none';
 
     // Show/hide storage type row
-    var storageTypeRow = document.getElementById('disagg-storage-type-row');
+    const storageTypeRow = document.getElementById('disagg-storage-type-row');
     if (storageTypeRow) storageTypeRow.style.display = isDisagg ? '' : 'none';
 
     // Update legend for disaggregated
     updateDisaggLegend();
 
     // Storage section fields to disable
-    var storageFieldIds = [
+    const storageFieldIds = [
         'storage-config', 'storage-tiering',
         'capacity-disk-count', 'capacity-disk-size', 'repair-disk-count',
         'cache-disk-count', 'cache-disk-size',
         'tiered-capacity-disk-count', 'tiered-capacity-disk-size', 'tiered-repair-disk-count'
     ];
-    var tooltip = isDisagg ? 'External SAN storage is used for workload storage requirements' : '';
-    storageFieldIds.forEach(function (id) {
-        var el = document.getElementById(id);
+    const tooltip = isDisagg ? 'External SAN storage is used for workload storage requirements' : '';
+    storageFieldIds.forEach(function(id) {
+        const el = document.getElementById(id);
         if (el) {
             el.disabled = isDisagg;
             el.title = tooltip;
@@ -3292,7 +3313,7 @@ function updateDisaggregatedUI(isDisagg) {
     // Storage capacity bar is always visible — styled differently for disaggregated in calculateRequirements()
 
     // Update HA/DR tip for disaggregated
-    var hadrTip = document.getElementById('hadr-tip');
+    const hadrTip = document.getElementById('hadr-tip');
     if (hadrTip) {
         if (isDisagg) {
             hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
@@ -3412,12 +3433,26 @@ function updateResiliencyRecommendation() {
     el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
+// Update a label's visible text without wiping any child elements (e.g. the
+// MANUAL / AUTO-SCALED badge spans appended by markManualSet / markAutoScaled).
+// label.textContent = '...' would destroy those badges; this only touches the
+// leading text node.
+function _setLabelText(label, newText) {
+    if (!label) return;
+    for (let i = 0; i < label.childNodes.length; i++) {
+        if (label.childNodes[i].nodeType === Node.TEXT_NODE) {
+            label.childNodes[i].textContent = newText;
+            return;
+        }
+    }
+    label.insertBefore(document.createTextNode(newText), label.firstChild);
+}
+
 // Update node count options based on cluster type
 function updateNodeOptionsForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeSelect = document.getElementById('node-count');
     const currentValue = parseInt(nodeSelect.value) || 3;
-    
     if (clusterType === 'single') {
         // Single node: fixed at 1, disable dropdown
         nodeSelect.innerHTML = '<option value="1">1 Node</option>';
@@ -3438,7 +3473,7 @@ function updateNodeOptionsForClusterType() {
             if (n === 8) label += ' (Maximum for Rack-Aware)';
             return `<option value="${n}">${label}</option>`;
         }).join('');
-        
+
         // Adjust current value to nearest valid even number
         if (currentValue <= 2) {
             nodeSelect.value = 2;
@@ -3454,17 +3489,17 @@ function updateNodeOptionsForClusterType() {
         // Per-rack maximum matches the Designer: min(16, floor(64 / rackCount))
         // so total nodes stay within the 64-node cluster cap across 1–8 racks.
         nodeSelect.disabled = false;
-        var rackCountEl = document.getElementById('disagg-rack-count');
-        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
-        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
-        var nodeOptions = [];
-        for (var n = 1; n <= maxPerRack; n++) nodeOptions.push(n);
-        nodeSelect.innerHTML = nodeOptions.map(function (n) {
-            var total = n * rackCount;
+        const rackCountEl = document.getElementById('disagg-rack-count');
+        const rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        const maxPerRack = getDisaggMaxNodesPerRack(rackCount);
+        const nodeOptions = [];
+        for (let n = 1; n <= maxPerRack; n++) nodeOptions.push(n);
+        nodeSelect.innerHTML = nodeOptions.map(function(n) {
+            const total = n * rackCount;
             return '<option value="' + total + '">' + n + ' Nodes per Rack (' + total + ' total)</option>';
         }).join('');
         // Preserve closest valid value
-        var closestTotal = Math.min(Math.max(currentValue, rackCount), maxPerRack * rackCount);
+        let closestTotal = Math.min(Math.max(currentValue, rackCount), maxPerRack * rackCount);
         // Snap to a multiple of rackCount
         closestTotal = Math.round(closestTotal / rackCount) * rackCount;
         if (closestTotal < rackCount) closestTotal = rackCount;
@@ -3475,14 +3510,14 @@ function updateNodeOptionsForClusterType() {
             nodeSelect.selectedIndex = 0;
         }
         // Update label to say "Nodes per Rack"
-        var nodeLabel = document.querySelector('label[for="node-count"]');
-        if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
+        const nodeLabel = document.querySelector('label[for="node-count"]');
+        _setLabelText(nodeLabel, 'Nodes per Rack');
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
         const nodeOptions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         nodeSelect.innerHTML = nodeOptions.map(n => `<option value="${n}">${n} Nodes</option>`).join('');
-        
+
         // Preserve current value if valid
         if (nodeOptions.includes(currentValue)) {
             nodeSelect.value = currentValue;
@@ -3493,8 +3528,8 @@ function updateNodeOptionsForClusterType() {
 
     // Reset node label back to default for non-disaggregated types
     if (clusterType !== 'disaggregated') {
-        var nodeLabel = document.querySelector('label[for="node-count"]');
-        if (nodeLabel) nodeLabel.textContent = 'Number of Physical Nodes';
+        const nodeLabel = document.querySelector('label[for="node-count"]');
+        _setLabelText(nodeLabel, 'Number of Physical Nodes');
     }
 }
 
@@ -3504,10 +3539,10 @@ function updateResiliencyOptions() {
     const nodeCount = parseInt(document.getElementById('node-count').value) || 1;
     const resiliencySelect = document.getElementById('resiliency');
     const currentResiliency = resiliencySelect.value;
-    
+
     // Build resiliency options based on cluster type and node count
     let options = '';
-    
+
     if (clusterType === 'single') {
         // Single node: only simple and 2-way mirror available
         options = `
@@ -3546,9 +3581,9 @@ function updateResiliencyOptions() {
             <option value="3way">Three-way Mirror (33% efficiency)</option>
         `;
     }
-    
+
     resiliencySelect.innerHTML = options;
-    
+
     // Default selection: for standard clusters with 3+ nodes, prefer 3-way mirror;
     // otherwise keep current selection if still valid
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
@@ -3575,19 +3610,19 @@ function updateClusterInfo() {
     const config = RESILIENCY_CONFIG[resiliency];
     const infoDiv = document.getElementById('cluster-info');
     const infoText = document.getElementById('cluster-info-text');
-    
+
     // Only show warning when resiliency requirements aren't met
     let showWarning = false;
     let message = '';
-    
+
     if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
-    
+
     infoDiv.style.display = showWarning ? 'flex' : 'none';
     infoText.textContent = message;
-    
+
     // Update N+1 tip text based on cluster type
     updateNodeTip();
 }
@@ -3597,7 +3632,7 @@ function updateNodeTip() {
     const clusterType = document.getElementById('cluster-type').value;
     const tipDiv = document.getElementById('node-n1-tip');
     const tipText = document.getElementById('node-n1-tip-text');
-    
+
     if (clusterType === 'single') {
         tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
@@ -3615,7 +3650,7 @@ function showAddWorkloadModal(type) {
     const overlay = document.getElementById('modal-overlay');
     const title = document.getElementById('modal-title');
     const body = document.getElementById('modal-body');
-    
+
     // Set title
     switch (type) {
         case 'vm':
@@ -4160,8 +4195,8 @@ function getGhelModalContent() {
     for (let r = 0; r <= 7; r++) {
         const label = r === 0 ? '0 replicas \u2014 single VM (no HA)'
             : r === 1 ? '1 replica (primary + 1)'
-            : r === 7 ? '7 replicas (primary + 7) \u2014 GitHub max'
-            : r + ' replicas (primary + ' + r + ')';
+                : r === 7 ? '7 replicas (primary + 7) \u2014 GitHub max'
+                    : r + ' replicas (primary + ' + r + ')';
         advancedReplicaOptions += '<option value="' + r + '">' + label + '</option>';
     }
     return `
@@ -4265,7 +4300,7 @@ function updateGhelTierDescription() {
     }
     const topology = replicas === 0 ? 'single VM (no HA)'
         : replicas === 1 ? 'primary + 1 replica (HA pair)'
-        : 'primary + ' + replicas + ' replicas';
+            : 'primary + ' + replicas + ' replicas';
     panel.innerHTML =
         '<strong>Per GHEL VM:</strong> ' + tier.vcpus + ' vCPU \u00b7 ' + tier.memory + ' GB RAM \u00b7 ' +
         tier.rootStorage + ' GB root disk + ' + tier.dataStorage + ' GB data disk' +
@@ -4434,7 +4469,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             message:
                 'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
                 'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
-                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.',
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
         };
     }
     // Foundry / Edge RAG / Video Indexer all run on AKS Arc — their DDA GPU
@@ -4452,7 +4487,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                     'The selected GPU (' + modelName + ') is not supported on AKS Arc.\n\n' +
                     wlName + ' runs on AKS Arc node pools, which currently only support ' +
                     'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
-                    'Either select a different GPU model, or set this workload\'s GPU Mode to None.',
+                    'Either select a different GPU model, or set this workload\'s GPU Mode to None.'
             };
         }
     }
@@ -4476,7 +4511,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                             'Another workload (' + otherWlName + ') is already using ' + otherName + ', ' +
                             'but this workload is set to use ' + myName + '. ' +
                             'An Azure Local cluster installs one GPU model in its nodes — every GPU-using workload must use the same model (homogeneous configuration).\n\n' +
-                            'Either change this workload\'s GPU to ' + otherName + ', or remove the existing ' + otherName + ' workload first.',
+                            'Either change this workload\'s GPU to ' + otherName + ', or remove the existing ' + otherName + ' workload first.'
                     };
                 }
             }
@@ -4487,14 +4522,14 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
 
 function addWorkload() {
     if (!currentModalType) return;
-    
+
     const name = document.getElementById('workload-name').value;
-    let workload = {
+    const workload = {
         id: editingWorkloadId || ++workloadIdCounter,
         type: currentModalType,
         name: name
     };
-    
+
     switch (currentModalType) {
         case 'vm':
             workload.inputMode = document.getElementById('vm-input-mode').value || 'per-vm';
@@ -4802,7 +4837,7 @@ function renderWorkloads() {
     if (!_emptyStateEl) {
         _emptyStateEl = document.getElementById('empty-state');
     }
-    
+
     if (workloads.length === 0) {
         container.innerHTML = '';
         if (_emptyStateEl) {
@@ -4812,7 +4847,7 @@ function renderWorkloads() {
         updateHwGpuTypeLock();
         return;
     }
-    
+
     let html = '';
     workloads.forEach(w => {
         const iconClass = w.type;
@@ -4853,7 +4888,7 @@ function renderWorkloads() {
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
     // Issue #230: when the list grows large (e.g. after an RVTools per-VM import),
     // cap its height and switch to a denser layout so it stays scannable.
@@ -4912,11 +4947,12 @@ function getWorkloadDetails(w) {
                 detail = `${w.count} VMs \u00d7 ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
             }
             break;
-        case 'aks':
+        case 'aks': {
             const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
             detail = `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
             break;
-        case 'avd':
+        }
+        case 'avd': {
             const sessionLabel = (w.sessionType || 'multi') === 'multi' ? 'multi-session' : 'single-session';
             const conc = w.concurrency != null ? w.concurrency : 100;
             const concurrentUsers = Math.ceil(w.userCount * conc / 100);
@@ -4931,6 +4967,7 @@ function getWorkloadDetails(w) {
             if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
             detail = avdDesc;
             break;
+        }
         case 'foundry': {
             const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
             const className = w.modelClass === 'custom'
@@ -4960,7 +4997,7 @@ function getWorkloadDetails(w) {
             const ghelVms = 1 + ghelReplicas;
             const ghelTopology = ghelReplicas === 0 ? '1 VM'
                 : ghelReplicas === 1 ? '2 VMs (HA pair)'
-                : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
+                    : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
             detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>`;
             break;
         }
@@ -4982,30 +5019,31 @@ function getWorkloadDetails(w) {
 // Calculate workload requirements
 function calculateWorkloadRequirements(w) {
     let vcpus = 0, memory = 0, storage = 0;
-    
+
     switch (w.type) {
         case 'vm':
             vcpus = w.vcpus * w.count;
             memory = w.memory * w.count;
             storage = w.storage * w.count;
             break;
-        case 'aks':
+        case 'aks': {
             // Control plane requirements per cluster
             const cpVcpus = w.controlPlaneNodes * w.controlPlaneVcpus;
             const cpMemory = w.controlPlaneNodes * w.controlPlaneMemory;
             const AKS_OS_DISK_GB = 200; // Fixed OS disk size per AKS Arc node (since Azure Local 2509)
             const cpStorage = w.controlPlaneNodes * AKS_OS_DISK_GB;
-            
+
             // Worker requirements per cluster
             const workerVcpus = w.workerNodes * w.workerVcpus;
             const workerMemory = w.workerNodes * w.workerMemory;
             const workerStorage = w.workerNodes * (AKS_OS_DISK_GB + w.workerStorage); // OS disk + data storage
-            
+
             // Total for all clusters
             vcpus = (cpVcpus + workerVcpus) * w.clusterCount;
             memory = (cpMemory + workerMemory) * w.clusterCount;
             storage = (cpStorage + workerStorage) * w.clusterCount;
             break;
+        }
         case 'avd': {
             // Single-session = every user gets a dedicated VM, so concurrency is always 100%
             const concPct = (w.sessionType === 'single') ? 1 : (w.concurrency != null ? w.concurrency : 100) / 100;
@@ -5309,8 +5347,8 @@ function calculateRequirements(options) {
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
-                var disaggRackEl = document.getElementById('disagg-rack-count');
-                var disaggRackCountForOpts = disaggRackEl ? (parseInt(disaggRackEl.value, 10) || 1) : 1;
+                const disaggRackEl = document.getElementById('disagg-rack-count');
+                const disaggRackCountForOpts = disaggRackEl ? (parseInt(disaggRackEl.value, 10) || 1) : 1;
                 const nodeOptions = getConservativeNodeOptions(clusterType, disaggRackCountForOpts);
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
@@ -5476,147 +5514,147 @@ function calculateRequirements(options) {
                 // memory/ratio escalation (e.g. bumping from 2 TB to 3 TB for headroom).
                 if (!conservativeSuccess) {
 
-                // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
-                // When we've hit the 16-node max on a standard cluster AND the disaggregated
-                // recommendation calls for more than 16 nodes, pivot to disaggregated before
-                // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
-                // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
-                // the aggressive memory/ratio escalation below fix the remaining utilisation.
-                if (clusterType === 'standard' && !_disaggAutoUpgraded) {
-                    var disaggRec = getRecommendedNodeCount(
-                        totalVcpus, totalMemory, totalStorage,
-                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
-                    );
-                    var upgradeDecision = shouldUpgradeToDisaggregated(
-                        nodeCount, disaggRec ? disaggRec.recommended : 0
-                    );
-                    if (upgradeDecision.upgrade) {
-                        var minRacks = upgradeDecision.racks;
+                    // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
+                    // When we've hit the 16-node max on a standard cluster AND the disaggregated
+                    // recommendation calls for more than 16 nodes, pivot to disaggregated before
+                    // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
+                    // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
+                    // the aggressive memory/ratio escalation below fix the remaining utilisation.
+                    if (clusterType === 'standard' && !_disaggAutoUpgraded) {
+                        const disaggRec = getRecommendedNodeCount(
+                            totalVcpus, totalMemory, totalStorage,
+                            hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                        );
+                        const upgradeDecision = shouldUpgradeToDisaggregated(
+                            nodeCount, disaggRec ? disaggRec.recommended : 0
+                        );
+                        if (upgradeDecision.upgrade) {
+                            const minRacks = upgradeDecision.racks;
 
-                        _disaggAutoUpgraded = true;
-                        document.getElementById('cluster-type').value = 'disaggregated';
-                        markAutoScaled('cluster-type');
-                        var rackEl = document.getElementById('disagg-rack-count');
-                        if (rackEl) rackEl.value = String(minRacks);
-                        updateNodeOptionsForClusterType();
-                        updateStorageForClusterType();
-                        updateResiliencyOptions();
-                        updateClusterInfo();
-                        updateDisaggregatedUI(true);
-                        _nodeCountUserSet = false;
-
-                        showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
-
-                        isCalculating = false;
-                        calculateRequirements();
-                        return;
-                    }
-                }
-
-                const aggressiveChanged = autoScaleHardware(
-                    totalVcpus, totalMemory, totalStorage, nodeCount,
-                    resiliencyMultiplier, hwConfig, previouslyAutoScaled,
-                    { allowRatioEscalation: true, allowHighMemory: true }
-                );
-                if (aggressiveChanged) {
-                    hwConfig = getHardwareConfig();
-
-                    // --- Node-reduction pass after aggressive scale-up ---
-                    // The aggressive pass may have bumped memory or ratio high enough
-                    // that fewer nodes are now sufficient. Try stepping node count back
-                    // down while all utilisation stays under the threshold ( < 90% ).
-                    // At each candidate node count, re-run conservative auto-scale so
-                    // per-node hardware (memory, ratio) scales down to preferred levels.
-                    const DOWN_UTIL_THRESHOLD = UTIL_THRESHOLD;
-                    const minNodeOption = nodeOptions[0]; // enforce cluster minimum (e.g. 2)
-                    const resiliencyMin = (RESILIENCY_CONFIG[resiliency] && RESILIENCY_CONFIG[resiliency].minNodes) || 2;
-                    const absoluteMin = Math.max(minNodeOption, resiliencyMin);
-                    let downAttempts = 0;
-
-                    while (nodeCount > absoluteMin && downAttempts < 16) {
-                        downAttempts++;
-                        // Find the next lower node option
-                        let prevNode = null;
-                        for (let i = nodeOptions.length - 1; i >= 0; i--) {
-                            if (nodeOptions[i] < nodeCount) { prevNode = nodeOptions[i]; break; }
-                        }
-                        if (!prevNode || prevNode < absoluteMin) break;
-
-                        // Tentatively reduce node count and re-run conservative auto-scale
-                        // Save current state so we can revert if utilisation is too high
-                        const savedNodeCount = nodeCount;
-                        const savedHwConfig = hwConfig;
-                        const savedRatio = getVcpuRatio();
-                        const savedMem = parseInt(document.getElementById('node-memory').value) || 512;
-                        const savedResiliency = resiliency;
-                        const savedResiliencyMultiplier = resiliencyMultiplier;
-
-                        nodeCount = prevNode;
-                        document.getElementById('node-count').value = nodeCount;
-
-                        // Reset ratio back to 4:1 (prefer nodes over ratio) if not user-set
-                        if (!_vcpuRatioUserSet && savedRatio > 4) {
-                            document.getElementById('vcpu-ratio').value = 4;
-                        }
-
-                        // Re-run conservative auto-scale at the lower node count
-                        autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
-                        hwConfig = getHardwareConfig();
-
-                        // Check utilisation at the reduced node count
-                        const dEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-                        const dVcpuToCore = getVcpuRatio();
-                        const dPhysCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
-                        const dMemPerNode = hwConfig.memoryGB || 512;
-                        let dRawGBPerNode = 0;
-                        if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
-                            dRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
-                        }
-                        const dRawTBPerNode = dRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
-
-                        const dAvailVcpus = Math.max(dPhysCores - getHostCpuReservedCores(hwConfig, clusterType), 0) * dEffNodes * dVcpuToCore - ARB_VCPU_OVERHEAD;
-                        const dHostOverhead = getHostMemoryReservedGB(hwConfig, clusterType);
-                        const dAvailMem = Math.max(dMemPerNode - dHostOverhead, 0) * dEffNodes - ARB_MEMORY_OVERHEAD_GB;
-                        const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                        const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);
-
-                        const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
-                        const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
-                        const dStoPct = dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0;
-
-                        if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
-                            // Can't reduce further — revert to the previous node count
-                            nodeCount = savedNodeCount;
-                            document.getElementById('node-count').value = savedNodeCount;
-                            if (!_vcpuRatioUserSet && savedRatio > 4) {
-                                document.getElementById('vcpu-ratio').value = savedRatio;
-                            }
-                            document.getElementById('node-memory').value = savedMem;
-                            hwConfig = savedHwConfig;
-                            resiliency = savedResiliency;
-                            resiliencyMultiplier = savedResiliencyMultiplier;
-                            // Restore resiliency dropdown
+                            _disaggAutoUpgraded = true;
+                            document.getElementById('cluster-type').value = 'disaggregated';
+                            markAutoScaled('cluster-type');
+                            const rackEl = document.getElementById('disagg-rack-count');
+                            if (rackEl) rackEl.value = String(minRacks);
+                            updateNodeOptionsForClusterType();
+                            updateStorageForClusterType();
                             updateResiliencyOptions();
-                            document.getElementById('resiliency').value = savedResiliency;
-                            break;
+                            updateClusterInfo();
+                            updateDisaggregatedUI(true);
+                            _nodeCountUserSet = false;
+
+                            showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+
+                            isCalculating = false;
+                            calculateRequirements();
+                            return;
                         }
-                        // Successfully reduced — update UI and continue trying
-                        updateResiliencyOptions();
-                        updateClusterInfo();
-                        resiliency = document.getElementById('resiliency').value;
-                        resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
-                        markAutoScaled('node-count');
                     }
 
-                    // After node reduction, do one final aggressive pass in case we
-                    // reduced nodes and now need ratio/memory to creep up slightly
-                    autoScaleHardware(
+                    const aggressiveChanged = autoScaleHardware(
                         totalVcpus, totalMemory, totalStorage, nodeCount,
                         resiliencyMultiplier, hwConfig, previouslyAutoScaled,
                         { allowRatioEscalation: true, allowHighMemory: true }
                     );
-                    hwConfig = getHardwareConfig();
-                }
+                    if (aggressiveChanged) {
+                        hwConfig = getHardwareConfig();
+
+                        // --- Node-reduction pass after aggressive scale-up ---
+                        // The aggressive pass may have bumped memory or ratio high enough
+                        // that fewer nodes are now sufficient. Try stepping node count back
+                        // down while all utilisation stays under the threshold ( < 90% ).
+                        // At each candidate node count, re-run conservative auto-scale so
+                        // per-node hardware (memory, ratio) scales down to preferred levels.
+                        const DOWN_UTIL_THRESHOLD = UTIL_THRESHOLD;
+                        const minNodeOption = nodeOptions[0]; // enforce cluster minimum (e.g. 2)
+                        const resiliencyMin = (RESILIENCY_CONFIG[resiliency] && RESILIENCY_CONFIG[resiliency].minNodes) || 2;
+                        const absoluteMin = Math.max(minNodeOption, resiliencyMin);
+                        let downAttempts = 0;
+
+                        while (nodeCount > absoluteMin && downAttempts < 16) {
+                            downAttempts++;
+                            // Find the next lower node option
+                            let prevNode = null;
+                            for (let i = nodeOptions.length - 1; i >= 0; i--) {
+                                if (nodeOptions[i] < nodeCount) { prevNode = nodeOptions[i]; break; }
+                            }
+                            if (!prevNode || prevNode < absoluteMin) break;
+
+                            // Tentatively reduce node count and re-run conservative auto-scale
+                            // Save current state so we can revert if utilisation is too high
+                            const savedNodeCount = nodeCount;
+                            const savedHwConfig = hwConfig;
+                            const savedRatio = getVcpuRatio();
+                            const savedMem = parseInt(document.getElementById('node-memory').value) || 512;
+                            const savedResiliency = resiliency;
+                            const savedResiliencyMultiplier = resiliencyMultiplier;
+
+                            nodeCount = prevNode;
+                            document.getElementById('node-count').value = nodeCount;
+
+                            // Reset ratio back to 4:1 (prefer nodes over ratio) if not user-set
+                            if (!_vcpuRatioUserSet && savedRatio > 4) {
+                                document.getElementById('vcpu-ratio').value = 4;
+                            }
+
+                            // Re-run conservative auto-scale at the lower node count
+                            autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
+                            hwConfig = getHardwareConfig();
+
+                            // Check utilisation at the reduced node count
+                            const dEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+                            const dVcpuToCore = getVcpuRatio();
+                            const dPhysCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
+                            const dMemPerNode = hwConfig.memoryGB || 512;
+                            let dRawGBPerNode = 0;
+                            if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                                dRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                            }
+                            const dRawTBPerNode = dRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
+
+                            const dAvailVcpus = Math.max(dPhysCores - getHostCpuReservedCores(hwConfig, clusterType), 0) * dEffNodes * dVcpuToCore - ARB_VCPU_OVERHEAD;
+                            const dHostOverhead = getHostMemoryReservedGB(hwConfig, clusterType);
+                            const dAvailMem = Math.max(dMemPerNode - dHostOverhead, 0) * dEffNodes - ARB_MEMORY_OVERHEAD_GB;
+                            const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
+                            const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);
+
+                            const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
+                            const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
+                            const dStoPct = dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0;
+
+                            if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
+                            // Can't reduce further — revert to the previous node count
+                                nodeCount = savedNodeCount;
+                                document.getElementById('node-count').value = savedNodeCount;
+                                if (!_vcpuRatioUserSet && savedRatio > 4) {
+                                    document.getElementById('vcpu-ratio').value = savedRatio;
+                                }
+                                document.getElementById('node-memory').value = savedMem;
+                                hwConfig = savedHwConfig;
+                                resiliency = savedResiliency;
+                                resiliencyMultiplier = savedResiliencyMultiplier;
+                                // Restore resiliency dropdown
+                                updateResiliencyOptions();
+                                document.getElementById('resiliency').value = savedResiliency;
+                                break;
+                            }
+                            // Successfully reduced — update UI and continue trying
+                            updateResiliencyOptions();
+                            updateClusterInfo();
+                            resiliency = document.getElementById('resiliency').value;
+                            resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
+                            markAutoScaled('node-count');
+                        }
+
+                        // After node reduction, do one final aggressive pass in case we
+                        // reduced nodes and now need ratio/memory to creep up slightly
+                        autoScaleHardware(
+                            totalVcpus, totalMemory, totalStorage, nodeCount,
+                            resiliencyMultiplier, hwConfig, previouslyAutoScaled,
+                            { allowRatioEscalation: true, allowHighMemory: true }
+                        );
+                        hwConfig = getHardwareConfig();
+                    }
                 } // end if (!conservativeSuccess)
 
                 // Update recommendation to reflect final node count after all passes
@@ -5667,16 +5705,16 @@ function calculateRequirements(options) {
         const perNodeUsable = totalStorage / 1000 / nodeCount; // TB usable per node (storage accessible during drain)
 
         // Determine if disaggregated for storage display logic
-        var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
+        const isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
         // SAN overhead: Infrastructure_1 (256 GB) + PerformanceHistory (20 GB), once per instance
-        var sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
-        var sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
+        const sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
+        const sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
 
         // Update total requirement cards
         document.getElementById('total-vcpus').textContent = totalVcpus;
         document.getElementById('total-memory').textContent = totalMemory + ' GB';
         // For disaggregated, include infra volume overhead in total storage display
-        var totalStorageDisplayTB = isDisaggPerNode ? sanTotalTB : (totalStorage / 1000);
+        const totalStorageDisplayTB = isDisaggPerNode ? sanTotalTB : (totalStorage / 1000);
         document.getElementById('total-storage').textContent = totalStorageDisplayTB.toFixed(2) + ' TB';
         document.getElementById('total-workloads').textContent = workloads.length;
 
@@ -5685,11 +5723,11 @@ function calculateRequirements(options) {
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
 
         // Reflect the current node count and vCPU overcommit ratio in the per-node heading
-        var perNodeTitleEl = document.getElementById('per-node-title');
+        const perNodeTitleEl = document.getElementById('per-node-title');
         if (perNodeTitleEl) {
             perNodeTitleEl.textContent = nodeCount + ' x Nodes Hardware Requirements:';
         }
-        var perNodeSubtitleEl = document.getElementById('per-node-subtitle');
+        const perNodeSubtitleEl = document.getElementById('per-node-subtitle');
         if (perNodeSubtitleEl) {
             perNodeSubtitleEl.innerHTML = '- includes N+1 nodes (for HA and update resiliency), compute uses a '
                 + '<a href="#vcpu-ratio" class="per-node-ratio-link" '
@@ -5699,9 +5737,9 @@ function calculateRequirements(options) {
         }
 
         // For disaggregated, show SAN storage requirement instead of per-node raw/usable
-        var perNodeStorageLabel = document.getElementById('per-node-storage-label');
-        var perNodeUsableLabel = document.getElementById('per-node-usable-label');
-        var perNodeUsableSection = document.getElementById('per-node-usable-section');
+        const perNodeStorageLabel = document.getElementById('per-node-storage-label');
+        const perNodeUsableLabel = document.getElementById('per-node-usable-label');
+        const perNodeUsableSection = document.getElementById('per-node-usable-section');
         if (isDisaggPerNode) {
             if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage Required (Total)';
             document.getElementById('per-node-storage').textContent = sanTotalTB.toFixed(2) + ' TB';
@@ -5717,7 +5755,7 @@ function calculateRequirements(options) {
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
-        var MAX_NODES;
+        let MAX_NODES;
         if (clusterType === 'disaggregated') {
             MAX_NODES = 64; // Always show max 64 for disaggregated (4 racks × 16 nodes)
         } else if (clusterType === 'rack-aware') {
@@ -5732,7 +5770,7 @@ function calculateRequirements(options) {
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
-        var nodesBarLabel = document.getElementById('nodes-bar-label');
+        const nodesBarLabel = document.getElementById('nodes-bar-label');
         if (nodesBarLabel) {
             if (clusterType === 'disaggregated') {
                 nodesBarLabel.textContent = 'Azure Local disaggregated instance size';
@@ -5741,7 +5779,7 @@ function calculateRequirements(options) {
             }
         }
         const isDisaggregated = clusterType === 'disaggregated';
-        var storageLabelEl = document.getElementById('total-storage-label');
+        const storageLabelEl = document.getElementById('total-storage-label');
         if (storageLabelEl) {
             storageLabelEl.textContent = isDisaggregated ? 'Storage (SAN usable) required:' : 'Storage (usable) required:';
         }
@@ -5787,9 +5825,9 @@ function calculateRequirements(options) {
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
 
         // Update storage bar label and style for disaggregated (SAN requirement, not utilization)
-        var storageBarLabel = document.getElementById('storage-bar-label');
+        const storageBarLabel = document.getElementById('storage-bar-label');
         if (isDisaggregated) {
-            var sanStorageTBDisplay = sanTotalTB.toFixed(1);
+            const sanStorageTBDisplay = sanTotalTB.toFixed(1);
             if (storageBarLabel) storageBarLabel.textContent = 'SAN Storage — Usable Capacity Required';
             document.getElementById('storage-percent').textContent = sanStorageTBDisplay + ' TB';
             document.getElementById('storage-fill').style.width = workloads.length > 0 ? '100%' : '0%';
@@ -5832,7 +5870,7 @@ function calculateRequirements(options) {
         document.getElementById('storage-fill').classList.toggle('over-threshold', !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD);
 
         // Show/hide utilization warning banner (include GPU, exclude storage for disaggregated)
-        var storageOverThreshold = !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD;
+        const storageOverThreshold = !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD;
         const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storageOverThreshold || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
         const warningBanner = document.getElementById('capacity-utilization-warning');
         if (warningBanner) {
@@ -5921,27 +5959,28 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Wall power = component power / efficiency
     const psuEfficiency = 0.96;
     const perNodeW = Math.round(componentPowerW / psuEfficiency);
-    var totalNodeW = perNodeW * nodeCount;
+    const totalNodeW = perNodeW * nodeCount;
 
     // Network infrastructure power (switches, spine switches)
-    var infraPowerW = 0;
-    var infraPowerNote = '';
-    var clusterType = document.getElementById('cluster-type').value;
+    let infraPowerW = 0;
+    let infraPowerNote = '';
+    const clusterType = document.getElementById('cluster-type').value;
+    let drc, dst, spineCount, torSwitchPower, torCount, bmcSwitchPower, bmcCount, fcSwitchPower, fcCount, spineSwitchPower;
     if (clusterType === 'disaggregated') {
-        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
-        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
-        var spineCount = 2;
+        drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+        dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+        spineCount = 2;
         // ToR/Leaf switches: ~250W each (Cisco 93180YC-FX class)
-        var torSwitchPower = 250;
-        var torCount = drc * 2;
+        torSwitchPower = 250;
+        torCount = drc * 2;
         // BMC switches: ~150W each (Cisco 9348GC class)
-        var bmcSwitchPower = 150;
-        var bmcCount = drc;
+        bmcSwitchPower = 150;
+        bmcCount = drc;
         // FC switches: ~200W each (if FC SAN)
-        var fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
-        var fcCount = (dst === 'fc_san') ? drc * 2 : 0;
+        fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
+        fcCount = (dst === 'fc_san') ? drc * 2 : 0;
         // Spine switches: ~350W each
-        var spineSwitchPower = 350;
+        spineSwitchPower = 350;
         infraPowerW = (torCount * torSwitchPower) + (bmcCount * bmcSwitchPower) + (fcCount * fcSwitchPower) + (spineCount * spineSwitchPower);
         infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
         if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
@@ -5950,7 +5989,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         // Standard HCI: 1 rack × (2 × ToR + 1 × BMC)
         // Rack-Aware: 2 racks × (2 × ToR + 1 × BMC)
         // ToR: ~250W (Cisco 93180YC-FX class), BMC: ~150W (Cisco 9348GC class)
-        var rackCount = (clusterType === 'rack-aware') ? 2 : 1;
+        const rackCount = (clusterType === 'rack-aware') ? 2 : 1;
         infraPowerW = rackCount * ((2 * 250) + (1 * 150));
     } else {
         // Single-node: 1 × BMC switch only (no ToR rendered for single-node).
@@ -5965,19 +6004,19 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const annualKwh = Math.round(totalW * 24 * 365 / 1000);
 
     // Rack units: 2U per node + switches per rack
-    var rackUnits;
-    var rackUnitLabel;
+    let rackUnits;
+    let rackUnitLabel;
     // The breakdown text appears below the value when the user clicks the
     // expand toggle (▸). Always populated; the cell stays collapsed by default.
-    var rackUnitsBreakdown = '';
+    let rackUnitsBreakdown = '';
     if (clusterType === 'disaggregated') {
-        var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
-        var bmcPerRack = 1; // 1 × 1U BMC switch per rack
-        var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
+        const torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
+        const bmcPerRack = 1; // 1 × 1U BMC switch per rack
+        const fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
         // External SAN storage appliances are excluded from the rack-U total —
         // form factor varies wildly by vendor (Pure Storage, NetApp, EMC, etc.)
         // and is the customer's choice. Consult the SAN vendor for actual U.
-        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
+        const switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
         rackUnitLabel = rackUnits + 'U';
         rackUnitsBreakdown = 'Across ' + drc + ' racks: ' +
@@ -5992,10 +6031,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         //   - Standard HCI (2-16):   2 × ToR + 1 × BMC = 3U of switches in 1 rack
         //   - Rack-Aware (2-8):      2 racks × (2 × ToR + 1 × BMC) = 6U of switches across 2 racks
         // Server nodes are 2U each, distributed across racks for Rack-Aware.
-        var torPerRackHci = nodeCount > 1 ? 2 : 0; // single-node has no ToR in the viz
-        var bmcPerRackHci = 1;                     // BMC switch in every rack incl. single-node
-        var racksHci = (clusterType === 'rack-aware') ? 2 : 1;
-        var switchUnitsHci = racksHci * (torPerRackHci + bmcPerRackHci);
+        const torPerRackHci = nodeCount > 1 ? 2 : 0; // single-node has no ToR in the viz
+        const bmcPerRackHci = 1;                     // BMC switch in every rack incl. single-node
+        const racksHci = (clusterType === 'rack-aware') ? 2 : 1;
+        const switchUnitsHci = racksHci * (torPerRackHci + bmcPerRackHci);
         rackUnits = (nodeCount * 2) + switchUnitsHci;
         rackUnitLabel = rackUnits + 'U';
         if (clusterType === 'rack-aware') {
@@ -6050,15 +6089,15 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     updateRunningCost();
 
     // Update rack units label
-    var rackUnitsLabelEl = document.getElementById('rack-units-label');
+    const rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
         rackUnitsLabelEl.textContent = 'Rack Units (est.)';
     }
 
     // Populate the inline expandable breakdown beneath the value, and toggle
     // the chevron's visibility.
-    var rackUnitsToggleEl = document.getElementById('rack-units-toggle');
-    var rackUnitsDetailEl = document.getElementById('rack-units-detail');
+    const rackUnitsToggleEl = document.getElementById('rack-units-toggle');
+    const rackUnitsDetailEl = document.getElementById('rack-units-detail');
     if (rackUnitsToggleEl && rackUnitsDetailEl) {
         if (rackUnitsBreakdown) {
             rackUnitsDetailEl.textContent = rackUnitsBreakdown;
@@ -6072,7 +6111,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     }
 
     // Infrastructure power breakdown note
-    var infraNoteEl = document.getElementById('power-infra-note');
+    const infraNoteEl = document.getElementById('power-infra-note');
     if (infraNoteEl) {
         if (clusterType === 'disaggregated' && infraPowerNote) {
             infraNoteEl.innerHTML = '<strong>Network infrastructure power:</strong> ' + infraPowerW.toLocaleString() + ' W (' + infraPowerNote + ') included in total.'
@@ -6086,9 +6125,9 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     section.style.display = 'block';
 
     // Populate Advanced Detail breakdown
-    var detailEl = document.getElementById('power-detail-content');
+    const detailEl = document.getElementById('power-detail-content');
     if (detailEl) {
-        var lines = [];
+        const lines = [];
         lines.push('<strong>Per-Node Component Power (DC):</strong>');
         lines.push('CPU: ' + sockets + ' × ' + cpuTdp + 'W TDP = <strong>' + cpuPowerW + 'W</strong>');
         if (hwConfig.generation && hwConfig.generation.maxCores && hwConfig.coresPerSocket) {
@@ -6098,8 +6137,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         lines.push('Data disks: <strong>' + diskPowerW + 'W</strong> (NVMe/SSD: 8W each, HDD: 12W each)');
         lines.push('Boot disks: 2 × 8W = <strong>' + osDiskPowerW + 'W</strong> (M.2 boot drives)');
         if (gpuPowerW > 0) {
-            var gpuName = hwConfig.gpuType ? (GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].name : hwConfig.gpuType) : '';
-            var gpuTdpEach = GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].tdpW : 0;
+            const gpuName = hwConfig.gpuType ? (GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].name : hwConfig.gpuType) : '';
+            const gpuTdpEach = GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].tdpW : 0;
             lines.push('GPU: ' + hwConfig.gpuCount + ' × ' + gpuTdpEach + 'W (' + gpuName + ') = <strong>' + gpuPowerW + 'W</strong>');
         }
         lines.push('Base overhead: <strong>' + baseOverheadW + 'W</strong> (fans, motherboard, NICs, BMC)');
@@ -6124,7 +6163,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             } else if (nodeCount > 1) {
                 // Standard HCI (1 rack) or Rack-Aware (2 racks): 2 × ToR + 1 × BMC per rack
-                var racksLbl = (clusterType === 'rack-aware') ? 2 : 1;
+                const racksLbl = (clusterType === 'rack-aware') ? 2 : 1;
                 lines.push('ToR switches: ' + (racksLbl * 2) + ' × 250W = ' + (racksLbl * 2 * 250).toLocaleString() + 'W');
                 lines.push('BMC switches: ' + racksLbl + ' × 150W = ' + (racksLbl * 150).toLocaleString() + 'W');
                 lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
@@ -6159,7 +6198,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 
     // Update 3D rack visualization
     if (typeof renderRack3D === 'function') {
-        var diskTotal = 0;
+        let diskTotal = 0;
         if (hwConfig.diskConfig) {
             if (hwConfig.diskConfig.isTiered) {
                 diskTotal = (hwConfig.diskConfig.cache ? hwConfig.diskConfig.cache.count : 0)
@@ -6189,16 +6228,16 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 // user enters. Leaving the price box empty (or entering 0 / an invalid value)
 // clears the estimate back to a dash — the input is entirely optional.
 function updateRunningCost() {
-    var costEl = document.getElementById('power-cost');
-    var priceEl = document.getElementById('power-price-input');
+    const costEl = document.getElementById('power-cost');
+    const priceEl = document.getElementById('power-price-input');
     if (!costEl) { return; }
-    var annualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
-    var price = priceEl ? parseFloat(priceEl.value) : NaN;
+    const annualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
+    const price = priceEl ? parseFloat(priceEl.value) : NaN;
     if (annualKwh == null || !isFinite(price) || price <= 0) {
         costEl.textContent = '—';
         return;
     }
-    var annualCost = annualKwh * price;
+    const annualCost = annualKwh * price;
     costEl.textContent = annualCost.toLocaleString(undefined, {
         maximumFractionDigits: 0
     }) + '/yr';
@@ -6208,7 +6247,7 @@ function updateRunningCost() {
 function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes) {
     const notes = [];
     const clusterType = document.getElementById('cluster-type').value;
-    
+
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
@@ -6233,7 +6272,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (growthFactor > 1) {
             notes.push(`Future growth buffer: ${Math.round((growthFactor - 1) * 100)}% \u2014 hardware configuration allows for workload future growth headroom`);
         }
-        
+
         // Single node specific notes (cluster size + N+1 already shown above)
         if (clusterType === 'single') {
             if (resiliency === 'simple') {
@@ -6253,7 +6292,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push('Rack-Aware Cluster (RAC): Each rack acts as a fault domain, physical nodes are split evenly between two racks, minimum 2 nodes, maximum 8 nodes.');
             }
         }
-        
+
         // Resiliency note
         const resiliencyNames = {
             'simple': 'Simple (no redundancy, 1x raw storage)',
@@ -6263,7 +6302,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'external': 'External SAN Storage — resiliency managed by the SAN array (not Storage Spaces Direct)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
-        
+
         // Storage config note (skip for disaggregated — external SAN, no local S2D disks)
         if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
@@ -6277,7 +6316,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`Storage layout: ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }
         }
-        
+
         // Memory recommendation
         if (totalMemory > 0) {
             const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
@@ -6287,7 +6326,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding nodes.`);
             }
         }
-        
+
         // Compute check
         if (hwConfig && hwConfig.totalPhysicalCores > 0 && totalVcpus > 0) {
             const vcpuToCore = getVcpuRatio();
@@ -6376,16 +6415,16 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
-        let storageLimitMessages = [];
+        const storageLimitMessages = [];
 
         // Single workload exceeds per-node capacity check
-        var _vmExceedsNode = false;
+        let _vmExceedsNode = false;
         if (hwConfig) {
-            var singleVmVcpuRatio = getVcpuRatio();
-            var hostMemReservedGB = getHostMemoryReservedGB(hwConfig, clusterType);
-            var hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
-            var usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
-            var maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
+            const singleVmVcpuRatio = getVcpuRatio();
+            const hostMemReservedGB = getHostMemoryReservedGB(hwConfig, clusterType);
+            const hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
+            const usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
+            const maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
             workloads.forEach(function(w) {
                 // Only check single-VM placement for per-VM input mode. In 'total'
                 // input mode w.vcpus / w.memory are fleet aggregates with count=1,
@@ -6403,7 +6442,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 }
             });
             if (_vmExceedsNode) {
-                showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+                _scheduleVmExceedsToast();
+            } else {
+                _clearVmExceedsToast();
             }
         }
         // Store flag for Designer button gating
@@ -6446,7 +6487,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — export is blocked until corrected.';
             }
         }
-        
+
         // vCPU to core ratio
         const vcpuRatio = getVcpuRatio();
         if (_vcpuRatioAutoEscalated) {
@@ -6503,7 +6544,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push('ℹ️ Boot drive: minimum 400 GB OS disks recommended for systems with >768 GB memory.');
         }
     }
-    
+
     const notesList = document.getElementById('sizing-notes');
     notesList.innerHTML = notes.map(n => `<li>${n}</li>`).join('');
 
@@ -6548,16 +6589,14 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
 
     // CPU terms
     let cpuPct, cpuFloor;
-    if (isAldo) { cpuPct = 0.20; cpuFloor = 2; }
-    else if (isDisaggregated) { cpuPct = 0.10; cpuFloor = 1; }
-    else { cpuPct = 0.10; cpuFloor = 2; }
+    if (isAldo) { cpuPct = 0.20; cpuFloor = 2; } else if (isDisaggregated) { cpuPct = 0.10; cpuFloor = 1; } else { cpuPct = 0.10; cpuFloor = 2; }
     const cpuPctCores = Math.ceil(cpuPct * physicalCores);
     const coresReserved = Math.max(cpuPctCores, cpuFloor);
     const cpuFloorWins = cpuFloor > cpuPctCores;
 
     const deployLabel = isDisaggregated ? 'Disaggregated (external SAN — no local S2D stack)'
         : isAldo ? 'Azure Local Disconnected Operations (ALDO) management cluster'
-        : 'Standard hyperconverged (Storage Spaces Direct)';
+            : 'Standard hyperconverged (Storage Spaces Direct)';
     const s2dInUse = !isDisaggregated;
     const win = (active) => active
         ? 'color: var(--accent-blue); font-weight: 600;'
@@ -6615,11 +6654,11 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
 
 // ── Capacity Runway — Year-over-Year Growth Projection ──
 function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, nodeCount, hwConfig, effectiveNodes) {
-    var section = document.getElementById('growth-projection-section');
-    var content = document.getElementById('growth-projection-content');
+    const section = document.getElementById('growth-projection-section');
+    const content = document.getElementById('growth-projection-content');
     if (!section || !content) return;
 
-    var growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
+    const growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
 
     // Hide if no workloads or no growth configured
     if (workloads.length === 0 || growthPct === 0 || !hwConfig) {
@@ -6628,43 +6667,43 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
     }
 
     // Remove the growth factor already applied to totals to get raw base demand
-    var growthFactor = 1 + growthPct / 100;
-    var rawVcpus = Math.round(baseVcpus / growthFactor);
-    var rawMemory = Math.round(baseMemory / growthFactor);
-    var rawStorage = Math.round(baseStorage / growthFactor);
+    const growthFactor = 1 + growthPct / 100;
+    const rawVcpus = Math.round(baseVcpus / growthFactor);
+    const rawMemory = Math.round(baseMemory / growthFactor);
+    const rawStorage = Math.round(baseStorage / growthFactor);
 
     // Calculate capacity ceilings
-    var vcpuRatio = getVcpuRatio();
-    var clusterType = document.getElementById('cluster-type').value;
-    var hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
-    var totalVcpuCap = Math.max(hwConfig.totalPhysicalCores - hostReservedCores, 0) * effectiveNodes * vcpuRatio;
-    var usableMemPerNode = hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType);
-    var totalMemCap = usableMemPerNode * effectiveNodes;
-    var totalStorageCap = 0;
+    const vcpuRatio = getVcpuRatio();
+    const clusterType = document.getElementById('cluster-type').value;
+    const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+    const totalVcpuCap = Math.max(hwConfig.totalPhysicalCores - hostReservedCores, 0) * effectiveNodes * vcpuRatio;
+    const usableMemPerNode = hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType);
+    const totalMemCap = usableMemPerNode * effectiveNodes;
+    let totalStorageCap = 0;
     if (clusterType !== 'disaggregated') {
-        var usableStorageEl = document.getElementById('usable-storage');
+        const usableStorageEl = document.getElementById('usable-storage');
         if (usableStorageEl) {
-            var parsed = parseFloat(usableStorageEl.textContent.replace(/,/g, ''));
+            const parsed = parseFloat(usableStorageEl.textContent.replace(/,/g, ''));
             if (!isNaN(parsed)) totalStorageCap = Math.round(parsed * 1024); // TB to GB
         }
     }
 
-    var years = 5;
-    var rows = [];
-    var runwayYear = null;
+    const years = 5;
+    const rows = [];
+    let runwayYear = null;
 
-    for (var y = 0; y <= years; y++) {
-        var factor = Math.pow(1 + growthPct / 100, y);
-        var yVcpu = Math.ceil(rawVcpus * factor);
-        var yMem = Math.ceil(rawMemory * factor);
-        var yStor = Math.ceil(rawStorage * factor);
+    for (let y = 0; y <= years; y++) {
+        const factor = Math.pow(1 + growthPct / 100, y);
+        const yVcpu = Math.ceil(rawVcpus * factor);
+        const yMem = Math.ceil(rawMemory * factor);
+        const yStor = Math.ceil(rawStorage * factor);
 
-        var vcpuPct = totalVcpuCap > 0 ? Math.min(100, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
-        var memPct = totalMemCap > 0 ? Math.min(100, Math.round((yMem / totalMemCap) * 100)) : 0;
-        var storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
-        var maxPct = Math.max(vcpuPct, memPct, storPct);
+        const vcpuPct = totalVcpuCap > 0 ? Math.min(100, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
+        const memPct = totalMemCap > 0 ? Math.min(100, Math.round((yMem / totalMemCap) * 100)) : 0;
+        const storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
+        const maxPct = Math.max(vcpuPct, memPct, storPct);
 
-        var status;
+        let status;
         if (maxPct >= 90) {
             status = '🚫 ' + maxPct + '%';
             if (runwayYear === null && y > 0) runwayYear = y;
@@ -6684,7 +6723,7 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
     }
 
     // Build table
-    var html = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+    let html = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
     html += '<thead><tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">';
     html += '<th style="padding: 4px 8px;">Year</th>';
     html += '<th style="padding: 4px 8px;">vCPU</th>';
@@ -6720,58 +6759,58 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
 // Show "Configure in Designer" button only when workloads exist and all resources are under 90%
 // Update multi-instance summary (scale-out view — visual only, not used in sizing)
 function updateMultiInstanceSummary() {
-    var section = document.getElementById('multi-instance-section');
-    var summaryDiv = document.getElementById('multi-instance-summary');
+    const section = document.getElementById('multi-instance-section');
+    const summaryDiv = document.getElementById('multi-instance-summary');
     if (!section || !summaryDiv) return;
 
     // Show the section when workloads exist
     section.style.display = workloads.length > 0 ? '' : 'none';
 
-    var count = parseInt((document.getElementById('instance-count') || {}).value, 10) || 1;
+    const count = parseInt((document.getElementById('instance-count') || {}).value, 10) || 1;
     if (count <= 1) {
         summaryDiv.style.display = 'none';
         return;
     }
 
-    var nodeCount = parseInt(document.getElementById('node-count').value, 10) || 2;
-    var clusterType = document.getElementById('cluster-type').value;
-    var totalPowerText = document.getElementById('power-total');
-    var totalBtuText = document.getElementById('power-btu');
-    var rackUnitsEl = document.getElementById('rack-units');
+    const nodeCount = parseInt(document.getElementById('node-count').value, 10) || 2;
+    const clusterType = document.getElementById('cluster-type').value;
+    const totalPowerText = document.getElementById('power-total');
+    const totalBtuText = document.getElementById('power-btu');
+    const rackUnitsEl = document.getElementById('rack-units');
 
     // Parse single-instance values
-    var singlePowerW = parseInt((totalPowerText ? totalPowerText.textContent : '0').replace(/,/g, ''), 10) || 0;
-    var singleBtu = parseInt((totalBtuText ? totalBtuText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    const singlePowerW = parseInt((totalPowerText ? totalPowerText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    const singleBtu = parseInt((totalBtuText ? totalBtuText.textContent : '0').replace(/,/g, ''), 10) || 0;
     // Extract numeric rack units from the beginning of the text
-    var rackUnitText = rackUnitsEl ? rackUnitsEl.textContent : '0';
-    var singleRU = parseInt(rackUnitText, 10) || 0;
-    var racksPerInstance = 1;
+    const rackUnitText = rackUnitsEl ? rackUnitsEl.textContent : '0';
+    const singleRU = parseInt(rackUnitText, 10) || 0;
+    let racksPerInstance = 1;
     if (clusterType === 'disaggregated') {
         racksPerInstance = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
     } else if (clusterType === 'rack-aware') {
         racksPerInstance = 2;
     }
 
-    var totalNodes = nodeCount * count;
-    var totalRacks = racksPerInstance * count;
-    var totalPower = singlePowerW * count;
-    var totalBtu = singleBtu * count;
-    var totalRU = singleRU * count;
-    var hwConfig = getHardwareConfig();
-    var totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
-    var gpuLine = '';
+    const totalNodes = nodeCount * count;
+    const totalRacks = racksPerInstance * count;
+    const totalPower = singlePowerW * count;
+    const totalBtu = singleBtu * count;
+    const totalRU = singleRU * count;
+    const hwConfig = getHardwareConfig();
+    const totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
+    let gpuLine = '';
     if (hwConfig.gpuCount > 0 && hwConfig.gpuType) {
-        var totalGpus = hwConfig.gpuCount * nodeCount * count;
-        var gpuModel = GPU_MODELS[hwConfig.gpuType];
-        var gpuSpec = gpuModel ? gpuModel.name + ' (' + gpuModel.vramGB + ' GB VRAM)' : hwConfig.gpuType;
+        const totalGpus = hwConfig.gpuCount * nodeCount * count;
+        const gpuModel = GPU_MODELS[hwConfig.gpuType];
+        const gpuSpec = gpuModel ? gpuModel.name + ' (' + gpuModel.vramGB + ' GB VRAM)' : hwConfig.gpuType;
         gpuLine = '<span>Total GPUs: <strong>' + totalGpus.toLocaleString() + ' \u00d7 ' + gpuSpec + '</strong></span>';
     }
-    var totalMemoryGB = (hwConfig.memoryGB || 0) * nodeCount * count;
-    var totalMemoryLabel = totalMemoryGB >= 1048576 ? (totalMemoryGB / 1048576).toFixed(2) + ' PB'
+    const totalMemoryGB = (hwConfig.memoryGB || 0) * nodeCount * count;
+    const totalMemoryLabel = totalMemoryGB >= 1048576 ? (totalMemoryGB / 1048576).toFixed(2) + ' PB'
         : totalMemoryGB >= 1024 ? (totalMemoryGB / 1024).toFixed(1) + ' TB'
-        : totalMemoryGB.toLocaleString() + ' GB';
-    var totalPowerKW = (totalPower / 1000).toFixed(1);
-    var powerLabel = totalPower >= 1000000
+            : totalMemoryGB.toLocaleString() + ' GB';
+    const totalPowerKW = (totalPower / 1000).toFixed(1);
+    const powerLabel = totalPower >= 1000000
         ? totalPower.toLocaleString() + ' W (' + (totalPower / 1000000).toFixed(2) + ' MW)'
         : totalPower.toLocaleString() + ' W (' + totalPowerKW + ' kW)';
 
@@ -6830,9 +6869,9 @@ function updateDesignerActionVisibility() {
     }
 
     // Gate share URL buttons on workload presence
-    var shareButtonIds = ['share-url-btn-header', 'share-url-btn-footer'];
+    const shareButtonIds = ['share-url-btn-header', 'share-url-btn-footer'];
     shareButtonIds.forEach(function(id) {
-        var btn = document.getElementById(id);
+        const btn = document.getElementById(id);
         if (btn) {
             if (workloads.length === 0) {
                 btn.disabled = true;
@@ -6962,24 +7001,24 @@ function exportSizerWord() {
         return;
     }
 
-    var hwConfig = getHardwareConfig();
-    var clusterType = document.getElementById('cluster-type').value;
-    var nodeCount = document.getElementById('node-count').value;
-    var resiliency = document.getElementById('resiliency').value;
-    var futureGrowth = document.getElementById('future-growth').value;
-    var resConfig = RESILIENCY_CONFIG[resiliency] || {};
+    const hwConfig = getHardwareConfig();
+    const clusterType = document.getElementById('cluster-type').value;
+    const nodeCount = document.getElementById('node-count').value;
+    const resiliency = document.getElementById('resiliency').value;
+    const futureGrowth = document.getElementById('future-growth').value;
+    const resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    var clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
-    var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
-    var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
+    const clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
+    const storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
+    const growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 
     // Build workload rows
-    var workloadRows = '';
+    let workloadRows = '';
     workloads.forEach(function(w) {
-        var reqs = calculateWorkloadRequirements(w);
+        const reqs = calculateWorkloadRequirements(w);
         // Long-form labels for the report (kept distinct from the short
         // workloadTypeDisplayName helper used in inline warnings).
-        var typeLabel;
+        let typeLabel;
         switch (w.type) {
             case 'vm':           typeLabel = 'Virtual Machine'; break;
             case 'aks':          typeLabel = 'AKS Cluster'; break;
@@ -6994,41 +7033,41 @@ function exportSizerWord() {
     });
 
     // Read totals from the DOM
-    var totalVcpus = document.getElementById('total-vcpus').textContent || '0';
-    var totalMemory = document.getElementById('total-memory').textContent || '0';
-    var totalStorage = document.getElementById('total-storage').textContent || '0';
-    var perNodeCores = document.getElementById('per-node-cores').textContent || '0';
-    var perNodeMemory = document.getElementById('per-node-memory').textContent || '0';
-    var perNodeStorage = document.getElementById('per-node-storage').textContent || '0';
-    var perNodeUsable = document.getElementById('per-node-usable').textContent || '0';
-    var computePercent = document.getElementById('compute-percent').textContent || '0%';
-    var memoryPercent = document.getElementById('memory-percent').textContent || '0%';
-    var storagePercent = document.getElementById('storage-percent').textContent || '0%';
-    var gpuPercent = document.getElementById('gpu-percent').textContent || '0%';
-    var gpuVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
+    const totalVcpus = document.getElementById('total-vcpus').textContent || '0';
+    const totalMemory = document.getElementById('total-memory').textContent || '0';
+    const totalStorage = document.getElementById('total-storage').textContent || '0';
+    const perNodeCores = document.getElementById('per-node-cores').textContent || '0';
+    const perNodeMemory = document.getElementById('per-node-memory').textContent || '0';
+    const perNodeStorage = document.getElementById('per-node-storage').textContent || '0';
+    const perNodeUsable = document.getElementById('per-node-usable').textContent || '0';
+    const computePercent = document.getElementById('compute-percent').textContent || '0%';
+    const memoryPercent = document.getElementById('memory-percent').textContent || '0%';
+    const storagePercent = document.getElementById('storage-percent').textContent || '0%';
+    const gpuPercent = document.getElementById('gpu-percent').textContent || '0%';
+    const gpuVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
 
     // Disk config description
-    var diskDesc = '';
+    let diskDesc = '';
     if (hwConfig.diskConfig.isTiered) {
-        var cache = hwConfig.diskConfig.cache;
-        var cap = hwConfig.diskConfig.capacity;
+        const cache = hwConfig.diskConfig.cache;
+        const cap = hwConfig.diskConfig.capacity;
         diskDesc = 'Cache: ' + cache.count + 'x ' + formatDiskSize(cache.sizeGB) + ' (' + cache.type + ') + Capacity: ' + cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
     } else if (hwConfig.diskConfig.capacity) {
-        var cap = hwConfig.diskConfig.capacity;
+        const cap = hwConfig.diskConfig.capacity;
         diskDesc = cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
     }
 
     // Sizing notes
-    var notesEl = document.getElementById('sizing-notes');
-    var notesHtml = '';
+    const notesEl = document.getElementById('sizing-notes');
+    let notesHtml = '';
     if (notesEl) {
-        var items = notesEl.querySelectorAll('li');
-        for (var i = 0; i < items.length; i++) {
+        const items = notesEl.querySelectorAll('li');
+        for (let i = 0; i < items.length; i++) {
             notesHtml += '<li>' + items[i].textContent + '</li>';
         }
     }
 
-    var css = [
+    const css = [
         'body { font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #111; margin: 0; padding: 0.75in; }',
         'h1 { font-size: 22pt; color: #0078d4; margin: 0 0 4pt; }',
         'h2 { font-size: 14pt; color: #111; border-bottom: 2px solid #0078d4; padding-bottom: 4pt; margin: 18pt 0 10pt; }',
@@ -7048,7 +7087,7 @@ function exportSizerWord() {
         '@page { margin: 0.75in; }'
     ].join('\n');
 
-    var html = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    let html = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
         + '<head><meta charset="UTF-8"><title>ODIN Sizer Report</title><style>' + css + '</style></head><body>';
 
     html += '<h1>ODIN Sizer Report</h1>';
@@ -7128,12 +7167,12 @@ function exportSizerWord() {
     html += '</body></html>';
 
     // Download as .doc
-    var blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var ts = new Date();
-    var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
-    var fileName = 'ODIN-Sizer-Report-' + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate()) + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.doc';
-    var a = document.createElement('a');
+    const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const ts = new Date();
+    const pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+    const fileName = 'ODIN-Sizer-Report-' + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate()) + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.doc';
+    const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
     document.body.appendChild(a);
@@ -7196,10 +7235,10 @@ function updateRegionOptions() {
 // Show connectivity choice modal before proceeding to Designer
 function showConnectivityChoice() {
     // Remove any existing modal
-    var existing = document.getElementById('connectivity-choice-overlay');
+    const existing = document.getElementById('connectivity-choice-overlay');
     if (existing) existing.remove();
 
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.id = 'connectivity-choice-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
@@ -7222,16 +7261,16 @@ function showConnectivityChoice() {
 
 // Handle connectivity choice
 function selectConnectivity(mode) { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('connectivity-choice-overlay');
+    const overlay = document.getElementById('connectivity-choice-overlay');
     if (overlay) overlay.remove();
 
     if (mode === 'disconnected') {
         // Store choice and show FQDN modal
         window._sizerConnectivityChoice = 'disconnected';
-        var fqdnModal = document.getElementById('aldo-fqdn-modal');
-        var fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
+        const fqdnModal = document.getElementById('aldo-fqdn-modal');
+        const fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
         if (fqdnModal && fqdnOverlay) {
-            var fqdnInput = document.getElementById('aldo-fqdn-input');
+            const fqdnInput = document.getElementById('aldo-fqdn-input');
             if (fqdnInput) fqdnInput.value = '';
             clearAldoFqdnValidation();
             fqdnModal.classList.add('active');
@@ -7241,10 +7280,10 @@ function selectConnectivity(mode) { // eslint-disable-line no-unused-vars
     } else {
         // Connected: show region picker
         window._sizerConnectivityChoice = 'connected';
-        var modal = document.getElementById('region-picker-modal');
-        var regionOverlay = document.getElementById('region-modal-overlay');
+        const modal = document.getElementById('region-picker-modal');
+        const regionOverlay = document.getElementById('region-modal-overlay');
         if (modal && regionOverlay) {
-            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+            const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
             if (commercialRadio) commercialRadio.checked = true;
             updateRegionOptions();
             modal.classList.add('active');
@@ -7439,8 +7478,8 @@ function selectRegionAndConfigure(region, cloud) {
         },
         // Individual workload details (transparent pass-through to Report)
         sizerWorkloads: workloads.map(function(w) {
-            var req = calculateWorkloadRequirements(w);
-            var entry = {
+            const req = calculateWorkloadRequirements(w);
+            const entry = {
                 type: w.type,
                 name: w.name,
                 totalVcpus: req.vcpus,
@@ -7561,9 +7600,9 @@ function exportSizerJSON() {
 // Export hardware BOM as CSV spreadsheet
 function exportSizerCSV() { // eslint-disable-line no-unused-vars
     try {
-        var st = getSizerState();
-        var hwConfig = getHardwareConfig();
-        var rows = [];
+        const st = getSizerState();
+        const hwConfig = getHardwareConfig();
+        const rows = [];
         rows.push(['Category', 'Item', 'Value']);
 
         // Cluster
@@ -7583,7 +7622,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
         rows.push(['Memory', 'Per Machine (GB)', st.nodeMemory || '']);
 
         // Storage
-        var isTiered = st.storageTiering === 'tiered';
+        const isTiered = st.storageTiering === 'tiered';
         if (isTiered) {
             rows.push(['Storage', 'Type', 'Hybrid (Tiered)']);
             rows.push(['Storage', 'Cache Disk Count', st.cacheDiskCount || '']);
@@ -7598,7 +7637,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 
         // GPU
         if (st.gpuCount && parseInt(st.gpuCount, 10) > 0) {
-            var gpuModel = GPU_MODELS[st.gpuType];
+            const gpuModel = GPU_MODELS[st.gpuType];
             rows.push(['GPU', 'Model', gpuModel ? gpuModel.name : (st.gpuType || '')]);
             rows.push(['GPU', 'Per Machine', st.gpuCount]);
             rows.push(['GPU', 'VRAM (GB)', gpuModel ? gpuModel.vramGB : '']);
@@ -7606,10 +7645,10 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
         }
 
         // Power estimates
-        var perNodeEl = document.getElementById('power-per-node');
-        var totalPowerEl = document.getElementById('power-total');
-        var btuEl = document.getElementById('power-btu');
-        var rackEl = document.getElementById('rack-units');
+        const perNodeEl = document.getElementById('power-per-node');
+        const totalPowerEl = document.getElementById('power-total');
+        const btuEl = document.getElementById('power-btu');
+        const rackEl = document.getElementById('rack-units');
         if (perNodeEl && perNodeEl.textContent !== '—') {
             rows.push(['Power', 'Per Machine (est.)', perNodeEl.textContent]);
             rows.push(['Power', 'Total Instance (est.)', totalPowerEl ? totalPowerEl.textContent : '']);
@@ -7623,55 +7662,55 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
             rows.push(['Workload', 'Type', 'Detail', 'vCPUs', 'Memory (GB)', 'Storage (GB)', 'GPU']);
             st.workloads.forEach(function(w) {
                 if (w.type === 'vm') {
-                    var vmCount = w.count || 1;
-                    var totalVcpus = (w.vcpus || 0) * vmCount;
-                    var totalMem = (w.memory || 0) * vmCount;
-                    var totalStor = (w.storage || 0) * vmCount;
+                    const vmCount = w.count || 1;
+                    const totalVcpus = (w.vcpus || 0) * vmCount;
+                    const totalMem = (w.memory || 0) * vmCount;
+                    const totalStor = (w.storage || 0) * vmCount;
                     rows.push(['Workload', 'Azure Local VM', vmCount + ' VMs (' + (w.vcpus || 0) + ' vCPU, ' + (w.memory || 0) + ' GB, ' + (w.storage || 0) + ' GB each)', totalVcpus, totalMem, totalStor, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'aks') {
-                    var aksReqs = calculateWorkloadRequirements(w);
-                    var aksDetail = (w.clusterCount || 1) + ' cluster(s), ' + (w.controlPlaneNodes || 3) + ' CP + ' + (w.workerNodes || 3) + ' workers each';
+                    const aksReqs = calculateWorkloadRequirements(w);
+                    const aksDetail = (w.clusterCount || 1) + ' cluster(s), ' + (w.controlPlaneNodes || 3) + ' CP + ' + (w.workerNodes || 3) + ' workers each';
                     rows.push(['Workload', 'AKS Arc', aksDetail, aksReqs.vcpus, aksReqs.memory, aksReqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'avd') {
-                    var avdProfile = w.profile || 'medium';
-                    var users = w.userCount || 0;
-                    var reqs = calculateWorkloadRequirements(w);
+                    const avdProfile = w.profile || 'medium';
+                    const users = w.userCount || 0;
+                    const reqs = calculateWorkloadRequirements(w);
                     rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'foundry') {
-                    var foundryReqs = calculateWorkloadRequirements(w);
-                    var foundryClass = w.modelClass === 'custom'
+                    const foundryReqs = calculateWorkloadRequirements(w);
+                    const foundryClass = w.modelClass === 'custom'
                         ? 'Custom (' + (w.customVcpus || 0) + ' vCPU / ' + (w.customMemory || 0) + ' GB / ' + (w.customStorage || 0) + ' GB per replica)'
                         : (FOUNDRY_MODEL_CLASSES[w.modelClass] && FOUNDRY_MODEL_CLASSES[w.modelClass].name) || (w.modelClass || 'medium');
-                    var foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    const foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
                     rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'edgerag') {
-                    var edgeragReqs = calculateWorkloadRequirements(w);
-                    var edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
+                    const edgeragReqs = calculateWorkloadRequirements(w);
+                    const edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
                     rows.push(['Workload', 'Edge RAG', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'videoindexer') {
-                    var viReqs = calculateWorkloadRequirements(w);
-                    var isMin = w.configuration === 'minimum';
-                    var viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
-                    var viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
+                    const viReqs = calculateWorkloadRequirements(w);
+                    const isMin = w.configuration === 'minimum';
+                    const viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+                    const viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
                     rows.push(['Workload', 'AI Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'ghel') {
-                    var ghelReqs = calculateWorkloadRequirements(w);
-                    var ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
-                    var ghelReplicas = getGhelReplicasFromWorkload(w);
-                    var ghelVms = 1 + ghelReplicas;
-                    var ghelTopo = ghelReplicas === 0 ? 'Single VM'
+                    const ghelReqs = calculateWorkloadRequirements(w);
+                    const ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
+                    const ghelReplicas = getGhelReplicasFromWorkload(w);
+                    const ghelVms = 1 + ghelReplicas;
+                    const ghelTopo = ghelReplicas === 0 ? 'Single VM'
                         : ghelReplicas === 1 ? 'HA pair (primary + 1 replica)'
-                        : 'Primary + ' + ghelReplicas + ' replicas';
-                    var ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB per VM';
+                            : 'Primary + ' + ghelReplicas + ' replicas';
+                    const ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB per VM';
                     rows.push(['Workload', 'GitHub Enterprise Local', ghelDetail, ghelReqs.vcpus, ghelReqs.memory, ghelReqs.storage, 'No']);
                 }
             });
         }
 
         // Convert to CSV string
-        var csv = rows.map(function(row) {
+        const csv = rows.map(function(row) {
             return row.map(function(cell) {
-                var s = String(cell == null ? '' : cell);
+                const s = String(cell == null ? '' : cell);
                 if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
                     return '"' + s.replace(/"/g, '""') + '"';
                 }
@@ -7679,11 +7718,11 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
             }).join(',');
         }).join('\n');
 
-        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        var url = URL.createObjectURL(blob);
-        var dateStr = new Date().toISOString().slice(0, 10);
-        var filename = 'odin-sizer-bom_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.csv';
-        var a = document.createElement('a');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const filename = 'odin-sizer-bom_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.csv';
+        const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
@@ -7703,19 +7742,19 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
         return;
     }
     try {
-        var clusterNameEl = document.getElementById('cluster-name');
-        var defaultName = (clusterNameEl && clusterNameEl.value ? clusterNameEl.value.trim() : '').substring(0, 100);
-        var shareName = prompt('Enter a name for this configuration (optional):', defaultName);
+        const clusterNameEl = document.getElementById('cluster-name');
+        const defaultName = (clusterNameEl && clusterNameEl.value ? clusterNameEl.value.trim() : '').substring(0, 100);
+        const shareName = prompt('Enter a name for this configuration (optional):', defaultName);
         if (shareName === null) return; // User cancelled
 
-        var state = getSizerState();
+        const state = getSizerState();
         if (shareName.trim()) {
             // Limit to 100 characters
             state._shareName = shareName.trim().substring(0, 100);
         }
-        var json = JSON.stringify(state);
-        var encoded = btoa(unescape(encodeURIComponent(json)));
-        var url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
+        const json = JSON.stringify(state);
+        const encoded = btoa(unescape(encodeURIComponent(json)));
+        const url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
 
         if (url.length > 8000) {
             alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.');
@@ -7739,28 +7778,28 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
 
 // Import sizer configuration from URL query parameter on page load
 function loadSizerFromURL() {
-    var params = new URLSearchParams(window.location.search);
-    var configParam = params.get('config');
+    const params = new URLSearchParams(window.location.search);
+    const configParam = params.get('config');
     if (!configParam) return false;
 
     try {
-        var json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
-        var data = JSON.parse(json);
+        const json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
+        const data = JSON.parse(json);
         if (data && (data.clusterType || data.workloads)) {
-            var shareName = data._shareName || '';
+            const shareName = data._shareName || '';
             applyImportedSizerState(data);
             // Clean URL after loading
             history.replaceState(null, '', window.location.pathname);
             // Dismiss any resume banner that may have been triggered
-            var existingBanner = document.getElementById('sizer-resume-banner');
+            const existingBanner = document.getElementById('sizer-resume-banner');
             if (existingBanner) existingBanner.remove();
             // Show a confirmation banner with Ok button
-            var wlCount = data.workloads ? data.workloads.length : 0;
-            var bannerMsg = shareName
+            const wlCount = data.workloads ? data.workloads.length : 0;
+            let bannerMsg = shareName
                 ? 'Shared configuration loaded: <strong>"' + escapeHtml(shareName) + '"</strong>'
                 : 'Configuration loaded from a shared URL';
             if (wlCount > 0) bannerMsg += ' — ' + wlCount + ' workload(s)';
-            var urlBanner = document.createElement('div');
+            const urlBanner = document.createElement('div');
             urlBanner.id = 'sizer-resume-banner';
             urlBanner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
             urlBanner.innerHTML = '<span>🔗 ' + bannerMsg + '</span>'
@@ -7787,7 +7826,7 @@ function loadSizerFromURL() {
 // RVTools reports Memory / Provisioned MiB / In Use MiB in MiB. We divide by
 // 1024 and round to the nearest whole GB (minimum 1 so a workload is never 0).
 function rvtoolsMiBToGB(mib) {
-    var n = parseFloat(mib);
+    const n = parseFloat(mib);
     if (!isFinite(n) || n <= 0) return 0;
     return Math.max(1, Math.round(n / 1024));
 }
@@ -7795,7 +7834,7 @@ function rvtoolsMiBToGB(mib) {
 // Is this vInfo row an RVTools template? `Template` is an RVTools boolean
 // (is-this-a-template), surfaced as boolean true or the string "True".
 function rvtoolsIsTemplate(row) {
-    var t = row.Template;
+    const t = row.Template;
     return t === true || String(t).trim().toLowerCase() === 'true';
 }
 
@@ -7808,7 +7847,7 @@ function rvtoolsIsPoweredOn(row) {
 // (> 10000 GB) are rolled down to whole TB for readability; smaller figures
 // stay in GB. Returns a bold-wrapped value plus its unit.
 function rvtoolsFormatCapacity(gb) {
-    var n = Number(gb) || 0;
+    const n = Number(gb) || 0;
     if (n > 10000) {
         return '<strong>' + Math.floor(n / 1024) + '</strong> TB';
     }
@@ -7834,26 +7873,26 @@ function rvtoolsGBtoTB(gb) {
 // Returns { clusters, workloads, totals, warnings }.
 function transformRVToolsRows(sheets, options) {
     options = options || {};
-    var includePoweredOff = !!options.includePoweredOff;
-    var storageKey = options.storageSource === 'inuse' ? 'In Use MiB' : 'Provisioned MiB';
-    var mode = options.mode === 'per-vm' ? 'per-vm' : 'grouped';
+    const includePoweredOff = !!options.includePoweredOff;
+    const storageKey = options.storageSource === 'inuse' ? 'In Use MiB' : 'Provisioned MiB';
+    const mode = options.mode === 'per-vm' ? 'per-vm' : 'grouped';
     // Accept either `clusters` (array, multi-select) or legacy `cluster` (string).
-    var selectedClusters = null;
+    let selectedClusters = null;
     if (Array.isArray(options.clusters) && options.clusters.length) {
         selectedClusters = options.clusters.slice();
     } else if (typeof options.cluster === 'string' && options.cluster) {
         selectedClusters = [options.cluster];
     }
 
-    var warnings = [];
-    var vInfo = sheets && sheets.vInfo;
+    const warnings = [];
+    const vInfo = sheets && sheets.vInfo;
     if (!Array.isArray(vInfo)) {
         warnings.push('missing-vinfo');
         return { clusters: [], workloads: [], totals: emptyRVToolsTotals(), warnings: warnings };
     }
 
     // Filter: drop templates always; drop powered-off unless asked to include.
-    var included = vInfo.filter(function(row) {
+    const included = vInfo.filter(function(row) {
         if (rvtoolsIsTemplate(row)) return false;
         if (!includePoweredOff && !rvtoolsIsPoweredOn(row)) return false;
         return true;
@@ -7861,16 +7900,16 @@ function transformRVToolsRows(sheets, options) {
 
     // Per-cluster summary (built from vInfo.Cluster alone — never depends on a
     // vCluster sheet being present). Drives the preview table / picker.
-    var byCluster = {};
-    var clusterOrder = [];
+    const byCluster = {};
+    const clusterOrder = [];
     included.forEach(function(row) {
-        var cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
+        const cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
             ? '(no cluster)' : String(row.Cluster);
         if (!byCluster[cname]) {
             byCluster[cname] = { name: cname, vmCount: 0, vcpus: 0, memoryGB: 0, storageGB: 0, hosts: {} };
             clusterOrder.push(cname);
         }
-        var c = byCluster[cname];
+        const c = byCluster[cname];
         c.vmCount += 1;
         c.vcpus += parseInt(row.CPUs, 10) || 0;
         c.memoryGB += rvtoolsMiBToGB(row.Memory);
@@ -7879,8 +7918,8 @@ function transformRVToolsRows(sheets, options) {
             c.hosts[String(row.Host)] = true;
         }
     });
-    var clusters = clusterOrder.map(function(name) {
-        var c = byCluster[name];
+    const clusters = clusterOrder.map(function(name) {
+        const c = byCluster[name];
         return {
             name: c.name,
             vmCount: c.vmCount,
@@ -7892,11 +7931,11 @@ function transformRVToolsRows(sheets, options) {
     });
 
     // Totals across all included VMs (banner), independent of the selection.
-    var allHosts = {};
+    const allHosts = {};
     included.forEach(function(row) {
         if (row.Host !== undefined && row.Host !== null && row.Host !== '') allHosts[String(row.Host)] = true;
     });
-    var totals = {
+    const totals = {
         clusterCount: clusters.length,
         hostCount: Object.keys(allHosts).length,
         vmCount: included.length,
@@ -7909,15 +7948,15 @@ function transformRVToolsRows(sheets, options) {
     // clusters are consolidated into a single Sizer cluster (grouped bands merge
     // by size class; per-VM lists concatenate). If nothing is selected, fall back
     // to all included rows (used by tests and the combined preview).
-    var workloadRows = selectedClusters
+    const workloadRows = selectedClusters
         ? included.filter(function(row) {
-            var cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
+            const cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
                 ? '(no cluster)' : String(row.Cluster);
             return selectedClusters.indexOf(cname) !== -1;
         })
         : included;
 
-    var workloads = mode === 'per-vm'
+    const workloads = mode === 'per-vm'
         ? buildPerVMWorkloads(workloadRows, storageKey)
         : buildGroupedWorkloads(workloadRows, storageKey);
 
@@ -7948,12 +7987,12 @@ function buildPerVMWorkloads(rows, storageKey) {
 // one workload named after its characteristics — never a VM name. Storage per
 // VM is the band average (rounded) so count × storage ≈ band total.
 function buildGroupedWorkloads(rows, storageKey) {
-    var bands = {};
-    var order = [];
+    const bands = {};
+    const order = [];
     rows.forEach(function(row) {
-        var vcpus = parseInt(row.CPUs, 10) || 1;
-        var memGB = rvtoolsMiBToGB(row.Memory);
-        var key = vcpus + '|' + memGB;
+        const vcpus = parseInt(row.CPUs, 10) || 1;
+        const memGB = rvtoolsMiBToGB(row.Memory);
+        const key = vcpus + '|' + memGB;
         if (!bands[key]) {
             bands[key] = { vcpus: vcpus, memory: memGB, count: 0, storageTotal: 0 };
             order.push(key);
@@ -7962,8 +8001,8 @@ function buildGroupedWorkloads(rows, storageKey) {
         bands[key].storageTotal += rvtoolsMiBToGB(row[storageKey]);
     });
     return order.map(function(key) {
-        var b = bands[key];
-        var perVMStorage = Math.max(1, Math.round(b.storageTotal / b.count));
+        const b = bands[key];
+        const perVMStorage = Math.max(1, Math.round(b.storageTotal / b.count));
         return {
             type: 'vm',
             name: b.vcpus + ' vCPU / ' + b.memory + ' GB \u00d7' + b.count,
@@ -7986,7 +8025,7 @@ function buildGroupedWorkloads(rows, storageKey) {
 // the field blank rather than inventing a name.
 function sanitiseClusterName(raw) {
     if (typeof raw !== 'string') return '';
-    var s = raw.replace(/[^A-Za-z0-9-]/g, '-'); // illegal -> hyphen
+    let s = raw.replace(/[^A-Za-z0-9-]/g, '-'); // illegal -> hyphen
     s = s.replace(/-+/g, '-');                  // collapse repeats
     s = s.replace(/^-+|-+$/g, '');              // trim hyphens
     if (s.length > 15) s = s.slice(0, 15);
@@ -8017,48 +8056,48 @@ function openImportModal(initialTab) { // eslint-disable-line no-unused-vars
 
 // Show the import modal
 function showImportModal(initialTab) {
-    var overlay = document.getElementById('import-modal-overlay');
+    const overlay = document.getElementById('import-modal-overlay');
     if (overlay) {
         overlay.style.display = 'flex';
         switchImportTab(initialTab || 'sizer');
         // Clear previous state
-        var textarea = document.getElementById('cluster-json-input');
+        const textarea = document.getElementById('cluster-json-input');
         if (textarea) textarea.value = '';
-        var err = document.getElementById('cluster-json-error');
+        const err = document.getElementById('cluster-json-error');
         if (err) err.style.display = 'none';
-        var preview = document.getElementById('cluster-json-preview');
+        const preview = document.getElementById('cluster-json-preview');
         if (preview) preview.style.display = 'none';
-        var applyBtn = document.getElementById('cluster-import-apply-btn');
+        const applyBtn = document.getElementById('cluster-import-apply-btn');
         if (applyBtn) applyBtn.style.display = 'none';
         // Restore the Parse & Preview button (hidden after a successful parse).
-        var parseBtn = document.getElementById('cluster-import-parse-btn');
+        const parseBtn = document.getElementById('cluster-import-parse-btn');
         if (parseBtn) parseBtn.style.display = '';
         window._pendingClusterImport = null;
     }
 }
 
 function closeImportModal() { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('import-modal-overlay');
+    const overlay = document.getElementById('import-modal-overlay');
     if (overlay) overlay.style.display = 'none';
 }
 
 function showHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('hw-weighting-info-overlay');
+    const overlay = document.getElementById('hw-weighting-info-overlay');
     if (overlay) overlay.style.display = 'flex';
 }
 
 function closeHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('hw-weighting-info-overlay');
+    const overlay = document.getElementById('hw-weighting-info-overlay');
     if (overlay) overlay.style.display = 'none';
 }
 
 function switchImportTab(tab) { // eslint-disable-line no-unused-vars
-    var panels = {
+    const panels = {
         sizer: document.getElementById('import-panel-sizer'),
         cluster: document.getElementById('import-panel-cluster'),
         rvtools: document.getElementById('import-panel-rvtools')
     };
-    var tabs = {
+    const tabs = {
         sizer: document.getElementById('import-tab-sizer'),
         cluster: document.getElementById('import-tab-cluster'),
         rvtools: document.getElementById('import-tab-rvtools')
@@ -8078,12 +8117,12 @@ function switchImportTab(tab) { // eslint-disable-line no-unused-vars
 
 // Inject the vendored SheetJS <script> at most once per page load. Returns a
 // Promise that resolves when XLSX is available (or rejects on load failure).
-var _sheetJSPromise = null;
+let _sheetJSPromise = null;
 function ensureSheetJSLoaded() {
     if (typeof window.XLSX !== 'undefined') return Promise.resolve();
     if (_sheetJSPromise) return _sheetJSPromise;
     _sheetJSPromise = new Promise(function(resolve, reject) {
-        var s = document.createElement('script');
+        const s = document.createElement('script');
         s.src = '../vendor/xlsx-0.20.3.min.js';
         s.async = true;
         s.onload = function() { resolve(); };
@@ -8098,7 +8137,7 @@ function ensureSheetJSLoaded() {
 
 function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
     closeImportModal();
-    var fileInput = document.getElementById('sizer-import-file');
+    const fileInput = document.getElementById('sizer-import-file');
     if (fileInput) {
         fileInput.value = '';
         fileInput.click();
@@ -8106,10 +8145,10 @@ function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
 }
 
 function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
-    var textarea = document.getElementById('cluster-json-input');
-    var errDiv = document.getElementById('cluster-json-error');
-    var previewDiv = document.getElementById('cluster-json-preview');
-    var applyBtn = document.getElementById('cluster-import-apply-btn');
+    const textarea = document.getElementById('cluster-json-input');
+    const errDiv = document.getElementById('cluster-json-error');
+    const previewDiv = document.getElementById('cluster-json-preview');
+    const applyBtn = document.getElementById('cluster-import-apply-btn');
     if (!textarea) return;
 
     // Issue #207 follow-up: if the user has already clicked Parse & Preview
@@ -8117,13 +8156,13 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // deployment type, S2D disk count / size), preserve those choices across
     // a re-click of Parse & Preview so accidental re-parsing does not silently
     // reset their selections to the defaults.
-    var previouslyVisible = previewDiv && previewDiv.style.display !== 'none' && previewDiv.innerHTML.trim() !== '';
-    var preservedSelections = null;
+    const previouslyVisible = previewDiv && previewDiv.style.display !== 'none' && previewDiv.innerHTML.trim() !== '';
+    let preservedSelections = null;
     if (previouslyVisible) {
-        var prevNodeInput = document.getElementById('cluster-node-count-input');
-        var prevDeployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
-        var prevDiskCountSel = document.getElementById('cluster-import-disk-count');
-        var prevDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        const prevNodeInput = document.getElementById('cluster-node-count-input');
+        const prevDeployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+        const prevDiskCountSel = document.getElementById('cluster-import-disk-count');
+        const prevDiskSizeSel = document.getElementById('cluster-import-disk-size');
         preservedSelections = {
             nodeCount: prevNodeInput ? prevNodeInput.value : null,
             deployType: prevDeployRadio ? prevDeployRadio.value : null,
@@ -8137,14 +8176,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     applyBtn.style.display = 'none';
     window._pendingClusterImport = null;
 
-    var text = textarea.value.trim();
+    const text = textarea.value.trim();
     if (!text) {
         errDiv.textContent = 'Please paste the Azure Local cluster JSON.';
         errDiv.style.display = '';
         return;
     }
 
-    var data;
+    let data;
     try {
         data = JSON.parse(text);
     } catch (e) {
@@ -8154,8 +8193,8 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     }
 
     // Validate it's an Azure Local machine resource
-    var resourceType = (data.type || '').toLowerCase();
-    var isNode = resourceType === 'microsoft.hybridcompute/machines';
+    const resourceType = (data.type || '').toLowerCase();
+    const isNode = resourceType === 'microsoft.hybridcompute/machines';
 
     if (!isNode) {
         errDiv.textContent = 'Please paste the JSON View of a machine (node), not the instance. Navigate to a machine in your instance in the Azure Portal → JSON View.';
@@ -8163,16 +8202,16 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return;
     }
 
-    var clusterName, coreCount, memoryGiB, model, manufacturer, cpuMfr, processorName, sockets;
+    let coreCount, memoryGiB, cpuMfr, sockets;
 
     // Node-level JSON — rich data available
-    var nProps = data.properties;
-    var hwProfile = nProps && nProps.hardwareProfile;
-    var detected = nProps && nProps.detectedProperties;
+    const nProps = data.properties;
+    const hwProfile = nProps && nProps.hardwareProfile;
+    const detected = nProps && nProps.detectedProperties;
 
-    clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
-    manufacturer = (detected && detected.manufacturer) || 'Unknown';
-    model = (detected && detected.model) || 'Unknown';
+    const clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
+    const manufacturer = (detected && detected.manufacturer) || 'Unknown';
+    const model = (detected && detected.model) || 'Unknown';
 
     // Extract sockets, total cores, and processor name from the JSON.
     //
@@ -8189,11 +8228,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // cores, producing "20 cores (20 × 1 socket)" for a real 2 × 10 = 20 cores
     // machine. We now prefer `detected` (which is unambiguous) and fall back to
     // hwProfile only when `detected` is missing or invalid.
-    var procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
-    processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+    const procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
+    const processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
 
     // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
-    var detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
+    const detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
     if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= 8) {
         sockets = detectedSockets;
     } else if (hwProfile && hwProfile.numberOfCpuSockets >= 1 && hwProfile.numberOfCpuSockets <= 8) {
@@ -8204,7 +8243,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
 
     // Total core count: prefer detected.coreCount (already total). Otherwise
     // derive from hwProfile.processors[0].numberOfCores × sockets.
-    var detectedCores = detected ? parseInt(detected.coreCount, 10) : NaN;
+    const detectedCores = detected ? parseInt(detected.coreCount, 10) : NaN;
     if (!isNaN(detectedCores) && detectedCores > 0) {
         coreCount = detectedCores;
     } else if (procFromHw && procFromHw.numberOfCores > 0) {
@@ -8224,24 +8263,24 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         memoryGiB = 0;
     }
 
-    var nodeCount = 2; // default — user sets in preview
+    const nodeCount = 2; // default — user sets in preview
 
     // Determine CPU manufacturer from processor name or heuristics
-    var cpuMfr = 'intel'; // default
-    var cpuNameLower = (processorName || '').toLowerCase();
+    cpuMfr = 'intel'; // default
+    const cpuNameLower = (processorName || '').toLowerCase();
     if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
         cpuMfr = 'amd';
     }
 
-    var coresPerSocket = Math.round(coreCount / sockets);
-    var dimmOptions = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
-    var snappedMemory = dimmOptions.reduce(function(prev, curr) {
+    let coresPerSocket = Math.round(coreCount / sockets);
+    const dimmOptions = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
+    const snappedMemory = dimmOptions.reduce(function(prev, curr) {
         return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
     });
     // Preserve the actual imported memory value so we can inject a custom
     // option in the node-memory dropdown when the JSON value is not a standard
     // DIMM total (e.g. an 80 GB lab VM). Fixes silent rounding from 80 → 64 GB.
-    var memoryIsCustom = (memoryGiB > 0 && memoryGiB !== snappedMemory);
+    const memoryIsCustom = (memoryGiB > 0 && memoryGiB !== snappedMemory);
 
     // Sanity-check the socket count from JSON. Some Azure Local machine JSON
     // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
@@ -8253,12 +8292,12 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     coresPerSocket = sockets > 0 ? Math.round(coreCount / sockets) : coreCount;
 
     // Find best matching CPU generation
-    var bestGen = null;
-    var genMatchConfidence = 'none';
-    var gens = CPU_GENERATIONS[cpuMfr] || [];
+    let bestGen = null;
+    let genMatchConfidence = 'none';
+    const gens = CPU_GENERATIONS[cpuMfr] || [];
     // Find the generation where coresPerSocket falls within the core range
-    for (var g = 0; g < gens.length; g++) {
-        var gen = gens[g];
+    for (let g = 0; g < gens.length; g++) {
+        const gen = gens[g];
         if (coresPerSocket >= gen.minCores && coresPerSocket <= gen.maxCores) {
             // Check if the exact core count is available as an option
             if (gen.coreOptions.indexOf(coresPerSocket) !== -1) {
@@ -8288,7 +8327,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     coresPerSocket = Number(coresPerSocket) || 0;
     sockets = Number(sockets) || 0;
     memoryGiB = Number(memoryGiB) || 0;
-    var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
+    let previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
     previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
     previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" oninput="validateClusterImportSelection()" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
     previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
@@ -8354,30 +8393,30 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // Parse & Preview button so only "Load Cluster Configuration" remains as the
     // next step. To parse again, the user closes and reopens the import dialog
     // (showImportModal restores the button).
-    var parseBtn = document.getElementById('cluster-import-parse-btn');
+    const parseBtn = document.getElementById('cluster-import-parse-btn');
     if (parseBtn) parseBtn.style.display = 'none';
     // Issue #207 follow-up: restore any user-modified selections that were
     // captured at the top of this function so an accidental re-click of
     // Parse & Preview does not silently reset the user's choices.
     if (preservedSelections) {
-        var restNodeInput = document.getElementById('cluster-node-count-input');
+        const restNodeInput = document.getElementById('cluster-node-count-input');
         if (restNodeInput && preservedSelections.nodeCount !== null && preservedSelections.nodeCount !== '') {
             restNodeInput.value = preservedSelections.nodeCount;
         }
         if (preservedSelections.deployType) {
-            var restRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="' + preservedSelections.deployType + '"]');
+            const restRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="' + preservedSelections.deployType + '"]');
             if (restRadio) restRadio.checked = true;
         }
-        var restDiskCountSel = document.getElementById('cluster-import-disk-count');
+        const restDiskCountSel = document.getElementById('cluster-import-disk-count');
         if (restDiskCountSel && preservedSelections.diskCount) {
-            var dcOpts = Array.prototype.map.call(restDiskCountSel.options, function (o) { return o.value; });
+            const dcOpts = Array.prototype.map.call(restDiskCountSel.options, function(o) { return o.value; });
             if (dcOpts.indexOf(preservedSelections.diskCount) !== -1) {
                 restDiskCountSel.value = preservedSelections.diskCount;
             }
         }
-        var restDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        const restDiskSizeSel = document.getElementById('cluster-import-disk-size');
         if (restDiskSizeSel && preservedSelections.diskSize) {
-            var dsOpts = Array.prototype.map.call(restDiskSizeSel.options, function (o) { return o.value; });
+            const dsOpts = Array.prototype.map.call(restDiskSizeSel.options, function(o) { return o.value; });
             if (dsOpts.indexOf(preservedSelections.diskSize) !== -1) {
                 restDiskSizeSel.value = preservedSelections.diskSize;
             }
@@ -8411,36 +8450,36 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
 // than 2/4/6/8 machines (the only supported counts for that deployment type).
 // Bug #207 follow-up.
 function validateClusterImportSelection() { // eslint-disable-line no-unused-vars
-    var nodeInput = document.getElementById('cluster-node-count-input');
-    var applyBtn = document.getElementById('cluster-import-apply-btn');
-    var msgEl = document.getElementById('cluster-import-validation');
+    const nodeInput = document.getElementById('cluster-node-count-input');
+    const applyBtn = document.getElementById('cluster-import-apply-btn');
+    const msgEl = document.getElementById('cluster-import-validation');
     if (!nodeInput || !applyBtn) return;
 
-    var nodeCount = parseInt(nodeInput.value, 10);
-    var deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
-    var deployType = deployRadio ? deployRadio.value : 'standard';
+    const nodeCount = parseInt(nodeInput.value, 10);
+    const deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    const deployType = deployRadio ? deployRadio.value : 'standard';
 
     // Issue #235: Disaggregated Storage uses an external SAN — the S2D capacity-disk
     // picker is irrelevant, so grey it out (and ignore it on apply).
-    var s2dRow = document.getElementById('cluster-import-s2d-row');
+    const s2dRow = document.getElementById('cluster-import-s2d-row');
     if (s2dRow) {
-        var isDisagg = (deployType === 'disaggregated');
+        const isDisagg = (deployType === 'disaggregated');
         s2dRow.style.opacity = isDisagg ? '0.4' : '';
         s2dRow.style.pointerEvents = isDisagg ? 'none' : '';
         s2dRow.title = isDisagg ? 'External SAN storage is used — S2D capacity disks do not apply' : '';
-        var s2dCountEl = document.getElementById('cluster-import-disk-count');
-        var s2dSizeEl = document.getElementById('cluster-import-disk-size');
+        const s2dCountEl = document.getElementById('cluster-import-disk-count');
+        const s2dSizeEl = document.getElementById('cluster-import-disk-size');
         if (s2dCountEl) s2dCountEl.disabled = isDisagg;
         if (s2dSizeEl) s2dSizeEl.disabled = isDisagg;
     }
 
-    var errors = [];
+    const errors = [];
     if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
         errors.push('Number of machines must be between 1 and 16.');
     } else if (deployType === 'rack-aware' && nodeCount !== 1) {
         // 1 node is auto-switched to Single Node, so it is allowed at this
         // stage; we only block the radio's actual rack-aware case (2/4/6/8).
-        var validRackAware = [2, 4, 6, 8];
+        const validRackAware = [2, 4, 6, 8];
         if (validRackAware.indexOf(nodeCount) === -1) {
             errors.push('Rack-Aware Cluster only supports 2, 4, 6, or 8 machines. Adjust the count or choose Hyperconverged.');
         }
@@ -8468,31 +8507,31 @@ function validateClusterImportSelection() { // eslint-disable-line no-unused-var
 }
 
 function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
-    var cfg = window._pendingClusterImport;
+    const cfg = window._pendingClusterImport;
     if (!cfg) return;
 
     // Read the deployment-type radio BEFORE the modal closes.
     // Bug #207 fix: respect the user's choice between Hyperconverged and Rack-Aware,
     // and force Single Node when nodeCount === 1 regardless of the radio selection.
-    var deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
-    var chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
+    const deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    const chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
 
     // Read the S2D capacity-disk choices supplied in the preview banner BEFORE
     // the modal closes. The Azure Local machine JSON does not enumerate S2D
     // capacity disks (they only appear after deployment), so the user supplies
     // them here for accurate sizing.
-    var diskCountSel = document.getElementById('cluster-import-disk-count');
-    var diskSizeSel = document.getElementById('cluster-import-disk-size');
-    var chosenDiskCount = diskCountSel ? parseInt(diskCountSel.value, 10) : NaN;
-    var chosenDiskSizeTB = diskSizeSel ? parseFloat(diskSizeSel.value) : NaN;
+    const diskCountSel = document.getElementById('cluster-import-disk-count');
+    const diskSizeSel = document.getElementById('cluster-import-disk-size');
+    let chosenDiskCount = diskCountSel ? parseInt(diskCountSel.value, 10) : NaN;
+    let chosenDiskSizeTB = diskSizeSel ? parseFloat(diskSizeSel.value) : NaN;
     if (isNaN(chosenDiskCount) || chosenDiskCount < 1) chosenDiskCount = null;
     if (isNaN(chosenDiskSizeTB) || chosenDiskSizeTB <= 0) chosenDiskSizeTB = null;
 
     // Re-check the deployment-type / node-count combination as a defense-in-depth
     // guard: the button is disabled when invalid, but a stale click or DOM
     // manipulation could still reach this code path.
-    var preNodeInput = document.getElementById('cluster-node-count-input');
-    var preNodeCount = preNodeInput ? parseInt(preNodeInput.value, 10) : NaN;
+    const preNodeInput = document.getElementById('cluster-node-count-input');
+    const preNodeCount = preNodeInput ? parseInt(preNodeInput.value, 10) : NaN;
     if (chosenDeployType === 'rack-aware' && preNodeCount !== 1
         && [2, 4, 6, 8].indexOf(preNodeCount) === -1) {
         if (typeof showToast === 'function') {
@@ -8504,13 +8543,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     closeImportModal();
 
     // Apply to sizer dropdowns
-    var nodeCountInput = document.getElementById('cluster-node-count-input');
-    var actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
+    const nodeCountInput = document.getElementById('cluster-node-count-input');
+    let actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
     if (actualNodeCount < 1) actualNodeCount = 1;
     if (actualNodeCount > 16) actualNodeCount = 16;
 
     // Bug #207 fix: a 1-node cluster MUST be Single Node, not Hyperconverged.
-    var resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
+    const resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
 
     // Issue #235: Disaggregated Storage uses an external SAN — there are no S2D
     // capacity disks to apply, so drop any disk choices from the equation.
@@ -8523,12 +8562,12 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // updateResiliencyOptions() sees the correct node count and produces the
     // right set of <option> entries (otherwise the resiliency select can be
     // populated for the old node count and silently reject our chosen value).
-    var nodeCountEl = document.getElementById('node-count');
+    const nodeCountEl = document.getElementById('node-count');
     if (nodeCountEl) nodeCountEl.value = String(actualNodeCount);
     _nodeCountUserSet = true;
     markManualSet('node-count');
 
-    var clusterTypeEl = document.getElementById('cluster-type');
+    const clusterTypeEl = document.getElementById('cluster-type');
     if (clusterTypeEl) {
         clusterTypeEl.value = resolvedClusterType;
         if (typeof onClusterTypeChange === 'function') {
@@ -8541,13 +8580,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // Two-way mirror is only valid for 2-node clusters; 3+ nodes should default
     // to Three-way mirror. Single-node has no mirror choice (handled by the
     // cluster type itself), but we still default it sensibly.
-    var resiliencyEl = document.getElementById('resiliency');
+    const resiliencyEl = document.getElementById('resiliency');
     if (resiliencyEl && resolvedClusterType !== 'disaggregated') {
-        var desiredResiliency = (actualNodeCount >= 3) ? '3way' : '2way';
+        const desiredResiliency = (actualNodeCount >= 3) ? '3way' : '2way';
         // Only assign if the option actually exists in the select (the cluster
         // type may have already constrained the available options, e.g.
         // rack-aware 4+ → only "4way").
-        var available = Array.prototype.map.call(resiliencyEl.options, function (o) { return o.value; });
+        const available = Array.prototype.map.call(resiliencyEl.options, function(o) { return o.value; });
         if (available.indexOf(desiredResiliency) !== -1 && resiliencyEl.value !== desiredResiliency) {
             resiliencyEl.value = desiredResiliency;
             if (typeof onResiliencyChange === 'function') {
@@ -8557,7 +8596,7 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         markManualSet('resiliency');
     }
 
-    var cpuMfrEl = document.getElementById('cpu-manufacturer');
+    const cpuMfrEl = document.getElementById('cpu-manufacturer');
     if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
 
     // Trigger generation dropdown population
@@ -8566,10 +8605,10 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     }
 
     // Select the matched generation or inject imported processor name
-    var genEl = document.getElementById('cpu-generation');
+    const genEl = document.getElementById('cpu-generation');
     if (cfg.processorName && genEl) {
         // Always show exact processor name from import when available
-        var importedGenOption = document.createElement('option');
+        const importedGenOption = document.createElement('option');
         importedGenOption.value = cfg.cpuGeneration || 'imported';
         importedGenOption.textContent = cfg.processorName + ' (imported)';
         genEl.insertBefore(importedGenOption, genEl.firstChild);
@@ -8591,21 +8630,21 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // badge; the auto-scaler checks the _*UserSet flags).
     _cpuConfigUserSet = true;
 
-    var cpuCoresEl = document.getElementById('cpu-cores');
+    const cpuCoresEl = document.getElementById('cpu-cores');
     if (cpuCoresEl) {
-        var options = Array.from(cpuCoresEl.options).map(function(o) { return parseInt(o.value, 10); });
-        var exactMatch = options.indexOf(cfg.coresPerSocket) !== -1;
+        const options = Array.from(cpuCoresEl.options).map(function(o) { return parseInt(o.value, 10); });
+        const exactMatch = options.indexOf(cfg.coresPerSocket) !== -1;
 
         if (exactMatch) {
             cpuCoresEl.value = String(cfg.coresPerSocket);
         } else {
             // Inject a custom option with the exact imported core count
-            var importedOption = document.createElement('option');
+            const importedOption = document.createElement('option');
             importedOption.value = String(cfg.coresPerSocket);
             importedOption.textContent = cfg.coresPerSocket + ' cores (imported)';
             // Insert in sorted position
-            var inserted = false;
-            for (var oi = 0; oi < cpuCoresEl.options.length; oi++) {
+            let inserted = false;
+            for (let oi = 0; oi < cpuCoresEl.options.length; oi++) {
                 if (parseInt(cpuCoresEl.options[oi].value, 10) > cfg.coresPerSocket) {
                     cpuCoresEl.insertBefore(importedOption, cpuCoresEl.options[oi]);
                     inserted = true;
@@ -8622,23 +8661,23 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     window._importedProcessorName = cfg.processorName || null;
     window._importedCoresPerSocket = cfg.coresPerSocket || null;
 
-    var cpuSocketsEl = document.getElementById('cpu-sockets');
+    const cpuSocketsEl = document.getElementById('cpu-sockets');
     if (cpuSocketsEl) cpuSocketsEl.value = String(cfg.sockets);
     markManualSet('cpu-sockets');
 
-    var memEl = document.getElementById('node-memory');
+    const memEl = document.getElementById('node-memory');
     if (memEl) {
         // If the imported memory is a non-standard DIMM total (e.g. 80 GB lab VM),
         // inject a custom option so the actual value is preserved instead of being
         // silently rounded to the nearest standard DIMM size. Mirrors the cpu-cores
         // pattern above. Bug #207 follow-up.
-        var memOptions = Array.from(memEl.options).map(function (o) { return parseInt(o.value, 10); });
+        const memOptions = Array.from(memEl.options).map(function(o) { return parseInt(o.value, 10); });
         if (cfg.memoryGB && memOptions.indexOf(cfg.memoryGB) === -1) {
-            var importedMemOption = document.createElement('option');
+            const importedMemOption = document.createElement('option');
             importedMemOption.value = String(cfg.memoryGB);
             importedMemOption.textContent = cfg.memoryGB + ' GB (imported)';
-            var memInserted = false;
-            for (var mi = 0; mi < memEl.options.length; mi++) {
+            let memInserted = false;
+            for (let mi = 0; mi < memEl.options.length; mi++) {
                 if (parseInt(memEl.options[mi].value, 10) > cfg.memoryGB) {
                     memEl.insertBefore(importedMemOption, memEl.options[mi]);
                     memInserted = true;
@@ -8658,10 +8697,10 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // selectors so the values are correct regardless of which storage
     // architecture the user later picks. Issue #207 follow-up.
     if (chosenDiskCount !== null) {
-        ['capacity-disk-count', 'tiered-capacity-disk-count'].forEach(function (id) {
-            var el = document.getElementById(id);
+        ['capacity-disk-count', 'tiered-capacity-disk-count'].forEach(function(id) {
+            const el = document.getElementById(id);
             if (!el) return;
-            var avail = Array.from(el.options).map(function (o) { return parseInt(o.value, 10); });
+            const avail = Array.from(el.options).map(function(o) { return parseInt(o.value, 10); });
             if (avail.indexOf(chosenDiskCount) !== -1) {
                 el.value = String(chosenDiskCount);
                 markManualSet(id);
@@ -8671,12 +8710,12 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         _diskCountUserSet = true;
     }
     if (chosenDiskSizeTB !== null) {
-        ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function (id) {
-            var el = document.getElementById(id);
+        ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function(id) {
+            const el = document.getElementById(id);
             if (!el) return;
-            var avail = Array.from(el.options).map(function (o) { return parseFloat(o.value); });
+            const avail = Array.from(el.options).map(function(o) { return parseFloat(o.value); });
             // Floating-point compare — match within 0.001 TB.
-            var found = avail.some(function (v) { return Math.abs(v - chosenDiskSizeTB) < 0.001; });
+            const found = avail.some(function(v) { return Math.abs(v - chosenDiskSizeTB) < 0.001; });
             if (found) {
                 el.value = String(chosenDiskSizeTB);
                 markManualSet(id);
@@ -8689,19 +8728,19 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     calculateRequirements({ skipAutoNodeRecommend: true });
 
     // Show post-import instructions
-    var summary = document.getElementById('post-import-summary');
+    const summary = document.getElementById('post-import-summary');
     if (summary) {
-        var deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
+        const deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
             : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
                 : resolvedClusterType === 'disaggregated' ? 'Disaggregated Storage'
                     : 'Hyperconverged';
-        var resiliencyLabel = '';
+        let resiliencyLabel = '';
         if (resolvedClusterType !== 'single' && resolvedClusterType !== 'disaggregated') {
             resiliencyLabel = (actualNodeCount >= 3)
                 ? ' Storage resiliency set to <strong>Three-way Mirror</strong>.'
                 : ' Storage resiliency set to <strong>Two-way Mirror</strong>.';
         }
-        var diskLabel = '';
+        let diskLabel = '';
         if (chosenDiskCount !== null && chosenDiskSizeTB !== null) {
             diskLabel = ' S2D capacity: <strong>' + chosenDiskCount + ' × ' + chosenDiskSizeTB + ' TB</strong> per machine.';
         }
@@ -8710,14 +8749,14 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
             + '<br>Deployment type: <strong>' + deployTypeLabel + '</strong>.' + resiliencyLabel + diskLabel
             + '<br><br>To complete your sizing, configure the items below to match your cluster:';
     }
-    var postOverlay = document.getElementById('post-import-overlay');
+    const postOverlay = document.getElementById('post-import-overlay');
     if (postOverlay) postOverlay.style.display = 'flex';
 
     showToast('"' + escapeHtml(cfg.clusterName) + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
 }
 
 function closePostImportOverlay() { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('post-import-overlay');
+    const overlay = document.getElementById('post-import-overlay');
     if (overlay) overlay.style.display = 'none';
 }
 
@@ -8730,16 +8769,17 @@ function closePostImportOverlay() { // eslint-disable-line no-unused-vars
 // for the life of the modal interaction and discarded on close.
 
 // Holds the extracted { vInfo, vCluster, vHost } row arrays between parse and
-// apply. Never persisted.
-var _rvtoolsSheets = null;
+// apply. Never persisted. Exposed as window._rvtoolsSheets for test harness reset.
+var _rvtoolsSheets = null; // eslint-disable-line no-var
 
 // Last cluster-name value WE auto-populated from an RVTools import. Lets a
 // subsequent import refresh the field to the newly-selected cluster, while
 // still never clobbering a name the user typed themselves. Issue #230.
-var _rvtoolsAutoClusterName = '';
+// Exposed as window._rvtoolsAutoClusterName for test harness reset.
+var _rvtoolsAutoClusterName = ''; // eslint-disable-line no-var
 
 function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
-    var input = document.getElementById('rvtools-file');
+    const input = document.getElementById('rvtools-file');
     if (input) {
         input.value = '';
         input.click();
@@ -8751,38 +8791,38 @@ function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
 function resetRVToolsImport() {
     _rvtoolsSheets = null;
     _rvtoolsAutoClusterName = '';
-    var input = document.getElementById('rvtools-file');
+    const input = document.getElementById('rvtools-file');
     if (input) input.value = '';
-    var previewDiv = document.getElementById('rvtools-preview');
+    const previewDiv = document.getElementById('rvtools-preview');
     if (previewDiv) { previewDiv.style.display = 'none'; previewDiv.innerHTML = ''; }
-    var applyBtn = document.getElementById('rvtools-apply-btn');
+    const applyBtn = document.getElementById('rvtools-apply-btn');
     if (applyBtn) applyBtn.style.display = 'none';
-    var status = document.getElementById('rvtools-status');
+    const status = document.getElementById('rvtools-status');
     if (status) { status.textContent = ''; status.style.display = 'none'; }
-    var errDiv = document.getElementById('rvtools-error');
+    const errDiv = document.getElementById('rvtools-error');
     if (errDiv) { errDiv.textContent = ''; errDiv.style.display = 'none'; }
 }
 
 function _showRVToolsError(msg) {
-    var err = document.getElementById('rvtools-error');
+    const err = document.getElementById('rvtools-error');
     if (err) {
         err.textContent = msg;
         err.style.display = '';
     }
-    var status = document.getElementById('rvtools-status');
+    const status = document.getElementById('rvtools-status');
     if (status) status.style.display = 'none';
 }
 
 // Read the selected .xlsx, extract the relevant sheets, and render the preview.
 function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
-    var file = event.target.files && event.target.files[0];
+    const file = event.target.files && event.target.files[0];
     if (!file) return;
 
-    var errDiv = document.getElementById('rvtools-error');
+    const errDiv = document.getElementById('rvtools-error');
     if (errDiv) errDiv.style.display = 'none';
-    var previewDiv = document.getElementById('rvtools-preview');
+    const previewDiv = document.getElementById('rvtools-preview');
     if (previewDiv) { previewDiv.style.display = 'none'; previewDiv.innerHTML = ''; }
-    var applyBtn = document.getElementById('rvtools-apply-btn');
+    const applyBtn = document.getElementById('rvtools-apply-btn');
     if (applyBtn) applyBtn.style.display = 'none';
     _rvtoolsSheets = null;
 
@@ -8791,17 +8831,17 @@ function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
         return;
     }
 
-    var status = document.getElementById('rvtools-status');
+    const status = document.getElementById('rvtools-status');
     if (status) { status.textContent = 'Reading "' + file.name + '"…'; status.style.display = ''; }
 
     ensureSheetJSLoaded().then(function() {
-        var reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                var data = new Uint8Array(e.target.result);
-                var workbook = window.XLSX.read(data, { type: 'array' });
+                const data = new Uint8Array(e.target.result);
+                const workbook = window.XLSX.read(data, { type: 'array' });
                 _rvtoolsSheets = extractRVToolsSheets(workbook);
-                var result = transformRVToolsRows(_rvtoolsSheets, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: false });
+                const result = transformRVToolsRows(_rvtoolsSheets, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: false });
                 if (result.warnings.indexOf('missing-vinfo') !== -1) {
                     _showRVToolsError('Could not find a "vInfo" sheet in this workbook. Export the full RVTools "all" workbook (it must include the vInfo tab).');
                     _rvtoolsSheets = null;
@@ -8830,7 +8870,7 @@ function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
 // Sheet names are matched case-insensitively (vInfo / vCluster / vHost).
 function extractRVToolsSheets(workbook) {
     function sheetRows(target) {
-        var match = workbook.SheetNames.filter(function(n) {
+        const match = workbook.SheetNames.filter(function(n) {
             return String(n).trim().toLowerCase() === target;
         })[0];
         if (!match) return null;
@@ -8847,23 +8887,23 @@ function extractRVToolsSheets(workbook) {
 // totals banner. Called when the user flips storage source / powered-off.
 function refreshRVToolsPreview() { // eslint-disable-line no-unused-vars
     if (!_rvtoolsSheets) return;
-    var opts = readRVToolsOptions();
-    var result = transformRVToolsRows(_rvtoolsSheets, { mode: opts.mode, storageSource: opts.storageSource, includePoweredOff: opts.includePoweredOff });
+    const opts = readRVToolsOptions();
+    const result = transformRVToolsRows(_rvtoolsSheets, { mode: opts.mode, storageSource: opts.storageSource, includePoweredOff: opts.includePoweredOff });
     renderRVToolsPreview(result, true);
 }
 
 // Select or clear every cluster checkbox in the picker table, then refresh.
 function toggleAllRVToolsClusters(headerCheckbox) { // eslint-disable-line no-unused-vars
-    var checks = document.querySelectorAll('input[name="rvtools-cluster"]');
+    const checks = document.querySelectorAll('input[name="rvtools-cluster"]');
     Array.prototype.forEach.call(checks, function(el) { el.checked = headerCheckbox.checked; });
     refreshRVToolsPreview();
 }
 
 function readRVToolsOptions() {
-    var storageRadio = document.querySelector('input[name="rvtools-storage"]:checked');
-    var modeRadio = document.querySelector('input[name="rvtools-mode"]:checked');
-    var poweredOff = document.getElementById('rvtools-powered-off');
-    var clusterChecks = document.querySelectorAll('input[name="rvtools-cluster"]:checked');
+    const storageRadio = document.querySelector('input[name="rvtools-storage"]:checked');
+    const modeRadio = document.querySelector('input[name="rvtools-mode"]:checked');
+    const poweredOff = document.getElementById('rvtools-powered-off');
+    const clusterChecks = document.querySelectorAll('input[name="rvtools-cluster"]:checked');
     return {
         storageSource: storageRadio ? storageRadio.value : 'provisioned',
         mode: modeRadio ? modeRadio.value : 'per-vm',
@@ -8872,40 +8912,95 @@ function readRVToolsOptions() {
     };
 }
 
+// In-place refresh helper for renderRVToolsPreview. Returns true if it
+// successfully updated the existing DOM (cluster set unchanged), false if
+// the caller should fall back to a full innerHTML rebuild. Updating in place
+// preserves the modal's scroll position when the user clicks a cluster
+// checkbox or flips one of the option radios.
+function _updateRVToolsPreviewInPlace(previewDiv, result, selectedClusters) {
+    const tbody = previewDiv.querySelector('.rvtools-table tbody');
+    const totals = previewDiv.querySelector('.rvtools-totals');
+    if (!tbody || !totals) return false;
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length !== result.clusters.length) return false;
+    for (let i = 0; i < rows.length; i++) {
+        const cb = rows[i].querySelector('input[type="checkbox"][name="rvtools-cluster"]');
+        if (!cb || cb.value !== result.clusters[i].name) return false;
+    }
+
+    const t = result.totals;
+    totals.innerHTML = 'Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
+        + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
+        + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
+        + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
+        + '<br><span style="color: var(--text-secondary);">Pick one or more source clusters to size below — selecting several consolidates their workloads into one cluster.</span>';
+
+    for (let i = 0; i < rows.length; i++) {
+        const c = result.clusters[i];
+        const cells = rows[i].querySelectorAll('td');
+        if (cells.length < 7) continue;
+        cells[2].textContent = c.vmCount;
+        cells[3].textContent = c.hostCount || '—';
+        cells[4].textContent = c.vcpus;
+        cells[5].textContent = c.memoryGB;
+        cells[6].textContent = rvtoolsGBtoTB(c.storageGB).toFixed(2);
+    }
+
+    const selectAll = previewDiv.querySelector('#rvtools-select-all');
+    if (selectAll) {
+        const selCount = result.clusters.filter(function(c) { return selectedClusters.indexOf(c.name) !== -1; }).length;
+        selectAll.indeterminate = selCount > 0 && selCount < result.clusters.length;
+        selectAll.checked = result.clusters.length > 0 && selCount === result.clusters.length;
+    }
+
+    const applyBtn = document.getElementById('rvtools-apply-btn');
+    if (applyBtn) applyBtn.style.display = result.clusters.length ? '' : 'none';
+
+    return true;
+}
+
 // Build the preview UI: totals banner, a per-cluster picker table, and the
 // consolidation / storage / powered-off options. When `keepSelection` is true
 // the existing cluster/option selections are preserved across a refresh.
 function renderRVToolsPreview(result, keepSelection) {
-    var previewDiv = document.getElementById('rvtools-preview');
+    const previewDiv = document.getElementById('rvtools-preview');
     if (!previewDiv) return;
 
-    var prev = keepSelection ? readRVToolsOptions() : null;
+    const prev = keepSelection ? readRVToolsOptions() : null;
     // Selection rules: on a refresh (prev is set) respect the user's CURRENT
     // selection exactly — including an empty one — so the last-ticked cluster
     // can be cleared without it springing back. On the first render (prev is
     // null) start with nothing selected rather than auto-selecting the first
     // cluster, so the user is never stuck with a default they can't clear.
-    var selectedClusters = prev ? (prev.clusters || []) : [];
-    var storageSource = prev ? prev.storageSource : 'provisioned';
-    var mode = prev ? prev.mode : 'per-vm';
-    var includePoweredOff = prev ? prev.includePoweredOff : false;
+    const selectedClusters = prev ? (prev.clusters || []) : [];
+    const storageSource = prev ? prev.storageSource : 'provisioned';
+    const mode = prev ? prev.mode : 'per-vm';
+    const includePoweredOff = prev ? prev.includePoweredOff : false;
 
-    var t = result.totals;
-    var html = '';
+    // Fast path: when only option/selection state changed (cluster set is
+    // structurally identical to what's already rendered) update the totals
+    // banner and per-row numeric cells in place. Avoids rewriting innerHTML,
+    // which would reset the modal's scroll position on every checkbox click.
+    if (keepSelection && _updateRVToolsPreviewInPlace(previewDiv, result, selectedClusters)) {
+        return;
+    }
+
+    const t = result.totals;
+    let html = '';
     html += '<div class="rvtools-totals">Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
         + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
         + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
         + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
         + '<br><span style="color: var(--text-secondary);">Pick one or more source clusters to size below — selecting several consolidates their workloads into one cluster.</span></div>';
 
-    var allSelected = result.clusters.length > 0 && result.clusters.every(function(c) { return selectedClusters.indexOf(c.name) !== -1; });
+    const allSelected = result.clusters.length > 0 && result.clusters.every(function(c) { return selectedClusters.indexOf(c.name) !== -1; });
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
         + '<th><input type="checkbox" id="rvtools-select-all" title="Select all clusters" aria-label="Select all clusters"' + (allSelected ? ' checked' : '') + ' onchange="toggleAllRVToolsClusters(this)"></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
         + '<th class="num">vCPU</th><th class="num">Memory (GB)</th><th class="num">Storage (TB)</th>'
         + '</tr></thead><tbody>';
     result.clusters.forEach(function(c, i) {
-        var id = 'rvtools-cluster-' + i;
-        var checked = (selectedClusters.indexOf(c.name) !== -1) ? ' checked' : '';
+        const id = 'rvtools-cluster-' + i;
+        const checked = (selectedClusters.indexOf(c.name) !== -1) ? ' checked' : '';
         html += '<tr>'
             + '<td><input type="checkbox" name="rvtools-cluster" id="' + id + '" value="' + escapeHtml(c.name) + '"' + checked + ' onchange="refreshRVToolsPreview()"></td>'
             + '<td><label for="' + id + '">' + escapeHtml(c.name) + '</label></td>'
@@ -8932,12 +9027,12 @@ function renderRVToolsPreview(result, keepSelection) {
 
     previewDiv.innerHTML = html;
     previewDiv.style.display = '';
-    var selectAll = document.getElementById('rvtools-select-all');
+    const selectAll = document.getElementById('rvtools-select-all');
     if (selectAll) {
-        var selCount = result.clusters.filter(function(c) { return selectedClusters.indexOf(c.name) !== -1; }).length;
+        const selCount = result.clusters.filter(function(c) { return selectedClusters.indexOf(c.name) !== -1; }).length;
         selectAll.indeterminate = selCount > 0 && selCount < result.clusters.length;
     }
-    var applyBtn = document.getElementById('rvtools-apply-btn');
+    const applyBtn = document.getElementById('rvtools-apply-btn');
     if (applyBtn) applyBtn.style.display = result.clusters.length ? '' : 'none';
 }
 
@@ -8945,12 +9040,12 @@ function renderRVToolsPreview(result, keepSelection) {
 // close the modal, and recalculate.
 function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     if (!_rvtoolsSheets) return;
-    var opts = readRVToolsOptions();
+    const opts = readRVToolsOptions();
     if (!opts.clusters.length) {
         _showRVToolsError('Select at least one source cluster to import.');
         return;
     }
-    var result = transformRVToolsRows(_rvtoolsSheets, {
+    const result = transformRVToolsRows(_rvtoolsSheets, {
         mode: opts.mode,
         storageSource: opts.storageSource,
         includePoweredOff: opts.includePoweredOff,
@@ -8977,19 +9072,19 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     // use a generic "Consolidated" placeholder. Fill it when blank, or refresh it
     // when it still holds a value WE auto-populated from a previous import — but
     // never clobber a name the user typed themselves. Issue #230.
-    var nameInput = document.getElementById('cluster-name');
+    const nameInput = document.getElementById('cluster-name');
     if (nameInput) {
-        var seedSource = null;
+        let seedSource = null;
         if (opts.clusters.length === 1 && opts.clusters[0] !== '(no cluster)') {
             seedSource = opts.clusters[0];
         } else if (opts.clusters.length > 1) {
             seedSource = 'Consolidated';
         }
         if (seedSource) {
-            var currentName = nameInput.value.trim();
-            var ourPriorAutoName = _rvtoolsAutoClusterName;
+            const currentName = nameInput.value.trim();
+            const ourPriorAutoName = _rvtoolsAutoClusterName;
             if (currentName === '' || currentName === ourPriorAutoName) {
-                var candidate = sanitiseClusterName(seedSource);
+                const candidate = sanitiseClusterName(seedSource);
                 if (candidate) {
                     nameInput.value = candidate;
                     _rvtoolsAutoClusterName = candidate;
@@ -8999,23 +9094,23 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
         }
     }
 
-    var importedCount = result.workloads.length;
-    var clusterLabel = opts.clusters.join(', ');
+    const importedCount = result.workloads.length;
+    const clusterLabel = opts.clusters.join(', ');
 
     // Default the growth buffer to 10% for RVTools imports so the sized hardware
     // carries headroom — but only if the user hasn't already chosen a value
     // (i.e. it's still on the "No additional growth" default). Issue #230.
-    var growthSel = document.getElementById('future-growth');
-    var growthApplied = false;
+    const growthSel = document.getElementById('future-growth');
+    let growthApplied = false;
     if (growthSel && (growthSel.value === '0' || growthSel.value === '')) {
         growthSel.value = '10';
         growthApplied = true;
     }
 
     // Totals for the imported workloads (count-weighted), shown in the summary.
-    var impVms = 0, impVcpus = 0, impMemGB = 0, impStorageGB = 0;
+    let impVms = 0, impVcpus = 0, impMemGB = 0, impStorageGB = 0;
     result.workloads.forEach(function(w) {
-        var c = w.count || 1;
+        const c = w.count || 1;
         impVms += c;
         impVcpus += (w.vcpus || 0) * c;
         impMemGB += (w.memory || 0) * c;
@@ -9030,12 +9125,12 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     // Post-import overlay (mirrors the Azure Local JSON import experience) —
     // richer than a toast, so we can surface totals, the growth default, and
     // the estimate caveats. Issue #230.
-    var summary = document.getElementById('rvtools-post-import-summary');
+    const summary = document.getElementById('rvtools-post-import-summary');
     if (summary) {
-        var modeLabel = opts.mode === 'per-vm' ? 'one workload per VM' : 'grouped by VM size';
-        var storageLabel = opts.storageSource === 'inuse' ? 'in-use' : 'provisioned';
-        var clusterCount = opts.clusters.length;
-        var sourceLabel = clusterCount > 1
+        const modeLabel = opts.mode === 'per-vm' ? 'one workload per VM' : 'grouped by VM size';
+        const storageLabel = opts.storageSource === 'inuse' ? 'in-use' : 'provisioned';
+        const clusterCount = opts.clusters.length;
+        const sourceLabel = clusterCount > 1
             ? clusterCount + ' source clusters consolidated (<strong>"' + escapeHtml(clusterLabel) + '"</strong>)'
             : 'source cluster <strong>"' + escapeHtml(clusterLabel) + '"</strong>';
         summary.innerHTML = 'Imported <strong>' + importedCount + '</strong> workload' + (importedCount !== 1 ? 's' : '')
@@ -9047,7 +9142,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
                 ? '<br><br><em>Allow for Future Growth</em> has been set to <strong>10%</strong> for this import.'
                 : '<br><br>Your existing <em>Allow for Future Growth</em> setting was kept.');
     }
-    var postOverlay = document.getElementById('rvtools-post-import-overlay');
+    const postOverlay = document.getElementById('rvtools-post-import-overlay');
     if (postOverlay) postOverlay.style.display = 'flex';
 
     showToast('Imported ' + importedCount + ' workload' + (importedCount !== 1 ? 's' : '')
@@ -9055,18 +9150,18 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
 }
 
 function closeRVToolsPostImport() { // eslint-disable-line no-unused-vars
-    var overlay = document.getElementById('rvtools-post-import-overlay');
+    const overlay = document.getElementById('rvtools-post-import-overlay');
     if (overlay) overlay.style.display = 'none';
 }
 
 // Inline validation for the editable cluster-name field. Shows a hint when the
 // value is non-empty but invalid; clears it otherwise.
 function onClusterNameInput() { // eslint-disable-line no-unused-vars
-    var input = document.getElementById('cluster-name');
-    var hint = document.getElementById('cluster-name-hint');
-    var hintText = document.getElementById('cluster-name-hint-text');
+    const input = document.getElementById('cluster-name');
+    const hint = document.getElementById('cluster-name-hint');
+    const hintText = document.getElementById('cluster-name-hint-text');
     if (!input) return;
-    var val = input.value;
+    const val = input.value;
     if (val === '') {
         input.classList.remove('invalid');
         if (hint) hint.style.display = 'none';
@@ -9093,7 +9188,7 @@ function handleSizerFileImport(event) {
     }
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = function(e) {
         try {
             const parsed = JSON.parse(e.target.result);
 
@@ -9123,9 +9218,9 @@ function handleSizerFileImport(event) {
             // import options. Use the post-apply workload count so the message
             // reflects what actually loaded.
             if (typeof showToast === 'function') {
-                var importedWlCount = Array.isArray(workloads) ? workloads.length : 0;
-                var importedName = (d.clusterName || '').toString().trim();
-                var toastMsg = importedName
+                const importedWlCount = Array.isArray(workloads) ? workloads.length : 0;
+                const importedName = (d.clusterName || '').toString().trim();
+                let toastMsg = importedName
                     ? 'Imported "' + escapeHtml(importedName) + '"'
                     : 'Sizer configuration imported';
                 if (importedWlCount > 0) {
@@ -9152,20 +9247,20 @@ function applyImportedSizerState(d) {
     // renderer and calculator). Invalid entries are dropped with a soft warning —
     // the rest of the import still applies.
     if (d && typeof d === 'object') {
-        ['__proto__', 'constructor', 'prototype'].forEach(function (k) {
+        ['__proto__', 'constructor', 'prototype'].forEach(function(k) {
             if (Object.prototype.hasOwnProperty.call(d, k)) {
                 try { delete d[k]; } catch (e) { /* non-configurable — leave it, named reads ignore it */ }
             }
         });
     }
-    var VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer', 'ghel'];
+    const VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer', 'ghel'];
     if (d && d.workloads !== undefined && d.workloads !== null) {
         if (!Array.isArray(d.workloads)) {
             console.warn('Import: workloads was not an array — ignoring it.');
             d.workloads = [];
         } else {
-            var originalCount = d.workloads.length;
-            d.workloads = d.workloads.filter(function (w) {
+            const originalCount = d.workloads.length;
+            d.workloads = d.workloads.filter(function(w) {
                 return w && typeof w === 'object' && !Array.isArray(w) &&
                     typeof w.type === 'string' && VALID_WORKLOAD_TYPES.indexOf(w.type) !== -1;
             });
@@ -9178,14 +9273,14 @@ function applyImportedSizerState(d) {
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
-    var clusterNameEl = document.getElementById('cluster-name');
+    const clusterNameEl = document.getElementById('cluster-name');
     if (clusterNameEl) {
         clusterNameEl.value = d.clusterName || '';
         if (typeof onClusterNameInput === 'function') onClusterNameInput();
     }
     // Restore disaggregated rack count before updating node options
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
-        var rackEl = document.getElementById('disagg-rack-count');
+        const rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
     }
     if (d.disaggSpineCount) {
@@ -9220,11 +9315,11 @@ function applyImportedSizerState(d) {
 
             // Inject imported core count if not a standard option
             if (d.importedCoresPerSocket && gen.coreOptions.indexOf(d.importedCoresPerSocket) === -1) {
-                var impCoreOpt = document.createElement('option');
+                const impCoreOpt = document.createElement('option');
                 impCoreOpt.value = String(d.importedCoresPerSocket);
                 impCoreOpt.textContent = d.importedCoresPerSocket + ' cores (imported)';
-                var inserted = false;
-                for (var oi = 0; oi < coresSelect.options.length; oi++) {
+                let inserted = false;
+                for (let oi = 0; oi < coresSelect.options.length; oi++) {
                     if (parseInt(coresSelect.options[oi].value, 10) > d.importedCoresPerSocket) {
                         coresSelect.insertBefore(impCoreOpt, coresSelect.options[oi]);
                         inserted = true;
@@ -9238,7 +9333,7 @@ function applyImportedSizerState(d) {
 
         // Inject imported processor name as generation option
         if (d.importedProcessorName) {
-            var impGenOpt = document.createElement('option');
+            const impGenOpt = document.createElement('option');
             impGenOpt.value = d.cpuGeneration || 'imported';
             impGenOpt.textContent = d.importedProcessorName + ' (imported)';
             genSelect.insertBefore(impGenOpt, genSelect.firstChild);
@@ -9370,7 +9465,7 @@ function resetScenario() {
     _repairDisksUserSet = false;
     _disaggAutoUpgraded = false;
     clearManualBadges();
-    
+
     // Reset hardware config
     document.getElementById('cpu-manufacturer').value = 'intel';
     initHardwareDefaults();
@@ -9383,7 +9478,7 @@ function resetScenario() {
     document.getElementById('storage-config').value = 'all-flash';
     document.getElementById('future-growth').value = '0';
     onStorageConfigChange();
-    
+
     // Reset disk config
     document.getElementById('capacity-disk-count').value = '4';
     document.getElementById('capacity-disk-size').value = '3.84';
@@ -9393,7 +9488,7 @@ function resetScenario() {
     document.getElementById('tiered-capacity-disk-size').value = '3.84';
     document.getElementById('repair-disk-count').value = '2';
     document.getElementById('tiered-repair-disk-count').value = '2';
-    
+
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
@@ -9407,9 +9502,9 @@ function resetScenario() {
     // Restore the disaggregated controls to their HTML defaults so a later
     // switch back to Disaggregated Storage starts clean rather than carrying
     // the previous rack count / storage connectivity.
-    var disaggRackEl = document.getElementById('disagg-rack-count');
+    const disaggRackEl = document.getElementById('disagg-rack-count');
     if (disaggRackEl) disaggRackEl.value = '2';
-    var disaggStorageEl = document.getElementById('disagg-storage-type');
+    const disaggStorageEl = document.getElementById('disagg-storage-type');
     if (disaggStorageEl) disaggStorageEl.value = 'fc_san';
     document.getElementById('node-count').value = '2';
     updateResiliencyOptions();
@@ -9419,7 +9514,7 @@ function resetScenario() {
     calculateRequirements();
 
     // Clear the editable cluster-name field and its inline validation hint.
-    var clusterNameInput = document.getElementById('cluster-name');
+    const clusterNameInput = document.getElementById('cluster-name');
     if (clusterNameInput) {
         clusterNameInput.value = '';
         onClusterNameInput();
@@ -9458,7 +9553,7 @@ function initHardwareDefaults() {
 }
 
 // Initialize on page load
-var isInitialLoad = true;
+let isInitialLoad = true;
 document.addEventListener('DOMContentLoaded', function() {
     // Skip UI initialization when running in test harness (no sizer DOM elements present)
     if (window.__SIZER_TEST_MODE__) return;
@@ -9666,10 +9761,10 @@ function toggleTheme() {
 // Toggle the rack-units breakdown disclosure beneath the value in the
 // "Estimated Power, Heat & Rack Space per Instance" panel.
 function toggleRackUnitsDetail() {
-    var btn = document.getElementById('rack-units-toggle');
-    var detail = document.getElementById('rack-units-detail');
+    const btn = document.getElementById('rack-units-toggle');
+    const detail = document.getElementById('rack-units-detail');
     if (!btn || !detail) return;
-    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
     btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
     detail.hidden = expanded;
 }
@@ -9678,7 +9773,7 @@ function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
     const logo = document.getElementById('odin-logo') || document.querySelector('.odin-tab-logo img');
-    
+
     if (currentTheme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
         root.style.setProperty('--card-bg', '#ffffff');

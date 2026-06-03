@@ -17,10 +17,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update active nav link on scroll
     function updateActiveNav() {
         let current = '';
-        
+
         sections.forEach(section => {
             const sectionTop = section.offsetTop;
-            
+
             if (window.scrollY >= sectionTop - 100) {
                 current = section.getAttribute('id');
             }
@@ -38,17 +38,17 @@ document.addEventListener('DOMContentLoaded', function() {
     navLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            
+
             const targetId = this.getAttribute('href');
             const targetSection = document.querySelector(targetId);
-            
+
             if (targetSection) {
                 targetSection.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start'
                 });
             }
-            
+
             // Update active class
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Listen for scroll events
     window.addEventListener('scroll', updateActiveNav);
-    
+
     // Initial call
     updateActiveNav();
 
@@ -91,18 +91,18 @@ document.addEventListener('DOMContentLoaded', function() {
             opacity: 0;
             transition: opacity 0.2s ease;
         `;
-        
+
         block.style.position = 'relative';
         block.appendChild(copyBtn);
-        
+
         block.addEventListener('mouseenter', () => {
             copyBtn.style.opacity = '1';
         });
-        
+
         block.addEventListener('mouseleave', () => {
             copyBtn.style.opacity = '0';
         });
-        
+
         copyBtn.addEventListener('click', async () => {
             const code = block.querySelector('code');
             if (code) {
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     // Image Modal/Lightbox functionality
     // ============================================
-    
+
     // Create the modal element
     const modal = document.createElement('div');
     modal.className = 'image-modal';
@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Simple URL validation to prevent loading unsafe protocols
     function isSafeImageSrc(src) {
         if (!src || typeof src !== 'string') return false;
-        var trimmed = src.trim();
+        const trimmed = src.trim();
         // Explicitly block data: URIs to avoid SVG/XSS vectors
         if (/^data:/i.test(trimmed)) {
             return false;
@@ -244,8 +244,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // For absolute URLs, only allow http and https
         try {
-            var url = new URL(trimmed, window.location.origin);
-            var protocol = url.protocol.toLowerCase();
+            const url = new URL(trimmed, window.location.origin);
+            const protocol = url.protocol.toLowerCase();
             return protocol === 'http:' || protocol === 'https:';
         } catch (e) {
             return false;
@@ -268,30 +268,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         currentImageSrc = imgSrc;
         modalTitle.textContent = imgAlt || 'Diagram';
-        
+
         // Clear previous content
         modalImageWrapper.innerHTML = '';
-        
+
         // Use DOM APIs instead of innerHTML to prevent XSS from DOM-sourced values
         if (imgSrc.toLowerCase().endsWith('.svg') || imgSrc.toLowerCase().includes('.svg?')) {
-            var obj = document.createElement('object');
+            const obj = document.createElement('object');
             obj.type = 'image/svg+xml';
             obj.data = imgSrc;
             obj.style.cssText = 'width: 100%; height: 100%;';
-            var fallbackImg = document.createElement('img');
+            const fallbackImg = document.createElement('img');
             fallbackImg.src = imgSrc;
             fallbackImg.alt = imgAlt || 'Diagram';
             fallbackImg.style.cssText = 'max-width: 100%; max-height: 100%;';
             obj.appendChild(fallbackImg);
             modalImageWrapper.appendChild(obj);
         } else {
-            var img = document.createElement('img');
+            const img = document.createElement('img');
             img.src = imgSrc;
             img.alt = imgAlt || 'Diagram';
             img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
             modalImageWrapper.appendChild(img);
         }
-        
+
         modal.style.display = 'flex';
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -327,19 +327,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create action buttons container
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'image-actions';
-        
+
         // Expand button
         const expandBtn = document.createElement('button');
         expandBtn.className = 'image-action-btn expand-btn';
         expandBtn.innerHTML = '+';
         expandBtn.title = 'View larger';
-        
+
         // Download button
         const downloadBtn = document.createElement('button');
         downloadBtn.className = 'image-action-btn download-btn';
         downloadBtn.innerHTML = '⬇';
         downloadBtn.title = 'Download SVG';
-        
+
         actionsDiv.appendChild(expandBtn);
         actionsDiv.appendChild(downloadBtn);
         container.insertBefore(actionsDiv, container.firstChild);
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close modal handlers
     modalClose.addEventListener('click', closeModal);
     modalCloseBtn.addEventListener('click', closeModal);
-    
+
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             closeModal();
@@ -420,7 +420,7 @@ function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
     const logo = document.querySelector('.odin-tab-logo img');
-    
+
     if (currentTheme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
         root.style.setProperty('--card-bg', '#ffffff');

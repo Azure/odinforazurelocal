@@ -1,8 +1,11 @@
-(function () {
+(function() {
+    /* exported deployToAzure, scrollToAndCopyJson, generateDevOpsPipeline, generateGitHubWorkflow,
+       showRestApiInfo, updateParameters, generatePowerShellScript, generateAzCLIScript,
+       showBicepTerraformAlternatives */
     // Debug logging — enable by setting localStorage.setItem('odinDebug','1') or
     // loading the page with #debug=1 in the hash.  Off by default so the browser
     // console stays clean for end users.
-    var DEBUG = false;
+    let DEBUG = false;
     try {
         DEBUG = (localStorage.getItem('odinDebug') === '1') ||
                 /[#&?]debug=1\b/.test(window.location.hash || '');
@@ -15,16 +18,16 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
     // Validate Tenant ID is in GUID format
     function validateTenantId(input) {
-        var value = input.value.trim();
-        var errorEl = document.getElementById('tenant-id-error');
-        var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-        
+        const value = input.value.trim();
+        const errorEl = document.getElementById('tenant-id-error');
+        const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
         if (value === '' || guidPattern.test(value)) {
             // Valid: empty (optional) or matches GUID format
             input.style.borderColor = 'var(--glass-border)';
@@ -42,21 +45,21 @@
     function highlightJson(jsonText) {
         // Minimal JSON highlighter (no external deps).
         // Produces HTML with spans. Assumes `jsonText` is already pretty-printed.
-        var s = String(jsonText || '');
-        var out = '';
-        var i = 0;
+        const s = String(jsonText || '');
+        let out = '';
+        let i = 0;
 
         function isWs(ch) { return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'; }
         function peekNonWs(start) {
-            for (var j = start; j < s.length; j++) {
-                var c = s[j];
+            for (let j = start; j < s.length; j++) {
+                const c = s[j];
                 if (!isWs(c)) return c;
             }
             return '';
         }
 
         while (i < s.length) {
-            var ch = s[i];
+            const ch = s[i];
 
             // Whitespace
             if (isWs(ch)) {
@@ -67,11 +70,11 @@
 
             // Strings
             if (ch === '"') {
-                var start = i;
+                const start = i;
                 i++; // consume opening quote
-                var escaped = false;
+                let escaped = false;
                 while (i < s.length) {
-                    var c2 = s[i];
+                    const c2 = s[i];
                     if (escaped) {
                         escaped = false;
                         i++;
@@ -89,18 +92,18 @@
                     i++;
                 }
 
-                var strToken = s.slice(start, i);
-                var next = peekNonWs(i);
-                var cls = (next === ':') ? 'json-token--key' : 'json-token--string';
+                const strToken = s.slice(start, i);
+                const next = peekNonWs(i);
+                const cls = (next === ':') ? 'json-token--key' : 'json-token--string';
                 out += '<span class="' + cls + '">' + escapeHtml(strToken) + '</span>';
                 continue;
             }
 
             // Numbers
             if (ch === '-' || (ch >= '0' && ch <= '9')) {
-                var numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+                const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?/);
                 if (numMatch && numMatch[0]) {
-                    var numTok = numMatch[0];
+                    const numTok = numMatch[0];
                     out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
                     i += numTok.length;
                     continue;
@@ -135,23 +138,23 @@
     function tryParsePayload() {
         dlog('tryParsePayload: Starting...');
         dlog('window.location.hash:', window.location.hash);
-        
+
         // 1) URL hash payload (preferred for file:// reliability)
         try {
-            var hash = window.location.hash || '';
-            var idx = hash.indexOf('data=');
+            const hash = window.location.hash || '';
+            const idx = hash.indexOf('data=');
             if (idx >= 0) {
                 dlog('Found data= in hash at index:', idx);
-                var encoded = hash.substring(idx + 5);
+                let encoded = hash.substring(idx + 5);
                 dlog('Encoded data length:', encoded.length);
                 encoded = decodeURIComponent(encoded);
-                var binary = atob(encoded);
-                var bytes = new Uint8Array(binary.length);
-                for (var i = 0; i < binary.length; i++) {
+                const binary = atob(encoded);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
                     bytes[i] = binary.charCodeAt(i);
                 }
-                var json = new TextDecoder('utf-8').decode(bytes);
-                var parsed = JSON.parse(json);
+                const json = new TextDecoder('utf-8').decode(bytes);
+                const parsed = JSON.parse(json);
                 dlog('Successfully parsed from hash:', parsed);
                 return parsed;
             }
@@ -161,10 +164,10 @@
 
         // 2) localStorage fallback
         try {
-            var raw = localStorage.getItem('azloc_arm_payload');
+            const raw = localStorage.getItem('azloc_arm_payload');
             dlog('localStorage data exists:', !!raw);
             if (raw) {
-                var parsed = JSON.parse(raw);
+                const parsed = JSON.parse(raw);
                 dlog('Successfully parsed from localStorage:', parsed);
                 return parsed;
             }
@@ -183,12 +186,12 @@
             return;
         }
 
-        var generatedAt = payload.generatedAt ? String(payload.generatedAt) : '';
-        var version = payload.version ? String(payload.version) : '';
-        var cloud = payload.cloud ? String(payload.cloud) : '';
-        var ref = payload.referenceTemplate || null;
-        var refName = ref && ref.name ? String(ref.name) : '';
-        var refUrl = ref && ref.url ? String(ref.url) : '';
+        const generatedAt = payload.generatedAt ? String(payload.generatedAt) : '';
+        const version = payload.version ? String(payload.version) : '';
+        const cloud = payload.cloud ? String(payload.cloud) : '';
+        const ref = payload.referenceTemplate || null;
+        const refName = ref && ref.name ? String(ref.name) : '';
+        const refUrl = ref && ref.url ? String(ref.url) : '';
 
         function formatCloud(s) {
             if (s === 'azure_government') return 'Azure Government';
@@ -209,7 +212,7 @@
         // Architecture-aware prerequisites banner. For Disaggregated (create-cluster-san)
         // remind the operator that the SAN fabric + LUN provisioning must be staged
         // BEFORE running Validate — the template itself cannot zone the fabric.
-        var archBanner = document.getElementById('arm-architecture-banner');
+        const archBanner = document.getElementById('arm-architecture-banner');
         if (archBanner) {
             if (payload.architecture === 'disaggregated') {
                 archBanner.hidden = false;
@@ -241,9 +244,9 @@
     function setPlaceholders(placeholdersEl, placeholders) {
         if (!placeholdersEl) return;
 
-        var list = Array.isArray(placeholders) ? placeholders : [];
-        var inputContainer = document.getElementById('arm-placeholder-inputs');
-        
+        const list = Array.isArray(placeholders) ? placeholders : [];
+        const inputContainer = document.getElementById('arm-placeholder-inputs');
+
         if (list.length === 0) {
             placeholdersEl.innerHTML = '<div class="info-box visible">No placeholders reported.</div>';
             if (inputContainer) inputContainer.style.display = 'none';
@@ -254,26 +257,26 @@
             + '<div class="info-box visible">'
             + '<strong>These values are placeholders:</strong>'
             + '<ul style="margin:0.5rem 0 0 1.1rem; color:var(--text-secondary);">'
-            + list.map(function (p) { return '<li>' + escapeHtml(p) + '</li>'; }).join('')
+            + list.map(function(p) { return '<li>' + escapeHtml(p) + '</li>'; }).join('')
             + '</ul>'
             + '<p style="margin-top:0.75rem;font-size:0.9rem;">Use the fields below to populate deployment details:</p>'
             + '</div>';
-            
+
         // Show input fields
         if (inputContainer) inputContainer.style.display = 'block';
-        
+
         // Show/hide conditional fields based on payload
         initializeConditionalFields();
     }
-    
+
     function initializeConditionalFields() {
         // Show/hide Cloud Witness Storage field based on witness type
-        var witnessContainer = document.getElementById('witness-storage-container');
+        const witnessContainer = document.getElementById('witness-storage-container');
         if (witnessContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
-            var params = window.armPayload.parametersFile.parameters;
+            const params = window.armPayload.parametersFile.parameters;
             // Show if witnessType is Cloud and storage account is a placeholder
-            var witnessType = params.witnessType && params.witnessType.value;
-            var witnessStorage = params.clusterWitnessStorageAccountName && params.clusterWitnessStorageAccountName.value;
+            const witnessType = params.witnessType && params.witnessType.value;
+            const witnessStorage = params.clusterWitnessStorageAccountName && params.clusterWitnessStorageAccountName.value;
             if (witnessType === 'Cloud' && witnessStorage && witnessStorage.indexOf('REPLACE_WITH') >= 0) {
                 witnessContainer.style.display = 'block';
             } else if (witnessType === 'Cloud' && witnessStorage === '') {
@@ -283,13 +286,13 @@
                 witnessContainer.style.display = 'none';
             }
         }
-        
+
         // Show/hide OU Path field based on identity provider and whether value is already provided
-        var ouContainer = document.getElementById('ou-path-container');
+        const ouContainer = document.getElementById('ou-path-container');
         if (ouContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
-            var params = window.armPayload.parametersFile.parameters;
-            var identityProvider = params.identityProvider && params.identityProvider.value;
-            var adouPath = params.adouPath && params.adouPath.value;
+            const params = window.armPayload.parametersFile.parameters;
+            const identityProvider = params.identityProvider && params.identityProvider.value;
+            const adouPath = params.adouPath && params.adouPath.value;
             // Hide OU path for Local_Identity (AD-less) deployments
             // Also hide if adouPath is already provided from the wizard (not empty and not a placeholder)
             if (identityProvider === 'Local_Identity') {
@@ -302,7 +305,7 @@
             }
         }
     }
-    
+
     /**
      * Pre-populate input fields from the payload parameters (Issue #85, #86)
      * This function reads values from the ARM payload and fills in the input fields
@@ -312,54 +315,54 @@
         if (!window.armPayload || !window.armPayload.parametersFile || !window.armPayload.parametersFile.parameters) {
             return;
         }
-        
-        var params = window.armPayload.parametersFile.parameters;
-        
+
+        const params = window.armPayload.parametersFile.parameters;
+
         // Helper function to check if a value is a valid (non-placeholder) value
         function isValidValue(val) {
             return val && typeof val === 'string' && val !== '' && val.indexOf('REPLACE_WITH') === -1;
         }
-        
+
         // Pre-populate Cluster Name (Issue #86)
-        var clusterNameInput = document.getElementById('input-cluster-name');
+        const clusterNameInput = document.getElementById('input-cluster-name');
         if (clusterNameInput && params.clusterName && isValidValue(params.clusterName.value)) {
             clusterNameInput.value = params.clusterName.value;
         }
-        
+
         // Pre-populate HCI Resource Provider Object ID (Issue #86)
-        var hciRpInput = document.getElementById('input-hci-rp-object-id');
+        const hciRpInput = document.getElementById('input-hci-rp-object-id');
         if (hciRpInput && params.hciResourceProviderObjectID && isValidValue(params.hciResourceProviderObjectID.value)) {
             hciRpInput.value = params.hciResourceProviderObjectID.value;
         }
-        
+
         // Pre-populate OU Path (Issue #85)
-        var ouPathInput = document.getElementById('input-ou-path');
+        const ouPathInput = document.getElementById('input-ou-path');
         if (ouPathInput && params.adouPath && isValidValue(params.adouPath.value)) {
             ouPathInput.value = params.adouPath.value;
         }
-        
+
         // Pre-populate other fields that may have valid values
-        var tenantIdInput = document.getElementById('input-tenant-id');
+        const tenantIdInput = document.getElementById('input-tenant-id');
         if (tenantIdInput && params.tenantId && isValidValue(params.tenantId.value)) {
             tenantIdInput.value = params.tenantId.value;
         }
-        
-        var keyVaultInput = document.getElementById('input-keyvault-name');
+
+        const keyVaultInput = document.getElementById('input-keyvault-name');
         if (keyVaultInput && params.keyVaultName && isValidValue(params.keyVaultName.value)) {
             keyVaultInput.value = params.keyVaultName.value;
         }
-        
-        var diagnosticStorageInput = document.getElementById('input-diagnostic-storage');
+
+        const diagnosticStorageInput = document.getElementById('input-diagnostic-storage');
         if (diagnosticStorageInput && params.diagnosticStorageAccountName && isValidValue(params.diagnosticStorageAccountName.value)) {
             diagnosticStorageInput.value = params.diagnosticStorageAccountName.value;
         }
-        
-        var witnessStorageInput = document.getElementById('input-witness-storage');
+
+        const witnessStorageInput = document.getElementById('input-witness-storage');
         if (witnessStorageInput && params.clusterWitnessStorageAccountName && isValidValue(params.clusterWitnessStorageAccountName.value)) {
             witnessStorageInput.value = params.clusterWitnessStorageAccountName.value;
         }
-        
-        var customLocationInput = document.getElementById('input-custom-location');
+
+        const customLocationInput = document.getElementById('input-custom-location');
         if (customLocationInput && params.customLocation && isValidValue(params.customLocation.value)) {
             customLocationInput.value = params.customLocation.value;
         }
@@ -373,9 +376,9 @@
             statusEl.textContent = msg || '';
         }
 
-        copyBtn.addEventListener('click', async function () {
+        copyBtn.addEventListener('click', async function() {
             try {
-                var text = String(getText() || '');
+                const text = String(getText() || '');
                 if (!text) {
                     setStatus('Nothing to copy.');
                     return;
@@ -388,7 +391,7 @@
                 }
 
                 // Fallback
-                var tmp = document.createElement('textarea');
+                const tmp = document.createElement('textarea');
                 tmp.value = text;
                 tmp.setAttribute('readonly', 'readonly');
                 tmp.style.position = 'fixed';
@@ -397,7 +400,7 @@
                 document.body.appendChild(tmp);
                 tmp.focus();
                 tmp.select();
-                var ok = document.execCommand('copy');
+                const ok = document.execCommand('copy');
                 document.body.removeChild(tmp);
                 setStatus(ok ? 'Copied to clipboard.' : 'Copy failed.');
             } catch (e) {
@@ -407,15 +410,15 @@
     }
 
     function updateDeployToAzureSection(payload) {
-        var deployBtn = document.getElementById('deploy-to-azure-btn');
-        var deployBtnText = document.getElementById('deploy-btn-text');
-        var templateNameEl = document.getElementById('deploy-template-name');
-        var deploySection = document.getElementById('deploy-to-azure-section');
-        var disconnectedSection = document.getElementById('disconnected-operations-section');
-        
+        const deployBtn = document.getElementById('deploy-to-azure-btn');
+        const deployBtnText = document.getElementById('deploy-btn-text');
+        const templateNameEl = document.getElementById('deploy-template-name');
+        const deploySection = document.getElementById('deploy-to-azure-section');
+        const disconnectedSection = document.getElementById('disconnected-operations-section');
+
         // Check if this is a disconnected scenario
-        var isDisconnected = payload && payload.scenario === 'disconnected';
-        
+        const isDisconnected = payload && payload.scenario === 'disconnected';
+
         // Toggle visibility based on scenario
         if (isDisconnected) {
             // Hide Deploy to Azure section, show Disconnected Operations section
@@ -427,20 +430,20 @@
             if (deploySection) deploySection.style.display = 'block';
             if (disconnectedSection) disconnectedSection.style.display = 'none';
         }
-        
+
         if (!payload || !payload.referenceTemplate) {
             if (deployBtn) deployBtn.disabled = true;
             if (templateNameEl) templateNameEl.textContent = 'No template available';
             return;
         }
-        
-        var ref = payload.referenceTemplate;
-        var cloud = payload.cloud || 'azure_commercial';
-        
+
+        const ref = payload.referenceTemplate;
+        const cloud = payload.cloud || 'azure_commercial';
+
         if (templateNameEl) {
             templateNameEl.textContent = ref.name || 'Unknown template';
         }
-        
+
         // Update button text based on cloud
         if (deployBtnText) {
             if (cloud === 'azure_government') {
@@ -449,23 +452,23 @@
                 deployBtnText.textContent = 'Deploy to Azure';
             }
         }
-        
+
         if (deployBtn) deployBtn.disabled = false;
     }
 
     function main() {
         dlog('main: Starting...');
-        var payload = tryParsePayload();
+        const payload = tryParsePayload();
         dlog('Payload received:', payload);
-        
+
         // Store payload globally for updateParameters and deployToAzure
         window.armPayload = payload;
 
-        var metaEl = document.getElementById('arm-meta');
-        var placeholdersEl = document.getElementById('arm-placeholders');
-        var codeEl = document.getElementById('arm-json-code');
-        var copyBtn = document.getElementById('arm-copy-btn');
-        var statusEl = document.getElementById('arm-copy-status');
+        const metaEl = document.getElementById('arm-meta');
+        const placeholdersEl = document.getElementById('arm-placeholders');
+        const codeEl = document.getElementById('arm-json-code');
+        const copyBtn = document.getElementById('arm-copy-btn');
+        const statusEl = document.getElementById('arm-copy-status');
 
         dlog('Elements found:', {
             metaEl: !!metaEl,
@@ -485,13 +488,13 @@
             return;
         }
 
-        var readiness = payload.readiness || {};
+        const readiness = payload.readiness || {};
         setPlaceholders(placeholdersEl, readiness.placeholders);
-        
+
         // Pre-populate input fields with values from the payload (Issue #85, #86)
         prePopulateInputFields();
 
-        var rawJsonText = '';
+        let rawJsonText = '';
         try {
             rawJsonText = JSON.stringify(payload.parametersFile, null, 2);
         } catch (e2) {
@@ -502,8 +505,8 @@
 
         if (copyBtn) copyBtn.disabled = false;
         // Use dynamic getter to always copy the current (potentially updated) JSON from the display
-        attachCopy(copyBtn, statusEl, function () { 
-            return codeEl ? codeEl.textContent : rawJsonText; 
+        attachCopy(copyBtn, statusEl, function() {
+            return codeEl ? codeEl.textContent : rawJsonText;
         });
     }
 
@@ -512,13 +515,13 @@
 
 // Deploy to Azure function
 function deployToAzure() {
-    var payload = window.armPayload;
-    
+    const payload = window.armPayload;
+
     if (!payload || !payload.referenceTemplate || !payload.referenceTemplate.url) {
         // Prefer the shared toast (loaded via ../js/notifications.js on arm.html);
         // fall back to alert() only when the global isn't available (e.g. the
         // page is opened stand-alone without the notifications script).
-        var msg = 'No ARM template reference found. Please generate the ARM parameters from the wizard first.';
+        const msg = 'No ARM template reference found. Please generate the ARM parameters from the wizard first.';
         if (typeof window.showNotification === 'function') {
             window.showNotification(msg, 'error');
         } else {
@@ -526,21 +529,21 @@ function deployToAzure() {
         }
         return;
     }
-    
-    var ref = payload.referenceTemplate;
-    var cloud = payload.cloud || 'azure_commercial';
-    
+
+    const ref = payload.referenceTemplate;
+    const cloud = payload.cloud || 'azure_commercial';
+
     // Convert GitHub blob URL to raw URL for the ARM template
     // GitHub blob: https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/.../azuredeploy.json
     // GitHub raw:  https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/.../azuredeploy.json
-    var templateUrl = ref.url;
-    
+    let templateUrl = ref.url;
+
     // Only perform GitHub URL conversion if it matches the expected format
     // Use URL parsing for strict hostname validation to prevent spoofed domains
-    var isGitHub = false;
-    var isRawGitHub = false;
+    let isGitHub = false;
+    let isRawGitHub = false;
     try {
-        var parsedUrl = new URL(templateUrl);
+        const parsedUrl = new URL(templateUrl);
         isGitHub = parsedUrl.hostname === 'github.com';
         isRawGitHub = parsedUrl.hostname === 'raw.githubusercontent.com';
     } catch (e) {
@@ -554,25 +557,25 @@ function deployToAzure() {
         // GitHub URL without /blob/ - may be an invalid format, warn user
         console.warn('GitHub URL format may not be supported for raw conversion:', templateUrl);
     }
-    
+
     // Determine the Azure Portal URL based on cloud
     // Note: Azure China is not supported for Azure Local deployments
-    var portalBaseUrl;
+    let portalBaseUrl;
     if (cloud === 'azure_government') {
         portalBaseUrl = 'https://portal.azure.us';
     } else {
         portalBaseUrl = 'https://portal.azure.com';
     }
-    
+
     // Build the Deploy to Azure URL
     // Format: https://portal.azure.com/#create/Microsoft.Template/uri/{encoded-template-url}
     // Note: The Azure Portal template deployment blade does NOT support pre-filling parameters via URL
     // Parameters must be entered manually or copied from the generated ARM parameters JSON
-    var encodedTemplateUrl = encodeURIComponent(templateUrl);
-    var deployUrl = portalBaseUrl + '/#create/Microsoft.Template/uri/' + encodedTemplateUrl;
-    
+    const encodedTemplateUrl = encodeURIComponent(templateUrl);
+    const deployUrl = portalBaseUrl + '/#create/Microsoft.Template/uri/' + encodedTemplateUrl;
+
     // Show confirmation dialog with instructions
-    var confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
+    const confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
         'Template: ' + (ref.name || 'Unknown') + '\n' +
         'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : 'Azure Commercial') + '\n\n' +
         'To apply your configuration:\n' +
@@ -581,7 +584,7 @@ function deployToAzure() {
         '3. Paste your copied JSON and click Save\n' +
         '4. Replace any REPLACE_WITH_ placeholders\n\n' +
         'Continue to Azure Portal?';
-    
+
     if (confirm(confirmMsg)) {
         window.open(deployUrl, '_blank', 'noopener,noreferrer');
     }
@@ -590,27 +593,27 @@ function deployToAzure() {
 // Helper function to scroll to JSON section and copy parameters
 function scrollToAndCopyJson() {
     // First, copy the JSON
-    var codeEl = document.getElementById('arm-json-code');
-    var statusEl = document.getElementById('arm-copy-status');
-    
+    const codeEl = document.getElementById('arm-json-code');
+    const statusEl = document.getElementById('arm-copy-status');
+
     function setStatus(msg) {
         if (statusEl) {
             statusEl.textContent = msg;
             setTimeout(function() { statusEl.textContent = ''; }, 3000);
         }
     }
-    
+
     if (!codeEl) {
         setStatus('No JSON to copy.');
         return;
     }
-    
-    var text = codeEl.textContent || '';
+
+    const text = codeEl.textContent || '';
     if (!text.trim()) {
         setStatus('No JSON to copy.');
         return;
     }
-    
+
     // Copy to clipboard
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function() {
@@ -621,7 +624,7 @@ function scrollToAndCopyJson() {
         });
     } else {
         // Fallback
-        var tmp = document.createElement('textarea');
+        const tmp = document.createElement('textarea');
         tmp.value = text;
         tmp.setAttribute('readonly', 'readonly');
         tmp.style.position = 'fixed';
@@ -630,14 +633,14 @@ function scrollToAndCopyJson() {
         document.body.appendChild(tmp);
         tmp.focus();
         tmp.select();
-        var ok = document.execCommand('copy');
+        const ok = document.execCommand('copy');
         document.body.removeChild(tmp);
         setStatus(ok ? '✓ Copied to clipboard! Now paste in Azure Portal.' : 'Copy failed.');
         if (ok) highlightCopyButton();
     }
-    
+
     // Scroll to the JSON section
-    var jsonSection = document.getElementById('arm-json');
+    const jsonSection = document.getElementById('arm-json');
     if (jsonSection) {
         jsonSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // Add a brief highlight effect
@@ -650,7 +653,7 @@ function scrollToAndCopyJson() {
 }
 
 function highlightCopyButton() {
-    var copyBtn = document.getElementById('arm-copy-btn');
+    const copyBtn = document.getElementById('arm-copy-btn');
     if (copyBtn) {
         copyBtn.style.transition = 'all 0.3s ease';
         copyBtn.style.background = 'rgba(34, 197, 94, 0.2)';
@@ -693,14 +696,14 @@ stages:
     - task: AzureCLI@2
       displayName: 'Validate ARM Template'
       inputs:
-        azureSubscription: '\$(azureServiceConnection)'
+        azureSubscription: '$(azureServiceConnection)'
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
           az deployment group validate \\
-            --resource-group \$(resourceGroupName) \\
-            --template-file \$(templateFile) \\
-            --parameters @\$(parametersFile)
+            --resource-group $(resourceGroupName) \\
+            --template-file $(templateFile) \\
+            --parameters @$(parametersFile)
 
 - stage: Deploy
   displayName: 'Deploy Azure Local'
@@ -717,14 +720,14 @@ stages:
           - task: AzureCLI@2
             displayName: 'Deploy ARM Template'
             inputs:
-              azureSubscription: '\$(azureServiceConnection)'
+              azureSubscription: '$(azureServiceConnection)'
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
                 az deployment group create \\
-                  --resource-group \$(resourceGroupName) \\
-                  --template-file \$(templateFile) \\
-                  --parameters @\$(parametersFile) \\
+                  --resource-group $(resourceGroupName) \\
+                  --template-file $(templateFile) \\
+                  --parameters @$(parametersFile) \\
                   --mode Incremental
 `;
 
@@ -801,9 +804,9 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "## Deployment Complete :rocket:" >> \$GITHUB_STEP_SUMMARY
-          echo "Resource Group: \${{ env.RESOURCE_GROUP }}" >> \$GITHUB_STEP_SUMMARY
-          echo "Location: \${{ env.LOCATION }}" >> \$GITHUB_STEP_SUMMARY
+          echo "## Deployment Complete :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "Resource Group: \${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "Location: \${{ env.LOCATION }}" >> $GITHUB_STEP_SUMMARY
 `;
 
     downloadFile('.github-workflows-deploy.yml', workflow);
@@ -813,7 +816,7 @@ jobs:
 function showRestApiInfo() {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);';
-    
+
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 2px solid var(--accent-blue); border-radius: 16px; padding: 32px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
             <div style="text-align: center; margin-bottom: 24px;">
@@ -868,11 +871,11 @@ function showRestApiInfo() {
             </button>
         </div>
     `;
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
-    
+
     document.body.appendChild(overlay);
 }
 
@@ -888,10 +891,10 @@ function downloadFile(filename, content) {
     URL.revokeObjectURL(url);
 }
 
-function showNotification(message, type) {
+function showNotification(message, type) { // eslint-disable-line no-redeclare
     type = type || 'success';
     const bgColor = type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)';
-    
+
     const notification = document.createElement('div');
     notification.textContent = message;
     notification.style.cssText = `
@@ -907,9 +910,9 @@ function showNotification(message, type) {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     `;
     notification.style.backgroundColor = bgColor;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(function() {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(function() {
@@ -925,7 +928,7 @@ function showNotification(message, type) {
  */
 function updateParameters() {
     if (!window.armPayload || !window.armPayload.parametersFile) return;
-    
+
     // Get all input values
     const tenantId = document.getElementById('input-tenant-id')?.value.trim() || '';
     const subId = document.getElementById('input-subscription-id')?.value.trim() || '';
@@ -938,44 +941,44 @@ function updateParameters() {
     const keyVaultName = document.getElementById('input-keyvault-name')?.value.trim() || '';
     const diagnosticStorage = document.getElementById('input-diagnostic-storage')?.value.trim() || '';
     const hciRpObjectId = document.getElementById('input-hci-rp-object-id')?.value.trim() || '';
-    
+
     // Create a copy of the parameters to modify
     const paramsFile = JSON.parse(JSON.stringify(window.armPayload.parametersFile));
     const params = paramsFile.parameters || {};
-    
+
     // Update specific parameter values
     if (tenantId && params.tenantId) {
         params.tenantId.value = tenantId;
     }
-    
+
     if (clusterName && params.clusterName) {
         params.clusterName.value = clusterName;
     }
-    
+
     if (keyVaultName && params.keyVaultName) {
         params.keyVaultName.value = keyVaultName;
     }
-    
+
     if (diagnosticStorage && params.diagnosticStorageAccountName) {
         params.diagnosticStorageAccountName.value = diagnosticStorage;
     }
-    
+
     if (hciRpObjectId && params.hciResourceProviderObjectID) {
         params.hciResourceProviderObjectID.value = hciRpObjectId;
     }
-    
+
     if (witnessStorage && params.clusterWitnessStorageAccountName) {
         params.clusterWitnessStorageAccountName.value = witnessStorage;
     }
-    
+
     if (ouPath && params.adouPath) {
         params.adouPath.value = ouPath;
     }
-    
+
     if (customLocation && params.customLocation) {
         params.customLocation.value = customLocation;
     }
-    
+
     // Also update any remaining REPLACE_WITH_ placeholders with generic replacements
     for (const key in params) {
         const val = params[key].value;
@@ -1015,14 +1018,14 @@ function updateParameters() {
             });
         }
     }
-    
+
     // Update the display with syntax highlighting
     const jsonCode = document.getElementById('arm-json-code');
     if (jsonCode) {
         const rawJsonText = JSON.stringify(paramsFile, null, 2);
         jsonCode.innerHTML = highlightJsonInline(rawJsonText);
     }
-    
+
     // Update status
     const statusEl = document.getElementById('update-params-status');
     if (statusEl) {
@@ -1040,25 +1043,25 @@ function highlightJsonInline(rawJsonText) {
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
+            .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
 
-    var s = String(rawJsonText || '');
-    var out = '';
-    var i = 0;
+    const s = String(rawJsonText || '');
+    let out = '';
+    let i = 0;
 
     function isWs(ch) { return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'; }
     function peekNonWs(start) {
-        for (var j = start; j < s.length; j++) {
-            var c = s[j];
+        for (let j = start; j < s.length; j++) {
+            const c = s[j];
             if (!isWs(c)) return c;
         }
         return '';
     }
 
     while (i < s.length) {
-        var ch = s[i];
+        const ch = s[i];
 
         // Whitespace
         if (isWs(ch)) {
@@ -1069,11 +1072,11 @@ function highlightJsonInline(rawJsonText) {
 
         // Strings
         if (ch === '"') {
-            var start = i;
+            const start = i;
             i++; // consume opening quote
-            var escaped = false;
+            let escaped = false;
             while (i < s.length) {
-                var c2 = s[i];
+                const c2 = s[i];
                 if (escaped) {
                     escaped = false;
                     i++;
@@ -1091,18 +1094,18 @@ function highlightJsonInline(rawJsonText) {
                 i++;
             }
 
-            var strToken = s.slice(start, i);
-            var next = peekNonWs(i);
-            var cls = (next === ':') ? 'json-token--key' : 'json-token--string';
+            const strToken = s.slice(start, i);
+            const next = peekNonWs(i);
+            const cls = (next === ':') ? 'json-token--key' : 'json-token--string';
             out += '<span class="' + cls + '">' + escapeHtml(strToken) + '</span>';
             continue;
         }
 
         // Numbers
         if (ch === '-' || (ch >= '0' && ch <= '9')) {
-            var numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+            const numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?/);
             if (numMatch && numMatch[0]) {
-                var numTok = numMatch[0];
+                const numTok = numMatch[0];
                 out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
                 i += numTok.length;
                 continue;
@@ -1142,15 +1145,15 @@ function generatePowerShellScript() {
     const subId = document.getElementById('input-subscription-id').value.trim();
     const rgName = document.getElementById('input-resource-group').value.trim();
     const deployName = document.getElementById('input-deployment-name').value.trim() || 'azurelocal-deployment';
-    
+
     if (!subId || !rgName) {
         showNotification('Please fill in Subscription ID and Resource Group Name first', 'error');
         return;
     }
-    
+
     // Validate input formats to prevent command injection in generated scripts
-    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
     if (!guidPattern.test(subId)) {
         showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
         return;
@@ -1167,9 +1170,9 @@ function generatePowerShellScript() {
         showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
         return;
     }
-    
+
     const tenantParam = tenantId ? ` -TenantId "${tenantId}"` : '';
-    
+
     const script = `# Azure Local Deployment Script
 # Generated by Odin for Azure Local
 
@@ -1220,15 +1223,15 @@ function generateAzCLIScript() {
     const subId = document.getElementById('input-subscription-id').value.trim();
     const rgName = document.getElementById('input-resource-group').value.trim();
     const deployName = document.getElementById('input-deployment-name').value.trim() || 'azurelocal-deployment';
-    
+
     if (!subId || !rgName) {
         showNotification('Please fill in Subscription ID and Resource Group Name first', 'error');
         return;
     }
-    
+
     // Validate input formats to prevent command injection in generated scripts
-    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    const guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
     if (!guidPattern.test(subId)) {
         showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
         return;
@@ -1245,9 +1248,9 @@ function generateAzCLIScript() {
         showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
         return;
     }
-    
+
     const tenantParam = tenantId ? ` --tenant "${tenantId}"` : '';
-    
+
     const script = `#!/bin/bash
 # Azure Local Deployment Script
 # Generated by Odin for Azure Local
@@ -1295,7 +1298,7 @@ echo "Deployment completed successfully!"
 function showBicepTerraformAlternatives() {
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:1rem;';
-    
+
     modal.innerHTML = `
         <div style="background:var(--bg-dark);border:1px solid var(--glass-border);border-radius:8px;padding:2rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
@@ -1362,7 +1365,7 @@ function showBicepTerraformAlternatives() {
             </button>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
     modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.remove();

@@ -162,7 +162,7 @@
     // back to the Designer onboarding walkthrough.
     if (active === 'designer' && !window.showNavHelp) {
         window.showNavHelp = function() {
-            var knowledgeTab = document.getElementById('tab-knowledge');
+            const knowledgeTab = document.getElementById('tab-knowledge');
             if (knowledgeTab && knowledgeTab.classList.contains('active')) {
                 if (typeof window.showKnowledgeOnboarding === 'function') {
                     window.showKnowledgeOnboarding();
