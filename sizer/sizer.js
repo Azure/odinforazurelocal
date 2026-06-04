@@ -5784,10 +5784,19 @@ function calculateRequirements(options) {
                         updateClusterInfo();
                         _nodeCountUserSet = false;
 
-                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks') + '.', 'info');
-
+                        // Defer toast until after the recursive recalc settles
+                        // the per-rack node count, so the total reflects what's
+                        // actually in the dropdown.
                         isCalculating = false;
                         calculateRequirements();
+                        const perRackElS = document.getElementById('node-count');
+                        const perRackS = perRackElS ? (parseInt(perRackElS.value, 10) || 0) : 0;
+                        const totalMachinesS = shrinkDecision.racks * perRackS;
+                        const rackTextS = shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks');
+                        const machineTextS = totalMachinesS > 0
+                            ? ' \u2014 ' + totalMachinesS + (totalMachinesS === 1 ? ' machine' : ' machines')
+                            : '';
+                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + rackTextS + machineTextS + '.', 'info');
                         return;
                     }
                 }
@@ -5828,10 +5837,24 @@ function calculateRequirements(options) {
                             updateDisaggregatedUI(true);
                             _nodeCountUserSet = false;
 
-                            showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
-
+                            // Defer the toast until AFTER the recursive recalc
+                            // has settled the per-rack node count — at this
+                            // point `node-count` is still showing the pre-disagg
+                            // standard value, but the recalc will rebuild the
+                            // dropdown for disaggregated and then auto-scale up
+                            // with N+1 maintenance headroom. Read the final
+                            // per-rack count out of the DOM so the toast shows
+                            // racks × machines/rack = total, matching the UI.
                             isCalculating = false;
                             calculateRequirements();
+                            const perRackEl = document.getElementById('node-count');
+                            const perRack = perRackEl ? (parseInt(perRackEl.value, 10) || 0) : 0;
+                            const totalMachines = minRacks * perRack;
+                            const rackText = minRacks + (minRacks === 1 ? ' rack' : ' racks');
+                            const machineText = totalMachines > 0
+                                ? ' \u2014 ' + totalMachines + (totalMachines === 1 ? ' machine' : ' machines')
+                                : '';
+                            showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + rackText + machineText + ').', 'info');
                             return;
                         }
                     }
@@ -5862,10 +5885,18 @@ function calculateRequirements(options) {
                             updateClusterInfo();
                             _nodeCountUserSet = false;
 
-                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackDecision.racks + ' racks.', 'info');
-
+                            // Defer toast until after the recursive recalc
+                            // settles the per-rack node count.
                             isCalculating = false;
                             calculateRequirements();
+                            const perRackElU = document.getElementById('node-count');
+                            const perRackU = perRackElU ? (parseInt(perRackElU.value, 10) || 0) : 0;
+                            const totalMachinesU = rackDecision.racks * perRackU;
+                            const rackTextU = rackDecision.racks + (rackDecision.racks === 1 ? ' rack' : ' racks');
+                            const machineTextU = totalMachinesU > 0
+                                ? ' \u2014 ' + totalMachinesU + (totalMachinesU === 1 ? ' machine' : ' machines')
+                                : '';
+                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackTextU + machineTextU + '.', 'info');
                             return;
                         }
                     }
