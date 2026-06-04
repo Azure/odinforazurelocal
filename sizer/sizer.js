@@ -5484,6 +5484,16 @@ function calculateRequirements(options) {
             markAutoScaled('disagg-rack-count');
         }
 
+        // cluster-type auto-upgrade fires once (in the `!conservativeSuccess` branch below)
+        // and then triggers a recursive calculateRequirements(); on that follow-up pass the
+        // upgrade block doesn't re-fire (we're already disaggregated) so the AUTO badge would
+        // disappear. Worse, the auto-downgrade block requires `_autoScaledFields.has('cluster-type')`
+        // — if we don't re-apply it here, the downgrade can never see the badge and never fires
+        // when a user later removes a manual override that was forcing the upgrade.
+        if (previouslyAutoScaled.has('cluster-type') && !_manualFields.has('cluster-type')) {
+            markAutoScaled('cluster-type');
+        }
+
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
         if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
