@@ -7374,6 +7374,12 @@ function updateMultiInstanceSummary() {
         +     ' style="width: 90px; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">'
         +   '<span style="margin-left: 16px; display: inline-flex; align-items: center; gap: 6px;"><span style="text-align: right; line-height: 1.2; font-size: 12px; color: var(--text-secondary);">Total Annual Cost:<br>(estimated)</span> <strong id="multi-power-cost">\u2014</strong></span>'
         + '</div>'
+        + (clusterType === 'disaggregated'
+            ? '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
+              + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
+              + '<span><strong>Note:</strong> SAN storage appliance/array power is <em>not included</em> in the estimated power consumption above \u2014 consult your SAN vendor for storage array power requirements.</span>'
+              + '</div>'
+            : '')
         + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
         + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
         + '<span>Multi-instance estimates are approximate projections based on the single-instance configuration above. Each instance is independently sized and deployed. Actual power, cooling, and rack requirements may vary by site, OEM hardware, and deployment configuration. Contact your preferred hardware partner for detailed and accurate information.</span>'
