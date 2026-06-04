@@ -5913,7 +5913,8 @@ function calculateRequirements(options) {
                             const machineTextU = totalMachinesU > 0
                                 ? ' \u2014 ' + totalMachinesU + (totalMachinesU === 1 ? ' machine' : ' machines')
                                 : '';
-                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackTextU + machineTextU + '.', 'info');
+                            const curRackTextU = curRacks + (curRacks === 1 ? ' rack' : ' racks');
+                            showSizerToast('Disaggregated workload exceeds ' + curRackTextU + ' capacity \u2014 automatically scaled to ' + rackTextU + machineTextU + '.', 'info');
                             return;
                         }
                     }
