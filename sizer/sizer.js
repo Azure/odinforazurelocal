@@ -5742,10 +5742,18 @@ function calculateRequirements(options) {
                         updateDisaggregatedUI(false);
                         _nodeCountUserSet = false;
 
-                        showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + downgradeDecision.recommended + (downgradeDecision.recommended === 1 ? ' machine' : ' machines') + ').', 'info');
-
+                        // Defer the toast until AFTER the recursive recalc has
+                        // settled the final node count — at this point
+                        // `downgradeDecision.recommended` is the raw recommendation
+                        // (e.g. 10) which the recalc then bumps up via the N+1
+                        // maintenance-headroom auto-scale (typically to 13). Read
+                        // the post-recalc value out of the DOM so the toast shows
+                        // what the user actually sees in the dropdown.
                         isCalculating = false;
                         calculateRequirements();
+                        const finalNodeEl = document.getElementById('node-count');
+                        const finalNodeCount = finalNodeEl ? (parseInt(finalNodeEl.value, 10) || downgradeDecision.recommended) : downgradeDecision.recommended;
+                        showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + finalNodeCount + (finalNodeCount === 1 ? ' machine' : ' machines') + ').', 'info');
                         return;
                     }
                 }
