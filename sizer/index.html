@@ -816,7 +816,10 @@
                                     <span class="power-input-hint">Input:</span>
                                     <input type="number" id="power-price-input" class="power-price-input" min="0" step="0.01" inputmode="decimal" placeholder="0.15" aria-label="Electricity unit price per kilowatt-hour, in your local currency" oninput="updateRunningCost(); saveSizerState();">
                                 </span>
-                                <span class="value" id="power-cost">—</span>
+                                <span class="power-price-input-row" id="power-cost-row">
+                                    <span class="power-input-hint" id="power-cost-hint" style="display: none;">Cost:</span>
+                                    <span class="value" id="power-cost">—</span>
+                                </span>
                             </span>
                         </div>
                         <div class="power-rack-item">
@@ -849,7 +852,7 @@
                 </div>
 
                 <!-- Capacity Runway Projection -->
-                <div id="growth-projection-section" style="display: none; margin-top: 12px;">
+                <div id="growth-projection-section" style="display: none; margin-top: 12px; margin-bottom: 20px;">
                     <details>
                         <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; font-size: 13px; padding: 6px 0;">📈 Capacity Runway — Year-over-Year Growth Projection</summary>
                         <div style="display: flex; align-items: center; gap: 12px; margin: 8px 0 0 0; padding: 10px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.28); border-radius: 6px; font-size: 12px;">

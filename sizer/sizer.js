@@ -6532,18 +6532,21 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 // clears the estimate back to a dash — the input is entirely optional.
 function updateRunningCost() {
     const costEl = document.getElementById('power-cost');
+    const hintEl = document.getElementById('power-cost-hint');
     const priceEl = document.getElementById('power-price-input');
     if (!costEl) { return; }
     const annualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
     const price = priceEl ? parseFloat(priceEl.value) : NaN;
     if (annualKwh == null || !isFinite(price) || price <= 0) {
         costEl.textContent = '—';
+        if (hintEl) hintEl.style.display = 'none';
         return;
     }
     const annualCost = annualKwh * price;
     costEl.textContent = annualCost.toLocaleString(undefined, {
         maximumFractionDigits: 0
     }) + '/yr';
+    if (hintEl) hintEl.style.display = '';
 }
 
 // Update sizing notes
