@@ -149,7 +149,29 @@
         "sizerHardware": {
           "type": ["object", "null"],
           "additionalProperties": true,
-          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary)."
+          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary, power). Only the `power` sub-object is structurally enforced by CI deep-drift right now; the rest is additionalProperties for forward compatibility. Source of truth: the `sizerHardware` block built inside `selectRegionAndConfigure()`'s `sizerPayload` in sizer/sizer.js.",
+          "properties": {
+            "power": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "description": "Per-instance power, heat & rack-space estimate captured from the Sizer's 'Estimated Power, Heat & Rack Space per Instance' panel. Source of truth: _lastPowerEstimate in sizer/sizer.js, mirrored into sizerHardware.power by the Sizer→Designer payload builder. CI deep-drift enforces structural parity between this property set and the source sub-object — adding a field on one side without the other fails the build.",
+              "properties": {
+                "perNodeW": { "type": ["number", "null"], "description": "Per-node power draw in watts." },
+                "totalW": { "type": ["number", "null"], "description": "Total instance power in watts (per-node × node count)." },
+                "totalBtu": { "type": ["number", "null"], "description": "Total heat output in BTU/hr." },
+                "annualKwh": { "type": ["number", "null"], "description": "Annual energy use in kWh/yr (24/7/365 at totalW)." },
+                "powerPricePerKwh": { "type": ["number", "null"], "description": "Optional user-entered electricity unit price (per kWh) at export time. Currency-agnostic free text; null when empty/invalid. Report + PPT compute annual cost only when this is a positive number." },
+                "rackUnits": { "type": ["integer", "null"], "description": "Estimated rack units consumed." },
+                "infraPowerW": { "type": ["number", "null"], "description": "Network infrastructure (TOR + spine) power draw, when known." },
+                "infraPowerNote": { "type": ["string", "null"], "description": "Free-text note for the infrastructure power line (e.g. 'estimated, switch model unknown')." },
+                "components": {
+                  "type": ["object", "null"],
+                  "additionalProperties": true,
+                  "description": "Per-node power breakdown by component (CPU, memory, disks, GPU, base overhead, PSU efficiency). Surfaced in the Configuration Report 'Per-Node Breakdown' row."
+                }
+              }
+            }
+          }
         },
         "sizerWorkloads": {
           "type": ["array", "object", "null"],

@@ -149,6 +149,101 @@ function walkTopLevelObjectKeys(src, startBraceIdx) {
     return keys;
 }
 
+// Walk an object literal (depth-1 of `parentOpenBraceIdx`) and, on finding
+// `targetKey:`, return the index of the next '{' that opens the value's own
+// object literal (skipping strings/comments and tolerating ternary value
+// forms like `power: cond ? { ... } : null`). Returns -1 if the key isn't
+// found at the top level, or if its value isn't an object literal.
+function findNestedObjectStart(src, parentOpenBraceIdx, targetKey) {
+    let depth = 0;
+    let inString = false, stringChar = '';
+    let inLineComment = false, inBlockComment = false;
+    let expectKey = false;
+
+    for (let i = parentOpenBraceIdx; i < src.length; i++) {
+        const c = src[i];
+        const next = src[i + 1];
+
+        if (inLineComment) { if (c === '\n') inLineComment = false; continue; }
+        if (inBlockComment) { if (c === '*' && next === '/') { inBlockComment = false; i++; } continue; }
+        if (inString) {
+            if (c === '\\') { i++; continue; }
+            if (c === stringChar) inString = false;
+            continue;
+        }
+
+        if (c === '/' && next === '/') { inLineComment = true; i++; continue; }
+        if (c === '/' && next === '*') { inBlockComment = true; i++; continue; }
+        if (c === '"' || c === "'" || c === '`') { inString = true; stringChar = c; continue; }
+
+        if (c === '{' || c === '[') {
+            depth++;
+            if (c === '{' && depth === 1) expectKey = true;
+            continue;
+        }
+        if (c === '}' || c === ']') {
+            depth--;
+            if (depth === 0) return -1;
+            continue;
+        }
+
+        if (depth === 1) {
+            if (c === ',') { expectKey = true; continue; }
+            if (expectKey && !/\s/.test(c)) {
+                let key = '', j = i;
+                while (j < src.length && /[\w$]/.test(src[j])) { key += src[j]; j++; }
+                while (j < src.length && /\s/.test(src[j])) j++;
+                if (src[j] === ':' && key) {
+                    if (key === targetKey) {
+                        // Found. Scan forward past the colon to the value's
+                        // opening '{', skipping strings/comments. Bail if we
+                        // hit a sibling/closing token before any '{'.
+                        let k = j + 1;
+                        let s = false, sc = '', lc = false, bc = false;
+                        while (k < src.length) {
+                            const cc = src[k];
+                            const nn = src[k + 1];
+                            if (lc) { if (cc === '\n') lc = false; k++; continue; }
+                            if (bc) { if (cc === '*' && nn === '/') { bc = false; k += 2; continue; } k++; continue; }
+                            if (s) {
+                                if (cc === '\\') { k += 2; continue; }
+                                if (cc === sc) s = false;
+                                k++; continue;
+                            }
+                            if (cc === '/' && nn === '/') { lc = true; k += 2; continue; }
+                            if (cc === '/' && nn === '*') { bc = true; k += 2; continue; }
+                            if (cc === '"' || cc === "'" || cc === '`') { s = true; sc = cc; k++; continue; }
+                            if (cc === '{') return k;
+                            if (cc === ',' || cc === ';' || cc === '}' || cc === ']') return -1;
+                            k++;
+                        }
+                        return -1;
+                    }
+                    i = j;
+                }
+                expectKey = false;
+                continue;
+            }
+        }
+    }
+    return -1;
+}
+
+// Like extractTopLevelObjectKeysFromConst, but follows a chain of nested keys
+// (e.g. ['sizerHardware', 'power']) into the literal and returns the keys of
+// the innermost object. Used by the deep schema-drift check.
+function extractNestedObjectKeysFromConst(src, varName, keyPath) {
+    const re = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*\\{`);
+    const m = re.exec(src);
+    if (!m) throw new Error(`Could not find 'const ${varName} = {' in source`);
+    let cursor = m.index + m[0].length - 1;  // index of the outer opening '{'
+    for (const k of keyPath) {
+        cursor = findNestedObjectStart(src, cursor, k);
+        if (cursor === -1) throw new Error(`Could not navigate to '${keyPath.join('.')}' (failed at '${k}') in ${varName}`);
+    }
+    return walkTopLevelObjectKeys(src, cursor);
+}
+
 function checkSchemaDrift() {
     const cases = [
         {
@@ -249,6 +344,112 @@ function checkSchemaDrift() {
         console.error(`❌ Sizer workload type drift check failed: ${err.message}`);
     }
 
+    // Deep (nested) sub-object drift. Walks into named sub-objects of the
+    // Sizer→Designer payload (built inside selectRegionAndConfigure() as
+    // `const sizerPayload = { ... }`) and compares depth-1 keys of the
+    // nested literal against a matching schema property map. Catches the
+    // class of bug where someone adds a new field to e.g. sizerHardware.power
+    // and forgets to add it to the schema — or removes one without cleanup.
+    // Today this guards `sizerHardware.power` only (the sub-object that
+    // motivated this check); add another entry to extend coverage to other
+    // sub-objects like sizerHardware.cpu / .memory / .gpu / .storage / etc.
+    // when those start carrying fields downstream care about.
+    const deepCases = [
+        {
+            label: 'Sizer→Designer payload (sizerPayload.sizerHardware.power ↔ odin-design.schema.json state.sizerHardware.power)',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware', 'power'],
+            schemaFile: path.join('docs', 'json-schema', 'odin-design.schema.json'),
+            schemaProps: schema => schema.properties.state.properties.sizerHardware.properties.power.properties
+        }
+    ];
+
+    deepCases.forEach(c => {
+        try {
+            const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
+            const stateKeys = extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
+
+            const schema = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), c.schemaFile), 'utf8'));
+            const props = c.schemaProps(schema);
+            if (!props || typeof props !== 'object') {
+                throw new Error(`Nested schema property map not found in ${c.schemaFile} for ${c.keyPath.join('.')}`);
+            }
+            const schemaKeys = Object.keys(props);
+
+            const stateSet = new Set(stateKeys);
+            const schemaSet = new Set(schemaKeys);
+
+            const missingFromSchema = stateKeys.filter(k => !schemaSet.has(k));
+            const missingFromState = schemaKeys.filter(k => !stateSet.has(k));
+
+            if (missingFromSchema.length === 0 && missingFromState.length === 0) {
+                console.log(`✅ Deep schema drift OK: ${c.label} (${stateKeys.length} fields in sync)`);
+            } else {
+                allOk = false;
+                console.error(`❌ Deep schema drift detected: ${c.label}`);
+                if (missingFromSchema.length) {
+                    console.error(`     Payload fields missing from schema (add them to ${c.schemaFile} under the matching properties block):`);
+                    missingFromSchema.forEach(k => console.error(`       + ${k}`));
+                }
+                if (missingFromState.length) {
+                    console.error(`     Schema properties no longer in payload (remove from schema or restore in ${c.sourceFile}):`);
+                    missingFromState.forEach(k => console.error(`       - ${k}`));
+                }
+            }
+        } catch (err) {
+            allOk = false;
+            console.error(`❌ Deep schema drift check failed for ${c.label}: ${err.message}`);
+        }
+    });
+
+    return allOk;
+}
+
+// Renderer coverage. Every depth-1 field of select Sizer→Designer payload
+// sub-objects should be referenced (by bare identifier) in every downstream
+// renderer that's expected to surface it. This is a coarse text-grep — it
+// catches "added field to payload, forgot to render in report.js / PPT" but
+// not "rendered as the wrong label". Cheap belt-and-suspenders against
+// silent drops. Pair with the deep schema-drift check above (one structural,
+// one render-side) to close the typical Sizer→Designer-handoff gap class.
+function checkRendererCoverage() {
+    const cases = [
+        {
+            label: 'sizerPayload.sizerHardware.power',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware', 'power'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
+        }
+    ];
+
+    let allOk = true;
+    cases.forEach(c => {
+        try {
+            const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
+            const fieldNames = extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
+            c.consumers.forEach(consumer => {
+                const consumerSrc = fs.readFileSync(path.resolve(process.cwd(), consumer.file), 'utf8');
+                const missing = fieldNames.filter(f => !new RegExp('\\b' + f + '\\b').test(consumerSrc));
+                if (missing.length === 0) {
+                    console.log(`✅ Renderer coverage OK: ${c.label} → ${consumer.label} (${fieldNames.length} fields all referenced)`);
+                } else {
+                    allOk = false;
+                    console.error(`❌ Renderer coverage gap: ${c.label} → ${consumer.label}`);
+                    console.error(`     Field(s) present in the payload but not referenced in ${consumer.file}:`);
+                    missing.forEach(f => console.error(`       ↳ ${f}`));
+                    console.error(`     Either wire the field into the renderer, or document why it is intentionally omitted.`);
+                }
+            });
+        } catch (err) {
+            allOk = false;
+            console.error(`❌ Renderer coverage check failed for ${c.label}: ${err.message}`);
+        }
+    });
     return allOk;
 }
 
@@ -363,6 +564,15 @@ function generateJUnitXML(results, passed, failed, total) {
         // keep docs/json-schema/ in lock-step with the in-app state objects).
         if (!checkSchemaDrift()) {
             console.error('\n❌ Schema drift check failed — update docs/json-schema/ to match the state object(s) in the same PR.');
+            process.exit(1);
+        }
+
+        // Renderer coverage — every Sizer→Designer payload field of the
+        // covered sub-objects must be referenced in the report + PPT
+        // consumers. Catches "added a field, forgot to wire it into a
+        // render site" (the bug that motivated this gate).
+        if (!checkRendererCoverage()) {
+            console.error('\n❌ Renderer coverage check failed — wire the missing field(s) into the report/PPT, or document why they are intentionally omitted.');
             process.exit(1);
         }
 

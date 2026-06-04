@@ -1650,6 +1650,30 @@
             text: 'Heat output: ' + (pw.totalBtu || 0).toLocaleString() + ' BTU/hr',
             lvl: 1
         });
+        if (pw.annualKwh != null && isFinite(pw.annualKwh)) {
+            const kwh = pw.annualKwh;
+            const energyText = (kwh >= 1000000)
+                ? (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr'
+                : Math.round(kwh).toLocaleString() + ' kWh/yr';
+            bullets.push({
+                text: 'Total annual energy: ' + energyText + ' (24/7/365 at total instance power)',
+                lvl: 1
+            });
+            if (typeof pw.powerPricePerKwh === 'number' && isFinite(pw.powerPricePerKwh) && pw.powerPricePerKwh > 0) {
+                const annualCost = kwh * pw.powerPricePerKwh;
+                bullets.push({
+                    text: 'Electricity price: '
+                        + pw.powerPricePerKwh.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                        + ' per kWh (user input, currency-agnostic)',
+                    lvl: 1
+                });
+                bullets.push({
+                    text: 'Total annual energy cost: '
+                        + annualCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '/yr',
+                    lvl: 1
+                });
+            }
+        }
         if (pw.rackUnits) {
             bullets.push({
                 text: 'Rack space: ' + pw.rackUnits + 'U',
