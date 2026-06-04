@@ -234,7 +234,7 @@
                         <span id="node-recommendation-text"></span>
                     </div>
                     <div class="config-row">
-                        <label for="future-growth">Allow for Future Growth</label>
+                        <label for="future-growth">Allow for Future Growth <span class="config-info-tip" tabindex="0" role="img" aria-label="More info about future growth" title="Pads workload demand by this % to size hardware with headroom. For year-over-year compound growth across multiple years, see the 📈 Capacity Runway — Year-over-Year Growth Projection section below the sizing notes (toggle the Yes/No dropdown there to size for the full 5-year compound horizon).">ⓘ</span></label>
                         <select id="future-growth" onchange="onFutureGrowthChange()">
                             <option value="0">No additional growth</option>
                             <option value="10" selected>10% growth buffer (recommended)</option>
@@ -852,10 +852,16 @@
                 <div id="growth-projection-section" style="display: none; margin-top: 12px;">
                     <details>
                         <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; font-size: 13px; padding: 6px 0;">📈 Capacity Runway — Year-over-Year Growth Projection</summary>
-                        <label style="display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 0 0; padding: 8px 12px; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 6px; cursor: pointer; font-size: 12px;">
-                            <input type="checkbox" id="size-for-5yr-growth" onchange="onSizeFor5YrGrowthChange()" style="margin-top: 2px; cursor: pointer;">
-                            <span>Size hardware to accommodate <strong>5 years</strong> of compound YoY growth (applies the % above five times, e.g. 10% → ×1.61). Auto-scales the cluster up so the design fits Year 5 demand.</span>
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 12px; margin: 8px 0 0 0; padding: 10px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.28); border-radius: 6px; font-size: 12px;">
+                            <label for="size-for-5yr-growth" style="flex: 1; cursor: pointer; line-height: 1.4;">
+                                <strong>Size hardware to accommodate 5 years of compound YoY growth?</strong><br>
+                                <span style="color: var(--text-secondary); font-size: 11px;">Applies the % above five times (e.g. 10% → ×1.61) and auto-scales the cluster up so the design fits Year 5 demand.</span>
+                            </label>
+                            <select id="size-for-5yr-growth" onchange="onSizeFor5YrGrowthChange()" style="padding: 6px 10px; font-size: 12px; cursor: pointer; min-width: 80px;">
+                                <option value="no" selected>No</option>
+                                <option value="yes">Yes</option>
+                            </select>
+                        </div>
                         <div id="growth-projection-content" style="margin-top: 8px; padding: 10px 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.12); border-radius: 6px; font-size: 12px; overflow-x: auto;"></div>
                     </details>
                 </div>

@@ -3346,20 +3346,24 @@
         ]);
 
         // --- getGrowthYears() + getGrowthFactor() (DOM-backed, issue #254) ---
-        // The 5-year tick-box is the only place a checkbox lives in the Sizer
-        // touched by these helpers; we mutate it directly to cover both modes.
+        // The 5-year No/Yes dropdown drives both helpers; we flip its value to
+        // cover both modes.
         // NOTE: this suite runs BEFORE the shared hardware-stubs IIFE further
         // down the file, so we have to create the DOM elements ourselves.
         testSuite('getGrowthYears() + getGrowthFactor() with #size-for-5yr-growth', 'sizer.js', (() => {
             const results = [];
-            let cb = document.getElementById('size-for-5yr-growth');
-            const cbCreated = !cb;
-            if (!cb) {
-                cb = document.createElement('input');
-                cb.id = 'size-for-5yr-growth';
-                cb.type = 'checkbox';
-                cb.style.display = 'none';
-                document.body.appendChild(cb);
+            let sel = document.getElementById('size-for-5yr-growth');
+            const selCreated = !sel;
+            if (!sel) {
+                sel = document.createElement('select');
+                sel.id = 'size-for-5yr-growth';
+                sel.style.display = 'none';
+                ['no','yes'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v; opt.text = v;
+                    sel.appendChild(opt);
+                });
+                document.body.appendChild(sel);
             }
             let growthEl = document.getElementById('future-growth');
             const growthCreated = !growthEl;
@@ -3374,44 +3378,41 @@
                 });
                 document.body.appendChild(growthEl);
             }
-            const savedType = cb.type;
-            cb.type = 'checkbox';
-            const savedChecked = cb.checked;
+            const savedSel = sel.value;
             const savedGrowth = growthEl.value;
             try {
                 // --- getGrowthYears() ---
-                cb.checked = false;
+                sel.value = 'no';
                 results.push(assert(getGrowthYears() === 1,
-                    'checkbox unchecked → 1 year (historical Year-1 sizing)', 1, getGrowthYears()));
-                cb.checked = true;
+                    "dropdown 'no' → 1 year (historical Year-1 sizing)", 1, getGrowthYears()));
+                sel.value = 'yes';
                 results.push(assert(getGrowthYears() === 5,
-                    'checkbox checked → 5 years (compound horizon)', 5, getGrowthYears()));
+                    "dropdown 'yes' → 5 years (compound horizon)", 5, getGrowthYears()));
 
                 // --- getGrowthFactor() round-trips through getGrowthYears() ---
                 growthEl.value = '10';
-                cb.checked = false;
+                sel.value = 'no';
                 results.push(assert(Math.abs(getGrowthFactor() - 1.1) < 1e-9,
-                    '10% unchecked → 1.10 (Year 1)', 1.1, getGrowthFactor()));
-                cb.checked = true;
+                    "10% + 'no' → 1.10 (Year 1)", 1.1, getGrowthFactor()));
+                sel.value = 'yes';
                 results.push(assert(Math.abs(getGrowthFactor() - 1.61051) < 1e-6,
-                    '10% checked → 1.61051 (5-year compound)', 1.61051, getGrowthFactor()));
+                    "10% + 'yes' → 1.61051 (5-year compound)", 1.61051, getGrowthFactor()));
 
                 growthEl.value = '0';
-                cb.checked = true;
+                sel.value = 'yes';
                 results.push(assert(getGrowthFactor() === 1,
-                    '0% checked → 1 (no compounding when no growth)', 1, getGrowthFactor()));
+                    "0% + 'yes' → 1 (no compounding when no growth)", 1, getGrowthFactor()));
 
                 growthEl.value = '50';
-                cb.checked = true;
+                sel.value = 'yes';
                 results.push(assert(Math.abs(getGrowthFactor() - 7.59375) < 1e-6,
-                    '50% checked → 7.59375', 7.59375, getGrowthFactor()));
+                    "50% + 'yes' → 7.59375", 7.59375, getGrowthFactor()));
             } finally {
-                cb.checked = savedChecked;
-                cb.type = savedType;
+                sel.value = savedSel;
                 growthEl.value = savedGrowth;
                 // Clean up only what we created — leave shared stubs in place
                 // for the suites that run after us.
-                if (cbCreated && cb.parentNode) cb.parentNode.removeChild(cb);
+                if (selCreated && sel.parentNode) sel.parentNode.removeChild(sel);
                 if (growthCreated && growthEl.parentNode) growthEl.parentNode.removeChild(growthEl);
             }
             return results;
@@ -5528,11 +5529,9 @@
                 { id: 'node-count', tag: 'select', values: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], defaultVal: '3' },
                 { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware','low-capacity'], defaultVal: 'standard' },
                 { id: 'future-growth', tag: 'select', values: ['0','10','20','30','40','50'], defaultVal: '0' },
-                // Plain <input> stub is fine — when .checked is undefined (no type='checkbox'),
-                // getGrowthYears() returns 1, preserving historical Year-1 sizing for all
-                // unrelated tests. The dedicated _computeGrowthMultiplier / getGrowthFactor
-                // suites set el.type='checkbox' + el.checked explicitly.
-                { id: 'size-for-5yr-growth', tag: 'input', defaultVal: '' },
+                // Default 'no' → getGrowthYears() returns 1, preserving historical Year-1
+                // sizing for all unrelated tests. The dedicated growth suites flip it to 'yes'.
+                { id: 'size-for-5yr-growth', tag: 'select', values: ['no','yes'], defaultVal: 'no' },
                 { id: 'resiliency', tag: 'select', values: ['simple','2way','3way','4way'], defaultVal: '2way' },
                 { id: 'node-recommendation', tag: 'div', defaultVal: '' },
                 { id: 'node-recommendation-text', tag: 'span', defaultVal: '' },

@@ -415,8 +415,8 @@ function onFutureGrowthChange() {
     onHardwareConfigChange();
 }
 
-// Handler for the "Size for 5-year compound growth" checkbox inside the
-// Capacity Runway section (issue #254). Toggling this changes getGrowthFactor()
+// Handler for the "Size for 5-year compound growth" No/Yes dropdown inside the
+// Capacity Runway section (issue #254). Switching this changes getGrowthFactor()
 // from (1+pct/100)^1 to (1+pct/100)^5, so a full recalculation is required to
 // re-roll workload totals, recommendation, auto-scale, and capacity bars.
 function onSizeFor5YrGrowthChange() {
@@ -1202,16 +1202,16 @@ function _computeGrowthMultiplier(growthPct, years) {
 }
 
 // How many years of compound growth the hardware should be sized to absorb.
-// Read from the "Size for 5-year compound growth" checkbox inside the Capacity
-// Runway section (issue #254). Defaults to 1 year (i.e. (1+pct/100)^1, the
-// historical behaviour) when the checkbox is unchecked or absent.
+// Read from the "Size for 5-year compound growth" No/Yes dropdown inside the
+// Capacity Runway section (issue #254). Defaults to 1 year (i.e. (1+pct/100)^1,
+// the historical behaviour) when the dropdown is set to 'no' or absent.
 function getGrowthYears() {
-    const cb = document.getElementById('size-for-5yr-growth');
-    return (cb && cb.checked) ? 5 : 1;
+    const el = document.getElementById('size-for-5yr-growth');
+    return (el && el.value === 'yes') ? 5 : 1;
 }
 
 // Get growth factor from the future-growth dropdown, compounded across
-// getGrowthYears() years. With the 5-year checkbox ticked, a 10% annual
+// getGrowthYears() years. With the 5-year dropdown set to 'yes', a 10% annual
 // growth becomes 1.10^5 ≈ 1.611 so all downstream sizing math (workload
 // totals, recommendation, auto-scale, capacity bars) targets year-5 demand.
 function getGrowthFactor() {
@@ -2600,7 +2600,7 @@ function getSizerState() {
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
-        sizeFor5YrGrowth: (document.getElementById('size-for-5yr-growth') || {}).checked === true,
+        sizeFor5YrGrowth: (document.getElementById('size-for-5yr-growth') || {}).value === 'yes',
         resiliency: document.getElementById('resiliency').value,
         cpuManufacturer: document.getElementById('cpu-manufacturer').value,
         cpuGeneration: document.getElementById('cpu-generation').value,
@@ -2882,7 +2882,7 @@ function resumeSizerState() {
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '10';
     const sizeFor5YrResume = document.getElementById('size-for-5yr-growth');
-    if (sizeFor5YrResume) sizeFor5YrResume.checked = d.sizeFor5YrGrowth === true;
+    if (sizeFor5YrResume) sizeFor5YrResume.value = (d.sizeFor5YrGrowth === true) ? 'yes' : 'no';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -6903,7 +6903,7 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
     if (!section || !content) return;
 
     const growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
-    const sizedFor5Yr = (document.getElementById('size-for-5yr-growth') || {}).checked === true;
+    const sizedFor5Yr = (document.getElementById('size-for-5yr-growth') || {}).value === 'yes';
 
     // Hide if no workloads or no growth configured
     if (workloads.length === 0 || growthPct === 0 || !hwConfig) {
@@ -6934,6 +6934,11 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
     const gpuPerNode = hwConfig.gpuCount || 0;
     const totalGpuCap = gpuPerNode * effectiveNodes;
     const hasGpuWorkload = (rawGpus || 0) > 0;
+    // Show the GPU column whenever GPUs are in play on either side — either
+    // workloads request them, or the hardware has them configured. This way
+    // GPU-equipped clusters always surface their GPU runway, and GPU
+    // workloads on non-GPU hardware show the (always 0 %) cap mismatch.
+    const showGpuColumn = hasGpuWorkload || gpuPerNode > 0;
 
     const years = 5;
     const rows = [];
@@ -6986,8 +6991,8 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
     html += '<th style="padding: 4px 8px;">Year</th>';
     html += '<th style="padding: 4px 8px;">vCPU</th>';
     html += '<th style="padding: 4px 8px;">Memory</th>';
-    html += '<th style="padding: 4px 8px;">Storage' + (isDisaggregated ? ' (SAN required)' : '') + '</th>';
-    if (hasGpuWorkload) html += '<th style="padding: 4px 8px;">GPU</th>';
+    html += '<th style="padding: 4px 8px;">Storage' + (isDisaggregated ? ' (SAN required)' : ' (usable)') + '</th>';
+    if (showGpuColumn) html += '<th style="padding: 4px 8px;">GPU</th>';
     html += '<th style="padding: 4px 8px;">Peak Utilization</th>';
     html += '</tr></thead><tbody>';
 
@@ -6997,7 +7002,7 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
         html += '<td style="padding: 4px 8px;">' + r.vcpu + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.mem + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.stor + '</td>';
-        if (hasGpuWorkload) html += '<td style="padding: 4px 8px;">' + r.gpu + '</td>';
+        if (showGpuColumn) html += '<td style="padding: 4px 8px;">' + r.gpu + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.status + '</td>';
         html += '</tr>';
     });
@@ -7015,7 +7020,7 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
     const fiveYrMultiplier = Math.pow(1 + growthPct / 100, 5);
     const factorNote = sizedFor5Yr
         ? 'Hardware is sized for the <strong>full 5-year compound horizon</strong> (' + growthPct + '% YoY × 5y ≈ ×' + fiveYrMultiplier.toFixed(2) + '). All five years should fit within capacity.'
-        : 'Hardware is sized for <strong>Year&nbsp;1</strong> demand (current + ' + growthPct + '%). To pre-provision for all 5 years (×' + fiveYrMultiplier.toFixed(2) + '), tick the box above.';
+        : 'Hardware is sized for <strong>Year&nbsp;1</strong> demand (current + ' + growthPct + '%). To pre-provision for all 5 years (×' + fiveYrMultiplier.toFixed(2) + '), set the dropdown above to <strong>Yes</strong>.';
     html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">' + factorNote + '</p>';
 
     content.innerHTML = html;
@@ -9607,7 +9612,7 @@ function applyImportedSizerState(d) {
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '10';
     const sizeFor5YrImport = document.getElementById('size-for-5yr-growth');
-    if (sizeFor5YrImport) sizeFor5YrImport.checked = d.sizeFor5YrGrowth === true;
+    if (sizeFor5YrImport) sizeFor5YrImport.value = (d.sizeFor5YrGrowth === true) ? 'yes' : 'no';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -9816,7 +9821,7 @@ function resetScenario() {
     document.getElementById('storage-config').value = 'all-flash';
     document.getElementById('future-growth').value = '10';
     const sizeFor5YrReset = document.getElementById('size-for-5yr-growth');
-    if (sizeFor5YrReset) sizeFor5YrReset.checked = false;
+    if (sizeFor5YrReset) sizeFor5YrReset.value = 'no';
     onStorageConfigChange();
 
     // Reset disk config

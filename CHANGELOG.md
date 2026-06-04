@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.65] - 2026-06-04
 
-Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt-in tick-box that **sizes the hardware for the full 5 years of compound YoY growth** (issue #254) instead of just Year 1. Because the rest of the Sizer already routes every sizing calculation through `getGrowthFactor()`, the single switch from `(1 + pct/100)` to `(1 + pct/100)^5` automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes required.
+Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt-in **No/Yes dropdown** that **sizes the hardware for the full 5 years of compound YoY growth** (issue #254) instead of just Year 1. Because the rest of the Sizer already routes every sizing calculation through `getGrowthFactor()`, the single switch from `(1 + pct/100)` to `(1 + pct/100)^5` automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes required.
 
 ### Added
 
-- **Tick-box: *Size hardware to accommodate 5 years of compound YoY growth*** (issue #254) inside the `📈 Capacity Runway — Year-over-Year Growth Projection` section in the Sizer (`sizer/index.html`). Off by default — preserves the historical "Year 1 + growth %" sizing. Tick it and `getGrowthFactor()` switches from `(1 + pct/100)^1` to `(1 + pct/100)^5` (10 % → ×1.61051, 20 % → ×2.48832, 30 % → ×3.71293, 50 % → ×7.59375), so all downstream sizing targets Year-5 demand instead of Year-1 demand. Persists through `localStorage` save/resume, JSON export/import, Share-as-URL, and 🔄 Reset (returns to unticked).
+- **No/Yes dropdown: *Size hardware to accommodate 5 years of compound YoY growth*** (issue #254) inside the `📈 Capacity Runway — Year-over-Year Growth Projection` section in the Sizer (`sizer/index.html`). Defaults to **No** — preserves the historical "Year 1 + growth %" sizing. Set to **Yes** and `getGrowthFactor()` switches from `(1 + pct/100)^1` to `(1 + pct/100)^5` (10 % → ×1.61051, 20 % → ×2.48832, 30 % → ×3.71293, 50 % → ×7.59375), so all downstream sizing targets Year-5 demand instead of Year-1 demand. Persists through `localStorage` save/resume, JSON export/import, Share-as-URL, and 🔄 Reset (returns to **No**).
 - **`_computeGrowthMultiplier(growthPct, years)` pure helper** in `sizer/sizer.js`, extracted from `getGrowthFactor()` so the compound-growth math has unit coverage without DOM stubs. Guards null / NaN / `years < 1` to default to 1.
-- **`getGrowthYears()` helper** in `sizer/sizer.js` — reads the new `#size-for-5yr-growth` checkbox and returns 5 or 1.
-- **`onSizeFor5YrGrowthChange()` handler** in `sizer/sizer.js` — fires on tick-box change, calls `onHardwareConfigChange()` to re-run the full calculation.
+- **`getGrowthYears()` helper** in `sizer/sizer.js` — reads the new `#size-for-5yr-growth` dropdown and returns 5 or 1.
+- **`onSizeFor5YrGrowthChange()` handler** in `sizer/sizer.js` — fires on dropdown change, calls `onHardwareConfigChange()` to re-run the full calculation.
 - **`sizeFor5YrGrowth` (boolean) field** documented in the published Sizer JSON Schema (`docs/json-schema/odin-sizer.schema.json`). Backwards-compatible — optional; absent / `false` keeps the historical Year-1 sizing.
+- **Tooltip on the *Allow for Future Growth* dropdown** in the Sizer cross-references the `📈 Capacity Runway` section, so users discover the 5-year compound option from the growth-percentage control.
 
 ### Changed
 
@@ -25,8 +26,8 @@ Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt
 - **Capacity Runway table now supports Disaggregated Storage** — previously the storage column collapsed to 0 % because `#storage-total` shows the literal text `External SAN` (`parseFloat` → NaN). The projection now detects disaggregated mode, suppresses the storage *utilisation* column (SAN scaling isn't bounded by the cluster), and shows the **projected SAN size required** in TB / GB per year (e.g. `Year 5: 87.3 TB SAN`).
 - **Capacity Runway table now has a GPU column** when any workload requests GPUs and the design has them. The GPU utilisation % feeds into the peak-utilisation column alongside CPU / memory / storage.
 - **Capacity Runway summary now distinguishes *Already at capacity*** — if Year 0 (the *Now* row) already shows ≥ 90 % utilisation on any resource, the summary line reads `🚫 Already at capacity (≥ 90 %) at current demand — design cannot absorb additional N % annual growth.` instead of the confusing "runway: 0 years" the old code produced.
-- **Capacity Runway bottom-hint line refreshed** — when the 5-year tick-box is **off**, the hint shows the 5-year multiplier and reminds the user how to enable it (`Hardware is sized for Year 1 demand (current + N %). To pre-provision for all 5 years (×M.NN), tick the box above.`). When **on**, it confirms `Hardware is sized for the full 5-year compound horizon (N % YoY × 5y ≈ ×M.NN). All five years should fit within capacity.`
-- **`getGrowthFactor()` in `sizer/sizer.js` now compounds across `getGrowthYears()`** via `Math.pow(1 + pct/100, getGrowthYears())`. Default behaviour is unchanged (years = 1 when the tick-box is unchecked or absent), so existing payloads, screenshots, and CI test expectations are preserved.
+- **Capacity Runway bottom-hint line refreshed** — when the 5-year dropdown is set to **No**, the hint shows the 5-year multiplier and reminds the user how to enable it (`Hardware is sized for Year 1 demand (current + N %). To pre-provision for all 5 years (×M.NN), set the dropdown above to Yes.`). When set to **Yes**, it confirms `Hardware is sized for the full 5-year compound horizon (N % YoY × 5y ≈ ×M.NN). All five years should fit within capacity.`
+- **`getGrowthFactor()` in `sizer/sizer.js` now compounds across `getGrowthYears()`** via `Math.pow(1 + pct/100, getGrowthYears())`. Default behaviour is unchanged (years = 1 when the dropdown is set to **No** or absent), so existing payloads, screenshots, and CI test expectations are preserved.
 
 ### Fixed
 

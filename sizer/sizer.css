@@ -1043,6 +1043,22 @@ header .header-description {
     letter-spacing: 0.01em;
 }
 
+/* Small info-tip icon next to a config-row label (hover/focus shows native title tooltip) */
+.config-info-tip {
+    display: inline-block;
+    margin-left: 4px;
+    color: var(--accent-blue);
+    cursor: help;
+    font-size: 13px;
+    line-height: 1;
+    user-select: none;
+}
+.config-info-tip:hover,
+.config-info-tip:focus {
+    opacity: 0.75;
+    outline: none;
+}
+
 .config-row select {
     padding: 8px 12px;
     background: var(--select-bg, #1a1a1a);
