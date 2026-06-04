@@ -1319,6 +1319,23 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
     return { upgrade: true, racks: racks, estimatedNodes: rec };
 }
 
+// On a Disaggregated cluster already running, decide whether to auto-bump the
+// rack count (1 → 2 → 3 → 4) when the conservative node loop has hit the
+// per-rack cap (rackCount × 16) with utilisation still ≥ 90%. Capped at 4
+// racks — going to 5–8 racks forces maxPerRack < 16 (a real floor-space /
+// fabric change) which should stay a manual decision.
+// Returns { scale: false } or { scale: true, racks: N }.
+function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes) {
+    const MAX_AUTO_RACKS = 4;
+    const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
+    if (cur >= MAX_AUTO_RACKS) return { scale: false };
+    const rec = parseInt(recommendedNodes, 10) || 0;
+    if (rec <= cur * 16) return { scale: false };
+    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, Math.ceil(rec / 16)));
+    if (newRacks <= cur) return { scale: false };
+    return { scale: true, racks: newRacks };
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     const ct = document.getElementById('cluster-type').value;
@@ -3577,9 +3594,9 @@ function updateNodeOptionsForClusterType() {
         if (!nodeSelect.value || nodeSelect.selectedIndex < 0) {
             nodeSelect.selectedIndex = 0;
         }
-        // Update label to say "Nodes per Rack"
+        // Update label to say "Physical Machines per Rack"
         const nodeLabel = document.querySelector('label[for="node-count"]');
-        _setLabelText(nodeLabel, 'Nodes per Rack');
+        _setLabelText(nodeLabel, 'Physical Machines per Rack');
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -5618,6 +5635,34 @@ function calculateRequirements(options) {
                             _nodeCountUserSet = false;
 
                             showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+
+                            isCalculating = false;
+                            calculateRequirements();
+                            return;
+                        }
+                    }
+
+                    // --- Auto-scale Disaggregated rack count when at per-rack cap ---
+                    // Disaggregated supports 1–4 racks via the dropdown; when the conservative
+                    // loop has hit (rackCount × 16) machines with utilisation still ≥ 90% AND
+                    // the user has not manually pinned the rack count, bump rack count up
+                    // (capped at 4) before resorting to aggressive memory/ratio escalation.
+                    if (clusterType === 'disaggregated' && !_manualFields.has('disagg-rack-count')) {
+                        const rackElAuto = document.getElementById('disagg-rack-count');
+                        const curRacks = rackElAuto ? (parseInt(rackElAuto.value, 10) || 1) : 1;
+                        const disaggRec = getRecommendedNodeCount(
+                            totalVcpus, totalMemory, totalStorage,
+                            hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                        );
+                        const rackDecision = shouldAutoScaleDisaggRacks(curRacks, disaggRec ? disaggRec.recommended : 0);
+                        if (rackDecision.scale) {
+                            if (rackElAuto) rackElAuto.value = String(rackDecision.racks);
+                            markAutoScaled('disagg-rack-count');
+                            updateNodeOptionsForClusterType();
+                            updateClusterInfo();
+                            _nodeCountUserSet = false;
+
+                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackDecision.racks + ' racks.', 'info');
 
                             isCalculating = false;
                             calculateRequirements();
