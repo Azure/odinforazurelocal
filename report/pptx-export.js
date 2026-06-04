@@ -1650,6 +1650,16 @@
             text: 'Heat output: ' + (pw.totalBtu || 0).toLocaleString() + ' BTU/hr',
             lvl: 1
         });
+        if (pw.annualKwh != null && isFinite(pw.annualKwh)) {
+            const kwh = pw.annualKwh;
+            const energyText = (kwh >= 1000000)
+                ? (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr'
+                : Math.round(kwh).toLocaleString() + ' kWh/yr';
+            bullets.push({
+                text: 'Total annual energy: ' + energyText + ' (24/7/365 at total instance power)',
+                lvl: 1
+            });
+        }
         if (pw.rackUnits) {
             bullets.push({
                 text: 'Rack space: ' + pw.rackUnits + 'U',

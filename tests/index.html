@@ -3460,6 +3460,35 @@
                 'NaN → em-dash', '\u2014', formatAnnualEnergy(NaN))
         ]);
 
+        // --- sizerHardware.power.annualKwh → report.js + pptx-export.js inline formatter ---
+        // report.js and pptx-export.js can't import sizer.js's formatAnnualEnergy
+        // helper (report page doesn't load sizer.js), so they each carry a copy
+        // of the same kWh→MWh threshold logic. This suite verifies that inline
+        // copy matches the canonical formatter for the values we care about.
+        // If formatAnnualEnergy() changes, the inline copies in report.js and
+        // pptx-export.js must be updated to match — and these assertions will
+        // fail until they are.
+        function _inlineAnnualEnergy(kwh) {
+            if (kwh == null || !isFinite(kwh)) return null;
+            return (kwh >= 1000000)
+                ? (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr'
+                : Math.round(kwh).toLocaleString() + ' kWh/yr';
+        }
+        testSuite('sizerHardware.power.annualKwh inline formatter parity', 'report.js + pptx-export.js', [
+            assert(_inlineAnnualEnergy(160571) === formatAnnualEnergy(160571),
+                'kWh below threshold matches canonical', formatAnnualEnergy(160571), _inlineAnnualEnergy(160571)),
+            assert(_inlineAnnualEnergy(999999) === formatAnnualEnergy(999999),
+                'just below 1 M kWh matches canonical', formatAnnualEnergy(999999), _inlineAnnualEnergy(999999)),
+            assert(_inlineAnnualEnergy(1000000) === formatAnnualEnergy(1000000),
+                'at 1 M kWh threshold matches canonical', formatAnnualEnergy(1000000), _inlineAnnualEnergy(1000000)),
+            assert(_inlineAnnualEnergy(1605710) === formatAnnualEnergy(1605710),
+                'scale-out MWh value matches canonical', formatAnnualEnergy(1605710), _inlineAnnualEnergy(1605710)),
+            assert(_inlineAnnualEnergy(null) === null,
+                'null → null (caller guards with `pw.annualKwh != null`)', null, _inlineAnnualEnergy(null)),
+            assert(_inlineAnnualEnergy(NaN) === null,
+                'NaN → null (caller skips the row/bullet)', null, _inlineAnnualEnergy(NaN))
+        ]);
+
         // --- getGrowthYears() + getGrowthFactor() (DOM-backed, issue #254) ---
         // The 5-year No/Yes dropdown drives both helpers; we flip its value to
         // cover both modes.

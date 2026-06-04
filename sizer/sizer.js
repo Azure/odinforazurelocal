@@ -8044,6 +8044,7 @@ function selectRegionAndConfigure(region, cloud) {
                 perNodeW: _lastPowerEstimate.perNodeW,
                 totalW: _lastPowerEstimate.totalW,
                 totalBtu: _lastPowerEstimate.totalBtu,
+                annualKwh: _lastPowerEstimate.annualKwh,
                 rackUnits: _lastPowerEstimate.rackUnits,
                 infraPowerW: _lastPowerEstimate.infraPowerW,
                 infraPowerNote: _lastPowerEstimate.infraPowerNote,
