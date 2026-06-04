@@ -2645,7 +2645,9 @@ function getSizerState() {
         powerPriceInput: (document.getElementById('power-price-input') || {}).value || '',
         multiPowerPriceInput: (document.getElementById('multi-power-price-input') || {}).value || _lastMultiPowerPrice || '',
         importedProcessorName: window._importedProcessorName || null,
-        importedCoresPerSocket: window._importedCoresPerSocket || null
+        importedCoresPerSocket: window._importedCoresPerSocket || null,
+        autoScaledFields: Array.from(_autoScaledFields),
+        disaggAutoUpgraded: _disaggAutoUpgraded
     };
 }
 
@@ -3036,6 +3038,19 @@ function resumeSizerState() {
     if (typeof d.multiPowerPriceInput === 'string') {
         _lastMultiPowerPrice = d.multiPowerPriceInput;
     }
+
+    // Re-hydrate which fields were AUTO-scaled in the prior session. Without this,
+    // the cluster-type AUTO badge is missing after F5/Resume and the auto-downgrade
+    // block (which gates on `_autoScaledFields.has('cluster-type')`) can never fire
+    // when the user later removes a MANUAL override that had forced the upgrade.
+    // calculateRequirements() snapshots `_autoScaledFields` into `previouslyAutoScaled`
+    // before clearing it, so the existing re-apply blocks will re-render the badges.
+    if (Array.isArray(d.autoScaledFields)) {
+        for (const fid of d.autoScaledFields) {
+            markAutoScaled(fid);
+        }
+    }
+    _disaggAutoUpgraded = !!d.disaggAutoUpgraded;
 
     calculateRequirements();
 

@@ -98,6 +98,12 @@
         "powerPriceInput": { "type": "string", "description": "Optional electricity unit price (per kWh) entered in the per-instance power panel. Free text, may be empty." },
         "multiPowerPriceInput": { "type": "string", "description": "Optional electricity unit price (per kWh) entered in the Multi-Instance Scale-Out panel. Free text, may be empty." },
         "workloadIdCounter": { "type": ["integer", "null"], "description": "High-water mark for workload ids." },
+        "autoScaledFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Field IDs (e.g. 'cluster-type', 'node-memory', 'disagg-rack-count', 'future-growth') that were AUTO-scaled in the prior session. Re-hydrated on Resume so the AUTO badges reappear and the symmetric auto-downgrade can fire when a MANUAL override is later removed."
+        },
+        "disaggAutoUpgraded": { "type": "boolean", "description": "True if the Sizer auto-upgraded Hyperconverged → Disaggregated Storage in the prior session. Preserved on Resume so the one-shot upgrade guard doesn't re-fire." },
         "workloads": {
           "type": "array",
           "description": "The workloads to size. Each item is discriminated by `type`.",
