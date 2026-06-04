@@ -35,7 +35,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.22.62 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.22.63 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -213,7 +213,7 @@
                         </select>
                     </div>
                     <div class="config-row cluster-setting">
-                        <label for="node-count">Number of Physical Nodes</label>
+                        <label for="node-count">Number of Physical Machines</label>
                         <select id="node-count" onchange="onNodeCountChange()">
                             <option value="2" selected>2 Nodes</option>
                             <option value="3">3 Nodes</option>
@@ -246,8 +246,8 @@
                     <div class="config-row">
                         <label for="resiliency">Storage Resiliency</label>
                         <select id="resiliency" onchange="onResiliencyChange()">
-                            <option value="2way" selected>Two-way Mirror (min 2 nodes)</option>
-                            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+                            <option value="2way" selected>Two-way Mirror (50% efficiency)</option>
+                            <option value="3way">Three-way Mirror (33% efficiency)</option>
                         </select>
                     </div>
                     <div class="config-info config-info-warning" id="resiliency-recommendation" style="display: none;">
@@ -269,11 +269,11 @@
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
-                        <span id="node-n1-tip-text">Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.</span>
+                        <span id="node-n1-tip-text">Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a machine). Single Machine instances will always incur workload downtime during updates.</span>
                     </div>
                 </div>
 
-                <!-- Physical Node(s) - Example Hardware Configuration -->
+                <!-- Physical Machine(s) - Example Hardware Configuration -->
                 <div class="panel-section hardware-config">
                     <h2>
                         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -282,9 +282,10 @@
                             <line x1="6" y1="6" x2="6.01" y2="6"/>
                             <line x1="6" y1="18" x2="6.01" y2="18"/>
                         </svg>
-                        Physical Node(s) - Example Hardware Configuration
+                        Physical Machine(s) - Example Hardware Configuration
                     </h2>
-                    <p class="section-desc">Define the physical hardware specifications for each node. <a href="#" onclick="showHardwareWeightingInfo(); return false;" style="color: var(--accent-blue); font-size: 12px; margin-left: 6px; text-decoration: none;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">Info: Sizer hardware scaling weighting logic</a></p>
+                    <p class="section-desc">Define the physical hardware specifications for each machine.</p>
+                    <p class="section-desc" style="margin-top: -4px;"><a href="#" onclick="showHardwareWeightingInfo(); return false;" style="color: var(--accent-blue); font-size: 12px; text-decoration: none;" title="How the auto-scaler picks machine count, memory, ratio, and cluster type">Info: Sizer hardware scaling weighting logic</a></p>
 
                     <!-- CPU Configuration -->
                     <h3 class="hw-subsection-title">CPU Configuration</h3>
@@ -318,7 +319,7 @@
                     <!-- Memory Configuration -->
                     <h3 class="hw-subsection-title">Memory Configuration</h3>
                     <div class="config-row">
-                        <label for="node-memory">Memory per Node</label>
+                        <label for="node-memory">Memory per Machine</label>
                         <select id="node-memory" onchange="onMemoryChange()">
                             <option value="64">64 GB</option>
                             <option value="128">128 GB</option>
@@ -338,7 +339,7 @@
                     <!-- GPU Configuration -->
                     <h3 class="hw-subsection-title">GPU Configuration</h3>
                     <div class="config-row">
-                        <label for="gpu-count">GPUs per Node</label>
+                        <label for="gpu-count">GPUs per Machine</label>
                         <select id="gpu-count" onchange="onGpuCountChange()">
                             <option value="0" selected>None</option>
                             <option value="1">1</option>
@@ -350,20 +351,20 @@
                     <div class="config-row" id="gpu-type-row" style="display: none;">
                         <label for="gpu-type">GPU Type <span id="gpu-type-lock-badge" style="display: none; font-size: 10px; background: #f59e0b; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">WORKLOAD</span></label>
                         <select id="gpu-type" onchange="onGpuTypeChange()">
-                            <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/node)</option>
-                            <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/node)</option>
-                            <option value="a16">NVIDIA A16 (64 GB, 250W, max 2/node)</option>
-                            <option value="a40">NVIDIA A40 (48 GB, 300W, max 2/node)</option>
-                            <option value="a100">NVIDIA A100 (80 GB, 300W, max 2/node)</option>
-                            <option value="l4">NVIDIA L4 (24 GB, 72W, max 4/node)</option>
-                            <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/node)</option>
-                            <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/node)</option>
-                            <option value="rtxpro6000">NVIDIA RTX Pro 6000 (48 GB, 600W, max 2/node)</option>
-                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 2/node)</option>
+                            <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/machine)</option>
+                            <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/machine)</option>
+                            <option value="a16">NVIDIA A16 (64 GB, 250W, max 2/machine)</option>
+                            <option value="a40">NVIDIA A40 (48 GB, 300W, max 2/machine)</option>
+                            <option value="a100">NVIDIA A100 (80 GB, 300W, max 2/machine)</option>
+                            <option value="l4">NVIDIA L4 (24 GB, 72W, max 4/machine)</option>
+                            <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/machine)</option>
+                            <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/machine)</option>
+                            <option value="rtxpro6000">NVIDIA RTX Pro 6000 (48 GB, 600W, max 2/machine)</option>
+                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 2/machine)</option>
                         </select>
                     </div>
                     <div class="config-row" id="gpu-max-warning" style="display: none;">
-                        <span class="hint" style="color: var(--accent-orange);">⚠️ Selected GPU count exceeds the maximum supported per node for this GPU model. The count has been capped.</span>
+                        <span class="hint" style="color: var(--accent-orange);">⚠️ Selected GPU count exceeds the maximum supported per machine for this GPU model. The count has been capped.</span>
                     </div>
 
                     <!-- Advanced Settings -->
@@ -411,7 +412,7 @@
                         <div id="single-tier-disks">
                             <h3 class="hw-subsection-title">Disk Configuration (Capacity)</h3>
                             <div class="config-row">
-                                <label for="capacity-disk-count">Capacity Disks per Node</label>
+                                <label for="capacity-disk-count">Capacity Disks per Machine</label>
                                 <select id="capacity-disk-count" onchange="onDiskCountChange()">
                                     <option value="2">2</option>
                                     <option value="3">3</option>
@@ -479,7 +480,7 @@
                         <div id="two-tier-disks" style="display: none;">
                             <h3 class="hw-subsection-title">Cache Disks</h3>
                             <div class="config-row">
-                                <label for="cache-disk-count">Cache Disks per Node</label>
+                                <label for="cache-disk-count">Cache Disks per Machine</label>
                                 <select id="cache-disk-count" onchange="onHardwareConfigChange()">
                                     <option value="2" selected>2</option>
                                     <option value="3">3</option>
@@ -513,7 +514,7 @@
 
                             <h3 class="hw-subsection-title">Capacity Disks</h3>
                             <div class="config-row">
-                                <label for="tiered-capacity-disk-count">Capacity Disks per Node</label>
+                                <label for="tiered-capacity-disk-count">Capacity Disks per Machine</label>
                                 <select id="tiered-capacity-disk-count" onchange="onDiskCountChange()">
                                     <option value="2">2</option>
                                     <option value="3">3</option>
@@ -676,9 +677,9 @@
 
                 <!-- Per-Node Requirements -->
                 <div class="per-node-section">
-                    <h3 id="per-node-title">Nodes Hardware Requirements:</h3>
-                    <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 nodes (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a></p>
-                    <p class="per-node-subtitle" id="per-node-howcalc"><a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">How is this calculated?</a></p>
+                    <h3 id="per-node-title">Physical Machines Hardware Requirements:</h3>
+                    <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 machines (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a></p>
+                    <p class="per-node-subtitle" id="per-node-howcalc"><a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks machine count, memory, ratio, and cluster type">How is this calculated?</a></p>
                     <div class="per-node-grid">
                         <div class="per-node-item">
                             <span class="label">Physical Cores</span>
@@ -712,7 +713,7 @@
                                 <div class="breakdown-fill nodes" id="nodes-fill" style="width: 0%"></div>
                             </div>
                             <div class="breakdown-legend">
-                                (includes N+1 node count, for servicing and redundancy)
+                                (includes N+1 machine count, for servicing and redundancy)
                             </div>
                         </div>
                         <div class="breakdown-item">
@@ -760,7 +761,7 @@
                                 <div class="breakdown-fill gpu" id="gpu-fill" style="width: 0%"></div>
                             </div>
                             <div class="breakdown-legend">
-                                <span id="gpu-used">0</span> / <span id="gpu-total">0</span> GPUs (across N−1 effective nodes)
+                                <span id="gpu-used">0</span> / <span id="gpu-total">0</span> GPUs (across N−1 effective machines)
                             </div>
                         </div>
                     </div>
@@ -769,7 +770,7 @@
                 <!-- Capacity Utilization Warning -->
                 <div class="config-info config-info-warning" id="capacity-utilization-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
-                    <span>One or more resources (Compute, Memory, Storage, or GPU) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
+                    <span>One or more resources (Compute, Memory, Storage, or GPU) are at or above 90% utilization. This is not a recommended configuration — increase per-machine hardware specs, add more machines, or reduce workloads before proceeding to the Designer.</span>
                 </div>
 
                 <!-- Manual Override Capacity Warning -->
@@ -813,7 +814,7 @@
                             <span class="value-with-toggle">
                                 <span class="power-price-input-row">
                                     <span class="power-input-hint">Input:</span>
-                                    <input type="number" id="power-price-input" class="power-price-input" min="0" step="0.01" inputmode="decimal" placeholder="0.15" aria-label="Electricity unit price per kilowatt-hour, in your local currency" oninput="updateRunningCost()">
+                                    <input type="number" id="power-price-input" class="power-price-input" min="0" step="0.01" inputmode="decimal" placeholder="0.15" aria-label="Electricity unit price per kilowatt-hour, in your local currency" oninput="updateRunningCost(); saveSizerState();">
                                 </span>
                                 <span class="value" id="power-cost">—</span>
                             </span>
@@ -903,7 +904,7 @@
             </h3>
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
                 <label for="instance-count" style="font-weight: 600; font-size: 14px; color: var(--text-primary); white-space: nowrap;">Number of Instances</label>
-                <select id="instance-count" onchange="updateMultiInstanceSummary()" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;">
+                <select id="instance-count" onchange="updateMultiInstanceSummary(); saveSizerState();" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;">
                     <option value="1" selected>1</option>
                     <option value="2">2</option>
                     <option value="4">4</option>
@@ -951,7 +952,7 @@
                         &#128161; Tip: Left-click and hold to rotate · Scroll to zoom · Right-click and hold to move
                     </div>
                     <div class="rack-viz-legend">
-                        <span class="legend-item" id="legend-server-node"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
+                        <span class="legend-item" id="legend-server-node"><span class="legend-swatch" style="background:#aaaaaa;"></span> Physical Machine(s)</span>
                         <span class="legend-item" id="legend-tor-switch"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
                         <span class="legend-item" id="legend-bmc-switch"><span class="legend-swatch" style="background:#e0e0e0;"></span> BMC Switch</span>
                         <span class="legend-item" id="legend-core-router"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
@@ -971,7 +972,7 @@
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                <span id="rack-viz-info-text">Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
+                <span id="rack-viz-info-text">Interactive 3D preview of the estimated rack layout. Each server machine occupies 2U, ToR switches occupy 1U each. The cables from each machine to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of machines across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
             </div>
         </section>
 
@@ -1095,7 +1096,7 @@
                         <span class="onboarding-feature-icon">☁️</span>
                         <div class="onboarding-feature-text">
                             <strong>Import hardware specs from an existing Azure Local machine</strong>
-                            Navigate to any machine (node) in your instance in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below. The exact CPU model, core count, and memory will be extracted.
+                            Navigate to any machine in your instance in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below. The exact CPU model, core count, and memory will be extracted.
                         </div>
                     </div>
                 </div>
@@ -1149,25 +1150,25 @@
                 <button onclick="closeHardwareWeightingInfo()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
             </div>
 
-            <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">When you add or change workloads, the Sizer auto-picks a node count, per-node memory, and a vCPU:core ratio to keep all four resources (CPU / memory / storage / GPU) under 90 % utilisation while a node is offline for updates (the N+1 rule). The rules it follows, in order:</p>
+            <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">When you add or change workloads, the Sizer auto-picks a machine count, per-machine memory, and a vCPU:core ratio to keep all four resources (CPU / memory / storage / GPU) under 90 % utilisation while a machine is offline for updates (the N+1 rule). The rules it follows, in order:</p>
 
             <ol style="margin: 0 0 16px 18px; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.6;">
-                <li><strong>Prefer more nodes over bigger nodes.</strong> The recommender uses a fixed "preferred" per-node memory cap of <strong>1.5 TB</strong> (or 2 TB for clusters of 10+ nodes) when estimating the minimum node count. Adding a node is almost always cheaper than jumping a DIMM tier.</li>
-                <li><strong>Hardware scale-up order: cores → sockets → ratio.</strong> When demand outgrows the current per-node hardware, the Sizer first grows physical cores within the selected CPU SKU, then steps up to 2-socket, then loosens the vCPU:core ratio (4:1 → 6:1 → 8:1, etc.). Memory is bumped to the next DIMM tier as needed.</li>
+                <li><strong>Prefer more machines over bigger machines.</strong> The recommender uses a fixed "preferred" per-machine memory cap of <strong>1.5 TB</strong> (or 2 TB for clusters of 10+ machines) when estimating the minimum machine count. Adding a machine is almost always cheaper than jumping a DIMM tier.</li>
+                <li><strong>Hardware scale-up order: cores → sockets → ratio.</strong> When demand outgrows the current per-machine hardware, the Sizer first grows physical cores within the selected CPU SKU, then steps up to 2-socket, then loosens the vCPU:core ratio (4:1 → 6:1 → 8:1, etc.). Memory is bumped to the next DIMM tier as needed.</li>
                 <li><strong>Two-pass memory limits.</strong>
                     <ul style="margin: 6px 0 0 16px; padding: 0;">
-                        <li><strong>Conservative pass</strong> — caps per-node memory at <strong>1.5 TB</strong>, then adds nodes if utilisation is still ≥ 90 %.</li>
-                        <li><strong>Aggressive pass</strong> — only if the node loop hit the 16-node cluster maximum, the Sizer escalates memory up to <strong>4 TB</strong> per node and loosens the vCPU:core ratio further.</li>
+                        <li><strong>Conservative pass</strong> — caps per-machine memory at <strong>1.5 TB</strong>, then adds machines if utilisation is still ≥ 90 %.</li>
+                        <li><strong>Aggressive pass</strong> — only if the machine loop hit the 16-machine cluster maximum, the Sizer escalates memory up to <strong>4 TB</strong> per machine and loosens the vCPU:core ratio further.</li>
                     </ul>
                 </li>
-                <li><strong>Prefer 3 nodes over a high-DIMM 2-node cluster.</strong> If a 2-node solution lands on more than <strong>768 GB</strong> per node, the Sizer auto-bumps to 3 nodes. That unlocks a <em>three-way mirror</em> (stronger resiliency — survives any single node failure with full data redundancy) and spreads the workload across smaller, cheaper DIMMs.</li>
-                <li><strong>Auto-upgrade to Disaggregated Storage at 16 nodes.</strong> If a hyperconverged cluster would need more than 16 nodes, the Sizer switches the cluster type to Disaggregated Storage (separate compute + storage racks) rather than packing 3-4 TB DIMMs into a maxed-out HCI cluster.</li>
-                <li><strong>Step back down when possible.</strong> After the aggressive pass, a reduction loop tries to lower the node count again if the bigger per-node hardware made it possible — keeping the cluster as small as the workload allows.</li>
+                <li><strong>Prefer 3 machines over a high-DIMM 2-machine cluster.</strong> If a 2-machine solution lands on more than <strong>768 GB</strong> per machine, the Sizer auto-bumps to 3 machines. That unlocks a <em>three-way mirror</em> (stronger resiliency — survives any single machine failure with full data redundancy) and spreads the workload across smaller, cheaper DIMMs.</li>
+                <li><strong>Auto-upgrade to Disaggregated Storage at 16 machines.</strong> If a hyperconverged cluster would need more than 16 machines, the Sizer switches the cluster type to Disaggregated Storage (separate compute + storage racks) rather than packing 3-4 TB DIMMs into a maxed-out HCI cluster.</li>
+                <li><strong>Step back down when possible.</strong> After the aggressive pass, a reduction loop tries to lower the machine count again if the bigger per-machine hardware made it possible — keeping the cluster as small as the workload allows.</li>
             </ol>
 
             <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
                 <strong style="color: var(--accent-blue); font-size: 13px;">💡 You are always in control.</strong>
-                <p style="margin: 6px 0 0 0; color: var(--text-primary); font-size: 13px; line-height: 1.5;">Every auto-decision is advisory. If you have a fixed requirement &mdash; a specific node count, a specific memory size per node, a specific CPU SKU, or a specific vCPU:core ratio &mdash; just set it manually. As soon as you change a field, the Sizer locks that choice and the auto-scaler respects it for all future workload changes.</p>
+                <p style="margin: 6px 0 0 0; color: var(--text-primary); font-size: 13px; line-height: 1.5;">Every auto-decision is advisory. If you have a fixed requirement &mdash; a specific machine count, a specific memory size per machine, a specific CPU SKU, or a specific vCPU:core ratio &mdash; just set it manually. As soon as you change a field, the Sizer locks that choice and the auto-scaler respects it for all future workload changes.</p>
             </div>
 
             <p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 12px;">Have a question or feedback? Please raise an <a href="https://github.com/Azure/odinforazurelocal/issues" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">Issue in GitHub</a>.</p>
@@ -1255,7 +1256,7 @@
                     <span class="onboarding-feature-icon">📊</span>
                     <div class="onboarding-feature-text">
                         <strong>Review Capacity</strong>
-                        Check the utilization bars, and the node processor core count and memory recommendations. Review the Sizing Notes to see how your imported workloads fit into the example cluster hardware configuration.
+                        Check the utilization bars, and the machine processor core count and memory recommendations. Review the Sizing Notes to see how your imported workloads fit into the example cluster hardware configuration.
                     </div>
                 </div>
             </div>
