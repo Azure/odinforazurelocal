@@ -1349,6 +1349,27 @@ function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conserva
     return { scale: true, racks: newRacks };
 }
 
+// Inverse of shouldAutoScaleDisaggRacks(): when workloads have been removed
+// (or shrunk), drop the Disaggregated rack count by one tier if the workload
+// still fits at (cur - 1) racks with ≥ 20 % headroom on per-rack capacity.
+// Only ever shrinks ONE tier per recalc (single-step) to prevent oscillation
+// at the rack-count / DIMM-size boundary. The 20 % buffer means scale-up and
+// shrink fire at different recommendation thresholds, so a workload sitting
+// right at e.g. 32 nodes won't ping-pong between 2 and 3 racks.
+// Returns { shrink: false } or { shrink: true, racks: N }.
+function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
+    const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
+    if (cur <= 1) return { shrink: false };
+    const rec = parseInt(recommendedNodes, 10) || 0;
+    // ≥ 20 % headroom at the lower tier: rec must be ≤ floor((cur-1) × 16 × 0.80)
+    //   cur=4 → lower-cap-with-headroom = 38  (3 racks, ≤ 38 nodes recommended)
+    //   cur=3 → lower-cap-with-headroom = 25  (2 racks, ≤ 25 nodes recommended)
+    //   cur=2 → lower-cap-with-headroom = 12  (1 rack, ≤ 12 nodes recommended)
+    const lowerCapWithHeadroom = Math.floor((cur - 1) * 16 * 0.80);
+    if (rec > lowerCapWithHeadroom) return { shrink: false };
+    return { shrink: true, racks: cur - 1 };
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     const ct = document.getElementById('cluster-type').value;
@@ -5616,6 +5637,40 @@ function calculateRequirements(options) {
                             memDensityRec.recommended = nodeCount;
                             updateNodeRecommendation(memDensityRec);
                         }
+                    }
+                }
+
+                // --- Auto-shrink Disaggregated rack count when workload now fits at fewer ---
+                // Symmetric inverse of the rack-scale-up block below: when the conservative
+                // loop succeeded AND the rack-count was set by a prior auto-scale (badge
+                // still AUTO) AND the user has not pinned it, drop one rack tier per recalc
+                // if the workload comfortably fits at (curRacks - 1) with ≥20% headroom.
+                // Single-step + 20% buffer prevent oscillation at the boundary.
+                if (conservativeSuccess && clusterType === 'disaggregated'
+                    && _autoScaledFields.has('disagg-rack-count')
+                    && !_manualFields.has('disagg-rack-count')) {
+                    const rackElShrink = document.getElementById('disagg-rack-count');
+                    const curRacksShrink = rackElShrink ? (parseInt(rackElShrink.value, 10) || 1) : 1;
+                    const disaggRecShrink = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    const shrinkDecision = shouldAutoShrinkDisaggRacks(
+                        curRacksShrink,
+                        disaggRecShrink ? disaggRecShrink.recommended : 0
+                    );
+                    if (shrinkDecision.shrink) {
+                        if (rackElShrink) rackElShrink.value = String(shrinkDecision.racks);
+                        markAutoScaled('disagg-rack-count');
+                        updateNodeOptionsForClusterType();
+                        updateClusterInfo();
+                        _nodeCountUserSet = false;
+
+                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks') + '.', 'info');
+
+                        isCalculating = false;
+                        calculateRequirements();
+                        return;
                     }
                 }
 

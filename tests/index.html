@@ -3233,6 +3233,80 @@
             })()
         ]);
 
+        // --- shouldAutoShrinkDisaggRacks() ---
+        // Inverse of shouldAutoScaleDisaggRacks(). Drops one rack tier per recalc
+        // when the workload now fits at (cur - 1) racks with ≥ 20 % headroom.
+        // Single-step + 20 % buffer prevent oscillation at the boundary.
+        //   cur=4 → shrink when rec ≤ 38 (3 × 16 × 0.80)
+        //   cur=3 → shrink when rec ≤ 25 (2 × 16 × 0.80)
+        //   cur=2 → shrink when rec ≤ 12 (1 × 16 × 0.80)
+        //   cur=1 → never shrinks (floor)
+        testSuite('shouldAutoShrinkDisaggRacks()', 'sizer.js', [
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(1, 5);
+                return assert(r.shrink === false,
+                    '1 rack / any → never shrinks (floor)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 12);
+                return assert(r.shrink === true && r.racks === 1,
+                    '2 racks / 12 needed → shrink to 1 (≤ 12 = 80% of 16)', '1', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 13);
+                return assert(r.shrink === false,
+                    '2 racks / 13 needed → NO shrink (13 > 12 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 0);
+                return assert(r.shrink === true && r.racks === 1,
+                    '2 racks / 0 workload → shrink to 1 (no workload at all)', '1', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 25);
+                return assert(r.shrink === true && r.racks === 2,
+                    '3 racks / 25 needed → shrink to 2 (≤ 25 = 80% of 32)', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 26);
+                return assert(r.shrink === false,
+                    '3 racks / 26 needed → NO shrink (26 > 25 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 38);
+                return assert(r.shrink === true && r.racks === 3,
+                    '4 racks / 38 needed → shrink to 3 (≤ 38 = 80% of 48)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 39);
+                return assert(r.shrink === false,
+                    '4 racks / 39 needed → NO shrink (39 > 38 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 48);
+                return assert(r.shrink === false,
+                    '4 racks / 48 needed → NO shrink (recommendation fills 3-rack cap exactly)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks('3', 20);
+                return assert(r.shrink === true && r.racks === 2,
+                    'String "3" / 20 needed → parses → shrink to 2', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(null, 5);
+                return assert(r.shrink === false,
+                    'null racks → guarded as 1 → never shrinks', false, r.shrink);
+            })(),
+            (() => {
+                // No oscillation: scale-up fires when rec > cur × 16; shrink only when
+                // rec ≤ (cur-1) × 16 × 0.80. Verify cur=2 / rec=32 (right at scale-up
+                // boundary) does NOT shrink — would otherwise ping-pong with scale-up.
+                const r = shouldAutoShrinkDisaggRacks(2, 32);
+                return assert(r.shrink === false,
+                    'No-oscillation: 2 racks at full cap (rec=32) → NO shrink', false, r.shrink);
+            })()
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),
