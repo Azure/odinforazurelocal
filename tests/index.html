@@ -3185,8 +3185,8 @@
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(4, 80, true);
-                return assert(r.scale === true && r.racks === 5,
-                    '4 racks / 80 needed / CONSERVATIVE FAILED → bump to 5 racks (was capped at 4, now allowed)', '5', String(r.racks));
+                return assert(r.scale === false,
+                    '4 racks / 80 needed / CONSERVATIVE FAILED → no scale (4 racks already = 64-machine architectural max; 5/6/7/8 racks all ≤ 64)', false, r.scale);
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(8, 80, true);
@@ -3213,6 +3213,28 @@
                 return assert(r.scale === true && r.racks === 2,
                     '0 racks → guarded as 1, 30 needed → bump to 2', '2', String(r.racks));
             })(),
+            // --- Non-monotonic per-rack cap: skip rack counts that don't add capacity ---
+            // 4 racks=64, 5=60, 6=60, 7=63, 8=64. Auto must skip useless steps.
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(4, 65, true);
+                return assert(r.scale === false,
+                    '4 racks / 65 needed / CONSERVATIVE FAILED → no scale (no N≤8 has cap > 64)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(5, 65, true);
+                return assert(r.scale === true && r.racks === 7,
+                    '5 racks (cap 60) / 65 needed / CONSERVATIVE FAILED → skip 6 (cap 60), jump to 7 (cap 63)', '7', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(6, 65, true);
+                return assert(r.scale === true && r.racks === 7,
+                    '6 racks (cap 60) / 65 needed / CONSERVATIVE FAILED → bump to 7 (cap 63), smallest useful step', '7', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(7, 64, true);
+                return assert(r.scale === true && r.racks === 8,
+                    '7 racks (cap 63) / 64 needed / CONSERVATIVE FAILED → bump to 8 (cap 64)', '8', String(r.racks));
+            })(),
             // --- (b) conservative-failed path: scale up one tier even if recommendation fits ---
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 20, true);
@@ -3231,8 +3253,8 @@
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(4, 40, true);
-                return assert(r.scale === true && r.racks === 5,
-                    '4 racks / 40 needed / CONSERVATIVE FAILED → bump to 5 (cap raised to 8)', '5', String(r.racks));
+                return assert(r.scale === false,
+                    '4 racks / 40 needed / CONSERVATIVE FAILED → no scale (4 racks already = 64-machine max)', false, r.scale);
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 70, true);

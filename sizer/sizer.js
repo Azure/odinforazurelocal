@@ -1356,6 +1356,14 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 // reach here when the user has NOT pinned the rack count — when they have
 // pinned it (at any value), auto won't touch it regardless of size.
 //
+// Per-rack capacity is non-monotonic (1–4 racks → 16/rack=64 total;
+// 5→60, 6→60, 7→63, 8→64) because the 64-machine ceiling forces fewer
+// machines per rack as rack count grows. So we never bump to a rack count
+// whose TOTAL capacity is ≤ current — instead we walk forward to the
+// smallest N whose total capacity is strictly greater. From 4 racks (cap 64)
+// no further bump can ever help: return no-scale. From 6 racks (cap 60),
+// 7 racks (cap 63) is the smallest useful step.
+//
 // Fires in EITHER of two cases:
 //   (a) The workload recommendation already exceeds current rack capacity —
 //       guaranteed insufficient capacity at any per-machine memory size.
@@ -1373,12 +1381,13 @@ function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conserva
     const curCap = cur * getDisaggMaxNodesPerRack(cur);
     const recExceedsCap = rec > curCap;
     if (!recExceedsCap && !conservativeFailed) return { scale: false };
-    // Target rack count: bump by one tier and let the recursive recalc
-    // re-evaluate whether further bumps are needed. Per-rack capacity varies
-    // (16/16/16/16/12/10/9/8 nodes for 1..8 racks), so a single-step bump is
-    // simpler and oscillation-safe than projecting `Math.ceil(rec / 16)`.
-    const newRacks = Math.min(MAX_AUTO_RACKS, cur + 1);
-    if (newRacks <= cur) return { scale: false };
+    // Walk forward to smallest N > cur with strictly greater total capacity.
+    // Skips no-op steps like 4→5 (64 → 60) or 5→6 (60 → 60).
+    let newRacks = 0;
+    for (let n = cur + 1; n <= MAX_AUTO_RACKS; n++) {
+        if (n * getDisaggMaxNodesPerRack(n) > curCap) { newRacks = n; break; }
+    }
+    if (!newRacks) return { scale: false };
     return { scale: true, racks: newRacks };
 }
 
@@ -1980,9 +1989,11 @@ function updateManualOverrideWarning(computePercent, memoryPercent, storagePerce
 
     // On Disaggregated, when Number of Racks is MANUAL and the cluster is at
     // its per-rack node cap, adding more racks could be a viable alternative
-    // — but ONLY for over-utilized resources that scale with machine count.
-    // Storage on Disaggregated is SAN-backed, so more racks don't add storage
-    // capacity; only Compute and Memory benefit from more machines.
+    // — but ONLY for over-utilized resources that scale with machine count
+    // AND only if a future rack count would actually deliver MORE machines.
+    // Per-rack cap is non-monotonic (4 racks → 64; 5 → 60; 6 → 60; 7 → 63;
+    // 8 → 64) so from 4 racks no further bump can help. Storage on
+    // Disaggregated is SAN-backed, so storage util doesn't benefit either.
     const clusterTypeEl = document.getElementById('cluster-type');
     const rackHelpsCompute = computePercent >= THRESHOLD;
     const rackHelpsMemory = memoryPercent >= THRESHOLD;
@@ -1994,13 +2005,24 @@ function updateManualOverrideWarning(computePercent, memoryPercent, storagePerce
         const nodeEl = document.getElementById('node-count');
         const curNodes = nodeEl ? (parseInt(nodeEl.value, 10) || 0) : 0;
         const perRackCap = getDisaggMaxNodesPerRack(curRacks);
-        const atCap = curNodes >= curRacks * perRackCap;
+        const curCap = curRacks * perRackCap;
+        const atCap = curNodes >= curCap;
         if (atCap && curRacks < 8) {
-            const nextRacks = curRacks + 1;
-            const nextCap = nextRacks * getDisaggMaxNodesPerRack(nextRacks);
-            const which = rackHelpsCompute && rackHelpsMemory ? 'compute / memory'
-                        : rackHelpsCompute ? 'compute' : 'memory';
-            msg += ` Or increase Number of Racks beyond ${curRacks} to add more machines for ${which} headroom (currently capped at ${curRacks} \u00d7 ${perRackCap} = ${curRacks * perRackCap} machines; ${nextRacks} racks would allow up to ${nextCap}).`;
+            // Walk forward to the smallest N whose total cap > curCap.
+            let nextRacks = 0;
+            let nextCap = 0;
+            for (let n = curRacks + 1; n <= 8; n++) {
+                const cap = n * getDisaggMaxNodesPerRack(n);
+                if (cap > curCap) { nextRacks = n; nextCap = cap; break; }
+            }
+            if (nextRacks > 0) {
+                const which = rackHelpsCompute && rackHelpsMemory ? 'compute / memory'
+                            : rackHelpsCompute ? 'compute' : 'memory';
+                msg += ` Or increase Number of Racks beyond ${curRacks} to add more machines for ${which} headroom (currently capped at ${curRacks} \u00d7 ${perRackCap} = ${curCap} machines; ${nextRacks} racks would allow up to ${nextCap}).`;
+            }
+            // else: no rack count from cur+1..8 increases total cap (e.g.
+            // already at 4 racks / 64 machines). Stay silent — adding racks
+            // genuinely wouldn't help, so don't suggest it.
         }
     }
 
