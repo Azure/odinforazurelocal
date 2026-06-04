@@ -6958,7 +6958,7 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     section.style.display = '';
 }
 
-// ── Capacity Runway — Year-over-Year Growth Projection ──
+// ── Capacity Runway — 5 Year-over-Year (YoY) Additional Workload Growth Projection ──
 // Inputs are the RAW workload totals (pre-growth-factor) so the table can
 // compound Year 0..5 cleanly without round-tripping through already-grown
 // totals.
