@@ -8045,6 +8045,14 @@ function selectRegionAndConfigure(region, cloud) {
                 totalW: _lastPowerEstimate.totalW,
                 totalBtu: _lastPowerEstimate.totalBtu,
                 annualKwh: _lastPowerEstimate.annualKwh,
+                // Optional currency-agnostic electricity unit price the user
+                // entered in the per-instance power panel. null when empty/
+                // invalid; downstream report + PPT skip the cost row when
+                // null. The currency is whatever the user typed in.
+                powerPricePerKwh: (function() {
+                    const v = parseFloat((document.getElementById('power-price-input') || {}).value);
+                    return (isFinite(v) && v > 0) ? v : null;
+                })(),
                 rackUnits: _lastPowerEstimate.rackUnits,
                 infraPowerW: _lastPowerEstimate.infraPowerW,
                 infraPowerNote: _lastPowerEstimate.infraPowerNote,

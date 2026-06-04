@@ -8241,6 +8241,13 @@
                     ? (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr'
                     : Math.round(kwh).toLocaleString() + ' kWh/yr';
                 sizerPowerRows += row('Total Annual Energy (est.)', energyText);
+                if (typeof pw.powerPricePerKwh === 'number' && isFinite(pw.powerPricePerKwh) && pw.powerPricePerKwh > 0) {
+                    const annualCost = kwh * pw.powerPricePerKwh;
+                    sizerPowerRows += row('Electricity Price (user input)',
+                        pw.powerPricePerKwh.toLocaleString(undefined, { maximumFractionDigits: 4 }) + ' per kWh');
+                    sizerPowerRows += row('Total Annual Energy Cost (est.)',
+                        annualCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '/yr');
+                }
             }
             if (pw.rackUnits) {
                 sizerPowerRows += row('Rack Units (est.)', pw.rackUnits + 'U');
