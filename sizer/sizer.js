@@ -1729,6 +1729,11 @@ function clearAllManualOverrides() {
     _repairDisksUserSet = false;
     _disaggAutoUpgraded = false;
     clearManualBadges();
+    // Restore future-growth to the 10% recommended default + AUTO badge,
+    // matching the per-field × dismiss behaviour.
+    const growthEl = document.getElementById('future-growth');
+    if (growthEl) growthEl.value = '10';
+    markAutoScaled('future-growth');
     calculateRequirements();
 }
 
@@ -1748,7 +1753,8 @@ const _MANUAL_FIELD_LABELS = {
     'tiered-capacity-disk-count': 'Capacity Disk Count',
     'repair-disk-count': 'S2D Repair Disks',
     'tiered-repair-disk-count': 'S2D Repair Disks',
-    'disagg-rack-count': 'Number of Racks'
+    'disagg-rack-count': 'Number of Racks',
+    'future-growth': 'Allow for Future Growth'
 };
 
 // Map element IDs to their corresponding _*UserSet flag name and sibling IDs
@@ -1769,7 +1775,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
     'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
     'gpu-count':                 { flag: 'gpuCount',    siblings: [] },
-    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] }
+    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] },
+    'future-growth':             { flag: 'futureGrowth', siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -1807,6 +1814,15 @@ function clearSingleManualOverride(elementId) {
     if (_manualFields.size === 0) {
         const clearBtn = document.getElementById('clear-manual-overrides');
         if (clearBtn) clearBtn.style.display = 'none';
+    }
+
+    // future-growth has no auto-scaler that would re-flag it as AUTO on the
+    // next calc, so do it explicitly: reset to the 10% recommended default
+    // and re-apply the AUTO badge.
+    if (elementId === 'future-growth') {
+        const growthEl = document.getElementById('future-growth');
+        if (growthEl) growthEl.value = '10';
+        markAutoScaled('future-growth');
     }
 
     calculateRequirements();
@@ -5306,6 +5322,12 @@ function calculateRequirements(options) {
         // Clear previous auto-scaled highlights before re-running auto-scale
         clearAutoScaledHighlights();
         _diskConsolidationInfo = null;
+
+        // future-growth has no auto-scaler that re-applies its AUTO badge inside
+        // this cycle, so restore it here whenever the user hasn't manually set it.
+        if (!_manualFields.has('future-growth')) {
+            markAutoScaled('future-growth');
+        }
 
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
         if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
