@@ -3410,6 +3410,26 @@
                 'String args parse like numbers', _computeGrowthMultiplier(10, 5), _computeGrowthMultiplier('10', '5'))
         ]);
 
+        // --- formatAnnualEnergy() pure helper ---
+        // Auto-scales from kWh/yr to MWh/yr at the 1 M kWh boundary so the
+        // Multi-Instance Scale-Out summary stays readable at scale-out.
+        testSuite('formatAnnualEnergy()', 'sizer.js', [
+            assert(formatAnnualEnergy(0) === '0 kWh/yr',
+                '0 → "0 kWh/yr"', '0 kWh/yr', formatAnnualEnergy(0)),
+            assert(formatAnnualEnergy(160571) === '160,571 kWh/yr',
+                '160,571 kWh → "160,571 kWh/yr" (below threshold, kWh preserved)', '160,571 kWh/yr', formatAnnualEnergy(160571)),
+            assert(formatAnnualEnergy(999999) === '999,999 kWh/yr',
+                'just below 1 M kWh stays in kWh', '999,999 kWh/yr', formatAnnualEnergy(999999)),
+            assert(formatAnnualEnergy(1000000) === '1,000 MWh/yr',
+                '1,000,000 kWh → "1,000 MWh/yr" (at threshold, scales to MWh)', '1,000 MWh/yr', formatAnnualEnergy(1000000)),
+            assert(formatAnnualEnergy(1605710) === '1,605.7 MWh/yr',
+                '1,605,710 kWh (10\u00d7 scale-out example) → "1,605.7 MWh/yr"', '1,605.7 MWh/yr', formatAnnualEnergy(1605710)),
+            assert(formatAnnualEnergy(null) === '\u2014',
+                'null → em-dash', '\u2014', formatAnnualEnergy(null)),
+            assert(formatAnnualEnergy(NaN) === '\u2014',
+                'NaN → em-dash', '\u2014', formatAnnualEnergy(NaN))
+        ]);
+
         // --- getGrowthYears() + getGrowthFactor() (DOM-backed, issue #254) ---
         // The 5-year No/Yes dropdown drives both helpers; we flip its value to
         // cover both modes.

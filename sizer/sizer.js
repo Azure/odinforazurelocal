@@ -6211,6 +6211,18 @@ function calculateRequirements(options) {
     }
 }
 
+// Format an annual energy figure (in kWh) for display. Auto-scales to MWh/yr
+// when the value reaches one million kWh (1 MWh = 1000 kWh) so the
+// Multi-Instance Scale-Out summary doesn't read as e.g. "1,605,710 kWh/yr"
+// when "1,605.7 MWh/yr" is clearer.
+function formatAnnualEnergy(kwh) {
+    if (kwh == null || !isFinite(kwh)) return '\u2014';
+    if (kwh >= 1000000) {
+        return (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr';
+    }
+    return Math.round(kwh).toLocaleString() + ' kWh/yr';
+}
+
 // Estimate power consumption and rack space per cluster
 function updatePowerRackEstimates(nodeCount, hwConfig) {
     const section = document.getElementById('power-rack-section');
@@ -6369,7 +6381,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     const powerKwhEl = document.getElementById('power-kwh');
-    if (powerKwhEl) { powerKwhEl.textContent = annualKwh.toLocaleString() + ' kWh/yr'; }
+    if (powerKwhEl) { powerKwhEl.textContent = formatAnnualEnergy(annualKwh); }
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').innerHTML = rackUnitLabel;
 
@@ -7177,7 +7189,7 @@ function updateMultiInstanceSummary() {
         : (typeof _lastMultiPowerPrice === 'string' ? _lastMultiPowerPrice : '');
 
     const annualKwhLabel = (totalAnnualKwh != null)
-        ? Math.round(totalAnnualKwh).toLocaleString() + ' kWh/yr'
+        ? formatAnnualEnergy(totalAnnualKwh)
         : '\u2014';
 
     summaryDiv.innerHTML = '<strong>Multi-Instance Scale-Out Summary (\u00d7' + count + ' instances)</strong>'
