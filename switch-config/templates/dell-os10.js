@@ -476,15 +476,20 @@
         }
 
         const priority = (data.switch && data.switch.type === 'TOR1') ? 1 : 2;
+        const defaultVltMac = 'de:ad:00:be:ef:01';
+        const vltMac = (data.vlt && data.vlt.mac) ? data.vlt.mac : defaultVltMac;
 
         const lines = [];
         lines.push('! vlt.j2');
+        if (vltMac === defaultVltMac) {
+            lines.push('! NOTE: vlt-mac below is a placeholder and MUST be unique per VLT domain — change before deploying to avoid VLT instability when multiple pairs share a fabric');
+        }
         lines.push('vlt-domain 1');
         lines.push('  backup destination ' + ibgpPeerIp);
         lines.push('  discovery-interface ' + mlagRange);
         lines.push('  peer-routing');
         lines.push('  primary-priority ' + priority);
-        lines.push('  vlt-mac de:ad:00:be:ef:01');
+        lines.push('  vlt-mac ' + vltMac);
         return lines.join('\n');
     };
 
