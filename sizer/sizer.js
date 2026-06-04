@@ -1324,14 +1324,27 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 // per-rack cap (rackCount × 16) with utilisation still ≥ 90%. Capped at 4
 // racks — going to 5–8 racks forces maxPerRack < 16 (a real floor-space /
 // fabric change) which should stay a manual decision.
+//
+// Fires in EITHER of two cases:
+//   (a) The workload recommendation already exceeds current rackCount × 16 —
+//       guaranteed insufficient capacity at any per-machine memory size.
+//   (b) The conservative auto-scale loop hit the per-rack node cap with
+//       utilisation still ≥ 90 % on some resource (conservativeFailed=true).
+//       This is the "prefer more machines over higher DIMMs" weighting:
+//       without it the engine falls through to aggressive memory escalation
+//       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
 // Returns { scale: false } or { scale: true, racks: N }.
-function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes) {
+function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
     const MAX_AUTO_RACKS = 4;
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur >= MAX_AUTO_RACKS) return { scale: false };
     const rec = parseInt(recommendedNodes, 10) || 0;
-    if (rec <= cur * 16) return { scale: false };
-    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, Math.ceil(rec / 16)));
+    const recExceedsCap = rec > cur * 16;
+    if (!recExceedsCap && !conservativeFailed) return { scale: false };
+    // Target rack count: enough to fit the recommendation, otherwise just
+    // bump by one tier. Always capped at MAX_AUTO_RACKS.
+    const targetByRec = rec > 0 ? Math.ceil(rec / 16) : (cur + 1);
+    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, targetByRec));
     if (newRacks <= cur) return { scale: false };
     return { scale: true, racks: newRacks };
 }
@@ -5390,6 +5403,14 @@ function calculateRequirements(options) {
             markAutoScaled('future-growth');
         }
 
+        // disagg-rack-count auto-scaler only fires inside the `if (!conservativeSuccess)`
+        // branch below — on a follow-up calc where conservative now succeeds at the bumped
+        // rack count, the branch doesn't re-fire and the AUTO badge would disappear. Re-apply
+        // it here when it was set by a prior cycle and the user still hasn't pinned it.
+        if (previouslyAutoScaled.has('disagg-rack-count') && !_manualFields.has('disagg-rack-count')) {
+            markAutoScaled('disagg-rack-count');
+        }
+
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
         if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
@@ -5647,6 +5668,8 @@ function calculateRequirements(options) {
                     // loop has hit (rackCount × 16) machines with utilisation still ≥ 90% AND
                     // the user has not manually pinned the rack count, bump rack count up
                     // (capped at 4) before resorting to aggressive memory/ratio escalation.
+                    // We're inside `if (!conservativeSuccess)` so conservativeFailed is true —
+                    // this is what makes the rack-scale path preferred over 3-4 TB DIMMs.
                     if (clusterType === 'disaggregated' && !_manualFields.has('disagg-rack-count')) {
                         const rackElAuto = document.getElementById('disagg-rack-count');
                         const curRacks = rackElAuto ? (parseInt(rackElAuto.value, 10) || 1) : 1;
@@ -5654,7 +5677,11 @@ function calculateRequirements(options) {
                             totalVcpus, totalMemory, totalStorage,
                             hwConfig, resiliencyMultiplier, resiliency, totalGpus
                         );
-                        const rackDecision = shouldAutoScaleDisaggRacks(curRacks, disaggRec ? disaggRec.recommended : 0);
+                        const rackDecision = shouldAutoScaleDisaggRacks(
+                            curRacks,
+                            disaggRec ? disaggRec.recommended : 0,
+                            true /* conservativeFailed */
+                        );
                         if (rackDecision.scale) {
                             if (rackElAuto) rackElAuto.value = String(rackDecision.racks);
                             markAutoScaled('disagg-rack-count');
