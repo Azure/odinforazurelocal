@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.64] - 2026-06-04
+
+Disaggregated Storage Sizer **auto-scales the rack count both ways** — up when the conservative node loop has hit the per-rack machine cap with utilisation still ≥ 90 % (preferring more racks / machines over escalating to 3-4 TB DIMMs), **and back down when workloads shrink or are removed and the workload comfortably fits at fewer racks** — and renames the per-rack dropdown label to **Physical Machines per Rack** to match the wider Sizer "Nodes → Physical Machines" terminology refresh.
+
+### Added
+
+- **Disaggregated rack auto-scale** in `calculateRequirements()` (`sizer/sizer.js`). When the cluster type is `disaggregated`, the user has **not** manually pinned the **Number of Racks** dropdown, and the conservative auto-scale loop has reached the per-rack machine cap (`rackCount × 16`) with utilisation still ≥ 90 % on any resource (CPU / memory / storage / GPU), the Sizer now bumps **Number of Racks** up (1 → 2 → 3 → 4, capped at 4 racks) **before** falling through to aggressive memory / ratio escalation. This is the "prefer more racks over higher DIMMs" weighting — adding a rack of cheap 2 TB machines is preferred over jumping to 3-4 TB DIMMs at the same machine count. The bump is flagged with an **AUTO** badge on the dropdown, the **Number of Physical Machines** dropdown is rebuilt for the new rack count, the node-count user-set flag is cleared, an info toast is shown ("Disaggregated workload exceeds N-machine capacity — automatically scaled to M racks."), and `calculateRequirements()` re-runs from the top. Going beyond 4 racks (5–8) stays a manual decision because that forces fewer machines-per-rack (5 → 12, 6 → 10, 7 → 9, 8 → 8) — a real fabric / floor-space change.
+- **Symmetric Disaggregated rack auto-shrink** in `calculateRequirements()` (`sizer/sizer.js`). When the conservative loop **succeeds** AND the rack-count was set by a prior auto-scale (badge is still AUTO) AND the user has not manually pinned it, the Sizer now drops one rack tier per recalc if the workload comfortably fits at (`currentRacks - 1`) racks with **≥ 20 % headroom** on per-rack capacity. Single-step + 20 % buffer prevents oscillation at the rack-count / DIMM-size boundary (e.g. a workload sitting right at 32 nodes will not ping-pong between 2 and 3 racks). An info toast is shown ("Workload now fits comfortably — automatically scaled down to N racks."), and the AUTO badge persists across the recalc. The shrink only ever undoes prior auto-scale decisions — a user who manually picked 4 racks is never disturbed.
+- **New `shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed)` helper** alongside the existing `shouldUpgradeToDisaggregated()` in `sizer/sizer.js` — returns `{ scale: true, racks: N }` or `{ scale: false }`. Fires when **either** `recommendedNodes > currentRacks × 16` **or** `conservativeFailed === true`. Capped at 4 racks, guards null / zero / string inputs.
+- **New `shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes)` helper** (`sizer/sizer.js`) — returns `{ shrink: true, racks: cur - 1 }` or `{ shrink: false }`. Fires when `recommendedNodes ≤ floor((currentRacks - 1) × 16 × 0.80)`. Never shrinks below 1 rack; only one tier per call.
+- **Together: 28 new unit tests** in `tests/index.html` (16 for scale-up, 12 for shrink) covering both boundary cases, oscillation-prevention, guarded inputs, and the conservative-failed path.
+
+### Changed
+
+- **Dropdown label rename: *Nodes per Rack* → *Physical Machines per Rack*** in the Sizer's Disaggregated Storage view (`sizer/sizer.js`, in the label set on the `node-count` dropdown when `clusterType === 'disaggregated'`). Matches the wider v0.22.63 "Nodes → Physical Machines" terminology refresh for physical-server references. The dropdown *values* themselves (e.g. "16 Nodes per Rack (32 total)") are intentionally **unchanged** because the failover-cluster terminology still uses "Node".
+
+### Fixed
+
+- **AUTO badge on Number of Racks now persists across the post-scale recalc.** The rack-scale branch fires inside `if (!conservativeSuccess)` and re-runs `calculateRequirements()`; on that second pass the conservative loop now succeeds at the bumped rack count, so the rack-scale branch doesn't re-fire and `clearAutoScaledHighlights()` was wiping the badge. Now `calculateRequirements()` re-applies the badge on `disagg-rack-count` whenever it was set by a prior cycle and the user still hasn't manually pinned it (same pattern as the `future-growth` badge re-apply).
+- **Rack auto-scale no longer silently loses to aggressive memory escalation.** Before this fix, `shouldAutoScaleDisaggRacks()` only fired when the workload recommendation already exceeded `currentRacks × 16` machines. A workload that *almost* fit (e.g. 71 TB memory at 2 TB DIMMs on 3 racks = 86 % util but recommendation = 42 nodes ≤ 48) would skip rack-scale and fall through to aggressive memory escalation (3 TB DIMMs), even though adding a 4th rack of 2 TB machines would have been cheaper. The helper now also fires on `conservativeFailed === true` — which is always the case at the call site, since it's inside `if (!conservativeSuccess)`.
+
+### Tests
+
+- 16 unit tests for `shouldAutoScaleDisaggRacks()` in `tests/index.html` — 11 covering the recommendation-driven path (`conservativeFailed=false`) and 5 covering the conservative-failed path (`conservativeFailed=true`): bump-one-tier when rec fits, bump-by-rec when bigger, cap at 4 racks.
+- 12 unit tests for `shouldAutoShrinkDisaggRacks()` — boundary cases at each tier (`cur=2/3/4`, rec-at-threshold vs rec-just-over), 1-rack floor guard, zero-workload edge case, guarded null / string inputs, and an explicit no-oscillation case (`cur=2`, `rec=32` — right at scale-up boundary — does NOT shrink).
+- ESLint clean; HTML validation clean; full suite passes.
+
+---
+
 ## [0.22.63] - 2026-06-04
 
 Splits **Multi-Instance Scale-Out** into its own metric pair — **Total Annual Energy (kWh/yr)** plus an optional, currency-agnostic **Electricity Price → Total Annual Cost** input independent of the per-instance one — and now **persists** the *Number of Instances*, the per-instance Electricity Price, and the multi-instance Electricity Price across page reloads, **Resume**, 🔄 **Reset**, **Share Sizer Config as URL**, and JSON import/export. Also completes the **Sizer terminology refresh** from "Node" → "Physical Machine" for physical-server references (failover-cluster terminology like *Single Node*, *1 Node*, *N Nodes*, *cluster node* is kept), refreshes the **first-visit Help tour** for current capabilities, defaults **Allow for Future Growth** to **10 %** with an AUTO/MANUAL badge, tightens the dismiss-X behaviour on the **Number of Physical Machines** badge so it cascades cleanly to the resiliency dropdown, aligns **Storage Resiliency** dropdown wording (50 % / 33 % efficiency), and adds the three new Multi-Instance fields to the published Sizer JSON Schema.

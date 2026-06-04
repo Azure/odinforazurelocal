@@ -3141,6 +3141,172 @@
             })()
         ]);
 
+        // --- shouldAutoScaleDisaggRacks() ---
+        // Already-Disaggregated rack auto-scale fires in EITHER of two cases:
+        //  (a) recommendedNodes > currentRacks × 16 (workload genuinely overflows the cap), OR
+        //  (b) conservativeFailed === true (conservative loop hit per-rack cap at ≥90% util) —
+        //      prefer adding racks over escalating to 3-4 TB DIMMs.
+        // Always capped at 4 racks (going to 5–8 forces maxPerRack < 16: a real
+        // fabric / floor-space change that should stay manual).
+        testSuite('shouldAutoScaleDisaggRacks()', 'sizer.js', [
+            // --- (a) recommendation-driven path (conservativeFailed=false) ---
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 20, false);
+                return assert(r.scale === false,
+                    '2 racks / 20 needed / conservative OK → no scale (32-machine cap covers)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 32, false);
+                return assert(r.scale === false,
+                    '2 racks / exactly 32 needed / conservative OK → no scale (cap matched)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(1, 20, false);
+                return assert(r.scale === true && r.racks === 2,
+                    '1 rack / 20 needed → bump to 2 racks', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 40, false);
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 40 needed → bump to 3 racks (ceil(40/16)=3)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 60, false);
+                return assert(r.scale === true && r.racks === 4,
+                    '2 racks / 60 needed → bump to 4 racks (cap)', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 200, false);
+                return assert(r.scale === true && r.racks === 4,
+                    '2 racks / 200 needed → capped at 4 racks', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(4, 80, false);
+                return assert(r.scale === false,
+                    '4 racks / 80 needed → no scale (already at MAX_AUTO_RACKS)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(3, 49, false);
+                return assert(r.scale === true && r.racks === 4,
+                    '3 racks / 49 needed → bump to 4 racks (ceil(49/16)=4)', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks('2', 50, false);
+                return assert(r.scale === true && r.racks === 4,
+                    'String "2" / 50 needed → parses → bump to 4', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(null, 10, false);
+                return assert(r.scale === false,
+                    'null racks → guarded as 1, 10 fits → no scale', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(0, 30, false);
+                return assert(r.scale === true && r.racks === 2,
+                    '0 racks → guarded as 1, 30 needed → bump to 2', '2', String(r.racks));
+            })(),
+            // --- (b) conservative-failed path: scale up one tier even if recommendation fits ---
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 20, true);
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 20 needed / CONSERVATIVE FAILED → bump to 3 (prefer racks over high DIMMs)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(3, 30, true);
+                return assert(r.scale === true && r.racks === 4,
+                    '3 racks / 30 needed / CONSERVATIVE FAILED → bump to 4', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(1, 8, true);
+                return assert(r.scale === true && r.racks === 2,
+                    '1 rack / 8 needed / CONSERVATIVE FAILED → bump to 2', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(4, 40, true);
+                return assert(r.scale === false,
+                    '4 racks / 40 needed / CONSERVATIVE FAILED → no scale (cap)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 70, true);
+                return assert(r.scale === true && r.racks === 4,
+                    '2 racks / 70 needed / CONSERVATIVE FAILED → 4 (rec path still wins when bigger)', '4', String(r.racks));
+            })()
+        ]);
+
+        // --- shouldAutoShrinkDisaggRacks() ---
+        // Inverse of shouldAutoScaleDisaggRacks(). Drops one rack tier per recalc
+        // when the workload now fits at (cur - 1) racks with ≥ 20 % headroom.
+        // Single-step + 20 % buffer prevent oscillation at the boundary.
+        //   cur=4 → shrink when rec ≤ 38 (3 × 16 × 0.80)
+        //   cur=3 → shrink when rec ≤ 25 (2 × 16 × 0.80)
+        //   cur=2 → shrink when rec ≤ 12 (1 × 16 × 0.80)
+        //   cur=1 → never shrinks (floor)
+        testSuite('shouldAutoShrinkDisaggRacks()', 'sizer.js', [
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(1, 5);
+                return assert(r.shrink === false,
+                    '1 rack / any → never shrinks (floor)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 12);
+                return assert(r.shrink === true && r.racks === 1,
+                    '2 racks / 12 needed → shrink to 1 (≤ 12 = 80% of 16)', '1', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 13);
+                return assert(r.shrink === false,
+                    '2 racks / 13 needed → NO shrink (13 > 12 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(2, 0);
+                return assert(r.shrink === true && r.racks === 1,
+                    '2 racks / 0 workload → shrink to 1 (no workload at all)', '1', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 25);
+                return assert(r.shrink === true && r.racks === 2,
+                    '3 racks / 25 needed → shrink to 2 (≤ 25 = 80% of 32)', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 26);
+                return assert(r.shrink === false,
+                    '3 racks / 26 needed → NO shrink (26 > 25 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 38);
+                return assert(r.shrink === true && r.racks === 3,
+                    '4 racks / 38 needed → shrink to 3 (≤ 38 = 80% of 48)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 39);
+                return assert(r.shrink === false,
+                    '4 racks / 39 needed → NO shrink (39 > 38 headroom buffer)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(4, 48);
+                return assert(r.shrink === false,
+                    '4 racks / 48 needed → NO shrink (recommendation fills 3-rack cap exactly)', false, r.shrink);
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks('3', 20);
+                return assert(r.shrink === true && r.racks === 2,
+                    'String "3" / 20 needed → parses → shrink to 2', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoShrinkDisaggRacks(null, 5);
+                return assert(r.shrink === false,
+                    'null racks → guarded as 1 → never shrinks', false, r.shrink);
+            })(),
+            (() => {
+                // No oscillation: scale-up fires when rec > cur × 16; shrink only when
+                // rec ≤ (cur-1) × 16 × 0.80. Verify cur=2 / rec=32 (right at scale-up
+                // boundary) does NOT shrink — would otherwise ping-pong with scale-up.
+                const r = shouldAutoShrinkDisaggRacks(2, 32);
+                return assert(r.shrink === false,
+                    'No-oscillation: 2 racks at full cap (rec=32) → NO shrink', false, r.shrink);
+            })()
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),

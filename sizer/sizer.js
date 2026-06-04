@@ -1319,6 +1319,57 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
     return { upgrade: true, racks: racks, estimatedNodes: rec };
 }
 
+// On a Disaggregated cluster already running, decide whether to auto-bump the
+// rack count (1 → 2 → 3 → 4) when the conservative node loop has hit the
+// per-rack cap (rackCount × 16) with utilisation still ≥ 90%. Capped at 4
+// racks — going to 5–8 racks forces maxPerRack < 16 (a real floor-space /
+// fabric change) which should stay a manual decision.
+//
+// Fires in EITHER of two cases:
+//   (a) The workload recommendation already exceeds current rackCount × 16 —
+//       guaranteed insufficient capacity at any per-machine memory size.
+//   (b) The conservative auto-scale loop hit the per-rack node cap with
+//       utilisation still ≥ 90 % on some resource (conservativeFailed=true).
+//       This is the "prefer more machines over higher DIMMs" weighting:
+//       without it the engine falls through to aggressive memory escalation
+//       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
+// Returns { scale: false } or { scale: true, racks: N }.
+function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
+    const MAX_AUTO_RACKS = 4;
+    const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
+    if (cur >= MAX_AUTO_RACKS) return { scale: false };
+    const rec = parseInt(recommendedNodes, 10) || 0;
+    const recExceedsCap = rec > cur * 16;
+    if (!recExceedsCap && !conservativeFailed) return { scale: false };
+    // Target rack count: enough to fit the recommendation, otherwise just
+    // bump by one tier. Always capped at MAX_AUTO_RACKS.
+    const targetByRec = rec > 0 ? Math.ceil(rec / 16) : (cur + 1);
+    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, targetByRec));
+    if (newRacks <= cur) return { scale: false };
+    return { scale: true, racks: newRacks };
+}
+
+// Inverse of shouldAutoScaleDisaggRacks(): when workloads have been removed
+// (or shrunk), drop the Disaggregated rack count by one tier if the workload
+// still fits at (cur - 1) racks with ≥ 20 % headroom on per-rack capacity.
+// Only ever shrinks ONE tier per recalc (single-step) to prevent oscillation
+// at the rack-count / DIMM-size boundary. The 20 % buffer means scale-up and
+// shrink fire at different recommendation thresholds, so a workload sitting
+// right at e.g. 32 nodes won't ping-pong between 2 and 3 racks.
+// Returns { shrink: false } or { shrink: true, racks: N }.
+function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
+    const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
+    if (cur <= 1) return { shrink: false };
+    const rec = parseInt(recommendedNodes, 10) || 0;
+    // ≥ 20 % headroom at the lower tier: rec must be ≤ floor((cur-1) × 16 × 0.80)
+    //   cur=4 → lower-cap-with-headroom = 38  (3 racks, ≤ 38 nodes recommended)
+    //   cur=3 → lower-cap-with-headroom = 25  (2 racks, ≤ 25 nodes recommended)
+    //   cur=2 → lower-cap-with-headroom = 12  (1 rack, ≤ 12 nodes recommended)
+    const lowerCapWithHeadroom = Math.floor((cur - 1) * 16 * 0.80);
+    if (rec > lowerCapWithHeadroom) return { shrink: false };
+    return { shrink: true, racks: cur - 1 };
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     const ct = document.getElementById('cluster-type').value;
@@ -3577,9 +3628,9 @@ function updateNodeOptionsForClusterType() {
         if (!nodeSelect.value || nodeSelect.selectedIndex < 0) {
             nodeSelect.selectedIndex = 0;
         }
-        // Update label to say "Nodes per Rack"
+        // Update label to say "Physical Machines per Rack"
         const nodeLabel = document.querySelector('label[for="node-count"]');
-        _setLabelText(nodeLabel, 'Nodes per Rack');
+        _setLabelText(nodeLabel, 'Physical Machines per Rack');
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -5373,6 +5424,14 @@ function calculateRequirements(options) {
             markAutoScaled('future-growth');
         }
 
+        // disagg-rack-count auto-scaler only fires inside the `if (!conservativeSuccess)`
+        // branch below — on a follow-up calc where conservative now succeeds at the bumped
+        // rack count, the branch doesn't re-fire and the AUTO badge would disappear. Re-apply
+        // it here when it was set by a prior cycle and the user still hasn't pinned it.
+        if (previouslyAutoScaled.has('disagg-rack-count') && !_manualFields.has('disagg-rack-count')) {
+            markAutoScaled('disagg-rack-count');
+        }
+
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
         if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
@@ -5581,6 +5640,40 @@ function calculateRequirements(options) {
                     }
                 }
 
+                // --- Auto-shrink Disaggregated rack count when workload now fits at fewer ---
+                // Symmetric inverse of the rack-scale-up block below: when the conservative
+                // loop succeeded AND the rack-count was set by a prior auto-scale (badge
+                // still AUTO) AND the user has not pinned it, drop one rack tier per recalc
+                // if the workload comfortably fits at (curRacks - 1) with ≥20% headroom.
+                // Single-step + 20% buffer prevent oscillation at the boundary.
+                if (conservativeSuccess && clusterType === 'disaggregated'
+                    && _autoScaledFields.has('disagg-rack-count')
+                    && !_manualFields.has('disagg-rack-count')) {
+                    const rackElShrink = document.getElementById('disagg-rack-count');
+                    const curRacksShrink = rackElShrink ? (parseInt(rackElShrink.value, 10) || 1) : 1;
+                    const disaggRecShrink = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    const shrinkDecision = shouldAutoShrinkDisaggRacks(
+                        curRacksShrink,
+                        disaggRecShrink ? disaggRecShrink.recommended : 0
+                    );
+                    if (shrinkDecision.shrink) {
+                        if (rackElShrink) rackElShrink.value = String(shrinkDecision.racks);
+                        markAutoScaled('disagg-rack-count');
+                        updateNodeOptionsForClusterType();
+                        updateClusterInfo();
+                        _nodeCountUserSet = false;
+
+                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks') + '.', 'info');
+
+                        isCalculating = false;
+                        calculateRequirements();
+                        return;
+                    }
+                }
+
                 // --- Final aggressive pass: allow ratio escalation and high memory ---
                 // Only run when the conservative node loop could NOT get all utilisation
                 // below the 90% threshold (e.g. hit max nodes with util still over 90%).
@@ -5618,6 +5711,40 @@ function calculateRequirements(options) {
                             _nodeCountUserSet = false;
 
                             showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+
+                            isCalculating = false;
+                            calculateRequirements();
+                            return;
+                        }
+                    }
+
+                    // --- Auto-scale Disaggregated rack count when at per-rack cap ---
+                    // Disaggregated supports 1–4 racks via the dropdown; when the conservative
+                    // loop has hit (rackCount × 16) machines with utilisation still ≥ 90% AND
+                    // the user has not manually pinned the rack count, bump rack count up
+                    // (capped at 4) before resorting to aggressive memory/ratio escalation.
+                    // We're inside `if (!conservativeSuccess)` so conservativeFailed is true —
+                    // this is what makes the rack-scale path preferred over 3-4 TB DIMMs.
+                    if (clusterType === 'disaggregated' && !_manualFields.has('disagg-rack-count')) {
+                        const rackElAuto = document.getElementById('disagg-rack-count');
+                        const curRacks = rackElAuto ? (parseInt(rackElAuto.value, 10) || 1) : 1;
+                        const disaggRec = getRecommendedNodeCount(
+                            totalVcpus, totalMemory, totalStorage,
+                            hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                        );
+                        const rackDecision = shouldAutoScaleDisaggRacks(
+                            curRacks,
+                            disaggRec ? disaggRec.recommended : 0,
+                            true /* conservativeFailed */
+                        );
+                        if (rackDecision.scale) {
+                            if (rackElAuto) rackElAuto.value = String(rackDecision.racks);
+                            markAutoScaled('disagg-rack-count');
+                            updateNodeOptionsForClusterType();
+                            updateClusterInfo();
+                            _nodeCountUserSet = false;
+
+                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackDecision.racks + ' racks.', 'info');
 
                             isCalculating = false;
                             calculateRequirements();
