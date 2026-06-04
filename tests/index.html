@@ -3143,11 +3143,14 @@
 
         // --- shouldAutoScaleDisaggRacks() ---
         // Already-Disaggregated rack auto-scale fires in EITHER of two cases:
-        //  (a) recommendedNodes > currentRacks × 16 (workload genuinely overflows the cap), OR
+        //  (a) recommendedNodes > current rack capacity (workload genuinely overflows), OR
         //  (b) conservativeFailed === true (conservative loop hit per-rack cap at ≥90% util) —
         //      prefer adding racks over escalating to 3-4 TB DIMMs.
-        // Always capped at 4 racks (going to 5–8 forces maxPerRack < 16: a real
-        // fabric / floor-space change that should stay manual).
+        // Single-step bump (cur+1) per recalc; the recursive recalc will re-fire and
+        // bump again if still over-capacity. Capped at 8 racks (the disagg architectural
+        // maximum, 64 total machines). The caller already guards with
+        // `!_manualFields.has('disagg-rack-count')`, so this fn only runs when the
+        // user has NOT pinned the rack count.
         testSuite('shouldAutoScaleDisaggRacks()', 'sizer.js', [
             // --- (a) recommendation-driven path (conservativeFailed=false) ---
             (() => {
@@ -3168,32 +3171,37 @@
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 40, false);
                 return assert(r.scale === true && r.racks === 3,
-                    '2 racks / 40 needed → bump to 3 racks (ceil(40/16)=3)', '3', String(r.racks));
+                    '2 racks / 40 needed → bump one tier to 3 racks', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 60, false);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 60 needed → bump to 4 racks (cap)', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 60 needed → bump one tier to 3 racks (recursive recalc will bump again)', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 200, false);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 200 needed → capped at 4 racks', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 200 needed → bump one tier to 3 racks (recursive recalc walks up to cap)', '3', String(r.racks));
             })(),
             (() => {
-                const r = shouldAutoScaleDisaggRacks(4, 80, false);
+                const r = shouldAutoScaleDisaggRacks(4, 80, true);
                 return assert(r.scale === false,
-                    '4 racks / 80 needed → no scale (already at MAX_AUTO_RACKS)', false, r.scale);
+                    '4 racks / 80 needed / CONSERVATIVE FAILED → no scale (4 racks already = 64-machine architectural max; 5/6/7/8 racks all ≤ 64)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(8, 80, true);
+                return assert(r.scale === false,
+                    '8 racks / 80 needed / CONSERVATIVE FAILED → no scale (at MAX_AUTO_RACKS=8)', false, r.scale);
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(3, 49, false);
                 return assert(r.scale === true && r.racks === 4,
-                    '3 racks / 49 needed → bump to 4 racks (ceil(49/16)=4)', '4', String(r.racks));
+                    '3 racks / 49 needed → bump to 4 racks (49 > 3×16=48)', '4', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks('2', 50, false);
-                return assert(r.scale === true && r.racks === 4,
-                    'String "2" / 50 needed → parses → bump to 4', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    'String "2" / 50 needed → parses → bump one tier to 3', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(null, 10, false);
@@ -3204,6 +3212,28 @@
                 const r = shouldAutoScaleDisaggRacks(0, 30, false);
                 return assert(r.scale === true && r.racks === 2,
                     '0 racks → guarded as 1, 30 needed → bump to 2', '2', String(r.racks));
+            })(),
+            // --- Non-monotonic per-rack cap: skip rack counts that don't add capacity ---
+            // 4 racks=64, 5=60, 6=60, 7=63, 8=64. Auto must skip useless steps.
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(4, 65, true);
+                return assert(r.scale === false,
+                    '4 racks / 65 needed / CONSERVATIVE FAILED → no scale (no N≤8 has cap > 64)', false, r.scale);
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(5, 65, true);
+                return assert(r.scale === true && r.racks === 7,
+                    '5 racks (cap 60) / 65 needed / CONSERVATIVE FAILED → skip 6 (cap 60), jump to 7 (cap 63)', '7', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(6, 65, true);
+                return assert(r.scale === true && r.racks === 7,
+                    '6 racks (cap 60) / 65 needed / CONSERVATIVE FAILED → bump to 7 (cap 63), smallest useful step', '7', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(7, 64, true);
+                return assert(r.scale === true && r.racks === 8,
+                    '7 racks (cap 63) / 64 needed / CONSERVATIVE FAILED → bump to 8 (cap 64)', '8', String(r.racks));
             })(),
             // --- (b) conservative-failed path: scale up one tier even if recommendation fits ---
             (() => {
@@ -3224,12 +3254,12 @@
             (() => {
                 const r = shouldAutoScaleDisaggRacks(4, 40, true);
                 return assert(r.scale === false,
-                    '4 racks / 40 needed / CONSERVATIVE FAILED → no scale (cap)', false, r.scale);
+                    '4 racks / 40 needed / CONSERVATIVE FAILED → no scale (4 racks already = 64-machine max)', false, r.scale);
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 70, true);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 70 needed / CONSERVATIVE FAILED → 4 (rec path still wins when bigger)', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 70 needed / CONSERVATIVE FAILED → bump one tier to 3 (recursive recalc walks up)', '3', String(r.racks));
             })()
         ]);
 
@@ -3306,6 +3336,202 @@
                     'No-oscillation: 2 racks at full cap (rec=32) → NO shrink', false, r.shrink);
             })()
         ]);
+
+        // --- shouldDowngradeFromDisaggregated() ---
+        // Inverse of shouldUpgradeToDisaggregated(). When the cluster was previously
+        // auto-upgraded to Disaggregated and the workload now fits in ≤ 12 nodes on
+        // standard HCI (16 × 0.80 headroom, matching the rack-shrink buffer), the
+        // caller should drop cluster-type back to 'standard' in one shot.
+        //   rec ≤ 12 → downgrade
+        //   rec > 12 → stay disaggregated
+        testSuite('shouldDowngradeFromDisaggregated()', 'sizer.js', [
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(0);
+                return assert(r.downgrade === false,
+                    '0 workload nodes → NO downgrade (no workload at all)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(1);
+                return assert(r.downgrade === true && r.recommended === 1,
+                    '1 node needed → downgrade (well within HCI)', '1', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(8);
+                return assert(r.downgrade === true && r.recommended === 8,
+                    '8 nodes needed → downgrade (comfortable on HCI)', '8', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(12);
+                return assert(r.downgrade === true && r.recommended === 12,
+                    '12 nodes needed → downgrade (right at headroom threshold)', '12', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(13);
+                return assert(r.downgrade === false,
+                    '13 nodes needed → NO downgrade (over 12 headroom buffer)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(16);
+                return assert(r.downgrade === false,
+                    '16 nodes needed (HCI hard cap) → NO downgrade (no headroom)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(20);
+                return assert(r.downgrade === false,
+                    '20 nodes needed → NO downgrade (would not fit on HCI)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated('10');
+                return assert(r.downgrade === true && r.recommended === 10,
+                    'String "10" → parses → downgrade', '10', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(null);
+                return assert(r.downgrade === false,
+                    'null → guarded as 0 → NO downgrade', false, r.downgrade);
+            })(),
+            (() => {
+                // No oscillation with shouldUpgradeToDisaggregated(): upgrade fires when
+                // disagg rec > 16; downgrade fires when standard rec ≤ 12. The 4-node gap
+                // ensures a workload sitting near the boundary never ping-pongs.
+                const upR = shouldUpgradeToDisaggregated(16, 17);   // upgrades at boundary
+                const downR = shouldDowngradeFromDisaggregated(13); // does NOT downgrade
+                return assert(upR.upgrade === true && downR.downgrade === false,
+                    'No-oscillation: upgrade@17 vs downgrade@13 leaves a stable band [13..16]',
+                    'up=true down=false', 'up=' + upR.upgrade + ' down=' + downR.downgrade);
+            })()
+        ]);
+
+        // --- _computeGrowthMultiplier() pure helper ---
+        // Pure helper extracted from getGrowthFactor() so the compound-growth
+        // math has direct unit coverage without DOM stubs (v0.22.65, issue #254).
+        testSuite('_computeGrowthMultiplier()', 'sizer.js', [
+            assert(_computeGrowthMultiplier(0, 1) === 1,
+                '0% × 1y → 1', 1, _computeGrowthMultiplier(0, 1)),
+            assert(_computeGrowthMultiplier(0, 5) === 1,
+                '0% × 5y → 1 (no growth = no compounding)', 1, _computeGrowthMultiplier(0, 5)),
+            assert(_computeGrowthMultiplier(10, 1) === 1.1,
+                '10% × 1y → 1.10 (historical Year-1 behaviour)', 1.1, _computeGrowthMultiplier(10, 1)),
+            (() => {
+                // 10% × 5y → 1.10^5 = 1.61051
+                const r = _computeGrowthMultiplier(10, 5);
+                return assert(Math.abs(r - 1.61051) < 1e-6,
+                    '10% × 5y → 1.61051 (compound 5-year horizon)', 1.61051, r);
+            })(),
+            (() => {
+                const r = _computeGrowthMultiplier(20, 5);
+                return assert(Math.abs(r - 2.48832) < 1e-6,
+                    '20% × 5y → 2.48832', 2.48832, r);
+            })(),
+            (() => {
+                const r = _computeGrowthMultiplier(50, 5);
+                return assert(Math.abs(r - 7.59375) < 1e-6,
+                    '50% × 5y → 7.59375', 7.59375, r);
+            })(),
+            assert(_computeGrowthMultiplier(10, 0) === 1.1,
+                'years=0 → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, 0)),
+            assert(_computeGrowthMultiplier(10, -3) === 1.1,
+                'years<0 → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, -3)),
+            assert(_computeGrowthMultiplier(10, NaN) === 1.1,
+                'years=NaN → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, NaN)),
+            assert(_computeGrowthMultiplier(null, 5) === 1,
+                'pct=null → 0% → 1 regardless of years', 1, _computeGrowthMultiplier(null, 5)),
+            assert(_computeGrowthMultiplier('10', '5') === _computeGrowthMultiplier(10, 5),
+                'String args parse like numbers', _computeGrowthMultiplier(10, 5), _computeGrowthMultiplier('10', '5'))
+        ]);
+
+        // --- formatAnnualEnergy() pure helper ---
+        // Auto-scales from kWh/yr to MWh/yr at the 1 M kWh boundary so the
+        // Multi-Instance Scale-Out summary stays readable at scale-out.
+        testSuite('formatAnnualEnergy()', 'sizer.js', [
+            assert(formatAnnualEnergy(0) === '0 kWh/yr',
+                '0 → "0 kWh/yr"', '0 kWh/yr', formatAnnualEnergy(0)),
+            assert(formatAnnualEnergy(160571) === '160,571 kWh/yr',
+                '160,571 kWh → "160,571 kWh/yr" (below threshold, kWh preserved)', '160,571 kWh/yr', formatAnnualEnergy(160571)),
+            assert(formatAnnualEnergy(999999) === '999,999 kWh/yr',
+                'just below 1 M kWh stays in kWh', '999,999 kWh/yr', formatAnnualEnergy(999999)),
+            assert(formatAnnualEnergy(1000000) === '1,000 MWh/yr',
+                '1,000,000 kWh → "1,000 MWh/yr" (at threshold, scales to MWh)', '1,000 MWh/yr', formatAnnualEnergy(1000000)),
+            assert(formatAnnualEnergy(1605710) === '1,605.7 MWh/yr',
+                '1,605,710 kWh (10\u00d7 scale-out example) → "1,605.7 MWh/yr"', '1,605.7 MWh/yr', formatAnnualEnergy(1605710)),
+            assert(formatAnnualEnergy(null) === '\u2014',
+                'null → em-dash', '\u2014', formatAnnualEnergy(null)),
+            assert(formatAnnualEnergy(NaN) === '\u2014',
+                'NaN → em-dash', '\u2014', formatAnnualEnergy(NaN))
+        ]);
+
+        // --- getGrowthYears() + getGrowthFactor() (DOM-backed, issue #254) ---
+        // The 5-year No/Yes dropdown drives both helpers; we flip its value to
+        // cover both modes.
+        // NOTE: this suite runs BEFORE the shared hardware-stubs IIFE further
+        // down the file, so we have to create the DOM elements ourselves.
+        testSuite('getGrowthYears() + getGrowthFactor() with #size-for-5yr-growth', 'sizer.js', (() => {
+            const results = [];
+            let sel = document.getElementById('size-for-5yr-growth');
+            const selCreated = !sel;
+            if (!sel) {
+                sel = document.createElement('select');
+                sel.id = 'size-for-5yr-growth';
+                sel.style.display = 'none';
+                ['no','yes'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v; opt.text = v;
+                    sel.appendChild(opt);
+                });
+                document.body.appendChild(sel);
+            }
+            let growthEl = document.getElementById('future-growth');
+            const growthCreated = !growthEl;
+            if (!growthEl) {
+                growthEl = document.createElement('select');
+                growthEl.id = 'future-growth';
+                growthEl.style.display = 'none';
+                ['0','10','20','30','40','50'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v; opt.text = v;
+                    growthEl.appendChild(opt);
+                });
+                document.body.appendChild(growthEl);
+            }
+            const savedSel = sel.value;
+            const savedGrowth = growthEl.value;
+            try {
+                // --- getGrowthYears() ---
+                sel.value = 'no';
+                results.push(assert(getGrowthYears() === 1,
+                    "dropdown 'no' → 1 year (historical Year-1 sizing)", 1, getGrowthYears()));
+                sel.value = 'yes';
+                results.push(assert(getGrowthYears() === 5,
+                    "dropdown 'yes' → 5 years (compound horizon)", 5, getGrowthYears()));
+
+                // --- getGrowthFactor() round-trips through getGrowthYears() ---
+                growthEl.value = '10';
+                sel.value = 'no';
+                results.push(assert(Math.abs(getGrowthFactor() - 1.1) < 1e-9,
+                    "10% + 'no' → 1.10 (Year 1)", 1.1, getGrowthFactor()));
+                sel.value = 'yes';
+                results.push(assert(Math.abs(getGrowthFactor() - 1.61051) < 1e-6,
+                    "10% + 'yes' → 1.61051 (5-year compound)", 1.61051, getGrowthFactor()));
+
+                growthEl.value = '0';
+                sel.value = 'yes';
+                results.push(assert(getGrowthFactor() === 1,
+                    "0% + 'yes' → 1 (no compounding when no growth)", 1, getGrowthFactor()));
+
+                growthEl.value = '50';
+                sel.value = 'yes';
+                results.push(assert(Math.abs(getGrowthFactor() - 7.59375) < 1e-6,
+                    "50% + 'yes' → 7.59375", 7.59375, getGrowthFactor()));
+            } finally {
+                sel.value = savedSel;
+                growthEl.value = savedGrowth;
+                // Clean up only what we created — leave shared stubs in place
+                // for the suites that run after us.
+                if (selCreated && sel.parentNode) sel.parentNode.removeChild(sel);
+                if (growthCreated && growthEl.parentNode) growthEl.parentNode.removeChild(growthEl);
+            }
+            return results;
+        })());
 
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
@@ -5418,6 +5644,9 @@
                 { id: 'node-count', tag: 'select', values: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], defaultVal: '3' },
                 { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware','low-capacity'], defaultVal: 'standard' },
                 { id: 'future-growth', tag: 'select', values: ['0','10','20','30','40','50'], defaultVal: '0' },
+                // Default 'no' → getGrowthYears() returns 1, preserving historical Year-1
+                // sizing for all unrelated tests. The dedicated growth suites flip it to 'yes'.
+                { id: 'size-for-5yr-growth', tag: 'select', values: ['no','yes'], defaultVal: 'no' },
                 { id: 'resiliency', tag: 'select', values: ['simple','2way','3way','4way'], defaultVal: '2way' },
                 { id: 'node-recommendation', tag: 'div', defaultVal: '' },
                 { id: 'node-recommendation-text', tag: 'span', defaultVal: '' },

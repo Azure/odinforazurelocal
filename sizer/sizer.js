@@ -415,6 +415,14 @@ function onFutureGrowthChange() {
     onHardwareConfigChange();
 }
 
+// Handler for the "Size for 5-year compound growth" No/Yes dropdown inside the
+// Capacity Runway section (issue #254). Switching this changes getGrowthFactor()
+// from (1+pct/100)^1 to (1+pct/100)^5, so a full recalculation is required to
+// re-roll workload totals, recommendation, auto-scale, and capacity bars.
+function onSizeFor5YrGrowthChange() {
+    onHardwareConfigChange();
+}
+
 // Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
 function onVcpuRatioChange() {
     _vcpuRatioUserSet = true;
@@ -1184,11 +1192,32 @@ function buildMaxHardwareConfig(hwConfig) {
     };
 }
 
-// Get growth factor from the future-growth dropdown
+// Pure helper: compound (1 + pct/100) over N years. Extracted from
+// getGrowthFactor() so the math is unit-testable without DOM stubs.
+function _computeGrowthMultiplier(growthPct, years) {
+    const pct = parseInt(growthPct, 10) || 0;
+    const yrs = parseInt(years, 10);
+    const y = (isNaN(yrs) || yrs < 1) ? 1 : yrs;
+    return Math.pow(1 + pct / 100, y);
+}
+
+// How many years of compound growth the hardware should be sized to absorb.
+// Read from the "Size for 5-year compound growth" No/Yes dropdown inside the
+// Capacity Runway section (issue #254). Defaults to 1 year (i.e. (1+pct/100)^1,
+// the historical behaviour) when the dropdown is set to 'no' or absent.
+function getGrowthYears() {
+    const el = document.getElementById('size-for-5yr-growth');
+    return (el && el.value === 'yes') ? 5 : 1;
+}
+
+// Get growth factor from the future-growth dropdown, compounded across
+// getGrowthYears() years. With the 5-year dropdown set to 'yes', a 10% annual
+// growth becomes 1.10^5 ≈ 1.611 so all downstream sizing math (workload
+// totals, recommendation, auto-scale, capacity bars) targets year-5 demand.
 function getGrowthFactor() {
     const el = document.getElementById('future-growth');
-    if (!el) return 1;
-    return 1 + (parseInt(el.value) || 0) / 100;
+    const pct = el ? (parseInt(el.value) || 0) : 0;
+    return _computeGrowthMultiplier(pct, getGrowthYears());
 }
 
 // Calculate recommended node count based on workload demands and per-node hardware
@@ -1320,13 +1349,23 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 }
 
 // On a Disaggregated cluster already running, decide whether to auto-bump the
-// rack count (1 → 2 → 3 → 4) when the conservative node loop has hit the
-// per-rack cap (rackCount × 16) with utilisation still ≥ 90%. Capped at 4
-// racks — going to 5–8 racks forces maxPerRack < 16 (a real floor-space /
-// fabric change) which should stay a manual decision.
+// rack count when the conservative node loop has hit the per-rack cap
+// (rackCount × maxPerRack) with utilisation still ≥ 90%. Capped at 8 racks
+// (the disagg architectural maximum, 64 total machines). The caller already
+// guards this with `!_manualFields.has('disagg-rack-count')`, so we only
+// reach here when the user has NOT pinned the rack count — when they have
+// pinned it (at any value), auto won't touch it regardless of size.
+//
+// Per-rack capacity is non-monotonic (1–4 racks → 16/rack=64 total;
+// 5→60, 6→60, 7→63, 8→64) because the 64-machine ceiling forces fewer
+// machines per rack as rack count grows. So we never bump to a rack count
+// whose TOTAL capacity is ≤ current — instead we walk forward to the
+// smallest N whose total capacity is strictly greater. From 4 racks (cap 64)
+// no further bump can ever help: return no-scale. From 6 racks (cap 60),
+// 7 racks (cap 63) is the smallest useful step.
 //
 // Fires in EITHER of two cases:
-//   (a) The workload recommendation already exceeds current rackCount × 16 —
+//   (a) The workload recommendation already exceeds current rack capacity —
 //       guaranteed insufficient capacity at any per-machine memory size.
 //   (b) The conservative auto-scale loop hit the per-rack node cap with
 //       utilisation still ≥ 90 % on some resource (conservativeFailed=true).
@@ -1335,17 +1374,20 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 //       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
 // Returns { scale: false } or { scale: true, racks: N }.
 function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
-    const MAX_AUTO_RACKS = 4;
+    const MAX_AUTO_RACKS = 8;
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur >= MAX_AUTO_RACKS) return { scale: false };
     const rec = parseInt(recommendedNodes, 10) || 0;
-    const recExceedsCap = rec > cur * 16;
+    const curCap = cur * getDisaggMaxNodesPerRack(cur);
+    const recExceedsCap = rec > curCap;
     if (!recExceedsCap && !conservativeFailed) return { scale: false };
-    // Target rack count: enough to fit the recommendation, otherwise just
-    // bump by one tier. Always capped at MAX_AUTO_RACKS.
-    const targetByRec = rec > 0 ? Math.ceil(rec / 16) : (cur + 1);
-    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, targetByRec));
-    if (newRacks <= cur) return { scale: false };
+    // Walk forward to smallest N > cur with strictly greater total capacity.
+    // Skips no-op steps like 4→5 (64 → 60) or 5→6 (60 → 60).
+    let newRacks = 0;
+    for (let n = cur + 1; n <= MAX_AUTO_RACKS; n++) {
+        if (n * getDisaggMaxNodesPerRack(n) > curCap) { newRacks = n; break; }
+    }
+    if (!newRacks) return { scale: false };
     return { scale: true, racks: newRacks };
 }
 
@@ -1368,6 +1410,20 @@ function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
     const lowerCapWithHeadroom = Math.floor((cur - 1) * 16 * 0.80);
     if (rec > lowerCapWithHeadroom) return { shrink: false };
     return { shrink: true, racks: cur - 1 };
+}
+
+// Inverse of shouldUpgradeToDisaggregated(): when a previously auto-upgraded
+// disaggregated cluster's workload now fits comfortably on Hyperconverged,
+// downgrade back to standard HCI in one shot (skipping the rack-by-rack
+// shrink). Threshold matches the per-rack shrink buffer (16 × 0.80 = 12) so
+// the boundary is consistent and oscillation-safe with shouldUpgradeToDisaggregated()
+// which fires only when disagg rec > 16.
+// Returns { downgrade: false } or { downgrade: true, recommended: N }.
+function shouldDowngradeFromDisaggregated(standardRecommendedNodes) {
+    const HCI_MAX_WITH_HEADROOM = Math.floor(16 * 0.80); // 12
+    const rec = parseInt(standardRecommendedNodes, 10) || 0;
+    if (rec <= 0 || rec > HCI_MAX_WITH_HEADROOM) return { downgrade: false };
+    return { downgrade: true, recommended: rec };
 }
 
 // Get the maximum node cap for the current cluster type
@@ -1929,7 +1985,48 @@ function updateManualOverrideWarning(computePercent, memoryPercent, storagePerce
 
     const resourceStr = overResources.join(', ');
     const overrideStr = overrideLabels.join(', ');
-    warningText.textContent = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+    let msg = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+
+    // On Disaggregated, when Number of Racks is MANUAL and the cluster is at
+    // its per-rack node cap, adding more racks could be a viable alternative
+    // — but ONLY for over-utilized resources that scale with machine count
+    // AND only if a future rack count would actually deliver MORE machines.
+    // Per-rack cap is non-monotonic (4 racks → 64; 5 → 60; 6 → 60; 7 → 63;
+    // 8 → 64) so from 4 racks no further bump can help. Storage on
+    // Disaggregated is SAN-backed, so storage util doesn't benefit either.
+    const clusterTypeEl = document.getElementById('cluster-type');
+    const rackHelpsCompute = computePercent >= THRESHOLD;
+    const rackHelpsMemory = memoryPercent >= THRESHOLD;
+    if (clusterTypeEl && clusterTypeEl.value === 'disaggregated'
+        && _manualFields.has('disagg-rack-count')
+        && (rackHelpsCompute || rackHelpsMemory)) {
+        const rackEl = document.getElementById('disagg-rack-count');
+        const curRacks = rackEl ? (parseInt(rackEl.value, 10) || 1) : 1;
+        const nodeEl = document.getElementById('node-count');
+        const curNodes = nodeEl ? (parseInt(nodeEl.value, 10) || 0) : 0;
+        const perRackCap = getDisaggMaxNodesPerRack(curRacks);
+        const curCap = curRacks * perRackCap;
+        const atCap = curNodes >= curCap;
+        if (atCap && curRacks < 8) {
+            // Walk forward to the smallest N whose total cap > curCap.
+            let nextRacks = 0;
+            let nextCap = 0;
+            for (let n = curRacks + 1; n <= 8; n++) {
+                const cap = n * getDisaggMaxNodesPerRack(n);
+                if (cap > curCap) { nextRacks = n; nextCap = cap; break; }
+            }
+            if (nextRacks > 0) {
+                const which = rackHelpsCompute && rackHelpsMemory ? 'compute / memory'
+                            : rackHelpsCompute ? 'compute' : 'memory';
+                msg += ` Or increase Number of Racks beyond ${curRacks} to add more machines for ${which} headroom (currently capped at ${curRacks} \u00d7 ${perRackCap} = ${curCap} machines; ${nextRacks} racks would allow up to ${nextCap}).`;
+            }
+            // else: no rack count from cur+1..8 increases total cap (e.g.
+            // already at 4 racks / 64 machines). Stay silent — adding racks
+            // genuinely wouldn't help, so don't suggest it.
+        }
+    }
+
+    warningText.textContent = msg;
     warningEl.style.display = 'flex';
 }
 
@@ -2571,6 +2668,7 @@ function getSizerState() {
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
+        sizeFor5YrGrowth: (document.getElementById('size-for-5yr-growth') || {}).value === 'yes',
         resiliency: document.getElementById('resiliency').value,
         cpuManufacturer: document.getElementById('cpu-manufacturer').value,
         cpuGeneration: document.getElementById('cpu-generation').value,
@@ -2601,7 +2699,9 @@ function getSizerState() {
         powerPriceInput: (document.getElementById('power-price-input') || {}).value || '',
         multiPowerPriceInput: (document.getElementById('multi-power-price-input') || {}).value || _lastMultiPowerPrice || '',
         importedProcessorName: window._importedProcessorName || null,
-        importedCoresPerSocket: window._importedCoresPerSocket || null
+        importedCoresPerSocket: window._importedCoresPerSocket || null,
+        autoScaledFields: Array.from(_autoScaledFields),
+        disaggAutoUpgraded: _disaggAutoUpgraded
     };
 }
 
@@ -2851,6 +2951,8 @@ function resumeSizerState() {
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '10';
+    const sizeFor5YrResume = document.getElementById('size-for-5yr-growth');
+    if (sizeFor5YrResume) sizeFor5YrResume.value = (d.sizeFor5YrGrowth === true) ? 'yes' : 'no';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -2990,6 +3092,19 @@ function resumeSizerState() {
     if (typeof d.multiPowerPriceInput === 'string') {
         _lastMultiPowerPrice = d.multiPowerPriceInput;
     }
+
+    // Re-hydrate which fields were AUTO-scaled in the prior session. Without this,
+    // the cluster-type AUTO badge is missing after F5/Resume and the auto-downgrade
+    // block (which gates on `_autoScaledFields.has('cluster-type')`) can never fire
+    // when the user later removes a MANUAL override that had forced the upgrade.
+    // calculateRequirements() snapshots `_autoScaledFields` into `previouslyAutoScaled`
+    // before clearing it, so the existing re-apply blocks will re-render the badges.
+    if (Array.isArray(d.autoScaledFields)) {
+        for (const fid of d.autoScaledFields) {
+            markAutoScaled(fid);
+        }
+    }
+    _disaggAutoUpgraded = !!d.disaggAutoUpgraded;
 
     calculateRequirements();
 
@@ -5345,6 +5460,12 @@ function calculateRequirements(options) {
 
         // Apply future growth factor
         const growthFactor = getGrowthFactor();
+        // Stash raw (pre-growth) workload totals for the Capacity Runway
+        // projection, which compounds growth year-by-year off of "Now".
+        const rawTotalVcpus = totalVcpus;
+        const rawTotalMemory = totalMemory;
+        const rawTotalStorage = totalStorage;
+        const rawTotalGpus = totalGpus;
         totalVcpus = Math.ceil(totalVcpus * growthFactor);
         totalMemory = Math.ceil(totalMemory * growthFactor);
         totalStorage = Math.ceil(totalStorage * growthFactor);
@@ -5430,6 +5551,16 @@ function calculateRequirements(options) {
         // it here when it was set by a prior cycle and the user still hasn't pinned it.
         if (previouslyAutoScaled.has('disagg-rack-count') && !_manualFields.has('disagg-rack-count')) {
             markAutoScaled('disagg-rack-count');
+        }
+
+        // cluster-type auto-upgrade fires once (in the `!conservativeSuccess` branch below)
+        // and then triggers a recursive calculateRequirements(); on that follow-up pass the
+        // upgrade block doesn't re-fire (we're already disaggregated) so the AUTO badge would
+        // disappear. Worse, the auto-downgrade block requires `_autoScaledFields.has('cluster-type')`
+        // — if we don't re-apply it here, the downgrade can never see the badge and never fires
+        // when a user later removes a manual override that was forcing the upgrade.
+        if (previouslyAutoScaled.has('cluster-type') && !_manualFields.has('cluster-type')) {
+            markAutoScaled('cluster-type');
         }
 
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
@@ -5640,6 +5771,62 @@ function calculateRequirements(options) {
                     }
                 }
 
+                // --- Auto-downgrade Disaggregated → Hyperconverged when workload now fits on HCI ---
+                // Symmetric inverse of the disagg auto-upgrade block below: when the
+                // conservative loop succeeded AND cluster-type was originally set by an
+                // auto-upgrade (AUTO badge still on) AND the user hasn't manually pinned
+                // it, drop back to standard HCI in one shot when the workload fits in
+                // ≤ 12 nodes (16 × 0.80 headroom, matching shouldDowngradeFromDisaggregated).
+                // Runs BEFORE the rack-shrink so we collapse e.g. 3-rack disagg → HCI in
+                // one toast instead of three rack-shrink steps. _disaggAutoUpgraded is
+                // reset to false so the upgrade path remains available if workloads grow.
+                if (conservativeSuccess && clusterType === 'disaggregated'
+                    && _autoScaledFields.has('cluster-type')
+                    && !_manualFields.has('cluster-type')) {
+                    // getRecommendedNodeCount() reads cluster-type from the DOM (for
+                    // host-overhead calc and the SAN-skips-storage-nodes branch), so
+                    // flip the DOM value temporarily to get an apples-to-apples HCI rec.
+                    const ctElDown = document.getElementById('cluster-type');
+                    const savedCt = ctElDown ? ctElDown.value : 'disaggregated';
+                    if (ctElDown) ctElDown.value = 'standard';
+                    const standardRec = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    if (ctElDown) ctElDown.value = savedCt;
+                    const downgradeDecision = shouldDowngradeFromDisaggregated(
+                        standardRec ? standardRec.recommended : 0
+                    );
+                    if (downgradeDecision.downgrade) {
+                        if (ctElDown) ctElDown.value = 'standard';
+                        markAutoScaled('cluster-type');
+                        _disaggAutoUpgraded = false;
+                        // Restore rack-count default so a later re-upgrade starts from 2 racks
+                        const rackElDown = document.getElementById('disagg-rack-count');
+                        if (rackElDown) rackElDown.value = '2';
+                        updateNodeOptionsForClusterType();
+                        updateStorageForClusterType();
+                        updateResiliencyOptions();
+                        updateClusterInfo();
+                        updateDisaggregatedUI(false);
+                        _nodeCountUserSet = false;
+
+                        // Defer the toast until AFTER the recursive recalc has
+                        // settled the final node count — at this point
+                        // `downgradeDecision.recommended` is the raw recommendation
+                        // (e.g. 10) which the recalc then bumps up via the N+1
+                        // maintenance-headroom auto-scale (typically to 13). Read
+                        // the post-recalc value out of the DOM so the toast shows
+                        // what the user actually sees in the dropdown.
+                        isCalculating = false;
+                        calculateRequirements();
+                        const finalNodeEl = document.getElementById('node-count');
+                        const finalNodeCount = finalNodeEl ? (parseInt(finalNodeEl.value, 10) || downgradeDecision.recommended) : downgradeDecision.recommended;
+                        showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + finalNodeCount + (finalNodeCount === 1 ? ' machine' : ' machines') + ').', 'info');
+                        return;
+                    }
+                }
+
                 // --- Auto-shrink Disaggregated rack count when workload now fits at fewer ---
                 // Symmetric inverse of the rack-scale-up block below: when the conservative
                 // loop succeeded AND the rack-count was set by a prior auto-scale (badge
@@ -5666,10 +5853,19 @@ function calculateRequirements(options) {
                         updateClusterInfo();
                         _nodeCountUserSet = false;
 
-                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks') + '.', 'info');
-
+                        // Defer toast until after the recursive recalc settles
+                        // the per-rack node count. The disaggregated `#node-count`
+                        // dropdown value is the TOTAL machine count (not per-rack),
+                        // so read it directly.
                         isCalculating = false;
                         calculateRequirements();
+                        const totalElS = document.getElementById('node-count');
+                        const totalMachinesS = totalElS ? (parseInt(totalElS.value, 10) || 0) : 0;
+                        const rackTextS = shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks');
+                        const machineTextS = totalMachinesS > 0
+                            ? ' \u2014 ' + totalMachinesS + (totalMachinesS === 1 ? ' machine' : ' machines')
+                            : '';
+                        showSizerToast('Workload now fits comfortably \u2014 automatically scaled down to ' + rackTextS + machineTextS + '.', 'info');
                         return;
                     }
                 }
@@ -5710,10 +5906,25 @@ function calculateRequirements(options) {
                             updateDisaggregatedUI(true);
                             _nodeCountUserSet = false;
 
-                            showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
-
+                            // Defer the toast until AFTER the recursive recalc
+                            // has settled the per-rack node count — at this
+                            // point `node-count` is still showing the pre-disagg
+                            // standard value, but the recalc will rebuild the
+                            // dropdown for disaggregated and then auto-scale up
+                            // with N+1 maintenance headroom. The disaggregated
+                            // `#node-count` options carry the TOTAL machine
+                            // count as their value (e.g. value="22" with display
+                            // text "11 Nodes per Rack (22 total)"), so read it
+                            // directly — do NOT multiply by rackCount.
                             isCalculating = false;
                             calculateRequirements();
+                            const totalEl = document.getElementById('node-count');
+                            const totalMachines = totalEl ? (parseInt(totalEl.value, 10) || 0) : 0;
+                            const rackText = minRacks + (minRacks === 1 ? ' rack' : ' racks');
+                            const machineText = totalMachines > 0
+                                ? ' \u2014 ' + totalMachines + (totalMachines === 1 ? ' machine' : ' machines')
+                                : '';
+                            showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + rackText + machineText + ').', 'info');
                             return;
                         }
                     }
@@ -5744,10 +5955,31 @@ function calculateRequirements(options) {
                             updateClusterInfo();
                             _nodeCountUserSet = false;
 
-                            showSizerToast('Disaggregated workload exceeds ' + (curRacks * 16) + '-machine capacity \u2014 automatically scaled to ' + rackDecision.racks + ' racks.', 'info');
-
+                            // Defer toast until after the recursive recalc
+                            // settles the node count. The disaggregated
+                            // `#node-count` dropdown value is the TOTAL machine
+                            // count (not per-rack), so read it directly.
+                            // The recursive recalc may bump rack count further
+                            // (single-step per call) — in that case the inner
+                            // call's toast already announced the final state,
+                            // so skip the outer toast to avoid stale "scaled
+                            // to N racks" messages when N changed downstream.
                             isCalculating = false;
                             calculateRequirements();
+                            const finalRackEl = document.getElementById('disagg-rack-count');
+                            const finalRacks = finalRackEl ? (parseInt(finalRackEl.value, 10) || rackDecision.racks) : rackDecision.racks;
+                            if (finalRacks > rackDecision.racks) {
+                                // Inner recalc bumped further and already toasted the final state.
+                                return;
+                            }
+                            const totalElU = document.getElementById('node-count');
+                            const totalMachinesU = totalElU ? (parseInt(totalElU.value, 10) || 0) : 0;
+                            const rackTextU = finalRacks + (finalRacks === 1 ? ' rack' : ' racks');
+                            const machineTextU = totalMachinesU > 0
+                                ? ' \u2014 ' + totalMachinesU + (totalMachinesU === 1 ? ' machine' : ' machines')
+                                : '';
+                            const curRackTextU = curRacks + (curRacks === 1 ? ' rack' : ' racks');
+                            showSizerToast('Disaggregated workload exceeds ' + curRackTextU + ' capacity \u2014 automatically scaled to ' + rackTextU + machineTextU + '.', 'info');
                             return;
                         }
                     }
@@ -5919,6 +6151,39 @@ function calculateRequirements(options) {
         document.getElementById('total-storage').textContent = totalStorageDisplayTB.toFixed(2) + ' TB';
         document.getElementById('total-workloads').textContent = workloads.length;
 
+        // Banner explaining that the totals above include the growth headroom
+        // (and, when enabled, the 5-year compound horizon). Without this, a
+        // user opening a shared URL with growth = 20 % YoY × 5 years sees a
+        // Memory required value that doesn't match the raw workload input and
+        // has no on-screen explanation of where the difference comes from.
+        const growthBannerEl = document.getElementById('growth-applied-banner');
+        const growthBannerTextEl = document.getElementById('growth-applied-banner-text');
+        if (growthBannerEl && growthBannerTextEl) {
+            const growthPctEl = document.getElementById('future-growth');
+            const growthPct = growthPctEl ? (parseInt(growthPctEl.value, 10) || 0) : 0;
+            const yrs = getGrowthYears();
+            const factor = getGrowthFactor();
+            if (growthPct > 0 || yrs > 1) {
+                const multStr = '\u00d7' + factor.toFixed(2);
+                let msg;
+                if (yrs > 1) {
+                    msg = 'Totals above include ' + growthPct + '% YoY growth compounded over ' + yrs + ' years (' + multStr + ') \u2014 hardware is sized for the full 5-year horizon, not just current workload demand.';
+                } else if (growthPct > 0) {
+                    msg = 'Totals above include the ' + growthPct + '% Year-1 growth buffer (' + multStr + ') \u2014 raw workload demand is lower.';
+                } else {
+                    msg = '';
+                }
+                if (msg) {
+                    growthBannerTextEl.textContent = msg;
+                    growthBannerEl.style.display = 'flex';
+                } else {
+                    growthBannerEl.style.display = 'none';
+                }
+            } else {
+                growthBannerEl.style.display = 'none';
+            }
+        }
+
         // Update per-node requirement cards
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
@@ -6087,8 +6352,10 @@ function calculateRequirements(options) {
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
 
-        // Update capacity runway projection
-        updateGrowthProjection(totalVcpus, totalMemory, totalStorage, totalGpus, nodeCount, hwConfig, effectiveNodes);
+        // Update capacity runway projection — passes RAW pre-growth totals so
+        // the table can compound Year 1..5 off "Now" without round-tripping
+        // through the already-grown totals (which caused drift bug #3).
+        updateGrowthProjection(rawTotalVcpus, rawTotalMemory, rawTotalStorage, rawTotalGpus, hwConfig, effectiveNodes);
 
         // Auto-save state after every calculation (skip during initial page load)
         if (!isInitialLoad) {
@@ -6097,6 +6364,18 @@ function calculateRequirements(options) {
     } finally {
         isCalculating = false;
     }
+}
+
+// Format an annual energy figure (in kWh) for display. Auto-scales to MWh/yr
+// when the value reaches one million kWh (1 MWh = 1000 kWh) so the
+// Multi-Instance Scale-Out summary doesn't read as e.g. "1,605,710 kWh/yr"
+// when "1,605.7 MWh/yr" is clearer.
+function formatAnnualEnergy(kwh) {
+    if (kwh == null || !isFinite(kwh)) return '\u2014';
+    if (kwh >= 1000000) {
+        return (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr';
+    }
+    return Math.round(kwh).toLocaleString() + ' kWh/yr';
 }
 
 // Estimate power consumption and rack space per cluster
@@ -6257,7 +6536,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     const powerKwhEl = document.getElementById('power-kwh');
-    if (powerKwhEl) { powerKwhEl.textContent = annualKwh.toLocaleString() + ' kWh/yr'; }
+    if (powerKwhEl) { powerKwhEl.textContent = formatAnnualEnergy(annualKwh); }
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').innerHTML = rackUnitLabel;
 
@@ -6430,18 +6709,21 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 // clears the estimate back to a dash — the input is entirely optional.
 function updateRunningCost() {
     const costEl = document.getElementById('power-cost');
+    const hintEl = document.getElementById('power-cost-hint');
     const priceEl = document.getElementById('power-price-input');
     if (!costEl) { return; }
     const annualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
     const price = priceEl ? parseFloat(priceEl.value) : NaN;
     if (annualKwh == null || !isFinite(price) || price <= 0) {
         costEl.textContent = '—';
+        if (hintEl) hintEl.style.display = 'none';
         return;
     }
     const annualCost = annualKwh * price;
     costEl.textContent = annualCost.toLocaleString(undefined, {
         maximumFractionDigits: 0
     }) + '/yr';
+    if (hintEl) hintEl.style.display = '';
 }
 
 // Update sizing notes
@@ -6853,13 +7135,17 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     section.style.display = '';
 }
 
-// ── Capacity Runway — Year-over-Year Growth Projection ──
-function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, nodeCount, hwConfig, effectiveNodes) {
+// ── Capacity Runway — 5 Year-over-Year (YoY) Additional Workload Growth Projection ──
+// Inputs are the RAW workload totals (pre-growth-factor) so the table can
+// compound Year 0..5 cleanly without round-tripping through already-grown
+// totals.
+function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConfig, effectiveNodes) {
     const section = document.getElementById('growth-projection-section');
     const content = document.getElementById('growth-projection-content');
     if (!section || !content) return;
 
     const growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
+    const sizedFor5Yr = (document.getElementById('size-for-5yr-growth') || {}).value === 'yes';
 
     // Hide if no workloads or no growth configured
     if (workloads.length === 0 || growthPct === 0 || !hwConfig) {
@@ -6867,46 +7153,59 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
         return;
     }
 
-    // Remove the growth factor already applied to totals to get raw base demand
-    const growthFactor = 1 + growthPct / 100;
-    const rawVcpus = Math.round(baseVcpus / growthFactor);
-    const rawMemory = Math.round(baseMemory / growthFactor);
-    const rawStorage = Math.round(baseStorage / growthFactor);
-
-    // Calculate capacity ceilings
+    // Capacity ceilings — match what the capacity bars use
     const vcpuRatio = getVcpuRatio();
     const clusterType = document.getElementById('cluster-type').value;
+    const isDisaggregated = clusterType === 'disaggregated';
     const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
     const totalVcpuCap = Math.max(hwConfig.totalPhysicalCores - hostReservedCores, 0) * effectiveNodes * vcpuRatio;
-    const usableMemPerNode = hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType);
+    const usableMemPerNode = Math.max(hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType), 0);
     const totalMemCap = usableMemPerNode * effectiveNodes;
-    let totalStorageCap = 0;
-    if (clusterType !== 'disaggregated') {
-        const usableStorageEl = document.getElementById('usable-storage');
-        if (usableStorageEl) {
-            const parsed = parseFloat(usableStorageEl.textContent.replace(/,/g, ''));
-            if (!isNaN(parsed)) totalStorageCap = Math.round(parsed * 1024); // TB to GB
-        }
+
+    // Storage cap: read the usable-TB figure the capacity bar shows. For
+    // disaggregated the cap is "External SAN" (free text) → parseFloat → NaN
+    // → 0 → storage % suppressed, since SAN scaling isn't bounded by node count.
+    let totalStorageCapGB = 0;
+    const storageTotalEl = document.getElementById('storage-total');
+    if (storageTotalEl) {
+        const parsed = parseFloat((storageTotalEl.textContent || '').replace(/,/g, ''));
+        if (!isNaN(parsed)) totalStorageCapGB = Math.round(parsed * 1000); // TB usable → GB (decimal)
     }
+
+    // GPU cap (only relevant when workloads request GPUs and the design has them)
+    const gpuPerNode = hwConfig.gpuCount || 0;
+    const totalGpuCap = gpuPerNode * effectiveNodes;
+    const hasGpuWorkload = (rawGpus || 0) > 0;
+    // Show the GPU column whenever GPUs are in play on either side — either
+    // workloads request them, or the hardware has them configured. This way
+    // GPU-equipped clusters always surface their GPU runway, and GPU
+    // workloads on non-GPU hardware show the (always 0 %) cap mismatch.
+    const showGpuColumn = hasGpuWorkload || gpuPerNode > 0;
 
     const years = 5;
     const rows = [];
     let runwayYear = null;
+    let nowAtCapacity = false;
 
     for (let y = 0; y <= years; y++) {
         const factor = Math.pow(1 + growthPct / 100, y);
         const yVcpu = Math.ceil(rawVcpus * factor);
         const yMem = Math.ceil(rawMemory * factor);
         const yStor = Math.ceil(rawStorage * factor);
+        const yGpu = Math.ceil((rawGpus || 0) * factor);
 
-        const vcpuPct = totalVcpuCap > 0 ? Math.min(100, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
-        const memPct = totalMemCap > 0 ? Math.min(100, Math.round((yMem / totalMemCap) * 100)) : 0;
-        const storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
-        const maxPct = Math.max(vcpuPct, memPct, storPct);
+        const vcpuPct = totalVcpuCap > 0 ? Math.min(999, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
+        const memPct = totalMemCap > 0 ? Math.min(999, Math.round((yMem / totalMemCap) * 100)) : 0;
+        const storPct = (!isDisaggregated && totalStorageCapGB > 0)
+            ? Math.min(999, Math.round((yStor / totalStorageCapGB) * 100)) : 0;
+        const gpuPct = (hasGpuWorkload && totalGpuCap > 0)
+            ? Math.min(999, Math.round((yGpu / totalGpuCap) * 100)) : 0;
+        const maxPct = Math.max(vcpuPct, memPct, storPct, gpuPct);
 
         let status;
         if (maxPct >= 90) {
             status = '🚫 ' + maxPct + '%';
+            if (y === 0) nowAtCapacity = true;
             if (runwayYear === null && y > 0) runwayYear = y;
         } else if (maxPct >= 75) {
             status = '⚠️ ' + maxPct + '%';
@@ -6914,11 +7213,16 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
             status = '✅ ' + maxPct + '%';
         }
 
+        const storLabel = isDisaggregated
+            ? (yStor >= 1000 ? (yStor / 1000).toFixed(1) + ' TB SAN' : yStor + ' GB SAN')
+            : (yStor >= 1000 ? (yStor / 1000).toFixed(1) + ' TB' : yStor + ' GB');
+
         rows.push({
             label: y === 0 ? 'Now' : 'Year ' + y,
             vcpu: yVcpu.toLocaleString(),
             mem: yMem.toLocaleString() + ' GB',
-            stor: yStor >= 1024 ? (yStor / 1024).toFixed(1) + ' TB' : yStor + ' GB',
+            stor: storLabel,
+            gpu: yGpu.toLocaleString(),
             status: status
         });
     }
@@ -6929,7 +7233,8 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
     html += '<th style="padding: 4px 8px;">Year</th>';
     html += '<th style="padding: 4px 8px;">vCPU</th>';
     html += '<th style="padding: 4px 8px;">Memory</th>';
-    html += '<th style="padding: 4px 8px;">Storage</th>';
+    html += '<th style="padding: 4px 8px;">Storage' + (isDisaggregated ? ' (SAN required)' : ' (usable)') + '</th>';
+    if (showGpuColumn) html += '<th style="padding: 4px 8px;">GPU</th>';
     html += '<th style="padding: 4px 8px;">Peak Utilization</th>';
     html += '</tr></thead><tbody>';
 
@@ -6939,19 +7244,32 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
         html += '<td style="padding: 4px 8px;">' + r.vcpu + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.mem + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.stor + '</td>';
+        if (showGpuColumn) html += '<td style="padding: 4px 8px;">' + r.gpu + '</td>';
         html += '<td style="padding: 4px 8px;">' + r.status + '</td>';
         html += '</tr>';
     });
 
     html += '</tbody></table>';
 
-    if (runwayYear !== null) {
-        html += '<p style="margin: 8px 0 0 0; color: var(--danger); font-weight: 600;">⏳ Capacity runway: ~' + runwayYear + ' year' + (runwayYear > 1 ? 's' : '') + ' before expansion is needed at ' + growthPct + '% annual growth</p>';
+    if (nowAtCapacity) {
+        html += '<p style="margin: 8px 0 0 0; color: var(--danger); font-weight: 600;">🚫 Already at capacity (≥&nbsp;90&nbsp;%) at current demand — design cannot absorb additional ' + growthPct + '% annual growth.</p>';
+    } else if (runwayYear !== null) {
+        html += '<p style="margin: 8px 0 0 0; color: var(--danger); font-weight: 600;">⏳ Capacity runway: ~' + runwayYear + ' year' + (runwayYear > 1 ? 's' : '') + ' before expansion is needed at ' + growthPct + '% annual growth.</p>';
     } else {
-        html += '<p style="margin: 8px 0 0 0; color: var(--success); font-weight: 600;">✅ Capacity runway: 5+ years at ' + growthPct + '% annual growth</p>';
+        html += '<p style="margin: 8px 0 0 0; color: var(--success); font-weight: 600;">✅ Capacity runway: 5+ years at ' + growthPct + '% annual growth' + (sizedFor5Yr ? ' (hardware sized for the full 5-year horizon)' : '') + '.</p>';
     }
 
-    html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">Based on compound annual growth rate applied to current workload demand. The ' + growthPct + '% growth buffer is already factored into the hardware sizing above.</p>';
+    const fiveYrMultiplier = Math.pow(1 + growthPct / 100, 5);
+    const factorNote = sizedFor5Yr
+        ? 'Hardware is sized for the <strong>full 5-year compound horizon</strong> (' + growthPct + '% YoY × 5y ≈ ×' + fiveYrMultiplier.toFixed(2) + '). All five years should fit within capacity.'
+        : 'Hardware is sized for <strong>Year&nbsp;1</strong> demand (current + ' + growthPct + '%). To pre-provision for all 5 years (×' + fiveYrMultiplier.toFixed(2) + '), set the dropdown above to <strong>Yes</strong>.';
+    html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">' + factorNote + '</p>';
+
+    // Explain a zeroed GPU column when the hardware has GPUs but no workload
+    // currently requests them — otherwise the all-zero column reads as a bug.
+    if (showGpuColumn && !hasGpuWorkload) {
+        html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">GPU column shows 0 because none of the current workloads are configured with GPUs (DDA or GPU-P). Assign a GPU mode to a workload to see GPU runway projections.</p>';
+    }
 
     content.innerHTML = html;
     section.style.display = '';
@@ -7026,7 +7344,7 @@ function updateMultiInstanceSummary() {
         : (typeof _lastMultiPowerPrice === 'string' ? _lastMultiPowerPrice : '');
 
     const annualKwhLabel = (totalAnnualKwh != null)
-        ? Math.round(totalAnnualKwh).toLocaleString() + ' kWh/yr'
+        ? formatAnnualEnergy(totalAnnualKwh)
         : '\u2014';
 
     summaryDiv.innerHTML = '<strong>Multi-Instance Scale-Out Summary (\u00d7' + count + ' instances)</strong>'
@@ -7054,8 +7372,14 @@ function updateMultiInstanceSummary() {
         +     ' aria-label="Multi-instance electricity unit price per kilowatt-hour, in your local currency"'
         +     ' oninput="updateMultiRunningCost(); saveSizerState();"'
         +     ' style="width: 90px; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">'
-        +   '<span style="margin-left: 16px;">Total Annual Cost: <strong id="multi-power-cost">\u2014</strong></span>'
+        +   '<span style="margin-left: 16px; display: inline-flex; align-items: center; gap: 6px;"><span style="text-align: right; line-height: 1.2; font-size: 12px; color: var(--text-secondary);">Total Annual Cost:<br>(estimated)</span> <strong id="multi-power-cost">\u2014</strong></span>'
         + '</div>'
+        + (clusterType === 'disaggregated'
+            ? '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
+              + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
+              + '<span><strong>Note:</strong> SAN storage appliance/array power is <em>not included</em> in the estimated power consumption above \u2014 consult your SAN vendor for storage array power requirements.</span>'
+              + '</div>'
+            : '')
         + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
         + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
         + '<span>Multi-instance estimates are approximate projections based on the single-instance configuration above. Each instance is independently sized and deployed. Actual power, cooling, and rack requirements may vary by site, OEM hardware, and deployment configuration. Contact your preferred hardware partner for detailed and accurate information.</span>'
@@ -9541,6 +9865,8 @@ function applyImportedSizerState(d) {
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '10';
+    const sizeFor5YrImport = document.getElementById('size-for-5yr-growth');
+    if (sizeFor5YrImport) sizeFor5YrImport.value = (d.sizeFor5YrGrowth === true) ? 'yes' : 'no';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -9709,6 +10035,18 @@ function applyImportedSizerState(d) {
         _lastMultiPowerPrice = d.multiPowerPriceInput;
     }
 
+    // Re-hydrate which fields were AUTO-scaled in the source session. Same
+    // rationale as resumeSizerState(): without this, the cluster-type AUTO
+    // badge is missing after a JSON import or a Share-via-URL load, and the
+    // auto-downgrade block (which gates on `_autoScaledFields.has('cluster-type')`)
+    // can never fire when the recipient later removes a MANUAL override.
+    if (Array.isArray(d.autoScaledFields)) {
+        for (const fid of d.autoScaledFields) {
+            markAutoScaled(fid);
+        }
+    }
+    _disaggAutoUpgraded = !!d.disaggAutoUpgraded;
+
     calculateRequirements();
 
     // Persist to localStorage
@@ -9748,6 +10086,8 @@ function resetScenario() {
     document.getElementById('vcpu-ratio').value = '4';
     document.getElementById('storage-config').value = 'all-flash';
     document.getElementById('future-growth').value = '10';
+    const sizeFor5YrReset = document.getElementById('size-for-5yr-growth');
+    if (sizeFor5YrReset) sizeFor5YrReset.value = 'no';
     onStorageConfigChange();
 
     // Reset disk config
