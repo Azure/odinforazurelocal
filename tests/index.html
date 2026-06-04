@@ -7707,6 +7707,38 @@
             return results;
         })());
 
+        testSuite('Dell OS10: renderVlt VLT MAC override + placeholder warning', 'dell-os10.js', (() => {
+            const results = [];
+            const baseData = {
+                switch: { type: 'TOR1' },
+                interfaces: [{ type: 'MLAG', start_intf: '1/1/55', end_intf: '1/1/56' }],
+                bgp: { neighbors: [{ description: 'iBGP_PEER', ip: '10.0.0.18', remote_as: 65001 }] }
+            };
+            const defaultOut = DellOs10Renderer.renderVlt(baseData);
+
+            results.push(assert(defaultOut.indexOf('vlt-mac de:ad:00:be:ef:01') !== -1,
+                'Default placeholder MAC is rendered when data.vlt.mac is absent', true,
+                defaultOut.indexOf('vlt-mac de:ad:00:be:ef:01') !== -1));
+            results.push(assert(defaultOut.indexOf('! NOTE: vlt-mac below is a placeholder') !== -1,
+                'Warning comment is prepended when the default placeholder MAC is used', true,
+                defaultOut.indexOf('! NOTE: vlt-mac below is a placeholder') !== -1));
+
+            const overrideData = Object.assign({}, baseData, { vlt: { mac: 'aa:bb:cc:dd:ee:01' } });
+            const overrideOut = DellOs10Renderer.renderVlt(overrideData);
+
+            results.push(assert(overrideOut.indexOf('vlt-mac aa:bb:cc:dd:ee:01') !== -1,
+                'Override via data.vlt.mac is rendered when provided', true,
+                overrideOut.indexOf('vlt-mac aa:bb:cc:dd:ee:01') !== -1));
+            results.push(assert(overrideOut.indexOf('vlt-mac de:ad:00:be:ef:01') === -1,
+                'Default placeholder MAC is NOT rendered when override is provided', true,
+                overrideOut.indexOf('vlt-mac de:ad:00:be:ef:01') === -1));
+            results.push(assert(overrideOut.indexOf('! NOTE: vlt-mac below is a placeholder') === -1,
+                'Warning comment is suppressed when an override is provided', true,
+                overrideOut.indexOf('! NOTE: vlt-mac below is a placeholder') === -1));
+
+            return results;
+        })());
+
         testSuite('Dell OS10: renderFullConfig end-to-end', 'dell-os10.js', (() => {
             const results = [];
             const b = new SwitchConfigBuilder({
