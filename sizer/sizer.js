@@ -6085,6 +6085,39 @@ function calculateRequirements(options) {
         document.getElementById('total-storage').textContent = totalStorageDisplayTB.toFixed(2) + ' TB';
         document.getElementById('total-workloads').textContent = workloads.length;
 
+        // Banner explaining that the totals above include the growth headroom
+        // (and, when enabled, the 5-year compound horizon). Without this, a
+        // user opening a shared URL with growth = 20 % YoY × 5 years sees a
+        // Memory required value that doesn't match the raw workload input and
+        // has no on-screen explanation of where the difference comes from.
+        const growthBannerEl = document.getElementById('growth-applied-banner');
+        const growthBannerTextEl = document.getElementById('growth-applied-banner-text');
+        if (growthBannerEl && growthBannerTextEl) {
+            const growthPctEl = document.getElementById('future-growth');
+            const growthPct = growthPctEl ? (parseInt(growthPctEl.value, 10) || 0) : 0;
+            const yrs = getGrowthYears();
+            const factor = getGrowthFactor();
+            if (growthPct > 0 || yrs > 1) {
+                const multStr = '\u00d7' + factor.toFixed(2);
+                let msg;
+                if (yrs > 1) {
+                    msg = 'Totals above include ' + growthPct + '% YoY growth compounded over ' + yrs + ' years (' + multStr + ') \u2014 hardware is sized for the full 5-year horizon, not just current workload demand.';
+                } else if (growthPct > 0) {
+                    msg = 'Totals above include the ' + growthPct + '% Year-1 growth buffer (' + multStr + ') \u2014 raw workload demand is lower.';
+                } else {
+                    msg = '';
+                }
+                if (msg) {
+                    growthBannerTextEl.textContent = msg;
+                    growthBannerEl.style.display = 'flex';
+                } else {
+                    growthBannerEl.style.display = 'none';
+                }
+            } else {
+                growthBannerEl.style.display = 'none';
+            }
+        }
+
         // Update per-node requirement cards
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
