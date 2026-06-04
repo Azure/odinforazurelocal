@@ -93,6 +93,9 @@
         "repairDisksUserSet": { "type": "boolean" },
         "importedProcessorName": { "type": ["string", "null"], "description": "Set when CPU was imported from an Azure Local instance JSON; injected as a generation option." },
         "importedCoresPerSocket": { "type": ["integer", "null"] },
+        "instanceCount": { "type": ["string", "integer"], "description": "Multi-Instance Scale-Out count: how many copies of this single-instance design to roll up for power/cost summary. Stored as string from a <select>." },
+        "powerPriceInput": { "type": "string", "description": "Optional electricity unit price (per kWh) entered in the per-instance power panel. Free text, may be empty." },
+        "multiPowerPriceInput": { "type": "string", "description": "Optional electricity unit price (per kWh) entered in the Multi-Instance Scale-Out panel. Free text, may be empty." },
         "workloadIdCounter": { "type": ["integer", "null"], "description": "High-water mark for workload ids." },
         "workloads": {
           "type": "array",

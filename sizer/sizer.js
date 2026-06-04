@@ -407,6 +407,14 @@ function onHardwareConfigChange() {
     calculateRequirements();
 }
 
+// Dedicated handler for the Future Growth dropdown — any user change (including
+// picking "No additional growth") locks the choice as MANUAL so it's clear the
+// 10% default was a deliberate override rather than just left as-is.
+function onFutureGrowthChange() {
+    markManualSet('future-growth');
+    onHardwareConfigChange();
+}
+
 // Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
 function onVcpuRatioChange() {
     _vcpuRatioUserSet = true;
@@ -474,7 +482,7 @@ function updateHwGpuTypeLock() {
     const lockedType = getLockedGpuType();
     if (lockedType) {
         gpuTypeEl.disabled = true;
-        gpuTypeEl.title = 'GPU type is locked by workload configuration — all nodes must use the same GPU model (homogeneous). Remove all GPU workloads to change the GPU type.';
+        gpuTypeEl.title = 'GPU type is locked by workload configuration — all machines must use the same GPU model (homogeneous). Remove all GPU workloads to change the GPU type.';
         if (badge) badge.style.display = '';
     } else {
         gpuTypeEl.disabled = false;
@@ -674,7 +682,7 @@ function getGpuRequirementFields(workloadType) {
         <div id="wl-gpu-dda-fields" style="display: none;">
             <div class="form-group">
                 <label>GPU Model
-                    <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All nodes must use the same GPU model.">ⓘ</span>
+                    <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All machines must use the same GPU model.">ⓘ</span>
                 </label>
                 <select id="wl-gpu-dda-model" onchange="onDdaModelChange()">
                 </select>
@@ -768,7 +776,7 @@ function populateDdaModels() {
         if (restrictToAks && !aksSupportedKeys.has(key)) continue;
         const opt = document.createElement('option');
         opt.value = key;
-        opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
+        opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/machine)`;
         modelSelect.appendChild(opt);
     }
     // Show a contextual hint about the AKS Arc restriction (and warn if a
@@ -813,7 +821,7 @@ function populateDdaModels() {
     if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
         modelSelect.value = lockedType;
         modelSelect.disabled = true;
-        modelSelect.title = 'GPU model is locked \u2014 all nodes must use the same GPU model (homogeneous configuration).';
+        modelSelect.title = 'GPU model is locked \u2014 all machines must use the same GPU model (homogeneous configuration).';
     } else if (lockedType) {
         // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
         // workload locked the cluster to H100 but this is an AKS-hosted modal that
@@ -910,7 +918,7 @@ function populateGpuPModels() {
     if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
         modelSelect.value = lockedType;
         modelSelect.disabled = true;
-        modelSelect.title = 'GPU model is locked — all nodes must use the same GPU model (homogeneous configuration). Change the GPU type in Hardware Configuration or remove existing GPU workloads first.';
+        modelSelect.title = 'GPU model is locked — all machines must use the same GPU model (homogeneous configuration). Change the GPU type in Hardware Configuration or remove existing GPU workloads first.';
     } else {
         modelSelect.disabled = false;
         modelSelect.title = '';
@@ -1011,7 +1019,7 @@ function populateAksGpuVmSizes() {
                 '(T4, A2, A16, L4, L40, L40S, RTX Pro 6000), or set this AKS cluster\'s GPU Mode to None.</span>';
         } else if (lockedType) {
             const lockedModel = GPU_MODELS[lockedType];
-            infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all nodes must use the same GPU (homogeneous configuration).`;
+            infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all machines must use the same GPU (homogeneous configuration).`;
         } else {
             infoEl.textContent = '';
         }
@@ -1371,9 +1379,9 @@ function updateNodeRecommendation(recommendation) {
 
         let msg = '';
         if (recommendation.recommended > getMaxNodeCap()) {
-            msg = `Auto-scaling requires ~${recommendation.recommended} nodes which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity.`;
+            msg = `Auto-scaling requires ~${recommendation.recommended} machines which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity.`;
         } else {
-            msg = `Auto-configured ${snapped} node(s) based on ${driver} requirements.`;
+            msg = `Auto-configured ${snapped} machine(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
                 msg += ' Includes N+1 maintenance capacity for compute and memory.';
             }
@@ -1396,11 +1404,11 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
 
     let msg = '';
     if (recommendation.recommended > getMaxNodeCap()) {
-        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
+        msg = `⚠️ Workload requires ~${recommendation.recommended} machines (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity (CPU cores, memory, or disk size).`;
     } else if (snapped > currentNodeCount) {
-        msg = `ℹ️ Workload recommends ${snapped} node(s) based on ${driver} requirements. Current selection: ${currentNodeCount} node(s).`;
+        msg = `ℹ️ Workload recommends ${snapped} machine(s) based on ${driver} requirements. Current selection: ${currentNodeCount} machine(s).`;
     } else {
-        msg = `✅ Current ${currentNodeCount} node(s) meets workload requirements (${driver} driven, ${snapped} recommended).`;
+        msg = `✅ Current ${currentNodeCount} machine(s) meets workload requirements (${driver} driven, ${snapped} recommended).`;
     }
 
     recText.textContent = msg;
@@ -1627,6 +1635,12 @@ let _designerSpineCount = 2;
 // to the payload without re-deriving them or scraping the DOM.
 let _lastPowerEstimate = null;
 
+// Cached value of the dynamically-rendered Multi-Instance electricity price
+// input — used by updateMultiInstanceSummary() to repopulate the input across
+// re-renders (including after a localStorage restore where the element does
+// not yet exist).
+let _lastMultiPowerPrice = '';
+
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
 let _diskSizeUserSet = false;
@@ -1721,13 +1735,18 @@ function clearAllManualOverrides() {
     _repairDisksUserSet = false;
     _disaggAutoUpgraded = false;
     clearManualBadges();
+    // Restore future-growth to the 10% recommended default + AUTO badge,
+    // matching the per-field × dismiss behaviour.
+    const growthEl = document.getElementById('future-growth');
+    if (growthEl) growthEl.value = '10';
+    markAutoScaled('future-growth');
     calculateRequirements();
 }
 
 // Human-readable names for manually-set hardware fields
 const _MANUAL_FIELD_LABELS = {
     'cluster-type': 'Deployment Type',
-    'node-count': 'Node Count',
+    'node-count': 'Machine Count',
     'vcpu-ratio': 'vCPU Ratio',
     'node-memory': 'Memory',
     'cpu-cores': 'CPU Cores',
@@ -1740,7 +1759,8 @@ const _MANUAL_FIELD_LABELS = {
     'tiered-capacity-disk-count': 'Capacity Disk Count',
     'repair-disk-count': 'S2D Repair Disks',
     'tiered-repair-disk-count': 'S2D Repair Disks',
-    'disagg-rack-count': 'Number of Racks'
+    'disagg-rack-count': 'Number of Racks',
+    'future-growth': 'Allow for Future Growth'
 };
 
 // Map element IDs to their corresponding _*UserSet flag name and sibling IDs
@@ -1761,7 +1781,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
     'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
     'gpu-count':                 { flag: 'gpuCount',    siblings: [] },
-    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] }
+    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] },
+    'future-growth':             { flag: 'futureGrowth', siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -1799,6 +1820,29 @@ function clearSingleManualOverride(elementId) {
     if (_manualFields.size === 0) {
         const clearBtn = document.getElementById('clear-manual-overrides');
         if (clearBtn) clearBtn.style.display = 'none';
+    }
+
+    // node-count dismiss: reset the dropdown to the cluster's minimum option
+    // before recalc so any cascaded resiliency change (e.g. 2-way → 3-way mirror
+    // when going 2 → 3 nodes) unwinds first. Otherwise the 3-way minNodes=3
+    // requirement re-pins the recommendation at 3 and the user can never get
+    // back to a 2-node + 2-way solution by clicking ×.
+    if (elementId === 'node-count') {
+        const nodeSelect = document.getElementById('node-count');
+        if (nodeSelect && nodeSelect.options.length > 0) {
+            nodeSelect.value = nodeSelect.options[0].value;
+            updateResiliencyOptions();
+            updateClusterInfo();
+        }
+    }
+
+    // future-growth has no auto-scaler that would re-flag it as AUTO on the
+    // next calc, so do it explicitly: reset to the 10% recommended default
+    // and re-apply the AUTO badge.
+    if (elementId === 'future-growth') {
+        const growthEl = document.getElementById('future-growth');
+        if (growthEl) growthEl.value = '10';
+        markAutoScaled('future-growth');
     }
 
     calculateRequirements();
@@ -2502,6 +2546,9 @@ function getSizerState() {
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
         workloadIdCounter: workloadIdCounter,
+        instanceCount: (document.getElementById('instance-count') || {}).value || '1',
+        powerPriceInput: (document.getElementById('power-price-input') || {}).value || '',
+        multiPowerPriceInput: (document.getElementById('multi-power-price-input') || {}).value || _lastMultiPowerPrice || '',
         importedProcessorName: window._importedProcessorName || null,
         importedCoresPerSocket: window._importedCoresPerSocket || null
     };
@@ -2639,14 +2686,14 @@ function checkForDesignerImport() {
 
         // Build cluster type label for banner
         const clusterLabels = {
-            'single': 'Single Node',
+            'single': 'Single Machine',
             'standard': 'Hyperconverged',
             'rack-aware': 'Rack-Aware Instance',
             'disaggregated': 'Disaggregated Storage',
             'aldo-mgmt': 'ALDO Management Cluster'
         };
         const typeLabel = clusterLabels[payload.clusterType] || payload.clusterType;
-        const nodeLabel = payload.nodeCount === '1' ? '1 node' : (payload.nodeCount + ' nodes');
+        const nodeLabel = payload.nodeCount === '1' ? '1 machine' : (payload.nodeCount + ' machines');
 
         // Show confirmation banner
         const banner = document.createElement('div');
@@ -2752,7 +2799,7 @@ function resumeSizerState() {
     updateStorageForClusterType();
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
-    document.getElementById('future-growth').value = d.futureGrowth || '0';
+    document.getElementById('future-growth').value = d.futureGrowth || '10';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -2872,6 +2919,27 @@ function resumeSizerState() {
     updateAldoWorkloadButtons();
     updateClusterInfo();
     renderWorkloads();
+
+    // Restore Multi-Instance Scale-Out controls and the optional electricity prices.
+    // The per-instance #power-price-input is static HTML so we set it directly.
+    // The multi-instance #multi-power-price-input is rendered dynamically inside
+    // updateMultiInstanceSummary(), so we stash the value in _lastMultiPowerPrice
+    // and let the render pick it up. instance-count must be set BEFORE
+    // calculateRequirements() so the multi-instance summary uses the restored
+    // count rather than the default 1.
+    const instanceCountElResume = document.getElementById('instance-count');
+    if (instanceCountElResume && d.instanceCount) {
+        const optResume = Array.from(instanceCountElResume.options).find(o => o.value === String(d.instanceCount));
+        if (optResume) instanceCountElResume.value = String(d.instanceCount);
+    }
+    const powerPriceElResume = document.getElementById('power-price-input');
+    if (powerPriceElResume && typeof d.powerPriceInput === 'string') {
+        powerPriceElResume.value = d.powerPriceInput;
+    }
+    if (typeof d.multiPowerPriceInput === 'string') {
+        _lastMultiPowerPrice = d.multiPowerPriceInput;
+    }
+
     calculateRequirements();
 
     dismissSizerResumeBanner();
@@ -3316,9 +3384,9 @@ function updateDisaggregatedUI(isDisagg) {
     const hadrTip = document.getElementById('hadr-tip');
     if (hadrTip) {
         if (isDisagg) {
-            hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
+            hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute machines use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 machines each (64 machines maximum).';
         } else {
-            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster Deployment Type.';
+            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local instances, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster Deployment Type.';
         }
     }
 }
@@ -3460,7 +3528,7 @@ function updateNodeOptionsForClusterType() {
         nodeSelect.disabled = true;
     } else if (clusterType === 'aldo-mgmt') {
         // ALDO Management Cluster: fixed at 3 nodes
-        nodeSelect.innerHTML = '<option value="3">3 Nodes (ALDO Management)</option>';
+        nodeSelect.innerHTML = '<option value="3">3 Machines (ALDO Management)</option>';
         nodeSelect.value = 3;
         nodeSelect.disabled = true;
     } else if (clusterType === 'rack-aware') {
@@ -3468,7 +3536,7 @@ function updateNodeOptionsForClusterType() {
         nodeSelect.disabled = false;
         const nodeOptions = [2, 4, 6, 8];
         nodeSelect.innerHTML = nodeOptions.map(n => {
-            let label = `${n} Nodes`;
+            let label = `${n} Machines`;
             if (n === 2) label += ' (Minimum for Rack-Aware)';
             if (n === 8) label += ' (Maximum for Rack-Aware)';
             return `<option value="${n}">${label}</option>`;
@@ -3529,7 +3597,7 @@ function updateNodeOptionsForClusterType() {
     // Reset node label back to default for non-disaggregated types
     if (clusterType !== 'disaggregated') {
         const nodeLabel = document.querySelector('label[for="node-count"]');
-        _setLabelText(nodeLabel, 'Number of Physical Nodes');
+        _setLabelText(nodeLabel, 'Number of Physical Machines');
     }
 }
 
@@ -3573,7 +3641,7 @@ function updateResiliencyOptions() {
     } else if (nodeCount === 2) {
         // 2 nodes: 2-way mirror
         options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+            <option value="2way">Two-way Mirror (50% efficiency)</option>
         `;
     } else {
         // 3+ nodes: three-way mirror only
@@ -3617,7 +3685,7 @@ function updateClusterInfo() {
 
     if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
-        message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
+        message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (machines). Current configuration has only ${nodeCount} machine${nodeCount === 1 ? '' : 's'}.`;
     }
 
     infoDiv.style.display = showWarning ? 'flex' : 'none';
@@ -3634,11 +3702,11 @@ function updateNodeTip() {
     const tipText = document.getElementById('node-n1-tip-text');
 
     if (clusterType === 'single') {
-        tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
+        tipText.textContent = 'Tip: Single Machine instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
-        tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
+        tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 machines. N+1 capacity is reserved for maintenance (2 effective machines during servicing).';
     } else {
-        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.';
+        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a machine). Single Machine instances will always incur workload downtime during updates.';
     }
     tipDiv.style.display = 'flex';
 }
@@ -4510,7 +4578,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                             'GPU model conflict.\n\n' +
                             'Another workload (' + otherWlName + ') is already using ' + otherName + ', ' +
                             'but this workload is set to use ' + myName + '. ' +
-                            'An Azure Local cluster installs one GPU model in its nodes — every GPU-using workload must use the same model (homogeneous configuration).\n\n' +
+                            'An Azure Local cluster installs one GPU model in its machines — every GPU-using workload must use the same model (homogeneous configuration).\n\n' +
                             'Either change this workload\'s GPU to ' + otherName + ', or remove the existing ' + otherName + ' workload first.'
                     };
                 }
@@ -4625,7 +4693,7 @@ function addWorkload() {
             const gpuTypeEl = document.getElementById('gpu-type');
             const gpuModel = gpuTypeEl ? GPU_MODELS[gpuTypeEl.value] : null;
             const gpuName = gpuModel ? gpuModel.name : 'default';
-            alert(`GPU hardware has been automatically enabled in the Hardware Configuration (${gpuName}). The GPU count per node and node count will auto-scale to meet your workload demand.`);
+            alert(`GPU hardware has been automatically enabled in the Hardware Configuration (${gpuName}). The GPU count per machine and machine count will auto-scale to meet your workload demand.`);
         }
     }
 
@@ -5299,6 +5367,12 @@ function calculateRequirements(options) {
         clearAutoScaledHighlights();
         _diskConsolidationInfo = null;
 
+        // future-growth has no auto-scaler that re-applies its AUTO badge inside
+        // this cycle, so restore it here whenever the user hasn't manually set it.
+        if (!_manualFields.has('future-growth')) {
+            markAutoScaled('future-growth');
+        }
+
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
         if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
@@ -5543,7 +5617,7 @@ function calculateRequirements(options) {
                             updateDisaggregatedUI(true);
                             _nodeCountUserSet = false;
 
-                            showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+                            showSizerToast('Workload exceeds 16-machine hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
 
                             isCalculating = false;
                             calculateRequirements();
@@ -5725,11 +5799,11 @@ function calculateRequirements(options) {
         // Reflect the current node count and vCPU overcommit ratio in the per-node heading
         const perNodeTitleEl = document.getElementById('per-node-title');
         if (perNodeTitleEl) {
-            perNodeTitleEl.textContent = nodeCount + ' x Nodes Hardware Requirements:';
+            perNodeTitleEl.textContent = nodeCount + ' x Physical Machines Hardware Requirements:';
         }
         const perNodeSubtitleEl = document.getElementById('per-node-subtitle');
         if (perNodeSubtitleEl) {
-            perNodeSubtitleEl.innerHTML = '- includes N+1 nodes (for HA and update resiliency), compute uses a '
+            perNodeSubtitleEl.innerHTML = '- includes N+1 machines (for HA and update resiliency), compute uses a '
                 + '<a href="#vcpu-ratio" class="per-node-ratio-link" '
                 + 'onclick="document.getElementById(\'vcpu-ratio\').scrollIntoView({behavior:\'smooth\',block:\'center\'});'
                 + 'document.getElementById(\'vcpu-ratio\').focus();return false;">'
@@ -6020,7 +6094,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
         rackUnitLabel = rackUnits + 'U';
         rackUnitsBreakdown = 'Across ' + drc + ' racks: ' +
-            nodeCount + ' \u00d7 server node (2U each) + ' +
+            nodeCount + ' \u00d7 server machine (2U each) + ' +
             (drc * torPerRack) + ' \u00d7 ToR (1U), ' +
             drc + ' \u00d7 BMC (1U)' +
             (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC (1U)' : '') +
@@ -6039,16 +6113,16 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         rackUnitLabel = rackUnits + 'U';
         if (clusterType === 'rack-aware') {
             rackUnitsBreakdown = 'Across 2 racks: ' +
-                nodeCount + ' \u00d7 server node (2U each, distributed across racks) + ' +
+                nodeCount + ' \u00d7 server machine (2U each, distributed across racks) + ' +
                 (racksHci * torPerRackHci) + ' \u00d7 ToR (1U) + ' +
                 (racksHci * bmcPerRackHci) + ' \u00d7 BMC (1U).';
         } else if (nodeCount > 1) {
             rackUnitsBreakdown = '1 rack: ' +
-                nodeCount + ' \u00d7 server node (2U each) + ' +
+                nodeCount + ' \u00d7 server machine (2U each) + ' +
                 (racksHci * torPerRackHci) + ' \u00d7 ToR (1U) + ' +
                 (racksHci * bmcPerRackHci) + ' \u00d7 BMC (1U).';
         } else {
-            rackUnitsBreakdown = '1 rack: 1 \u00d7 server node (2U) + 1 \u00d7 BMC switch (1U). Single-node clusters share BMC traffic via the same management switch shown in the 3D rack view.';
+            rackUnitsBreakdown = '1 rack: 1 \u00d7 server machine (2U) + 1 \u00d7 BMC switch (1U). Single-machine clusters share BMC traffic via the same management switch shown in the 3D rack view.';
         }
     }
 
@@ -6128,7 +6202,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const detailEl = document.getElementById('power-detail-content');
     if (detailEl) {
         const lines = [];
-        lines.push('<strong>Per-Node Component Power (DC):</strong>');
+        lines.push('<strong>Per-Machine Component Power (DC):</strong>');
         lines.push('CPU: ' + sockets + ' × ' + cpuTdp + 'W TDP = <strong>' + cpuPowerW + 'W</strong>');
         if (hwConfig.generation && hwConfig.generation.maxCores && hwConfig.coresPerSocket) {
             lines.push('&nbsp;&nbsp;&nbsp;↳ ' + hwConfig.coresPerSocket + '/' + hwConfig.generation.maxCores + ' cores × ' + maxTdp + 'W max TDP (40% base + 60% proportional)');
@@ -6146,10 +6220,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         lines.push('<strong>Component total (DC): ' + componentPowerW + 'W</strong>');
         lines.push('');
         lines.push('<strong>PSU Efficiency:</strong> 80 Plus Titanium @ ~50% load = ' + Math.round(psuEfficiency * 100) + '%');
-        lines.push('Wall power per node: ' + componentPowerW + 'W ÷ ' + psuEfficiency + ' = <strong>' + perNodeW + 'W</strong>');
+        lines.push('Wall power per machine: ' + componentPowerW + 'W ÷ ' + psuEfficiency + ' = <strong>' + perNodeW + 'W</strong>');
         lines.push('');
         lines.push('<strong>Instance Total:</strong>');
-        lines.push('Nodes: ' + nodeCount + ' × ' + perNodeW + 'W = ' + totalNodeW.toLocaleString() + 'W');
+        lines.push('Machines: ' + nodeCount + ' × ' + perNodeW + 'W = ' + totalNodeW.toLocaleString() + 'W');
         if (infraPowerW > 0) {
             lines.push('');
             lines.push('<strong>Network Infrastructure Power:</strong>');
@@ -6189,7 +6263,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         lines.push('• Memory: ~4W per DIMM, 1 DIMM per 32 GB (DDR5 RDIMM)');
         lines.push('• NVMe/SSD: ~8W per drive, HDD: ~12W per drive');
         lines.push('• Boot: 2 × M.2 boot drives at ~8W each');
-        lines.push('• Base overhead: ~100W per node (fans, motherboard chipset, NICs, BMC)');
+        lines.push('• Base overhead: ~100W per machine (fans, motherboard chipset, NICs, BMC)');
         lines.push('• PSU: 80 Plus Titanium rated, ~96% efficient at 50% load');
         lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W');
         lines.push('• Actual power varies by OEM hardware, workload intensity, ambient temperature, and PSU load point');
@@ -6253,17 +6327,17 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     } else {
         // Cluster size + N+1 note — always first
         if (clusterType === 'single') {
-            notes.push('1 x Node Instance — Single node deployment: No node fault tolerance or maintenance capacity');
+            notes.push('1 x Machine Instance — Single machine deployment: No machine fault tolerance or maintenance capacity');
         } else {
-            notes.push(`${nodeCount} x Node Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
+            notes.push(`${nodeCount} x Machine Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} machines available during servicing / maintenance`);
         }
 
         // Per node hardware config note — always second
         if (hwConfig && hwConfig.generation) {
-            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
+            notes.push(`Per machine hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
             if (hwConfig.gpuCount > 0) {
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
-                notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per node`);
+                notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per machine`);
             }
         }
 
@@ -6280,24 +6354,24 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             } else {
                 notes.push('Two-way mirror: Provides drive fault tolerance. Requires minimum 2 capacity drives.');
             }
-            notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
+            notes.push('Single Machine requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else if (clusterType === 'aldo-mgmt') {
-            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management.');
+            notes.push('ALDO Management Cluster: Fixed 3-machine cluster for Azure Local Disconnected Operations (ALDO) management.');
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure, additional infrastructure workloads may be added in a future release`);
-            notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
+            notes.push('Boot disk: 960 GB SSD/NVMe recommended per machine to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
-                notes.push('Rack-Aware Cluster (RAC): Each rack acts as a fault domain, physical nodes are split evenly between two racks, minimum 2 nodes, maximum 8 nodes.');
+                notes.push('Rack-Aware Cluster (RAC): Each rack acts as a fault domain, physical machines are split evenly between two racks, minimum 2 machines, maximum 8 machines.');
             }
         }
 
         // Resiliency note
         const resiliencyNames = {
             'simple': 'Simple (no redundancy, 1x raw storage)',
-            '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
-            '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
+            '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (machine) failure',
+            '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (machines) failures',
             '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror',
             'external': 'External SAN Storage — resiliency managed by the SAN array (not Storage Spaces Direct)'
         };
@@ -6307,13 +6381,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
-                notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node`);
+                notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per machine`);
                 // Mixed all-flash recommendation
                 if (hwConfig.storageConfig === 'mixed-flash') {
-                    notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per node (24 total drive bays).');
+                    notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per machine (24 total drive bays).');
                 }
             } else {
-                notes.push(`Storage layout: ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
+                notes.push(`Storage layout: ${dc.capacity.count} × ${dc.capacity.type} capacity disks per machine (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }
         }
 
@@ -6323,7 +6397,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const totalOverheadPerNode = getHostMemoryReservedGB(hwConfig, clusterType); // host reservation per node (see Physical Host Compute Overhead section)
             const arbSharePerNode = Math.ceil(ARB_MEMORY_OVERHEAD_GB / (nodeCount > 1 ? nodeCount - 1 : 1));
             if (hwConfig && memPerNode + arbSharePerNode > hwConfig.memoryGB - totalOverheadPerNode) {
-                notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding nodes.`);
+                notes.push(`⚠️ Workload memory (${memPerNode} GB/machine + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable machine memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding machines.`);
             }
         }
 
@@ -6334,7 +6408,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
             const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores;
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
-                notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
+                notes.push(`⚠️ Required cores per machine (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional machines.`);
             }
 
             // AMD suggestion when Intel cores are maxed out and compute ≥80% at 4:1.
@@ -6360,7 +6434,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                         }
                     }
                     if (bestAmdGen && bestAmdMaxCores * 2 > hwConfig.totalPhysicalCores) {
-                        notes.push(`💡 Tip: ${hwConfig.generation.name} is at maximum cores (${maxIntelCores} per socket × ${hwConfig.sockets} sockets = ${hwConfig.totalPhysicalCores} physical cores per node). ${bestAmdGen.name} offers up to ${bestAmdMaxCores} cores per socket (${bestAmdMaxCores * 2} with dual socket), which could provide additional compute headroom`);
+                        notes.push(`💡 Tip: ${hwConfig.generation.name} is at maximum cores (${maxIntelCores} per socket × ${hwConfig.sockets} sockets = ${hwConfig.totalPhysicalCores} physical cores per machine). ${bestAmdGen.name} offers up to ${bestAmdMaxCores} cores per socket (${bestAmdMaxCores * 2} with dual socket), which could provide additional compute headroom`);
                     }
                 }
             }
@@ -6371,13 +6445,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         const currentMemoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
         const currentStoragePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
         if (currentComputePercent >= 90) {
-            notes.push('🚫 Compute utilization is at ' + currentComputePercent + '% — configurations at or above 90% are not recommended. Increase CPU cores, add nodes, or reduce workloads.');
+            notes.push('🚫 Compute utilization is at ' + currentComputePercent + '% — configurations at or above 90% are not recommended. Increase CPU cores, add machines, or reduce workloads.');
         }
         if (currentMemoryPercent >= 90) {
-            notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per node, add nodes, or reduce workloads.');
+            notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per machine, add machines, or reduce workloads.');
         }
         if (clusterType !== 'disaggregated' && currentStoragePercent >= 90) {
-            notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
+            notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add machines, increase disk count/size, or reduce workloads.');
         }
         const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
         const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
@@ -6385,9 +6459,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const maxNodesGpu = getMaxNodeCap();
             const atMaxNodes = nodeCount >= maxNodesGpu;
             const gpuAdvice = atMaxNodes
-                ? 'Reduce GPU workloads or increase GPUs per node. Node count is at maximum (' + maxNodesGpu + ').'
-                : 'Add more nodes with GPUs, or reduce GPU workloads.';
-            notes.push('🚫 GPU utilization is at ' + currentGpuPercent + '% — configurations at or above 90% are not recommended. ' + gpuAdvice + ' Remember that N−1 node capacity must be maintained for updates and draining.');
+                ? 'Reduce GPU workloads or increase GPUs per machine. Machine count is at maximum (' + maxNodesGpu + ').'
+                : 'Add more machines with GPUs, or reduce GPU workloads.';
+            notes.push('🚫 GPU utilization is at ' + currentGpuPercent + '% — configurations at or above 90% are not recommended. ' + gpuAdvice + ' Remember that N−1 machine capacity must be maintained for updates and draining.');
         }
         if (gpuSectionVisible && totalGpus > 0) {
             const gpuCountPerNode = hwConfig.gpuCount || 0;
@@ -6399,13 +6473,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 const canAddNodes = nodeCount < maxNodes;
                 const canAddGpus = gpuCountPerNode < maxPerNode;
                 let advice = '';
-                if (canAddGpus && canAddNodes) advice = 'Increase GPUs per node (up to ' + maxPerNode + '), add more nodes, or reduce GPU workloads.';
-                else if (canAddGpus) advice = 'Increase GPUs per node (up to ' + maxPerNode + ') or reduce GPU workloads. Node count is at maximum (' + maxNodes + ').';
-                else if (canAddNodes) advice = 'Add more nodes or reduce GPU workloads. GPUs per node is at maximum (' + maxPerNode + ').';
-                else advice = 'Reduce GPU workloads — node count (' + maxNodes + ') and GPUs per node (' + maxPerNode + ') are both at maximum.';
-                notes.push('🚫 GPU demand (' + totalGpus + ' GPUs) exceeds the physical capacity (' + physicalMaxGpus + ' GPUs across ' + nodeCount + ' nodes × ' + gpuCountPerNode + ' GPUs/node). ' + advice);
+                if (canAddGpus && canAddNodes) advice = 'Increase GPUs per machine (up to ' + maxPerNode + '), add more machines, or reduce GPU workloads.';
+                else if (canAddGpus) advice = 'Increase GPUs per machine (up to ' + maxPerNode + ') or reduce GPU workloads. Machine count is at maximum (' + maxNodes + ').';
+                else if (canAddNodes) advice = 'Add more machines or reduce GPU workloads. GPUs per machine is at maximum (' + maxPerNode + ').';
+                else advice = 'Reduce GPU workloads — machine count (' + maxNodes + ') and GPUs per machine (' + maxPerNode + ') are both at maximum.';
+                notes.push('🚫 GPU demand (' + totalGpus + ' GPUs) exceeds the physical capacity (' + physicalMaxGpus + ' GPUs across ' + nodeCount + ' machines × ' + gpuCountPerNode + ' GPUs/machine). ' + advice);
             } else if (totalGpus > gpuCountPerNode * effectiveNodes) {
-                notes.push('⚠️ GPU demand (' + totalGpus + ' GPUs) fits the physical hardware but exceeds N−1 effective capacity (' + (gpuCountPerNode * effectiveNodes) + ' GPUs). During node maintenance/updates, GPU workloads may not all be accommodated.');
+                notes.push('⚠️ GPU demand (' + totalGpus + ' GPUs) fits the physical hardware but exceeds N−1 effective capacity (' + (gpuCountPerNode * effectiveNodes) + ' GPUs). During machine maintenance/updates, GPU workloads may not all be accommodated.');
             }
         }
 
@@ -6471,7 +6545,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             const totalClusterRawTB = rawPerNodeTB * nodeCount;
             if (totalClusterRawTB > 4000) {
-                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Reduce nodes, disk count, or disk size.`);
+                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Reduce machines, disk count, or disk size.`);
                 storageLimitExceeded = true;
                 storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max`);
             }
@@ -6491,7 +6565,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // vCPU to core ratio
         const vcpuRatio = getVcpuRatio();
         if (_vcpuRatioAutoEscalated) {
-            notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes / clusters, or reducing workload vCPU requirements.`);
+            notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more machines / clusters, or reducing workload vCPU requirements.`);
         } else {
             notes.push(`vCPU calculations use ${vcpuRatio}:1 vCPU to pCPU overcommit ratio`);
         }
@@ -6511,7 +6585,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const reservedTotalGB = reservedDisks * reservedDiskSizeGB;
             const reservedTotalTB = (reservedTotalGB / 1024).toFixed(2);
             if (_repairDisksUserSet && reservedDisks < recommendedDisks) {
-                notes.push('⚠️ S2D Resiliency Repair: Warning — recommended ' + recommendedDisks + ' × capacity disks should be reserved based on the cluster size (' + nodeCount + ' nodes), but currently only ' + reservedDisks + ' × capacity disk' + (reservedDisks !== 1 ? 's are' : ' is') + ' reserved (' + reservedTotalTB + ' TB). This raw capacity has been deducted from the available usable storage.');
+                notes.push('⚠️ S2D Resiliency Repair: Warning — recommended ' + recommendedDisks + ' × capacity disks should be reserved based on the cluster size (' + nodeCount + ' machines), but currently only ' + reservedDisks + ' × capacity disk' + (reservedDisks !== 1 ? 's are' : ' is') + ' reserved (' + reservedTotalTB + ' TB). This raw capacity has been deducted from the available usable storage.');
             } else if (_repairDisksUserSet) {
                 notes.push('ℹ️ S2D Resiliency Repair: ' + reservedDisks + ' × capacity disk (' + (reservedDiskSizeGB / 1024).toFixed(2) + ' TB each = ' + reservedTotalTB + ' TB total) free space reserved in the storage pool for Storage Spaces Direct repair jobs (manually set). This raw capacity has been deducted from the available usable storage.');
             } else {
@@ -6522,21 +6596,21 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Disk bay consolidation note (skip for disaggregated)
         if (clusterType !== 'disaggregated' && _diskConsolidationInfo) {
             const info = _diskConsolidationInfo;
-            notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
+            notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per machine for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
 
         // Host overhead note — concise summary; full math in the collapsed section below
         if (hwConfig) {
             const hostMemReserved = getHostMemoryReservedGB(hwConfig, clusterType);
             const hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
-            notes.push(`ℹ️ Host (root partition) reservation: ${hostMemReserved} GB memory and ${hostCoresReserved} physical core${hostCoresReserved === 1 ? '' : 's'} reserved per node for Azure Local OS, Hyper-V root partition, clustering and the S2D stack — excluded from workload-available capacity. See "Physical Host Compute Overhead — Assumptions &amp; Math" below for the breakdown.`);
+            notes.push(`ℹ️ Host (root partition) reservation: ${hostMemReserved} GB memory and ${hostCoresReserved} physical core${hostCoresReserved === 1 ? '' : 's'} reserved per machine for Azure Local OS, Hyper-V root partition, clustering and the S2D stack — excluded from workload-available capacity. See "Physical Host Compute Overhead — Assumptions &amp; Math" below for the breakdown.`);
         }
 
         // Network note
         if (clusterType === 'disaggregated') {
-            notes.push('Network: Disaggregated deployments use a Clos leaf-spine fabric with RDMA-capable NICs (25 GbE+ recommended). Compute nodes connect to external SAN storage via Fibre Channel HBAs or iSCSI over the leaf switches.');
+            notes.push('Network: Disaggregated deployments use a Clos leaf-spine fabric with RDMA-capable NICs (25 GbE+ recommended). Compute machines connect to external SAN storage via Fibre Channel HBAs or iSCSI over the leaf switches.');
         } else {
-            notes.push('Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+            notes.push('Network: Azure Local multi-machine hyperconverged instances require RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
         }
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
@@ -6610,7 +6684,7 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     html += '</div>';
 
     // Memory table
-    html += '<div style="font-weight: 600; margin: 8px 0 4px;">Per-node memory reservation</div>';
+    html += '<div style="font-weight: 600; margin: 8px 0 4px;">Per-Machine memory reservation</div>';
     html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
     html += `<tr><td style="padding: 2px 8px 2px 0;">Base (${isDisaggregated ? 'disaggregated, no S2D' : 'S2D host OS + storage stack'})</td><td style="text-align: right; padding: 2px 0;">${base} GB</td></tr>`;
     if (!isDisaggregated) {
@@ -6621,16 +6695,16 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     }
     html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; ${win(!ramFractionWins)}">Fixed-term subtotal</td><td style="text-align: right; padding: 4px 0 2px; ${win(!ramFractionWins)}">${fixedSum} GB</td></tr>`;
     html += `<tr><td style="padding: 2px 8px 2px 0; ${win(ramFractionWins)}">Host-RAM scaling term (${Math.round(HOST_MEM_HOST_RAM_FRACTION * 100)}% × ${hostMemGB} GB)</td><td style="text-align: right; padding: 2px 0; ${win(ramFractionWins)}">${ramFractionGB} GB</td></tr>`;
-    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${memReserved} GB</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per machine = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${memReserved} GB</td></tr>`;
     html += '</table>';
     html += `<div style="font-size: 11px; margin-top: 2px;">The <span style="${win(ramFractionWins)}">highlighted</span> term wins because it is the larger of the fixed subtotal and the 8%-of-host-RAM scaling term.</div>`;
 
     // CPU table
-    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Per-node CPU reservation (physical cores)</div>';
+    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Per-Machine CPU reservation (physical cores)</div>';
     html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
     html += `<tr><td style="padding: 2px 8px 2px 0; ${win(!cpuFloorWins)}">Percentage term (${Math.round(cpuPct * 100)}% × ${physicalCores} cores, rounded up)</td><td style="text-align: right; padding: 2px 0; ${win(!cpuFloorWins)}">${cpuPctCores} core${cpuPctCores === 1 ? '' : 's'}</td></tr>`;
     html += `<tr><td style="padding: 2px 8px 2px 0; ${win(cpuFloorWins)}">Minimum floor</td><td style="text-align: right; padding: 2px 0; ${win(cpuFloorWins)}">${cpuFloor} core${cpuFloor === 1 ? '' : 's'}</td></tr>`;
-    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${coresReserved} core${coresReserved === 1 ? '' : 's'}</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per machine = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${coresReserved} core${coresReserved === 1 ? '' : 's'}</td></tr>`;
     html += '</table>';
 
     // Assumptions + public references
@@ -6639,7 +6713,7 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     html += isDisaggregated
         ? '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, external SAN connectivity (MPIO / HBA or iSCSI initiator), Arc/AMA/ATC/Defender agents, and live-migration / patching headroom. The S2D storage stack is not present on disaggregated hosts, so no Software Storage Bus / pool / CSV cache or storage-repair reservation applies.</li>'
         : '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus, pool/ReFS runtime, CSV in-memory read cache), Arc/AMA/ATC/Defender agents, and live-migration / repair / patching headroom.</li>';
-    html += '<li>The 8%-of-host-RAM term scales the reservation on large-memory nodes where fixed terms alone under-provision the root partition.</li>';
+    html += '<li>The 8%-of-host-RAM term scales the reservation on large-memory machines where fixed terms alone under-provision the root partition.</li>';
     html += '<li>Reserved capacity is excluded from workload-available vCPU and memory in all sizing calculations on this page.</li>';
     html += '</ul>';
     html += '<div style="font-size: 11px; margin-top: 4px;">References: ';
@@ -6796,6 +6870,8 @@ function updateMultiInstanceSummary() {
     const totalPower = singlePowerW * count;
     const totalBtu = singleBtu * count;
     const totalRU = singleRU * count;
+    const singleAnnualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
+    const totalAnnualKwh = (singleAnnualKwh != null) ? singleAnnualKwh * count : null;
     const hwConfig = getHardwareConfig();
     const totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
     let gpuLine = '';
@@ -6814,9 +6890,21 @@ function updateMultiInstanceSummary() {
         ? totalPower.toLocaleString() + ' W (' + (totalPower / 1000000).toFixed(2) + ' MW)'
         : totalPower.toLocaleString() + ' W (' + totalPowerKW + ' kW)';
 
+    // Preserve any user-entered multi-instance electricity price across re-renders.
+    // Element may not exist yet on first render after a state restore — fall back
+    // to the cached value stashed by updateMultiRunningCost() / applyImportedSizerState().
+    const existingMultiPriceEl = document.getElementById('multi-power-price-input');
+    const preservedMultiPrice = existingMultiPriceEl
+        ? existingMultiPriceEl.value
+        : (typeof _lastMultiPowerPrice === 'string' ? _lastMultiPowerPrice : '');
+
+    const annualKwhLabel = (totalAnnualKwh != null)
+        ? Math.round(totalAnnualKwh).toLocaleString() + ' kWh/yr'
+        : '\u2014';
+
     summaryDiv.innerHTML = '<strong>Multi-Instance Scale-Out Summary (\u00d7' + count + ' instances)</strong>'
         + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 8px;">'
-        + '<span>Total Nodes: <strong>' + totalNodes.toLocaleString() + '</strong></span>'
+        + '<span>Total Machines: <strong>' + totalNodes.toLocaleString() + '</strong></span>'
         + '<span>Total Racks: <strong>' + totalRacks.toLocaleString() + '</strong></span>'
         + '<span>Total Cores: <strong>' + totalCores.toLocaleString() + '</strong></span>'
         + '<span>Total Memory: <strong>' + totalMemoryLabel + '</strong></span>'
@@ -6827,11 +6915,46 @@ function updateMultiInstanceSummary() {
         + '<span>Total BTU/hr: <strong>' + totalBtu.toLocaleString() + '</strong></span>'
         + '<span>Total Rack Units: <strong>' + totalRU.toLocaleString() + 'U</strong></span>'
         + '</div>'
+        + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px; align-items: center;">'
+        + '<span>Total Annual Energy: <strong id="multi-power-kwh">' + annualKwhLabel + '</strong></span>'
+        + '</div>'
+        + '<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; align-items: center;">'
+        +   '<label for="multi-power-price-input" style="font-weight: 600;">Electricity Price (per kWh):</label>'
+        +   '<span class="power-price-help" role="img" aria-label="Help: this field is currency-agnostic. Enter your electricity price per kWh in any currency and the total annual cost is shown in the same currency." title="Optional and currency-agnostic. Enter your electricity unit price per kilowatt-hour (kWh) in any currency (e.g. USD, GBP, EUR) \u2014 the estimated total annual cost across all instances is shown in that same currency. Independent of the per-instance Electricity Price above.">\u24d8</span>'
+        +   '<span style="font-size: 12px; color: var(--text-secondary);">Input:</span>'
+        +   '<input type="number" id="multi-power-price-input" min="0" step="0.01" inputmode="decimal" placeholder="0.15"'
+        +     ' value="' + preservedMultiPrice.replace(/"/g, '&quot;') + '"'
+        +     ' aria-label="Multi-instance electricity unit price per kilowatt-hour, in your local currency"'
+        +     ' oninput="updateMultiRunningCost(); saveSizerState();"'
+        +     ' style="width: 90px; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">'
+        +   '<span style="margin-left: 16px;">Total Annual Cost: <strong id="multi-power-cost">\u2014</strong></span>'
+        + '</div>'
         + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
         + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
         + '<span>Multi-instance estimates are approximate projections based on the single-instance configuration above. Each instance is independently sized and deployed. Actual power, cooling, and rack requirements may vary by site, OEM hardware, and deployment configuration. Contact your preferred hardware partner for detailed and accurate information.</span>'
         + '</div>';
     summaryDiv.style.display = '';
+    updateMultiRunningCost();
+}
+
+// Update the optional multi-instance annual running-cost figure from the
+// user-supplied electricity unit price (per kWh) × total annual energy across
+// all instances. Currency-agnostic and independent of the per-instance price.
+function updateMultiRunningCost() {
+    const costEl = document.getElementById('multi-power-cost');
+    const priceEl = document.getElementById('multi-power-price-input');
+    if (priceEl) { _lastMultiPowerPrice = priceEl.value || ''; }
+    if (!costEl) { return; }
+    const count = parseInt((document.getElementById('instance-count') || {}).value, 10) || 1;
+    const singleAnnualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
+    const price = priceEl ? parseFloat(priceEl.value) : NaN;
+    if (singleAnnualKwh == null || !isFinite(price) || price <= 0) {
+        costEl.textContent = '\u2014';
+        return;
+    }
+    costEl.textContent = (singleAnnualKwh * count * price).toLocaleString(undefined, {
+        maximumFractionDigits: 0
+    }) + '/yr';
 }
 
 function updateDesignerActionVisibility() {
@@ -6997,7 +7120,7 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
 function exportSizerWord() {
     // Block export if storage limits are exceeded
     if (_storageLimitExceeded) {
-        alert('Export blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or node count before exporting.');
+        alert('Export blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before exporting.');
         return;
     }
 
@@ -7008,7 +7131,7 @@ function exportSizerWord() {
     const futureGrowth = document.getElementById('future-growth').value;
     const resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    const clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
+    const clusterLabels = { 'single': 'Single Machine', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
     const storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
     const growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 
@@ -7098,13 +7221,13 @@ function exportSizerWord() {
     html += '<h2>Cluster Configuration</h2>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Deployment Type</td><td>' + (clusterLabels[clusterType] || clusterType) + '</td></tr>';
-    html += '<tr><td>Node Count</td><td>' + nodeCount + '</td></tr>';
+    html += '<tr><td>Machine Count</td><td>' + nodeCount + '</td></tr>';
     html += '<tr><td>Storage Resiliency</td><td>' + (resConfig.name || resiliency) + '</td></tr>';
     html += '<tr><td>Future Growth</td><td>' + (growthLabels[futureGrowth] || futureGrowth + '%') + '</td></tr>';
     html += '</tbody></table>';
 
     // Hardware Configuration
-    html += '<h2>Hardware Configuration (per Node)</h2>';
+    html += '<h2>Hardware Configuration (per Machine)</h2>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>CPU</td><td>' + (hwConfig.generation ? hwConfig.generation.name : 'Unknown') + '</td></tr>';
     html += '<tr><td>Cores per Socket</td><td>' + hwConfig.coresPerSocket + '</td></tr>';
@@ -7130,8 +7253,8 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>' + nodeCount + ' x Nodes Hardware Requirements:</h3>';
-    html += '<p style="font-size:10pt; color:#555; margin:0 0 8pt;">- includes N+1 nodes (for HA and update resiliency), compute uses a ' + getVcpuRatio() + ':1 vCPU overcommit ratio</p>';
+    html += '<h3>' + nodeCount + ' x Physical Machines Hardware Requirements:</h3>';
+    html += '<p style="font-size:10pt; color:#555; margin:0 0 8pt;">- includes N+1 machines (for HA and update resiliency), compute uses a ' + getVcpuRatio() + ':1 vCPU overcommit ratio</p>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
     html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
@@ -7194,7 +7317,7 @@ function escapeHtmlSizer(str) {
 function configureInDesigner() {
     // Block if storage limits are exceeded
     if (_storageLimitExceeded) {
-        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or node count before proceeding.');
+        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before proceeding.');
         return;
     }
 
@@ -8197,7 +8320,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     const isNode = resourceType === 'microsoft.hybridcompute/machines';
 
     if (!isNode) {
-        errDiv.textContent = 'Please paste the JSON View of a machine (node), not the instance. Navigate to a machine in your instance in the Azure Portal → JSON View.';
+        errDiv.textContent = 'Please paste the JSON View of a machine, not the instance. Navigate to a machine in your instance in the Azure Portal → JSON View.';
         errDiv.style.display = '';
         return;
     }
@@ -8335,7 +8458,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="standard" checked onchange="validateClusterImportSelection()"> Hyperconverged</label>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="disaggregated" onchange="validateClusterImportSelection()"> Disaggregated Storage</label>'
-        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
+        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Machine</strong> if you set machines = 1)</span>'
         + '</span>';
     // Storage (S2D capacity disks per node) — not in the JSON, must be supplied by the user.
     // Issue #235: hidden when Disaggregated Storage is chosen (external SAN — no S2D disks).
@@ -8730,7 +8853,7 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // Show post-import instructions
     const summary = document.getElementById('post-import-summary');
     if (summary) {
-        const deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
+        const deployTypeLabel = resolvedClusterType === 'single' ? 'Single Machine'
             : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
                 : resolvedClusterType === 'disaggregated' ? 'Disaggregated Storage'
                     : 'Hyperconverged';
@@ -9290,7 +9413,7 @@ function applyImportedSizerState(d) {
     updateStorageForClusterType();
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
-    document.getElementById('future-growth').value = d.futureGrowth || '0';
+    document.getElementById('future-growth').value = d.futureGrowth || '10';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -9438,6 +9561,27 @@ function applyImportedSizerState(d) {
     updateAldoWorkloadButtons();
     updateClusterInfo();
     renderWorkloads();
+
+    // Restore Multi-Instance Scale-Out controls and the optional electricity prices.
+    // The per-instance #power-price-input is static HTML so it can be set directly.
+    // The multi-instance #multi-power-price-input is rendered dynamically inside
+    // updateMultiInstanceSummary(), so we stash the value in _lastMultiPowerPrice
+    // and let the render pick it up. instance-count must also be set BEFORE
+    // calculateRequirements() runs so the multi-instance summary uses the restored
+    // count rather than the default 1.
+    const instanceCountEl = document.getElementById('instance-count');
+    if (instanceCountEl && d.instanceCount) {
+        const opt = Array.from(instanceCountEl.options).find(o => o.value === String(d.instanceCount));
+        if (opt) instanceCountEl.value = String(d.instanceCount);
+    }
+    const powerPriceEl = document.getElementById('power-price-input');
+    if (powerPriceEl && typeof d.powerPriceInput === 'string') {
+        powerPriceEl.value = d.powerPriceInput;
+    }
+    if (typeof d.multiPowerPriceInput === 'string') {
+        _lastMultiPowerPrice = d.multiPowerPriceInput;
+    }
+
     calculateRequirements();
 
     // Persist to localStorage
@@ -9476,7 +9620,7 @@ function resetScenario() {
     updateGpuTypeVisibility();
     document.getElementById('vcpu-ratio').value = '4';
     document.getElementById('storage-config').value = 'all-flash';
-    document.getElementById('future-growth').value = '0';
+    document.getElementById('future-growth').value = '10';
     onStorageConfigChange();
 
     // Reset disk config
@@ -9509,6 +9653,20 @@ function resetScenario() {
     document.getElementById('node-count').value = '2';
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '2way';
+
+    // Reset Multi-Instance Scale-Out controls + optional electricity prices.
+    // The multi-instance price input is rendered dynamically inside
+    // updateMultiInstanceSummary(), and that re-render reads the live DOM value
+    // first (to preserve user input across recalcs) — so we must clear the live
+    // field *and* the cached fallback before calculateRequirements() re-renders.
+    const instanceCountEl = document.getElementById('instance-count');
+    if (instanceCountEl) instanceCountEl.value = '1';
+    const powerPriceEl = document.getElementById('power-price-input');
+    if (powerPriceEl) powerPriceEl.value = '';
+    const multiPowerPriceEl = document.getElementById('multi-power-price-input');
+    if (multiPowerPriceEl) multiPowerPriceEl.value = '';
+    _lastMultiPowerPrice = '';
+
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -9582,6 +9740,14 @@ document.addEventListener('DOMContentLoaded', function() {
     applyTheme(); // Apply saved theme
     updateDesignerActionVisibility(); // Gate share/designer buttons on initial load
 
+    // Flag the 10% Future Growth default as AUTO so users see it was a
+    // recommended default and not their own choice. Skipped when a previous
+    // session restored saved state — that value belongs to the user.
+    const savedState = !designerImported && !urlImported && loadSizerState();
+    if (!savedState) {
+        markAutoScaled('future-growth');
+    }
+
     // Allow saves from now on
     isInitialLoad = false;
 
@@ -9595,7 +9761,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ONBOARDING WALKTHROUGH
 // ============================================
 
-const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_v0_20_06';
+const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_v0_22_62';
 
 const sizerOnboardingSteps = [
     {
@@ -9604,10 +9770,10 @@ const sizerOnboardingSteps = [
         title: 'Welcome to the ODIN Sizer',
         description: 'Plan your Azure Local hardware requirements by modelling workloads, resiliency, and capacity — before you buy.',
         features: [
-            { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
-            { icon: '⚖️', title: 'Deployment Types', text: 'Standard, Rack-Aware, Disaggregated Storage, Single Node, and ALDO clusters' },
-            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time' },
-            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved — export your config as JSON to share or back up' }
+            { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, AVD, GHEL, SQL, Foundry, and File Server workloads with CPU, memory, and storage needs' },
+            { icon: '⚖️', title: 'Deployment Types', text: 'Single Node, Hyperconverged, Rack-Aware Cluster, Disaggregated Storage, or ALDO Management Cluster' },
+            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time as you add workloads' },
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved locally — export/import JSON, or import an existing estate from an RVTools spreadsheet' }
         ]
     },
     {
@@ -9615,10 +9781,10 @@ const sizerOnboardingSteps = [
         title: 'How It Works',
         description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
         features: [
-            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Standard, Rack-Aware, Disaggregated, or Single Node — each with its own constraints' },
-            { icon: '2️⃣', title: 'Add Workloads', text: 'Click VM, AKS, or AVD buttons to define your workload scenarios' },
-            { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends nodes, cores, memory, and disks' },
-            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config (opens in new tab)' }
+            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Single Node, Hyperconverged, Rack-Aware, Disaggregated, or ALDO Management — each with its own constraints' },
+            { icon: '2️⃣', title: 'Add Workloads', text: 'Use the workload buttons (VM, AKS, AVD, SQL, GHEL, Foundry, File Server) to define your scenarios — or import from RVTools' },
+            { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends machine count, cores per machine, memory, and disks to fit your workloads' },
+            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config and pick matching hardware (opens in a new tab)' }
         ]
     },
     {
@@ -9626,10 +9792,11 @@ const sizerOnboardingSteps = [
         title: 'Pro Tips',
         description: 'Get the most out of the ODIN Sizer with these features.',
         features: [
-            { icon: '📈', title: 'Growth Factor', text: 'Plan for future growth — the sizer applies your growth % to all workloads' },
-            { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks before adding nodes' },
-            { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 nodes, no S2D storage' },
-            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support' }
+            { icon: '📈', title: 'Future Growth', text: '10% headroom is applied by default — adjust the slider (0–100%) to reserve capacity for future workload growth' },
+            { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks per machine before adding more physical machines' },
+            { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 compute machines, no S2D local storage' },
+            { icon: '📦', title: 'Multi-Instance Scale-Out', text: 'Model multiple identical instances (rooms, sites, regions) and see total racks, machines, power, and cost' },
+            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support and a full hardware bill of materials' }
         ]
     }
 ];

@@ -1351,7 +1351,7 @@ function renderRack3D(config) { // eslint-disable-line no-redeclare, no-unused-v
         const disaggSanNote = isDisaggregated
             ? '<br><br>Note: Each rack has a \'SAN appliance\' shown for graphical representation, in practice your SAN array will be consolidated in a separate rack(s), this is for illustration purposes only.'
             : '';
-        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>' + twoRowNote + disaggSanNote + '<br>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
+        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server machine occupies 2U, ToR switches occupy 1U each. The cables from each machine to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of machines across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>' + twoRowNote + disaggSanNote + '<br>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
     }
 
     for (let r = 0; r < rackCount; r++) {
@@ -1413,7 +1413,7 @@ function renderRack3D(config) { // eslint-disable-line no-redeclare, no-unused-v
             const serverStartU = bottomLimit + (n * 2); // 2U per server, bottom-up
             if (serverStartU > topServerU) break;
             const color = COLORS.SERVER;
-            const nodeLabel = 'Node ' + (nodeOffset + n + 1);
+            const nodeLabel = 'Machine ' + (nodeOffset + n + 1);
             placeServer(rack.group, rack.baseY, serverStartU - 1, color,
                 nodeLabel, false, config.diskCount || 8, config.portCount || 4);
         }
