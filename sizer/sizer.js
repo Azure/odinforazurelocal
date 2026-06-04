@@ -7195,7 +7195,7 @@ function updateMultiInstanceSummary() {
         +     ' aria-label="Multi-instance electricity unit price per kilowatt-hour, in your local currency"'
         +     ' oninput="updateMultiRunningCost(); saveSizerState();"'
         +     ' style="width: 90px; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">'
-        +   '<span style="margin-left: 16px;">Total Annual Cost: <strong id="multi-power-cost">\u2014</strong></span>'
+        +   '<span style="margin-left: 16px;">Total (estimated) Annual Cost: <strong id="multi-power-cost">\u2014</strong></span>'
         + '</div>'
         + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
         + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
