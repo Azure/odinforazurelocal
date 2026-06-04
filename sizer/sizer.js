@@ -407,6 +407,14 @@ function onHardwareConfigChange() {
     calculateRequirements();
 }
 
+// Dedicated handler for the Future Growth dropdown — any user change (including
+// picking "No additional growth") locks the choice as MANUAL so it's clear the
+// 10% default was a deliberate override rather than just left as-is.
+function onFutureGrowthChange() {
+    markManualSet('future-growth');
+    onHardwareConfigChange();
+}
+
 // Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
 function onVcpuRatioChange() {
     _vcpuRatioUserSet = true;
@@ -2752,7 +2760,7 @@ function resumeSizerState() {
     updateStorageForClusterType();
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
-    document.getElementById('future-growth').value = d.futureGrowth || '0';
+    document.getElementById('future-growth').value = d.futureGrowth || '10';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -9290,7 +9298,7 @@ function applyImportedSizerState(d) {
     updateStorageForClusterType();
     if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
-    document.getElementById('future-growth').value = d.futureGrowth || '0';
+    document.getElementById('future-growth').value = d.futureGrowth || '10';
 
     // Restore CPU config
     document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
@@ -9476,7 +9484,7 @@ function resetScenario() {
     updateGpuTypeVisibility();
     document.getElementById('vcpu-ratio').value = '4';
     document.getElementById('storage-config').value = 'all-flash';
-    document.getElementById('future-growth').value = '0';
+    document.getElementById('future-growth').value = '10';
     onStorageConfigChange();
 
     // Reset disk config
@@ -9581,6 +9589,14 @@ document.addEventListener('DOMContentLoaded', function() {
     calculateRequirements();
     applyTheme(); // Apply saved theme
     updateDesignerActionVisibility(); // Gate share/designer buttons on initial load
+
+    // Flag the 10% Future Growth default as AUTO so users see it was a
+    // recommended default and not their own choice. Skipped when a previous
+    // session restored saved state — that value belongs to the user.
+    const savedState = !designerImported && !urlImported && loadSizerState();
+    if (!savedState) {
+        markAutoScaled('future-growth');
+    }
 
     // Allow saves from now on
     isInitialLoad = false;
