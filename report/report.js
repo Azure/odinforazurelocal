@@ -8235,6 +8235,13 @@
             sizerPowerRows += row('Per-Node Power (est.)', (pw.perNodeW || 0).toLocaleString() + ' Watts');
             sizerPowerRows += row('Total Instance Power (est.)', (pw.totalW || 0).toLocaleString() + ' Watts');
             sizerPowerRows += row('Heat Output (est.)', (pw.totalBtu || 0).toLocaleString() + ' BTU/hr');
+            if (pw.annualKwh != null && isFinite(pw.annualKwh)) {
+                const kwh = pw.annualKwh;
+                const energyText = (kwh >= 1000000)
+                    ? (kwh / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' MWh/yr'
+                    : Math.round(kwh).toLocaleString() + ' kWh/yr';
+                sizerPowerRows += row('Total Annual Energy (est.)', energyText);
+            }
             if (pw.rackUnits) {
                 sizerPowerRows += row('Rack Units (est.)', pw.rackUnits + 'U');
             }
