@@ -5937,11 +5937,22 @@ function calculateRequirements(options) {
                             // settles the node count. The disaggregated
                             // `#node-count` dropdown value is the TOTAL machine
                             // count (not per-rack), so read it directly.
+                            // The recursive recalc may bump rack count further
+                            // (single-step per call) — in that case the inner
+                            // call's toast already announced the final state,
+                            // so skip the outer toast to avoid stale "scaled
+                            // to N racks" messages when N changed downstream.
                             isCalculating = false;
                             calculateRequirements();
+                            const finalRackEl = document.getElementById('disagg-rack-count');
+                            const finalRacks = finalRackEl ? (parseInt(finalRackEl.value, 10) || rackDecision.racks) : rackDecision.racks;
+                            if (finalRacks > rackDecision.racks) {
+                                // Inner recalc bumped further and already toasted the final state.
+                                return;
+                            }
                             const totalElU = document.getElementById('node-count');
                             const totalMachinesU = totalElU ? (parseInt(totalElU.value, 10) || 0) : 0;
-                            const rackTextU = rackDecision.racks + (rackDecision.racks === 1 ? ' rack' : ' racks');
+                            const rackTextU = finalRacks + (finalRacks === 1 ? ' rack' : ' racks');
                             const machineTextU = totalMachinesU > 0
                                 ? ' \u2014 ' + totalMachinesU + (totalMachinesU === 1 ? ' machine' : ' machines')
                                 : '';
