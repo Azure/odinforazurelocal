@@ -5785,13 +5785,13 @@ function calculateRequirements(options) {
                         _nodeCountUserSet = false;
 
                         // Defer toast until after the recursive recalc settles
-                        // the per-rack node count, so the total reflects what's
-                        // actually in the dropdown.
+                        // the per-rack node count. The disaggregated `#node-count`
+                        // dropdown value is the TOTAL machine count (not per-rack),
+                        // so read it directly.
                         isCalculating = false;
                         calculateRequirements();
-                        const perRackElS = document.getElementById('node-count');
-                        const perRackS = perRackElS ? (parseInt(perRackElS.value, 10) || 0) : 0;
-                        const totalMachinesS = shrinkDecision.racks * perRackS;
+                        const totalElS = document.getElementById('node-count');
+                        const totalMachinesS = totalElS ? (parseInt(totalElS.value, 10) || 0) : 0;
                         const rackTextS = shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks');
                         const machineTextS = totalMachinesS > 0
                             ? ' \u2014 ' + totalMachinesS + (totalMachinesS === 1 ? ' machine' : ' machines')
@@ -5842,14 +5842,15 @@ function calculateRequirements(options) {
                             // point `node-count` is still showing the pre-disagg
                             // standard value, but the recalc will rebuild the
                             // dropdown for disaggregated and then auto-scale up
-                            // with N+1 maintenance headroom. Read the final
-                            // per-rack count out of the DOM so the toast shows
-                            // racks × machines/rack = total, matching the UI.
+                            // with N+1 maintenance headroom. The disaggregated
+                            // `#node-count` options carry the TOTAL machine
+                            // count as their value (e.g. value="22" with display
+                            // text "11 Nodes per Rack (22 total)"), so read it
+                            // directly — do NOT multiply by rackCount.
                             isCalculating = false;
                             calculateRequirements();
-                            const perRackEl = document.getElementById('node-count');
-                            const perRack = perRackEl ? (parseInt(perRackEl.value, 10) || 0) : 0;
-                            const totalMachines = minRacks * perRack;
+                            const totalEl = document.getElementById('node-count');
+                            const totalMachines = totalEl ? (parseInt(totalEl.value, 10) || 0) : 0;
                             const rackText = minRacks + (minRacks === 1 ? ' rack' : ' racks');
                             const machineText = totalMachines > 0
                                 ? ' \u2014 ' + totalMachines + (totalMachines === 1 ? ' machine' : ' machines')
@@ -5886,12 +5887,13 @@ function calculateRequirements(options) {
                             _nodeCountUserSet = false;
 
                             // Defer toast until after the recursive recalc
-                            // settles the per-rack node count.
+                            // settles the node count. The disaggregated
+                            // `#node-count` dropdown value is the TOTAL machine
+                            // count (not per-rack), so read it directly.
                             isCalculating = false;
                             calculateRequirements();
-                            const perRackElU = document.getElementById('node-count');
-                            const perRackU = perRackElU ? (parseInt(perRackElU.value, 10) || 0) : 0;
-                            const totalMachinesU = rackDecision.racks * perRackU;
+                            const totalElU = document.getElementById('node-count');
+                            const totalMachinesU = totalElU ? (parseInt(totalElU.value, 10) || 0) : 0;
                             const rackTextU = rackDecision.racks + (rackDecision.racks === 1 ? ' rack' : ' racks');
                             const machineTextU = totalMachinesU > 0
                                 ? ' \u2014 ' + totalMachinesU + (totalMachinesU === 1 ? ' machine' : ' machines')
