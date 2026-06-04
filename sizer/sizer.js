@@ -7023,6 +7023,12 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
         : 'Hardware is sized for <strong>Year&nbsp;1</strong> demand (current + ' + growthPct + '%). To pre-provision for all 5 years (×' + fiveYrMultiplier.toFixed(2) + '), set the dropdown above to <strong>Yes</strong>.';
     html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">' + factorNote + '</p>';
 
+    // Explain a zeroed GPU column when the hardware has GPUs but no workload
+    // currently requests them — otherwise the all-zero column reads as a bug.
+    if (showGpuColumn && !hasGpuWorkload) {
+        html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">GPU column shows 0 because none of the current workloads are configured with GPUs (DDA or GPU-P). Assign a GPU mode to a workload to see GPU runway projections.</p>';
+    }
+
     content.innerHTML = html;
     section.style.display = '';
 }
