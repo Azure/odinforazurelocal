@@ -37,7 +37,12 @@ Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt
 
 ### Tests
 
-- The 6 Capacity Runway bug fixes are exercised through the existing Sizer end-to-end calculation tests; the rewritten function gets implicit coverage via the existing `calculateRequirements()` paths. New direct unit coverage for `_computeGrowthMultiplier()` exercises the compound math (10 % × 5y → 1.61051, 0 % × any → 1, NaN guards).
+- The 6 Capacity Runway bug fixes are exercised through the existing Sizer end-to-end calculation tests; the rewritten function gets implicit coverage via the existing `calculateRequirements()` paths. New direct unit coverage for `_computeGrowthMultiplier()` exercises the compound math (10 % × 5y → 1.61051, 0 % × any → 1, NaN guards). New direct unit coverage for `shouldDowngradeFromDisaggregated()` exercises the inverse-of-upgrade threshold (≤ 12 nodes → downgrade, 13 + → stay disaggregated) and confirms the [13..16] no-oscillation band against `shouldUpgradeToDisaggregated()`.
+
+### Auto-scale symmetry
+
+- **Disaggregated → Hyperconverged auto-downgrade** in `calculateRequirements()` (`sizer/sizer.js`). Inverse of the existing auto-upgrade: when the cluster type is `disaggregated`, the `Deployment Type` dropdown still carries its **AUTO** badge from a prior auto-upgrade (i.e. the user has not manually changed it), and the workload now fits in **≤ 12 machines on standard Hyperconverged** (16 × 0.80 headroom — same buffer as the rack-shrink), the Sizer now drops `Deployment Type` back to **Hyperconverged** in one shot (skipping the rack-by-rack shrink so a 3-rack disagg cluster collapses to HCI with a single toast instead of three). The internal `_disaggAutoUpgraded` guard is cleared so a future workload increase can re-trigger the upgrade. The rack-count is reset to the default of 2 so any later re-upgrade starts from the same baseline. An info toast is shown (*"Workload no longer exceeds hyperconverged capacity — automatically scaled back to Hyperconverged (N machines)."*).
+- **New `shouldDowngradeFromDisaggregated(standardRecommendedNodes)` pure helper** alongside `shouldUpgradeToDisaggregated()` and `shouldAutoShrinkDisaggRacks()` in `sizer/sizer.js`. Returns `{ downgrade: true, recommended: N }` when the standard-HCI recommendation is between 1 and 12 inclusive, otherwise `{ downgrade: false }`. The 4-node gap between the upgrade threshold (rec > 16) and the downgrade threshold (rec ≤ 12) gives a stable [13..16] band so a workload sitting right on the boundary never ping-pongs between HCI and Disaggregated.
 
 ---
 

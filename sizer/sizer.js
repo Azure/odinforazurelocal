@@ -1399,6 +1399,20 @@ function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
     return { shrink: true, racks: cur - 1 };
 }
 
+// Inverse of shouldUpgradeToDisaggregated(): when a previously auto-upgraded
+// disaggregated cluster's workload now fits comfortably on Hyperconverged,
+// downgrade back to standard HCI in one shot (skipping the rack-by-rack
+// shrink). Threshold matches the per-rack shrink buffer (16 × 0.80 = 12) so
+// the boundary is consistent and oscillation-safe with shouldUpgradeToDisaggregated()
+// which fires only when disagg rec > 16.
+// Returns { downgrade: false } or { downgrade: true, recommended: N }.
+function shouldDowngradeFromDisaggregated(standardRecommendedNodes) {
+    const HCI_MAX_WITH_HEADROOM = Math.floor(16 * 0.80); // 12
+    const rec = parseInt(standardRecommendedNodes, 10) || 0;
+    if (rec <= 0 || rec > HCI_MAX_WITH_HEADROOM) return { downgrade: false };
+    return { downgrade: true, recommended: rec };
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     const ct = document.getElementById('cluster-type').value;
@@ -5675,6 +5689,54 @@ function calculateRequirements(options) {
                             memDensityRec.recommended = nodeCount;
                             updateNodeRecommendation(memDensityRec);
                         }
+                    }
+                }
+
+                // --- Auto-downgrade Disaggregated → Hyperconverged when workload now fits on HCI ---
+                // Symmetric inverse of the disagg auto-upgrade block below: when the
+                // conservative loop succeeded AND cluster-type was originally set by an
+                // auto-upgrade (AUTO badge still on) AND the user hasn't manually pinned
+                // it, drop back to standard HCI in one shot when the workload fits in
+                // ≤ 12 nodes (16 × 0.80 headroom, matching shouldDowngradeFromDisaggregated).
+                // Runs BEFORE the rack-shrink so we collapse e.g. 3-rack disagg → HCI in
+                // one toast instead of three rack-shrink steps. _disaggAutoUpgraded is
+                // reset to false so the upgrade path remains available if workloads grow.
+                if (conservativeSuccess && clusterType === 'disaggregated'
+                    && _autoScaledFields.has('cluster-type')
+                    && !_manualFields.has('cluster-type')) {
+                    // getRecommendedNodeCount() reads cluster-type from the DOM (for
+                    // host-overhead calc and the SAN-skips-storage-nodes branch), so
+                    // flip the DOM value temporarily to get an apples-to-apples HCI rec.
+                    const ctElDown = document.getElementById('cluster-type');
+                    const savedCt = ctElDown ? ctElDown.value : 'disaggregated';
+                    if (ctElDown) ctElDown.value = 'standard';
+                    const standardRec = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    if (ctElDown) ctElDown.value = savedCt;
+                    const downgradeDecision = shouldDowngradeFromDisaggregated(
+                        standardRec ? standardRec.recommended : 0
+                    );
+                    if (downgradeDecision.downgrade) {
+                        if (ctElDown) ctElDown.value = 'standard';
+                        markAutoScaled('cluster-type');
+                        _disaggAutoUpgraded = false;
+                        // Restore rack-count default so a later re-upgrade starts from 2 racks
+                        const rackElDown = document.getElementById('disagg-rack-count');
+                        if (rackElDown) rackElDown.value = '2';
+                        updateNodeOptionsForClusterType();
+                        updateStorageForClusterType();
+                        updateResiliencyOptions();
+                        updateClusterInfo();
+                        updateDisaggregatedUI(false);
+                        _nodeCountUserSet = false;
+
+                        showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + downgradeDecision.recommended + (downgradeDecision.recommended === 1 ? ' machine' : ' machines') + ').', 'info');
+
+                        isCalculating = false;
+                        calculateRequirements();
+                        return;
                     }
                 }
 

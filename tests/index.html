@@ -3307,6 +3307,71 @@
             })()
         ]);
 
+        // --- shouldDowngradeFromDisaggregated() ---
+        // Inverse of shouldUpgradeToDisaggregated(). When the cluster was previously
+        // auto-upgraded to Disaggregated and the workload now fits in ≤ 12 nodes on
+        // standard HCI (16 × 0.80 headroom, matching the rack-shrink buffer), the
+        // caller should drop cluster-type back to 'standard' in one shot.
+        //   rec ≤ 12 → downgrade
+        //   rec > 12 → stay disaggregated
+        testSuite('shouldDowngradeFromDisaggregated()', 'sizer.js', [
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(0);
+                return assert(r.downgrade === false,
+                    '0 workload nodes → NO downgrade (no workload at all)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(1);
+                return assert(r.downgrade === true && r.recommended === 1,
+                    '1 node needed → downgrade (well within HCI)', '1', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(8);
+                return assert(r.downgrade === true && r.recommended === 8,
+                    '8 nodes needed → downgrade (comfortable on HCI)', '8', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(12);
+                return assert(r.downgrade === true && r.recommended === 12,
+                    '12 nodes needed → downgrade (right at headroom threshold)', '12', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(13);
+                return assert(r.downgrade === false,
+                    '13 nodes needed → NO downgrade (over 12 headroom buffer)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(16);
+                return assert(r.downgrade === false,
+                    '16 nodes needed (HCI hard cap) → NO downgrade (no headroom)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(20);
+                return assert(r.downgrade === false,
+                    '20 nodes needed → NO downgrade (would not fit on HCI)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated('10');
+                return assert(r.downgrade === true && r.recommended === 10,
+                    'String "10" → parses → downgrade', '10', String(r.recommended));
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(null);
+                return assert(r.downgrade === false,
+                    'null → guarded as 0 → NO downgrade', false, r.downgrade);
+            })(),
+            (() => {
+                // No oscillation with shouldUpgradeToDisaggregated(): upgrade fires when
+                // disagg rec > 16; downgrade fires when standard rec ≤ 12. The 4-node gap
+                // ensures a workload sitting near the boundary never ping-pongs.
+                const upR = shouldUpgradeToDisaggregated(16, 17);   // upgrades at boundary
+                const downR = shouldDowngradeFromDisaggregated(13); // does NOT downgrade
+                return assert(upR.upgrade === true && downR.downgrade === false,
+                    'No-oscillation: upgrade@17 vs downgrade@13 leaves a stable band [13..16]',
+                    'up=true down=false', 'up=' + upR.upgrade + ' down=' + downR.downgrade);
+            })()
+        ]);
+
         // --- _computeGrowthMultiplier() pure helper ---
         // Pure helper extracted from getGrowthFactor() so the compound-growth
         // math has direct unit coverage without DOM stubs (v0.22.65, issue #254).
