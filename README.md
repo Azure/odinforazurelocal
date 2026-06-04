@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.64 - Available here: https://aka.ms/ODIN
+## Version 0.22.65 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,14 +52,21 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.64 - Latest Release
+### 🎉 Version 0.22.65 - Latest Release
 
-> **Disaggregated Storage Sizer auto-scales the rack count both ways** — up when the conservative node loop has hit the per-rack machine cap with utilisation still ≥ 90 % (preferring more racks / machines over escalating to 3-4 TB DIMMs), and **back down when workloads shrink or are removed and the workload comfortably fits at fewer racks** — and renames the per-rack dropdown label to **Physical Machines per Rack** to match the wider Sizer "Nodes → Physical Machines" terminology refresh.
+> **Capacity Runway projection rewritten — accuracy fixes + new "Size hardware for 5 years of compound YoY growth" tick-box (issue #254).** The old projection had several bugs (wrong storage element ID, wrong TB↔GB conversion, round-trip drift making Year 1 read ≥ 100 %, no GPU column, no disaggregated-SAN path); these are all fixed. Above the projection table there is now a new opt-in tick-box that **compounds the existing growth percentage over the full 5-year window** — so 10 % YoY becomes ×1.61, and `getGrowthFactor()` automatically routes that through the rest of the Sizer (workload totals, node recommendation, auto-scale loop, capacity bars, sizing notes). With the box ticked the hardware is sized to fit Year 5 demand instead of Year 1, and the runway table's bottom hint flips to confirm "all five years should fit within capacity".
 
 **What's new**
-- **Disaggregated rack auto-scale (up)** — when the cluster type is *Disaggregated Storage*, the user has **not** manually pinned *Number of Racks*, and the conservative auto-scale loop has reached the per-rack machine cap (`rackCount × 16`) with utilisation still ≥ 90 % on any resource (CPU / memory / storage / GPU), the Sizer now bumps *Number of Racks* up (1 → 2 → 3 → 4, capped at 4 racks) **before** falling through to aggressive memory / ratio escalation. This is the "prefer more racks over higher DIMMs" weighting — adding a rack of cheap 2 TB machines is preferred over jumping to 3-4 TB DIMMs at the same machine count. The dropdown gets a persistent **AUTO** badge, *Number of Physical Machines* is rebuilt for the new rack count, and the Sizer re-runs the calculation. An info toast confirms the change. **Going beyond 4 racks (5–8) stays a manual decision** because that forces fewer machines-per-rack (5 → 12, 6 → 10, 7 → 9, 8 → 8) — a real fabric / floor-space change.
-- **Symmetric rack auto-shrink (down)** — when workloads are removed or shrunk, the Sizer now drops the rack count back down one tier per recalc if the workload comfortably fits at (`currentRacks - 1`) racks with **≥ 20 % headroom**. Only fires when the rack count was previously AUTO-set (and the user still hasn't pinned it), so a manually-chosen rack count is never disturbed. The 20 % buffer + single-step rule prevents oscillation at the boundary (e.g. a workload right at 32 nodes won't ping-pong between 2 and 3 racks).
-- **Dropdown label rename: *Nodes per Rack* → *Physical Machines per Rack*** in the Sizer's Disaggregated Storage view, matching the wider v0.22.63 "Nodes → Physical Machines" terminology refresh for physical-server references. The dropdown *values* themselves (e.g. "16 Nodes per Rack (32 total)") are intentionally **unchanged** because failover-cluster terminology still uses "Node".
+- **New tick-box: *Size hardware to accommodate 5 years of compound YoY growth*** (issue #254) inside the `📈 Capacity Runway` section in the Sizer. Off by default — preserves the historical "Year 1 + growth %" sizing. Tick it, and `getGrowthFactor()` switches from `(1 + pct/100)` to `(1 + pct/100)^5` (10 % → ×1.61, 20 % → ×2.49, 30 % → ×3.71, 50 % → ×7.59). Because every Sizer calculation already routes through `getGrowthFactor()`, this single switch propagates automatically into workload totals, the node-count recommendation, the auto-scale / rack-shrink loops, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes. State persists through localStorage save/resume, JSON export/import, Share-as-URL, and 🔄 Reset (where it returns to unticked).
+- **Capacity Runway projection — 6 accuracy fixes**:
+  - **Storage column for HCI / Standard / Single-Node / Rack-Aware** — previously read from a non-existent `#usable-storage` element with a wrong `× 1024` (binary) conversion, so the column always showed 0 % utilisation. Now reads from the same `#storage-total` element the capacity bar uses, with the correct `× 1000` (decimal TB) conversion to match the rest of the Sizer.
+  - **Round-trip drift eliminated** — the projection used to receive *already-grown* totals and divide back out by the growth factor (`Math.round(grown / 1.10)`), which could drift +1 vCPU / +1 GB and make Year 1 show 101 % even though the hardware was sized for exactly Year 1. The function now receives **raw pre-growth totals** directly from `calculateRequirements()`, so Year 1 lines up exactly with the capacity bars.
+  - **Disaggregated Storage now supported** — previously the storage column collapsed to 0 % because `#storage-total` shows the literal text `External SAN` (parseFloat → NaN). The projection now detects disaggregated mode, suppresses the storage **utilisation** column (SAN scaling isn't bounded by the cluster), and instead shows the **projected SAN size required** in TB / GB for each year (e.g. `Year 5: 87.3 TB SAN`).
+  - **GPU column** — when any workload requests GPUs and the design has them, a new GPU column shows the projected GPU count and feeds into the peak-utilisation column (so GPU pressure shows up alongside CPU / memory / storage).
+  - **"Already at capacity" detection** — if Year 0 (the *Now* row) already shows ≥ 90 % utilisation on any resource, the summary line now reads `🚫 Already at capacity (≥ 90 %) at current demand — design cannot absorb additional N % annual growth` instead of confusingly reporting a runway of zero years.
+  - **Dead parameters dropped** from `updateGrowthProjection()` — `nodeCount` was unused; signature is now `(rawVcpus, rawMemory, rawStorage, rawGpus, hwConfig, effectiveNodes)`.
+- **New testable helper `_computeGrowthMultiplier(pct, years)`** extracted from `getGrowthFactor()` so the compound-growth math has direct unit coverage (10 % × 1y = 1.10, 10 % × 5y = 1.61051, 0 % × 5y = 1, etc.) without DOM stubs.
+- **New top-level field `sizeFor5YrGrowth` (boolean)** documented in the published Sizer JSON Schema (`docs/json-schema/odin-sizer.schema.json`). Backwards-compatible — the field is optional and absent / `false` keeps the historical Year-1 sizing.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -408,6 +415,20 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.65 - Capacity Runway rewrite + tick-box to size for 5-year compound YoY growth (issue #254)
+
+> **Capacity Runway projection rewritten — accuracy fixes plus a new opt-in tick-box that sizes the hardware for the full 5 years of compound YoY growth** (issue #254) instead of just Year 1. Because every Sizer calculation already routes through `getGrowthFactor()`, the single switch from `(1 + pct/100)` to `(1 + pct/100)^5` automatically propagates into workload totals, the node-count recommendation, the auto-scale / rack-shrink loops, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes.
+
+- **New tick-box: *Size hardware to accommodate 5 years of compound YoY growth*** (issue #254) inside the `📈 Capacity Runway` section. Off by default. Tick it and `getGrowthFactor()` switches from `(1 + pct/100)^1` to `(1 + pct/100)^5` (10 % → ×1.61051, 20 % → ×2.48832, 30 % → ×3.71293, 50 % → ×7.59375). Persists through `localStorage` save/resume, JSON export/import, Share-as-URL, and 🔄 Reset (returns to unticked). New `getGrowthYears()` helper + `onSizeFor5YrGrowthChange()` handler + new top-level `sizeFor5YrGrowth` (boolean) field in the published Sizer JSON Schema (backwards-compatible).
+- **Capacity Runway — 6 accuracy fixes** in `updateGrowthProjection()`:
+  - Storage column now reads from `#storage-total` (the capacity-bar element) instead of the non-existent `#usable-storage` (the old element ID was a pre-rename relic, so `getElementById` returned `null` and the storage cap silently fell to 0).
+  - Storage `TB → GB` conversion now uses **× 1000** (decimal) instead of **× 1024** (binary), matching the rest of the Sizer's `1 TB = 1000 GB` convention.
+  - Round-trip drift eliminated — the function now receives **raw pre-growth totals** from `calculateRequirements()` instead of *already-grown* totals + dividing back out (which caused Year 1 to read 101 % even though the design was sized for exactly Year 1).
+  - **Disaggregated Storage now supported** — the projection detects disaggregated mode, suppresses the storage *utilisation* column (SAN scaling isn't bounded by the cluster), and shows the **projected SAN size required** per year (e.g. *Year 5: 87.3 TB SAN*).
+  - **GPU column** when any workload requests GPUs and the design has them, with GPU pressure feeding into the peak-utilisation column.
+  - **"Already at capacity" detection** — if Year 0 (the *Now* row) already shows ≥ 90 % on any resource, the summary line reads `🚫 Already at capacity` instead of the confusing "runway: 0 years" the old code produced.
+- **New testable helper `_computeGrowthMultiplier(pct, years)`** extracted from `getGrowthFactor()` so the compound-growth math has unit coverage without DOM stubs. Guards null / NaN / `years < 1` to default to 1.
 
 #### 0.22.64 - Disaggregated Storage Sizer auto-scales rack count both ways + dropdown label rename
 

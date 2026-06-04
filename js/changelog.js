@@ -53,6 +53,26 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.65</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">June 4, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer <strong>Capacity Runway projection</strong> rewritten &mdash; accuracy fixes plus a new opt-in tick-box that <strong>sizes the hardware for the full 5 years of compound YoY growth</strong> (issue #254) instead of just Year&nbsp;1. The single switch in <code>getGrowthFactor()</code> automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes &mdash; no per-call-site changes.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>New tick-box: <em>Size hardware to accommodate 5 years of compound YoY growth</em></strong> (issue #254) inside the <code>&#x1F4C8; Capacity Runway</code> section. Off by default. Tick it and <code>getGrowthFactor()</code> switches from <code>(1 + pct/100)<sup>1</sup></code> to <code>(1 + pct/100)<sup>5</sup></code> &mdash; 10&nbsp;% becomes &times;1.61, 20&nbsp;% becomes &times;2.49, 30&nbsp;% becomes &times;3.71, 50&nbsp;% becomes &times;7.59. State persists through Resume, JSON import/export, Share-as-URL, and &#x1F504;&nbsp;Reset (returns to unticked).</li>
+                        <li><strong>Capacity Runway projection &mdash; 6 accuracy fixes:</strong>
+                            <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                                <li>Storage column read from a non-existent <code>#usable-storage</code> element with a wrong <code>&times;&nbsp;1024</code> conversion &rarr; now reads from <code>#storage-total</code> (the capacity-bar element) with the correct <code>&times;&nbsp;1000</code> decimal-TB conversion.</li>
+                                <li>Round-trip drift eliminated &mdash; the projection used to receive <em>already-grown</em> totals and divide back out, drifting +1 vCPU / +1 GB and making Year&nbsp;1 read 101&nbsp;%. The function now receives <strong>raw pre-growth totals</strong> directly from <code>calculateRequirements()</code>.</li>
+                                <li><strong>Disaggregated Storage now supported</strong> &mdash; suppresses the storage utilisation column (SAN scaling isn't bounded by the cluster) and instead shows the <strong>projected SAN size required</strong> per year (e.g. <em>Year&nbsp;5: 87.3 TB SAN</em>).</li>
+                                <li><strong>GPU column</strong> when any workload requests GPUs, with GPU pressure feeding into peak-utilisation.</li>
+                                <li><strong>&quot;Already at capacity&quot; detection</strong> &mdash; if Year&nbsp;0 (Now) is already &ge;&nbsp;90&nbsp;%, the summary reads <em>&#x1F6AB; Already at capacity (&ge;&nbsp;90&nbsp;%) at current demand &mdash; design cannot absorb additional N&nbsp;% annual growth</em> instead of confusingly reporting zero-year runway.</li>
+                                <li>Dead <code>nodeCount</code> parameter dropped from <code>updateGrowthProjection()</code>.</li>
+                            </ul>
+                        </li>
+                        <li><strong>New testable helper <code>_computeGrowthMultiplier(pct, years)</code></strong> extracted from <code>getGrowthFactor()</code> so the compound-growth math has direct unit coverage without DOM stubs.</li>
+                        <li><strong>New top-level field <code>sizeFor5YrGrowth</code> (boolean)</strong> documented in the published Sizer JSON Schema. Backwards-compatible (optional; absent / false keeps the historical Year-1 sizing).</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.64</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">June 4, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Disaggregated Storage Sizer <strong>auto-scales the rack count both ways</strong> &mdash; up when the conservative node loop has hit the per-rack machine cap with utilisation still &ge;&nbsp;90&nbsp;% (preferring more racks / machines over escalating to 3-4&nbsp;TB DIMMs), and <strong>back down when workloads shrink or are removed</strong> and the workload comfortably fits at fewer racks &mdash; and renames the per-rack dropdown label to <strong>Physical Machines per Rack</strong> to match the wider Sizer &quot;Nodes &rarr; Physical Machines&quot; terminology refresh.</p>

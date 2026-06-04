@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.65] - 2026-06-04
+
+Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt-in tick-box that **sizes the hardware for the full 5 years of compound YoY growth** (issue #254) instead of just Year 1. Because the rest of the Sizer already routes every sizing calculation through `getGrowthFactor()`, the single switch from `(1 + pct/100)` to `(1 + pct/100)^5` automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes required.
+
+### Added
+
+- **Tick-box: *Size hardware to accommodate 5 years of compound YoY growth*** (issue #254) inside the `📈 Capacity Runway — Year-over-Year Growth Projection` section in the Sizer (`sizer/index.html`). Off by default — preserves the historical "Year 1 + growth %" sizing. Tick it and `getGrowthFactor()` switches from `(1 + pct/100)^1` to `(1 + pct/100)^5` (10 % → ×1.61051, 20 % → ×2.48832, 30 % → ×3.71293, 50 % → ×7.59375), so all downstream sizing targets Year-5 demand instead of Year-1 demand. Persists through `localStorage` save/resume, JSON export/import, Share-as-URL, and 🔄 Reset (returns to unticked).
+- **`_computeGrowthMultiplier(growthPct, years)` pure helper** in `sizer/sizer.js`, extracted from `getGrowthFactor()` so the compound-growth math has unit coverage without DOM stubs. Guards null / NaN / `years < 1` to default to 1.
+- **`getGrowthYears()` helper** in `sizer/sizer.js` — reads the new `#size-for-5yr-growth` checkbox and returns 5 or 1.
+- **`onSizeFor5YrGrowthChange()` handler** in `sizer/sizer.js` — fires on tick-box change, calls `onHardwareConfigChange()` to re-run the full calculation.
+- **`sizeFor5YrGrowth` (boolean) field** documented in the published Sizer JSON Schema (`docs/json-schema/odin-sizer.schema.json`). Backwards-compatible — optional; absent / `false` keeps the historical Year-1 sizing.
+
+### Changed
+
+- **`updateGrowthProjection()` in `sizer/sizer.js` rewritten** to receive **raw pre-growth totals** from `calculateRequirements()` instead of *already-grown* totals, eliminating the round-trip drift (the old code did `Math.round(grown / 1.10)` which could drift +1 vCPU / +1 GB and make Year 1 read 101 % even though the design was sized for exactly Year 1). Signature is now `(rawVcpus, rawMemory, rawStorage, rawGpus, hwConfig, effectiveNodes)` — the unused `nodeCount` parameter has been dropped.
+- **Capacity Runway table now supports Disaggregated Storage** — previously the storage column collapsed to 0 % because `#storage-total` shows the literal text `External SAN` (`parseFloat` → NaN). The projection now detects disaggregated mode, suppresses the storage *utilisation* column (SAN scaling isn't bounded by the cluster), and shows the **projected SAN size required** in TB / GB per year (e.g. `Year 5: 87.3 TB SAN`).
+- **Capacity Runway table now has a GPU column** when any workload requests GPUs and the design has them. The GPU utilisation % feeds into the peak-utilisation column alongside CPU / memory / storage.
+- **Capacity Runway summary now distinguishes *Already at capacity*** — if Year 0 (the *Now* row) already shows ≥ 90 % utilisation on any resource, the summary line reads `🚫 Already at capacity (≥ 90 %) at current demand — design cannot absorb additional N % annual growth.` instead of the confusing "runway: 0 years" the old code produced.
+- **Capacity Runway bottom-hint line refreshed** — when the 5-year tick-box is **off**, the hint shows the 5-year multiplier and reminds the user how to enable it (`Hardware is sized for Year 1 demand (current + N %). To pre-provision for all 5 years (×M.NN), tick the box above.`). When **on**, it confirms `Hardware is sized for the full 5-year compound horizon (N % YoY × 5y ≈ ×M.NN). All five years should fit within capacity.`
+- **`getGrowthFactor()` in `sizer/sizer.js` now compounds across `getGrowthYears()`** via `Math.pow(1 + pct/100, getGrowthYears())`. Default behaviour is unchanged (years = 1 when the tick-box is unchecked or absent), so existing payloads, screenshots, and CI test expectations are preserved.
+
+### Fixed
+
+- **Capacity Runway storage utilisation now reads from `#storage-total`** instead of the non-existent `#usable-storage` element (the old element ID was a pre-rename relic that never existed in the DOM, so `getElementById` returned `null` and the storage cap silently fell to 0 — making the storage column always show 0 % regardless of actual usage).
+- **Capacity Runway storage TB → GB conversion now uses ×1000 (decimal)** instead of ×1024 (binary), matching the rest of the Sizer's `1 TB = 1000 GB` convention used for capacity bars, sizing notes, and exports.
+- **Capacity Runway Year 1 no longer reads 101 % on round-trip** for designs sized at exactly the configured growth percentage (see *Changed* above re: raw totals).
+
+### Tests
+
+- The 6 Capacity Runway bug fixes are exercised through the existing Sizer end-to-end calculation tests; the rewritten function gets implicit coverage via the existing `calculateRequirements()` paths. New direct unit coverage for `_computeGrowthMultiplier()` exercises the compound math (10 % × 5y → 1.61051, 0 % × any → 1, NaN guards).
+
+---
+
 ## [0.22.64] - 2026-06-04
 
 Disaggregated Storage Sizer **auto-scales the rack count both ways** — up when the conservative node loop has hit the per-rack machine cap with utilisation still ≥ 90 % (preferring more racks / machines over escalating to 3-4 TB DIMMs), **and back down when workloads shrink or are removed and the workload comfortably fits at fewer racks** — and renames the per-rack dropdown label to **Physical Machines per Rack** to match the wider Sizer "Nodes → Physical Machines" terminology refresh.

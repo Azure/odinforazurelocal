@@ -3307,6 +3307,116 @@
             })()
         ]);
 
+        // --- _computeGrowthMultiplier() pure helper ---
+        // Pure helper extracted from getGrowthFactor() so the compound-growth
+        // math has direct unit coverage without DOM stubs (v0.22.65, issue #254).
+        testSuite('_computeGrowthMultiplier()', 'sizer.js', [
+            assert(_computeGrowthMultiplier(0, 1) === 1,
+                '0% × 1y → 1', 1, _computeGrowthMultiplier(0, 1)),
+            assert(_computeGrowthMultiplier(0, 5) === 1,
+                '0% × 5y → 1 (no growth = no compounding)', 1, _computeGrowthMultiplier(0, 5)),
+            assert(_computeGrowthMultiplier(10, 1) === 1.1,
+                '10% × 1y → 1.10 (historical Year-1 behaviour)', 1.1, _computeGrowthMultiplier(10, 1)),
+            (() => {
+                // 10% × 5y → 1.10^5 = 1.61051
+                const r = _computeGrowthMultiplier(10, 5);
+                return assert(Math.abs(r - 1.61051) < 1e-6,
+                    '10% × 5y → 1.61051 (compound 5-year horizon)', 1.61051, r);
+            })(),
+            (() => {
+                const r = _computeGrowthMultiplier(20, 5);
+                return assert(Math.abs(r - 2.48832) < 1e-6,
+                    '20% × 5y → 2.48832', 2.48832, r);
+            })(),
+            (() => {
+                const r = _computeGrowthMultiplier(50, 5);
+                return assert(Math.abs(r - 7.59375) < 1e-6,
+                    '50% × 5y → 7.59375', 7.59375, r);
+            })(),
+            assert(_computeGrowthMultiplier(10, 0) === 1.1,
+                'years=0 → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, 0)),
+            assert(_computeGrowthMultiplier(10, -3) === 1.1,
+                'years<0 → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, -3)),
+            assert(_computeGrowthMultiplier(10, NaN) === 1.1,
+                'years=NaN → guarded as 1 (1.10^1 = 1.10)', 1.1, _computeGrowthMultiplier(10, NaN)),
+            assert(_computeGrowthMultiplier(null, 5) === 1,
+                'pct=null → 0% → 1 regardless of years', 1, _computeGrowthMultiplier(null, 5)),
+            assert(_computeGrowthMultiplier('10', '5') === _computeGrowthMultiplier(10, 5),
+                'String args parse like numbers', _computeGrowthMultiplier(10, 5), _computeGrowthMultiplier('10', '5'))
+        ]);
+
+        // --- getGrowthYears() + getGrowthFactor() (DOM-backed, issue #254) ---
+        // The 5-year tick-box is the only place a checkbox lives in the Sizer
+        // touched by these helpers; we mutate it directly to cover both modes.
+        // NOTE: this suite runs BEFORE the shared hardware-stubs IIFE further
+        // down the file, so we have to create the DOM elements ourselves.
+        testSuite('getGrowthYears() + getGrowthFactor() with #size-for-5yr-growth', 'sizer.js', (() => {
+            const results = [];
+            let cb = document.getElementById('size-for-5yr-growth');
+            const cbCreated = !cb;
+            if (!cb) {
+                cb = document.createElement('input');
+                cb.id = 'size-for-5yr-growth';
+                cb.type = 'checkbox';
+                cb.style.display = 'none';
+                document.body.appendChild(cb);
+            }
+            let growthEl = document.getElementById('future-growth');
+            const growthCreated = !growthEl;
+            if (!growthEl) {
+                growthEl = document.createElement('select');
+                growthEl.id = 'future-growth';
+                growthEl.style.display = 'none';
+                ['0','10','20','30','40','50'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v; opt.text = v;
+                    growthEl.appendChild(opt);
+                });
+                document.body.appendChild(growthEl);
+            }
+            const savedType = cb.type;
+            cb.type = 'checkbox';
+            const savedChecked = cb.checked;
+            const savedGrowth = growthEl.value;
+            try {
+                // --- getGrowthYears() ---
+                cb.checked = false;
+                results.push(assert(getGrowthYears() === 1,
+                    'checkbox unchecked → 1 year (historical Year-1 sizing)', 1, getGrowthYears()));
+                cb.checked = true;
+                results.push(assert(getGrowthYears() === 5,
+                    'checkbox checked → 5 years (compound horizon)', 5, getGrowthYears()));
+
+                // --- getGrowthFactor() round-trips through getGrowthYears() ---
+                growthEl.value = '10';
+                cb.checked = false;
+                results.push(assert(Math.abs(getGrowthFactor() - 1.1) < 1e-9,
+                    '10% unchecked → 1.10 (Year 1)', 1.1, getGrowthFactor()));
+                cb.checked = true;
+                results.push(assert(Math.abs(getGrowthFactor() - 1.61051) < 1e-6,
+                    '10% checked → 1.61051 (5-year compound)', 1.61051, getGrowthFactor()));
+
+                growthEl.value = '0';
+                cb.checked = true;
+                results.push(assert(getGrowthFactor() === 1,
+                    '0% checked → 1 (no compounding when no growth)', 1, getGrowthFactor()));
+
+                growthEl.value = '50';
+                cb.checked = true;
+                results.push(assert(Math.abs(getGrowthFactor() - 7.59375) < 1e-6,
+                    '50% checked → 7.59375', 7.59375, getGrowthFactor()));
+            } finally {
+                cb.checked = savedChecked;
+                cb.type = savedType;
+                growthEl.value = savedGrowth;
+                // Clean up only what we created — leave shared stubs in place
+                // for the suites that run after us.
+                if (cbCreated && cb.parentNode) cb.parentNode.removeChild(cb);
+                if (growthCreated && growthEl.parentNode) growthEl.parentNode.removeChild(growthEl);
+            }
+            return results;
+        })());
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),
@@ -5418,6 +5528,11 @@
                 { id: 'node-count', tag: 'select', values: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], defaultVal: '3' },
                 { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware','low-capacity'], defaultVal: 'standard' },
                 { id: 'future-growth', tag: 'select', values: ['0','10','20','30','40','50'], defaultVal: '0' },
+                // Plain <input> stub is fine — when .checked is undefined (no type='checkbox'),
+                // getGrowthYears() returns 1, preserving historical Year-1 sizing for all
+                // unrelated tests. The dedicated _computeGrowthMultiplier / getGrowthFactor
+                // suites set el.type='checkbox' + el.checked explicitly.
+                { id: 'size-for-5yr-growth', tag: 'input', defaultVal: '' },
                 { id: 'resiliency', tag: 'select', values: ['simple','2way','3way','4way'], defaultVal: '2way' },
                 { id: 'node-recommendation', tag: 'div', defaultVal: '' },
                 { id: 'node-recommendation-text', tag: 'span', defaultVal: '' },
