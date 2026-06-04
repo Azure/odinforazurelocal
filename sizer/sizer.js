@@ -9930,6 +9930,18 @@ function applyImportedSizerState(d) {
         _lastMultiPowerPrice = d.multiPowerPriceInput;
     }
 
+    // Re-hydrate which fields were AUTO-scaled in the source session. Same
+    // rationale as resumeSizerState(): without this, the cluster-type AUTO
+    // badge is missing after a JSON import or a Share-via-URL load, and the
+    // auto-downgrade block (which gates on `_autoScaledFields.has('cluster-type')`)
+    // can never fire when the recipient later removes a MANUAL override.
+    if (Array.isArray(d.autoScaledFields)) {
+        for (const fid of d.autoScaledFields) {
+            markAutoScaled(fid);
+        }
+    }
+    _disaggAutoUpgraded = !!d.disaggAutoUpgraded;
+
     calculateRequirements();
 
     // Persist to localStorage
