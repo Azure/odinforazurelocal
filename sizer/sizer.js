@@ -1349,13 +1349,15 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 }
 
 // On a Disaggregated cluster already running, decide whether to auto-bump the
-// rack count (1 → 2 → 3 → 4) when the conservative node loop has hit the
-// per-rack cap (rackCount × 16) with utilisation still ≥ 90%. Capped at 4
-// racks — going to 5–8 racks forces maxPerRack < 16 (a real floor-space /
-// fabric change) which should stay a manual decision.
+// rack count when the conservative node loop has hit the per-rack cap
+// (rackCount × maxPerRack) with utilisation still ≥ 90%. Capped at 8 racks
+// (the disagg architectural maximum, 64 total machines). The caller already
+// guards this with `!_manualFields.has('disagg-rack-count')`, so we only
+// reach here when the user has NOT pinned the rack count — when they have
+// pinned it (at any value), auto won't touch it regardless of size.
 //
 // Fires in EITHER of two cases:
-//   (a) The workload recommendation already exceeds current rackCount × 16 —
+//   (a) The workload recommendation already exceeds current rack capacity —
 //       guaranteed insufficient capacity at any per-machine memory size.
 //   (b) The conservative auto-scale loop hit the per-rack node cap with
 //       utilisation still ≥ 90 % on some resource (conservativeFailed=true).
@@ -1364,16 +1366,18 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 //       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
 // Returns { scale: false } or { scale: true, racks: N }.
 function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
-    const MAX_AUTO_RACKS = 4;
+    const MAX_AUTO_RACKS = 8;
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur >= MAX_AUTO_RACKS) return { scale: false };
     const rec = parseInt(recommendedNodes, 10) || 0;
-    const recExceedsCap = rec > cur * 16;
+    const curCap = cur * getDisaggMaxNodesPerRack(cur);
+    const recExceedsCap = rec > curCap;
     if (!recExceedsCap && !conservativeFailed) return { scale: false };
-    // Target rack count: enough to fit the recommendation, otherwise just
-    // bump by one tier. Always capped at MAX_AUTO_RACKS.
-    const targetByRec = rec > 0 ? Math.ceil(rec / 16) : (cur + 1);
-    const newRacks = Math.min(MAX_AUTO_RACKS, Math.max(cur + 1, targetByRec));
+    // Target rack count: bump by one tier and let the recursive recalc
+    // re-evaluate whether further bumps are needed. Per-rack capacity varies
+    // (16/16/16/16/12/10/9/8 nodes for 1..8 racks), so a single-step bump is
+    // simpler and oscillation-safe than projecting `Math.ceil(rec / 16)`.
+    const newRacks = Math.min(MAX_AUTO_RACKS, cur + 1);
     if (newRacks <= cur) return { scale: false };
     return { scale: true, racks: newRacks };
 }
@@ -1972,7 +1976,35 @@ function updateManualOverrideWarning(computePercent, memoryPercent, storagePerce
 
     const resourceStr = overResources.join(', ');
     const overrideStr = overrideLabels.join(', ');
-    warningText.textContent = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+    let msg = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+
+    // On Disaggregated, when Number of Racks is MANUAL and the cluster is at
+    // its per-rack node cap, adding more racks could be a viable alternative
+    // — but ONLY for over-utilized resources that scale with machine count.
+    // Storage on Disaggregated is SAN-backed, so more racks don't add storage
+    // capacity; only Compute and Memory benefit from more machines.
+    const clusterTypeEl = document.getElementById('cluster-type');
+    const rackHelpsCompute = computePercent >= THRESHOLD;
+    const rackHelpsMemory = memoryPercent >= THRESHOLD;
+    if (clusterTypeEl && clusterTypeEl.value === 'disaggregated'
+        && _manualFields.has('disagg-rack-count')
+        && (rackHelpsCompute || rackHelpsMemory)) {
+        const rackEl = document.getElementById('disagg-rack-count');
+        const curRacks = rackEl ? (parseInt(rackEl.value, 10) || 1) : 1;
+        const nodeEl = document.getElementById('node-count');
+        const curNodes = nodeEl ? (parseInt(nodeEl.value, 10) || 0) : 0;
+        const perRackCap = getDisaggMaxNodesPerRack(curRacks);
+        const atCap = curNodes >= curRacks * perRackCap;
+        if (atCap && curRacks < 8) {
+            const nextRacks = curRacks + 1;
+            const nextCap = nextRacks * getDisaggMaxNodesPerRack(nextRacks);
+            const which = rackHelpsCompute && rackHelpsMemory ? 'compute / memory'
+                        : rackHelpsCompute ? 'compute' : 'memory';
+            msg += ` Or increase Number of Racks beyond ${curRacks} to add more machines for ${which} headroom (currently capped at ${curRacks} \u00d7 ${perRackCap} = ${curRacks * perRackCap} machines; ${nextRacks} racks would allow up to ${nextCap}).`;
+        }
+    }
+
+    warningText.textContent = msg;
     warningEl.style.display = 'flex';
 }
 

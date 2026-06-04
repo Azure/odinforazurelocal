@@ -3143,11 +3143,14 @@
 
         // --- shouldAutoScaleDisaggRacks() ---
         // Already-Disaggregated rack auto-scale fires in EITHER of two cases:
-        //  (a) recommendedNodes > currentRacks × 16 (workload genuinely overflows the cap), OR
+        //  (a) recommendedNodes > current rack capacity (workload genuinely overflows), OR
         //  (b) conservativeFailed === true (conservative loop hit per-rack cap at ≥90% util) —
         //      prefer adding racks over escalating to 3-4 TB DIMMs.
-        // Always capped at 4 racks (going to 5–8 forces maxPerRack < 16: a real
-        // fabric / floor-space change that should stay manual).
+        // Single-step bump (cur+1) per recalc; the recursive recalc will re-fire and
+        // bump again if still over-capacity. Capped at 8 racks (the disagg architectural
+        // maximum, 64 total machines). The caller already guards with
+        // `!_manualFields.has('disagg-rack-count')`, so this fn only runs when the
+        // user has NOT pinned the rack count.
         testSuite('shouldAutoScaleDisaggRacks()', 'sizer.js', [
             // --- (a) recommendation-driven path (conservativeFailed=false) ---
             (() => {
@@ -3168,32 +3171,37 @@
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 40, false);
                 return assert(r.scale === true && r.racks === 3,
-                    '2 racks / 40 needed → bump to 3 racks (ceil(40/16)=3)', '3', String(r.racks));
+                    '2 racks / 40 needed → bump one tier to 3 racks', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 60, false);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 60 needed → bump to 4 racks (cap)', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 60 needed → bump one tier to 3 racks (recursive recalc will bump again)', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 200, false);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 200 needed → capped at 4 racks', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 200 needed → bump one tier to 3 racks (recursive recalc walks up to cap)', '3', String(r.racks));
             })(),
             (() => {
-                const r = shouldAutoScaleDisaggRacks(4, 80, false);
+                const r = shouldAutoScaleDisaggRacks(4, 80, true);
+                return assert(r.scale === true && r.racks === 5,
+                    '4 racks / 80 needed / CONSERVATIVE FAILED → bump to 5 racks (was capped at 4, now allowed)', '5', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(8, 80, true);
                 return assert(r.scale === false,
-                    '4 racks / 80 needed → no scale (already at MAX_AUTO_RACKS)', false, r.scale);
+                    '8 racks / 80 needed / CONSERVATIVE FAILED → no scale (at MAX_AUTO_RACKS=8)', false, r.scale);
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(3, 49, false);
                 return assert(r.scale === true && r.racks === 4,
-                    '3 racks / 49 needed → bump to 4 racks (ceil(49/16)=4)', '4', String(r.racks));
+                    '3 racks / 49 needed → bump to 4 racks (49 > 3×16=48)', '4', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks('2', 50, false);
-                return assert(r.scale === true && r.racks === 4,
-                    'String "2" / 50 needed → parses → bump to 4', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    'String "2" / 50 needed → parses → bump one tier to 3', '3', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(null, 10, false);
@@ -3223,13 +3231,13 @@
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(4, 40, true);
-                return assert(r.scale === false,
-                    '4 racks / 40 needed / CONSERVATIVE FAILED → no scale (cap)', false, r.scale);
+                return assert(r.scale === true && r.racks === 5,
+                    '4 racks / 40 needed / CONSERVATIVE FAILED → bump to 5 (cap raised to 8)', '5', String(r.racks));
             })(),
             (() => {
                 const r = shouldAutoScaleDisaggRacks(2, 70, true);
-                return assert(r.scale === true && r.racks === 4,
-                    '2 racks / 70 needed / CONSERVATIVE FAILED → 4 (rec path still wins when bigger)', '4', String(r.racks));
+                return assert(r.scale === true && r.racks === 3,
+                    '2 racks / 70 needed / CONSERVATIVE FAILED → bump one tier to 3 (recursive recalc walks up)', '3', String(r.racks));
             })()
         ]);
 
