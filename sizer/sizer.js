@@ -2017,7 +2017,7 @@ function updateManualOverrideWarning(computePercent, memoryPercent, storagePerce
             }
             if (nextRacks > 0) {
                 const which = rackHelpsCompute && rackHelpsMemory ? 'compute / memory'
-                            : rackHelpsCompute ? 'compute' : 'memory';
+                    : rackHelpsCompute ? 'compute' : 'memory';
                 msg += ` Or increase Number of Racks beyond ${curRacks} to add more machines for ${which} headroom (currently capped at ${curRacks} \u00d7 ${perRackCap} = ${curCap} machines; ${nextRacks} racks would allow up to ${nextCap}).`;
             }
             // else: no rack count from cur+1..8 increases total cap (e.g.
