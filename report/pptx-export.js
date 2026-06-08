@@ -2000,9 +2000,12 @@
             }
             out.push('NICs per node: ' + keys.length + ' data ports + 1 BMC');
 
-            // CodeQL js/remote-property-injection (#17): use a Map so
-            // user-controlled NIC speed strings are stored as explicit
-            // key/value pairs with safe dictionary semantics.
+            // CodeQL js/remote-property-injection (#17): NIC speed labels can
+            // come from user-controlled config, so treat them as untrusted keys.
+            // A plain object dictionary can be abused via special property names
+            // (for example "__proto__", "constructor", "prototype"), causing
+            // prototype/property injection behavior. Map avoids object-prototype
+            // key collisions and keeps counts in explicit key/value entries.
             const disaggBySpeed = new Map();
             let rdmaCount = 0;
             keys.forEach(function(k) {
@@ -2026,9 +2029,12 @@
             return out;
         }
         out.push('NICs per node: ' + cfg.length);
-        // CodeQL js/remote-property-injection (#16): use a Map so
-        // user-controlled NIC speed strings are stored as explicit
-        // key/value pairs with safe dictionary semantics.
+        // CodeQL js/remote-property-injection (#16): NIC speed labels can
+        // come from user/config-driven input. If we aggregate with a plain
+        // object and dynamic keys, special property names (for example
+        // "__proto__" or "constructor") can collide with inherited members.
+        // Use Map to keep untrusted keys as data-only entries and avoid
+        // prototype/property-injection semantics.
         const hciBySpeed = new Map();
         let rdma = 0;
         cfg.forEach(function(p) {

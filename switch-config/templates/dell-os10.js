@@ -11,6 +11,9 @@
 
     const DellOs10 = {};
 
+    // Reserved port-channel ID used for the VLT/BMC peer link (po102).
+    const VLT_PEER_LINK_PORT_CHANNEL_ID = 102;
+
     // ── system.j2 ────────────────────────────────────────────────────
     DellOs10.renderSystem = function(data) {
         const sw = data.switch;
@@ -416,7 +419,7 @@
                     lines.push('  flowcontrol receive off');
                 } else if ((pc.type || '').toLowerCase() === 'trunk') {
                     // For VLT/BMC peer-link members (po102), render as no switchport
-                    if (pc.id === 102 || (pc.description || '').toLowerCase().indexOf('tor_bmc') !== -1) {
+                    if (pc.id === VLT_PEER_LINK_PORT_CHANNEL_ID || (pc.description || '').toLowerCase().indexOf('tor_bmc') !== -1) {
                         lines.push('  no switchport');
                         lines.push('  mtu 9216');
                         lines.push('  flowcontrol receive off');
@@ -472,6 +475,9 @@
             if (ibgpPeerIp && !mlagRange) {
                 return '! vlt.j2 - NOTICE: VLT configuration skipped - MLAG peer link interface not found';
             }
+            if (!ibgpPeerIp && mlagRange) {
+                return '! vlt.j2 - NOTICE: VLT configuration skipped - iBGP peer IP not found';
+            }
             return '';
         }
 
@@ -498,7 +504,7 @@
         if (!data.prefix_lists) return '';
         const lines = [];
         lines.push('! prefix_list.j2');
-        for (const name in data.prefix_lists) {
+        for (const name of Object.keys(data.prefix_lists)) {
             const entries = data.prefix_lists[name];
             for (let i = 0; i < entries.length; i++) {
                 const e = entries[i];
