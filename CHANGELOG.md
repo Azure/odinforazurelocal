@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.66] - 2026-06-11
+
+Disaggregated Designer — **iSCSI external SAN attach is no longer gated as "Coming Soon"**. Microsoft has published external storage array (SAN) attach for Azure Local (build `azloc-2605`, requires Azure Local **version 2604 or later**), with **iSCSI offered in Public Preview**. ODIN's DA1 *Storage Type* step previously badged both iSCSI cards "Coming Soon / Feature not available yet" even though the wizard logic was already fully implemented and the Sizer already exposed the same three storage types ungated. This release corrects the availability signalling and adds the supporting reference content. Presentation/content only — no wizard logic, no JSON-schema change (the `fc_san` / `iscsi_4nic` / `iscsi_6nic` storage types already exist).
+
+### Added
+
+- **DA1 availability note** (`index.html`) under the storage-type cards: `Fibre Channel · iSCSI (Preview)`, *External SAN attach requires Azure Local version 2604 or later*, plus a collapsible **Supported SAN arrays** list — Dell PowerStore T/Q (OS 3.0+), Pure Storage FlashArray (X/C/XL/E/RC20), Hitachi VSP One Block / VSP 5x00 / Exx90 / Fxx0 / Gxx0, HPE Alletra MP 10000, NetApp AFF/ASA/ONTAP, Lenovo ThinkSystem DS/DM/DG — noting all listed arrays support both FC and iSCSI, with links to the official [Supported SAN solutions](https://learn.microsoft.com/azure/azure-local/concepts/san-requirements) and [Connect an external storage array](https://learn.microsoft.com/azure/azure-local/deploy/enable-external-storage) Microsoft Learn pages.
+- **Preview availability badge** on the DA1 iSCSI storage-type cards — new `.preview-badge` (purple, from `--accent-purple`) class in `css/style.css`, kept separate from the existing `.coming-soon-badge` (still used by the private-path-preview feature). The Fibre Channel card is left unbadged; the availability note below the cards flags iSCSI as Preview.
+- **Sizer Storage Connectivity note** (`sizer/index.html`) under the disaggregated storage-type dropdown: *Fibre Channel · iSCSI (preview). External SAN attach requires Azure Local version 2604 or later.*
+
+### Changed
+
+- **DA1 iSCSI cards (4-NIC and 6-NIC)** — `Coming Soon` badge + "⚠️ Feature not available yet" note replaced with a **Preview** badge. The Fibre Channel card is left unbadged. No change to `selectDisaggOption()` or `js/disaggregated.js` behaviour (selection was never actually blocked — the gating was cosmetic).
+
+---
+
 ## [0.22.65] - 2026-06-04
 
 Sizer **Capacity Runway projection** rewritten — accuracy fixes plus a new opt-in **No/Yes dropdown** that **sizes the hardware for the full 5 years of compound YoY growth** (issue #254) instead of just Year 1. Because the rest of the Sizer already routes every sizing calculation through `getGrowthFactor()`, the single switch from `(1 + pct/100)` to `(1 + pct/100)^5` automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes — no per-call-site changes required.

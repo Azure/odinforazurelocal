@@ -53,6 +53,16 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.66</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">June 11, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Disaggregated Designer &mdash; <strong>iSCSI external SAN is no longer gated as &ldquo;Coming Soon&rdquo;</strong>. Microsoft has published external storage array attach for Azure Local (version <strong>2604+</strong>), with <strong>iSCSI offered in Preview</strong>. The DA1 <em>Storage Type</em> cards now flag iSCSI as <strong>Preview</strong>, plus a version-requirement note and a supported-SAN-vendor reference, and the Sizer Storage Connectivity row gets the same note.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>DA1 storage-type badges</strong> &mdash; the two iSCSI cards (4-NIC and 6-NIC) change from a <code>Coming Soon</code> badge + <em>&ldquo;Feature not available yet&rdquo;</em> note to a <strong>Preview</strong> badge; the Fibre Channel card is left unbadged. The wizard logic was already fully implemented (and the Sizer already exposed iSCSI ungated) &mdash; this only corrects the now-inaccurate availability signalling.</li>
+                        <li><strong>DA1 availability note</strong> &mdash; new note under the storage-type cards: <em>Fibre Channel &middot; iSCSI (Preview)</em>, requires Azure Local 2604+, plus a collapsible <strong>Supported SAN arrays</strong> list (Dell PowerStore, Pure Storage FlashArray, Hitachi VSP One, HPE Alletra MP 10000, NetApp ONTAP, Lenovo ThinkSystem) linking to the official Microsoft Learn SAN-requirements and external-storage docs.</li>
+                        <li><strong>Sizer Storage Connectivity row</strong> &mdash; same one-line iSCSI Preview + 2604+ note under the dropdown.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.65</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">June 4, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer <strong>Capacity Runway projection</strong> rewritten &mdash; accuracy fixes plus a new opt-in <strong>No/Yes dropdown</strong> that <strong>sizes the hardware for the full 5 years of compound YoY growth</strong> (issue #254) instead of just Year&nbsp;1. The single switch in <code>getGrowthFactor()</code> automatically propagates into workload totals, the node-count recommendation, the auto-scale loop, the capacity bars, the GPU bar, and the sizing notes &mdash; no per-call-site changes.</p>
