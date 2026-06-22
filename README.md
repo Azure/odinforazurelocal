@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.66 - Available here: https://aka.ms/ODIN
+## Version 0.22.67 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,14 +52,14 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.66 - Latest Release
+### 🎉 Version 0.22.67 - Latest Release
 
-> **iSCSI external SAN attach is no longer gated as "Coming Soon" in the Disaggregated Designer.** Microsoft has published external storage array (SAN) attach for Azure Local (build `azloc-2605`, **Azure Local version 2604 or later**), with **iSCSI offered in Public Preview**. ODIN's DA1 *Storage Type* step previously badged both iSCSI cards "Coming Soon / Feature not available yet" even though the wizard logic was already fully implemented (and the Sizer already exposed the same three storage types ungated). This release corrects the availability signalling and adds a supported-SAN-vendor reference plus the Azure Local 2604+ version requirement. Presentation/content only — no wizard logic change and no JSON-schema change (the `fc_san` / `iscsi_4nic` / `iscsi_6nic` storage types already exist).
+> **Disaggregated Storage Sizer bug fix (issue #261) — internal disks are no longer sized to hold the SAN's storage.** Selecting **Disaggregated Storage** previously grew the internal capacity disks to absorb the full workload storage (the same as Hyperconverged), so the greyed-out *Physical Machine Storage Configuration* — and the exported JSON — showed a proportional share of the external SAN as if it were local disk. On a disaggregated cluster the workload data lives on an external SAN, so the physical machines only need OS / boot disks. The Sizer now pins the internal disks to a fixed **2 × 0.96 TB** boot mirror and excludes internal storage from the node-count decision. Sizer-only; no JSON-schema shape change.
 
 **What's new**
-- **DA1 storage-type Preview badge** — the two iSCSI cards (4-NIC and 6-NIC) change from a `Coming Soon` badge + "⚠️ Feature not available yet" note to a **Preview** badge; the Fibre Channel card is left unbadged. Selection behaviour is unchanged — the old gating was purely cosmetic (no `pointer-events` block), so this only fixes the now-inaccurate availability signalling. New `.preview-badge` (purple) CSS class, kept separate from the existing `.coming-soon-badge` still used by the private-path-preview feature.
-- **DA1 availability note** — a new note under the storage-type cards reads `Fibre Channel · iSCSI (Preview)` and *External SAN attach requires Azure Local version 2604 or later*, with a collapsible **Supported SAN arrays** list: Dell PowerStore T/Q (OS 3.0+), Pure Storage FlashArray (X/C/XL/E/RC20), Hitachi VSP One Block / VSP 5x00 / Exx90 / Fxx0 / Gxx0, HPE Alletra MP 10000, NetApp AFF/ASA/ONTAP, Lenovo ThinkSystem DS/DM/DG — noting all listed arrays support both FC and iSCSI — with links to the official [Supported SAN solutions](https://learn.microsoft.com/azure/azure-local/concepts/san-requirements) and [Connect an external storage array](https://learn.microsoft.com/azure/azure-local/deploy/enable-external-storage) Microsoft Learn pages.
-- **Sizer Storage Connectivity note** — the disaggregated storage-type dropdown in the Sizer gets the same one-line iSCSI Preview + Azure Local 2604+ note.
+- **Internal disks are boot-only on Disaggregated** — `autoScaleHardware()` now resets the internal capacity disks to a fixed **2 × 0.96 TB** mirror (`DISAGG_BOOT_DISK_COUNT` / `DISAGG_BOOT_DISK_SIZE_TB`) for disaggregated clusters and never scales them to the workload, so the *Physical Machine Storage Configuration* and the exported JSON reflect OS/boot storage only.
+- **Storage no longer drives node count on Disaggregated** — the conservative node-scaling loop and the storage-headroom check now skip internal disk utilisation for disaggregated clusters (SAN capacity is sized separately), so node count is driven by compute, memory, and GPU pressure. Required alongside the boot-disk reset so shrinking the internal disks doesn't artificially spike storage utilisation and force a higher node count.
+- **Hyperconverged → Disaggregated switch resets the internal disk fields** — changing the deployment type to Disaggregated resets the internal disk fields to the boot mirror immediately, so a design first sized as Hyperconverged no longer carries its inflated internal-disk values into the disaggregated view.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -408,6 +408,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.67 - Disaggregated Sizer no longer mirrors SAN capacity onto internal disks (issue #261)
+
+> **Selecting Disaggregated Storage no longer sizes the internal disks to hold the workload's storage.** Previously the auto-scaler grew the internal capacity disks to absorb the full workload storage on every cluster type, so on Disaggregated Storage the greyed-out *Physical Machine Storage Configuration* (and the exported JSON) showed a proportional share of the external SAN as if it were local disk. On a disaggregated cluster the workload data lives on a SAN, so the physical machines only need OS / boot disks. The Sizer now resets the internal disks to a fixed **2 × 0.96 TB** boot mirror (`DISAGG_BOOT_DISK_COUNT` / `DISAGG_BOOT_DISK_SIZE_TB`), excludes internal storage utilisation from the node-count decision, and resets the disk fields when the deployment type switches from Hyperconverged to Disaggregated. Sizer-only; no JSON-schema shape change (the `capacityDiskCount` / `capacityDiskSize` fields already exist — only their values change).
 
 #### 0.22.66 - iSCSI external SAN promoted from "Coming Soon" to Preview + supported-SAN reference
 
