@@ -16,7 +16,7 @@
             chipIconFile: 'icons/sovereign-vm.svg',
             title: 'General Purpose Workloads',
             subtitle: 'on Azure Local',
-            desc: 'Azure Local VMs enable data residency, regulatory compliance, and low-latency performance in on-premises and disconnected environments.',
+            desc: 'Azure Local VMs enable data residency, regulatory compliance, and low-latency performance in connected and disconnected on-premises environments.',
             recommendedConnectivity: 'connected',
             recommendedScale: 'cluster-16'
         },
