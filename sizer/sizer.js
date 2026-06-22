@@ -6989,9 +6989,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             const totalClusterRawTB = rawPerNodeTB * nodeCount;
             if (totalClusterRawTB > 4000) {
-                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Reduce machines, disk count, or disk size.`);
+                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Switch the deployment type to Disaggregated Storage (external SAN) to remove this internal-storage limit, or reduce machines, disk count, or disk size.`);
                 storageLimitExceeded = true;
-                storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max`);
+                storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max — switch the deployment type to Disaggregated Storage (external SAN), or reduce machines, disk count, or disk size`);
             }
         }
 
@@ -7002,7 +7002,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (storageLimitBanner) {
             storageLimitBanner.style.display = storageLimitExceeded ? 'flex' : 'none';
             if (storageLimitExceeded && storageLimitText) {
-                storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — export is blocked until corrected.';
+                storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — “Configure in Designer” is blocked until corrected (reports can still be exported).';
             }
         }
 
@@ -7468,6 +7468,9 @@ function updateDesignerActionVisibility() {
         if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
             designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
+        } else if (_storageLimitExceeded) {
+            designerBtn.disabled = true;
+            designerBtn.title = 'Storage exceeds Azure Local limits (400 TB per machine or 4 PB per storage pool) — switch the deployment type to Disaggregated Storage (external SAN), or reduce disk count, disk size, or machine count before configuring in Designer';
         } else if (window._sizerVmExceedsNode) {
             designerBtn.disabled = true;
             designerBtn.title = 'One or more VMs exceed per-machine capacity. Reduce VM specs or increase hardware configuration.';
@@ -7604,12 +7607,6 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
 }
 
 function exportSizerWord() {
-    // Block export if storage limits are exceeded
-    if (_storageLimitExceeded) {
-        alert('Export blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before exporting.');
-        return;
-    }
-
     const hwConfig = getHardwareConfig();
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
@@ -7803,7 +7800,7 @@ function escapeHtmlSizer(str) {
 function configureInDesigner() {
     // Block if storage limits are exceeded
     if (_storageLimitExceeded) {
-        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before proceeding.');
+        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Switch the deployment type to Disaggregated Storage (external SAN), or reduce disk count, disk size, or machine count before proceeding.');
         return;
     }
 
