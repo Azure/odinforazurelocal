@@ -79,10 +79,17 @@ function updateOdinTabUrl(tabId) {
  * @param {string} slug - data-topic value, e.g. 'outbound-connectivity'
  */
 function selectKnowledgeTopic(slug) {
-    if (!slug) return false;
+    // Allow-list the known topic slugs so a crafted ?topic= value from the URL
+    // can neither inject into the CSS selector below nor steer the iframe to an
+    // arbitrary src — we only ever activate one of the three built-in nav items
+    // (which carry safe, hard-coded data-src values).
+    const VALID_TOPICS = ['reference-architectures', 'outbound-connectivity', 'azloflows'];
+    if (!slug || VALID_TOPICS.indexOf(slug) === -1) return false;
     const item = document.querySelector('#tab-knowledge .knowledge-nav-item[data-topic="' + slug + '"]');
     if (!item) return false;
-    switchKnowledgePage(item, item.getAttribute('data-src') || '');
+    // Trigger the nav item's own click handler, which calls switchKnowledgePage
+    // with its hard-coded literal src — avoids flowing DOM-read text into iframe.src.
+    item.click();
     return true;
 }
 
