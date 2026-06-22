@@ -5791,6 +5791,71 @@
             })()
         ]);
 
+        testSuite('autoScaleHardware() - disaggregated boot disks (issue #261)', 'sizer.js', [
+            (() => {
+                // Disaggregated: workload storage lives on the external SAN, so the
+                // internal disks must be reset to a fixed boot mirror, never scaled
+                // to hold workload (SAN) storage — even when a large storage demand
+                // would otherwise inflate the capacity disk count on Hyperconverged.
+                const savedClusterType = document.getElementById('cluster-type').value;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
+                _diskSizeUserSet = false;
+                _diskCountUserSet = false;
+                const ctEl1 = document.getElementById('cluster-type');
+                if (ctEl1 && !Array.from(ctEl1.options).some(o => o.value === 'disaggregated')) {
+                    const opt = document.createElement('option'); opt.value = 'disaggregated'; opt.text = 'disaggregated'; ctEl1.appendChild(opt);
+                }
+                document.getElementById('cluster-type').value = 'disaggregated';
+                // Pre-set inflated internal disks (as if scaled while on Hyperconverged)
+                document.getElementById('capacity-disk-count').value = '20';
+                document.getElementById('capacity-disk-size').value = '15.36';
+                const hwConfig = {
+                    totalPhysicalCores: 128, memoryGB: 512, sockets: 2, coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 20, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                // 500 TB storage demand would massively inflate internal disks on HCI
+                autoScaleHardware(1000, 1000, 500000, 4, 2, hwConfig, new Set());
+                const resCount = parseInt(document.getElementById('capacity-disk-count').value, 10);
+                const resSize = parseFloat(document.getElementById('capacity-disk-size').value);
+                document.getElementById('cluster-type').value = savedClusterType;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
+                return assert(resCount === 2 && resSize === 0.96,
+                    'Disaggregated resets internal disks to 2 × 0.96 TB boot mirror',
+                    '2 × 0.96', resCount + ' × ' + resSize);
+            })(),
+            (() => {
+                // The disk fields are non-editable for disaggregated, so the boot pin
+                // is unconditional — it applies even when the user-lock flags are set.
+                const savedClusterType = document.getElementById('cluster-type').value;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
+                const ctEl2 = document.getElementById('cluster-type');
+                if (ctEl2 && !Array.from(ctEl2.options).some(o => o.value === 'disaggregated')) {
+                    const opt = document.createElement('option'); opt.value = 'disaggregated'; opt.text = 'disaggregated'; ctEl2.appendChild(opt);
+                }
+                document.getElementById('cluster-type').value = 'disaggregated';
+                document.getElementById('capacity-disk-count').value = '12';
+                document.getElementById('capacity-disk-size').value = '7.68';
+                const hwConfig = {
+                    totalPhysicalCores: 128, memoryGB: 512, sockets: 2, coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 12, sizeGB: 7864.32, type: 'NVMe' } }
+                };
+                autoScaleHardware(1000, 1000, 200000, 6, 2, hwConfig, new Set());
+                const resCount = parseInt(document.getElementById('capacity-disk-count').value, 10);
+                document.getElementById('cluster-type').value = savedClusterType;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
+                return assert(resCount === 2,
+                    'Disaggregated pins boot disks regardless of user-lock flags', 2, resCount);
+            })()
+        ]);
+
         testSuite('autoScaleHardware() - aggressive mode (allowRatioEscalation + allowHighMemory)', 'sizer.js', [
             (() => {
                 // Aggressive mode should allow memory above 2 TB

@@ -1647,6 +1647,12 @@ const MAX_DISK_COUNT = 24;
 const MAX_CACHE_DISK_COUNT = 8;
 const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
 
+// Disaggregated clusters serve workload storage from an external SAN, so the
+// internal disks are OS/boot only. Represent that as a fixed minimal mirror that
+// is never auto-scaled to the workload (see issue #261).
+const DISAGG_BOOT_DISK_COUNT = 2;
+const DISAGG_BOOT_DISK_SIZE_TB = 0.96;
+
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
 const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 5.68, 7.68, 15.36];
 
@@ -2192,6 +2198,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const hostOverheadMemoryGB = getHostMemoryReservedGB(hwConfig, clusterTypeForOverhead);
     const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterTypeForOverhead);
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+    // Disaggregated: external SAN holds the workload; internal disks are boot-only.
+    const isDisaggregated = clusterTypeForOverhead === 'disaggregated';
 
     let changed = false;
 
@@ -2319,10 +2327,22 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Always reset consolidation info — even when user locked disk config
     _diskConsolidationInfo = null;
 
-    // Disk auto-scaling: size and count are independently lockable.
-    // When user manually sets disk size, count can still be auto-scaled (and vice versa).
-    // Disk bay consolidation (changes both) only runs when neither is locked.
-    if (diskSizeGB > 0 && (!_diskSizeUserSet || !_diskCountUserSet)) {
+    // Disaggregated: workload storage is served by the external SAN, so the
+    // internal disks are OS/boot only. Pin them to a fixed minimal mirror and
+    // never scale them to the workload — otherwise a proportion of the SAN
+    // capacity shows up (and is exported) as internal disk. See issue #261.
+    if (isDisaggregated) {
+        const bootCountInput = document.getElementById('capacity-disk-count');
+        const bootSizeSelect = document.getElementById('capacity-disk-size');
+        if (bootCountInput && (parseInt(bootCountInput.value, 10) || 0) !== DISAGG_BOOT_DISK_COUNT) {
+            bootCountInput.value = DISAGG_BOOT_DISK_COUNT;
+            changed = true;
+        }
+        if (bootSizeSelect && parseFloat(bootSizeSelect.value) !== DISAGG_BOOT_DISK_SIZE_TB) {
+            bootSizeSelect.value = DISAGG_BOOT_DISK_SIZE_TB;
+            changed = true;
+        }
+    } else if (diskSizeGB > 0 && (!_diskSizeUserSet || !_diskCountUserSet)) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
@@ -2588,7 +2608,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // Storage headroom — bump disk count first, then disk size, until below threshold
     // Each action respects its own user-lock flag independently.
-    if (!_diskCountUserSet || !_diskSizeUserSet) {
+    // Skipped for disaggregated — internal disks are boot-only (external SAN holds the workload).
+    if (!isDisaggregated && (!_diskCountUserSet || !_diskSizeUserSet)) {
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
@@ -3543,6 +3564,17 @@ function updateDisaggregatedUI(isDisagg) {
             el.style.opacity = isDisagg ? '0.4' : '';
         }
     });
+
+    // Disaggregated: workload storage lives on the external SAN, so the internal
+    // disks are OS/boot only. Pin the (greyed-out) disk config to a fixed minimal
+    // mirror so it never reflects SAN capacity — including in exports (issue #261).
+    // autoScaleHardware() keeps it pinned during recalcs when workloads are present.
+    if (isDisagg) {
+        const bootCountInput = document.getElementById('capacity-disk-count');
+        const bootSizeSelect = document.getElementById('capacity-disk-size');
+        if (bootCountInput) bootCountInput.value = DISAGG_BOOT_DISK_COUNT;
+        if (bootSizeSelect) bootSizeSelect.value = DISAGG_BOOT_DISK_SIZE_TB;
+    }
 
     // Storage capacity bar is always visible — styled differently for disaggregated in calculateRequirements()
 
@@ -5645,7 +5677,8 @@ function calculateRequirements(options) {
 
                     const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
-                    const stoPct = availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0;
+                    // Disaggregated uses external SAN — internal storage never drives node count.
+                    const stoPct = (clusterType === 'disaggregated') ? 0 : (availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0);
 
                     // GPU utilization check
                     const loopGpuPerNode = hwConfig.gpuCount || 0;
@@ -5739,7 +5772,8 @@ function calculateRequirements(options) {
                     const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepair3TB / resiliencyMultiplier, 0);
                     const cpuPct3 = availVcpus3 > 0 ? Math.round((totalVcpus / availVcpus3) * 100) : 0;
                     const memPct3 = availMem3 > 0 ? Math.round((totalMemory / availMem3) * 100) : 0;
-                    const stoPct3 = availStorage3 > 0 ? Math.round(((totalStorage / 1000) / availStorage3) * 100) : 0;
+                    // Disaggregated uses external SAN — internal storage never drives node count.
+                    const stoPct3 = (clusterType === 'disaggregated') ? 0 : (availStorage3 > 0 ? Math.round(((totalStorage / 1000) / availStorage3) * 100) : 0);
                     const gpuPerNode3 = hwConfig.gpuCount || 0;
                     const availGpus3 = gpuPerNode3 * effNodes3;
                     const gpuPct3 = (totalGpus > 0 && availGpus3 > 0) ? Math.round((totalGpus / availGpus3) * 100) : 0;
@@ -6053,7 +6087,8 @@ function calculateRequirements(options) {
 
                             const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
                             const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
-                            const dStoPct = dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0;
+                            // Disaggregated uses external SAN — internal storage never drives node count.
+                            const dStoPct = (clusterType === 'disaggregated') ? 0 : (dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0);
 
                             if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
                             // Can't reduce further — revert to the previous node count
