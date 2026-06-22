@@ -6989,9 +6989,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             const totalClusterRawTB = rawPerNodeTB * nodeCount;
             if (totalClusterRawTB > 4000) {
-                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Reduce machines, disk count, or disk size.`);
+                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Switch the deployment type to Disaggregated Storage (external SAN) to remove this internal-storage limit, or reduce machines, disk count, or disk size.`);
                 storageLimitExceeded = true;
-                storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max`);
+                storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max — switch the deployment type to Disaggregated Storage (external SAN), or reduce machines, disk count, or disk size`);
             }
         }
 
