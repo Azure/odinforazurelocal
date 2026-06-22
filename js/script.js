@@ -36,6 +36,54 @@ function switchOdinTab(tabId) {
 
     // Save current tab to session storage for persistence during page session
     sessionStorage.setItem('odinActiveTab', tabId);
+
+    // Reflect the current tab in the address bar so the page is shareable.
+    // Designer (the default) stays on a clean root URL; Knowledge carries
+    // ?tab=knowledge&topic=<slug>.
+    updateOdinTabUrl(tabId);
+}
+
+/**
+ * Returns the slug (data-topic) of the currently active Knowledge sub-page,
+ * or '' if none is marked active.
+ */
+function getActiveKnowledgeTopic() {
+    const item = document.querySelector('#tab-knowledge .knowledge-nav-item.active');
+    return item ? (item.getAttribute('data-topic') || '') : '';
+}
+
+/**
+ * Rewrites the URL (via history.replaceState) to reflect the active ODIN tab so
+ * the link can be copied and shared. Designer => clean root URL; Knowledge =>
+ * ?tab=knowledge&topic=<slug>. Other query params (e.g. ?from=sizer) are preserved.
+ * @param {string} tabId - 'designer' | 'knowledge'
+ */
+function updateOdinTabUrl(tabId) {
+    if (!(window.history && window.history.replaceState)) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tab');
+    params.delete('topic');
+    if (tabId === 'knowledge') {
+        params.set('tab', 'knowledge');
+        const topic = getActiveKnowledgeTopic();
+        if (topic) params.set('topic', topic);
+    }
+    const qs = params.toString();
+    const cleanUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState(null, '', cleanUrl);
+}
+
+/**
+ * Activates a Knowledge sub-page by its data-topic slug (used when restoring a
+ * shared ?topic= deep link). Returns true if a matching sub-page was found.
+ * @param {string} slug - data-topic value, e.g. 'outbound-connectivity'
+ */
+function selectKnowledgeTopic(slug) {
+    if (!slug) return false;
+    const item = document.querySelector('#tab-knowledge .knowledge-nav-item[data-topic="' + slug + '"]');
+    if (!item) return false;
+    switchKnowledgePage(item, item.getAttribute('data-src') || '');
+    return true;
 }
 
 /**
@@ -51,6 +99,8 @@ function switchKnowledgePage(linkEl, src) {
     // Update iframe
     const iframe = document.getElementById('knowledge-iframe');
     if (iframe) iframe.src = src;
+    // Keep the address bar in sync so the sub-page is shareable.
+    updateOdinTabUrl('knowledge');
 }
 
 /**
@@ -199,15 +249,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // URL parameter takes priority (e.g. ?tab=knowledge from Sizer link)
     const urlParams = new URLSearchParams(window.location.search);
     const urlTab = urlParams.get('tab');
-    if (urlTab && (urlTab === 'designer' || urlTab === 'knowledge')) {
-        switchOdinTab(urlTab);
-        // Clean only the ?tab= param from URL, preserve other params (e.g. ?from=sizer)
-        if (window.history && window.history.replaceState) {
-            urlParams.delete('tab');
-            const remainingParams = urlParams.toString();
-            const cleanUrl = window.location.pathname + (remainingParams ? '?' + remainingParams : '') + window.location.hash;
-            window.history.replaceState(null, '', cleanUrl);
-        }
+    const urlTopic = urlParams.get('topic');
+    if (urlTab === 'knowledge') {
+        switchOdinTab('knowledge');
+        // Restore the shared sub-page if a valid ?topic= slug was supplied;
+        // switchKnowledgePage/switchOdinTab keep the URL canonical & shareable.
+        selectKnowledgeTopic(urlTopic);
+    } else if (urlTab === 'designer') {
+        // switchOdinTab cleans the ?tab=/?topic= params, preserving others (e.g. ?from=sizer).
+        switchOdinTab('designer');
     } else {
         const savedTab = sessionStorage.getItem('odinActiveTab');
         if (savedTab && (savedTab === 'designer' || savedTab === 'knowledge')) {
