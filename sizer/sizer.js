@@ -7002,7 +7002,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (storageLimitBanner) {
             storageLimitBanner.style.display = storageLimitExceeded ? 'flex' : 'none';
             if (storageLimitExceeded && storageLimitText) {
-                storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — export is blocked until corrected.';
+                storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — “Configure in Designer” is blocked until corrected (reports can still be exported).';
             }
         }
 
@@ -7604,12 +7604,6 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
 }
 
 function exportSizerWord() {
-    // Block export if storage limits are exceeded
-    if (_storageLimitExceeded) {
-        alert('Export blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before exporting.');
-        return;
-    }
-
     const hwConfig = getHardwareConfig();
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
@@ -7803,7 +7797,7 @@ function escapeHtmlSizer(str) {
 function configureInDesigner() {
     // Block if storage limits are exceeded
     if (_storageLimitExceeded) {
-        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or machine count before proceeding.');
+        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Switch the deployment type to Disaggregated Storage (external SAN), or reduce disk count, disk size, or machine count before proceeding.');
         return;
     }
 
