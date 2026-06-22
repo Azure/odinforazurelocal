@@ -16,7 +16,7 @@
             chipIconFile: 'icons/sovereign-vm.svg',
             title: 'General Purpose Workloads',
             subtitle: 'on Azure Local',
-            desc: 'Enable data residency, regulatory compliance, and low-latency performance in on-premises and disconnected environments.',
+            desc: 'Azure Local VMs enable data residency, regulatory compliance, and low-latency performance in on-premises and disconnected environments.',
             recommendedConnectivity: 'connected',
             recommendedScale: 'cluster-16'
         },
@@ -69,7 +69,7 @@
             title: 'Foundry Local',
             subtitle: 'on Azure Local',
             desc: 'Models and inferencing on premises. Run AI models, agents, and agentic RAG to enable advanced, secure AI capabilities on local GPUs.',
-            badge: { text: 'New', kind: 'new' },
+            badge: { text: 'Public Preview', kind: 'preview' },
             recommendedConnectivity: 'connected',
             recommendedScale: 'single-node'
         }
@@ -283,7 +283,8 @@
                 'Recommended footprint: connected + single-rack (4 GPU-equipped nodes).',
                 'GPUs partitioned between Video Indexer and Edge RAG workloads.',
                 'AKS Arc hosts the Foundry Local runtime and inference endpoints.'
-            ]
+            ],
+            reference: { label: 'What is Foundry Local on Azure Local?', url: 'https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local' }
         },
         'avd': {
             title: 'Azure Virtual Desktop on Azure Local',
