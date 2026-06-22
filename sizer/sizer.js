@@ -7468,6 +7468,9 @@ function updateDesignerActionVisibility() {
         if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
             designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
+        } else if (_storageLimitExceeded) {
+            designerBtn.disabled = true;
+            designerBtn.title = 'Storage exceeds Azure Local limits (400 TB per machine or 4 PB per storage pool) — switch the deployment type to Disaggregated Storage (external SAN), or reduce disk count, disk size, or machine count before configuring in Designer';
         } else if (window._sizerVmExceedsNode) {
             designerBtn.disabled = true;
             designerBtn.title = 'One or more VMs exceed per-machine capacity. Reduce VM specs or increase hardware configuration.';
