@@ -44,7 +44,7 @@
             title: 'GitHub Enterprise Local',
             subtitle: 'on Azure Local',
             desc: 'Enable modern DevSecOps for regulated and disconnected environments using GitHub Enterprise Server on Azure Local with built-in security, compliance, and Azure management.',
-            badge: { text: 'Private Preview', kind: 'preview' },
+            badge: { text: 'Public Preview', kind: 'preview' },
             recommendedConnectivity: 'connected',
             recommendedScale: 'cluster-16'
         },
@@ -216,7 +216,7 @@
         },
         'github-enterprise-local': {
             title: 'GitHub Enterprise Local on Azure Local',
-            summary: 'On-prem DevSecOps platform with GitHub Enterprise Server, container registry, build agents, and observability — keeping code, identity, and operations fully on-premises (Private Preview).',
+            summary: 'On-prem DevSecOps platform with GitHub Enterprise Server, container registry, build agents, and observability — keeping code, identity, and operations fully on-premises (Public Preview).',
             cloud: {
                 title: 'Azure (control plane)',
                 services: ['Azure Arc', 'Azure Monitor', 'Defender for Cloud']
@@ -232,8 +232,9 @@
             notes: [
                 'Recommended footprint: connected + single-rack.',
                 'AKS Arc hosts ephemeral build agents and the registry replica.',
-                'GitHub Enterprise Local is in Private Preview at the time of writing.'
-            ]
+                'GitHub Enterprise Local is in Public Preview at the time of writing.'
+            ],
+            reference: { label: 'What is GitHub Enterprise Local? (preview)', url: 'https://aka.ms/GHEL' }
         },
         'foundry-local': {
             title: 'Foundry Local on Azure Local',
@@ -1255,6 +1256,10 @@
                 return /[.!?]$/.test(trimmed) ? trimmed : trimmed + '.';
             });
             if (notes.length) { paragraphs.push(notes.join(' ')); }
+            if (entry.tpl.reference && entry.tpl.reference.url) {
+                const ref = entry.tpl.reference;
+                paragraphs.push('Learn more: ' + (ref.label ? ref.label + ' — ' : '') + ref.url);
+            }
             sections.push({ heading: heading, paragraphs: paragraphs });
         });
         return sections;
@@ -1358,6 +1363,11 @@
         const paragraphs = [headingTag];
         if (summary) { paragraphs.push('<p>' + escapeHtml(summary) + '</p>'); }
         if (notes.length) { paragraphs.push('<p>' + notes.map(escapeHtml).join(' ') + '</p>'); }
+        const ref = entry.tpl.reference;
+        if (ref && ref.url) {
+            paragraphs.push('<p>Learn more: <a href="' + escapeHtml(ref.url)
+                + '" target="_blank" rel="noopener">' + escapeHtml(ref.label || ref.url) + '</a></p>');
+        }
         return paragraphs.join('');
     }
 
