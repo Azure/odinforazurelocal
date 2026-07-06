@@ -2964,6 +2964,12 @@ function resumeSizerState() {
         const rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
     }
+    // Restore disaggregated storage connectivity (Fibre Channel vs iSCSI) so an
+    // iSCSI SAN config doesn't silently revert to the fc_san default on resume.
+    if (d.clusterType === 'disaggregated' && d.disaggStorageType) {
+        const storageTypeEl = document.getElementById('disagg-storage-type');
+        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType;
+    }
     if (d.disaggSpineCount) {
         _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
     }
@@ -9898,6 +9904,13 @@ function applyImportedSizerState(d) {
         const rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
     }
+    // Restore disaggregated storage connectivity (Fibre Channel vs iSCSI) so an
+    // imported/shared iSCSI SAN config doesn't silently revert to the fc_san
+    // default (getSizerState exports it; the Designer-transfer path restores it).
+    if (d.clusterType === 'disaggregated' && d.disaggStorageType) {
+        const storageTypeEl = document.getElementById('disagg-storage-type');
+        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType;
+    }
     if (d.disaggSpineCount) {
         _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
     }
@@ -10235,16 +10248,28 @@ document.addEventListener('DOMContentLoaded', function() {
         checkForSavedSizerState();
     }
 
-    updateNodeOptionsForClusterType();
-    updateStorageForClusterType();
-    updateResiliencyOptions();
-    updateClusterInfo();
-    updateAldoWorkloadButtons();
-    // Initialize hardware defaults
-    initHardwareDefaults();
-    // Initialize storage config dropdowns
-    onStorageConfigChange();
-    calculateRequirements();
+    // A shared-URL config load (loadSizerFromURL → applyImportedSizerState) has
+    // ALREADY populated every hardware dropdown with the imported values and run
+    // calculateRequirements(). Re-running the fresh-load initialisation below —
+    // in particular initHardwareDefaults() — would reset the CPU generation/cores
+    // back to defaults (e.g. 64 → 32 cores per socket), and the trailing
+    // calculateRequirements() would then auto-scale into a DIFFERENT node count
+    // and per-node memory than what was shared (the shared 12-node/64-core/1024 GB
+    // config came back as 22-node/32-core/512 GB). Designer imports (which carry
+    // no CPU spec and rely on initHardwareDefaults to populate the dropdowns) and
+    // fresh loads still need this initialisation.
+    if (!urlImported) {
+        updateNodeOptionsForClusterType();
+        updateStorageForClusterType();
+        updateResiliencyOptions();
+        updateClusterInfo();
+        updateAldoWorkloadButtons();
+        // Initialize hardware defaults
+        initHardwareDefaults();
+        // Initialize storage config dropdowns
+        onStorageConfigChange();
+        calculateRequirements();
+    }
     applyTheme(); // Apply saved theme
     updateDesignerActionVisibility(); // Gate share/designer buttons on initial load
 
