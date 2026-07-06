@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.67 - Available here: https://aka.ms/ODIN
+## Version 0.22.68 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,17 +52,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.67 - Latest Release
+### 🎉 Version 0.22.68 - Latest Release
 
-> **Disaggregated Storage Sizer bug fix (issue #261) — internal disks are no longer sized to hold the SAN's storage.** Selecting **Disaggregated Storage** previously grew the internal capacity disks to absorb the full workload storage (the same as Hyperconverged), so the greyed-out *Physical Machine Storage Configuration* — and the exported JSON — showed a proportional share of the external SAN as if it were local disk. On a disaggregated cluster the workload data lives on an external SAN, so the physical machines only need OS / boot disks. The Sizer now pins the internal disks to a fixed **2 × 0.96 TB** boot mirror and excludes internal storage from the node-count decision. Sizer-only; no JSON-schema shape change.
+> **Sizer bug fix — Share as URL now faithfully reproduces the shared configuration.** A shared design (e.g. a disaggregated cluster with **12 machines / 64 cores / 1024 GB**) previously reloaded as a different, larger design (**22 machines / 32 cores / 512 GB**). On page load the Sizer applied the shared config and then *re-ran* its fresh-load hardware initialisation, which reset the CPU generation and cores-per-socket back to defaults (e.g. 64 → 32 cores); the follow-up recalculation then auto-scaled into a bigger node count and lower per-node memory. JSON *file* import was unaffected. Sizer-only; no JSON-schema shape change.
 
 **What's new**
-- **Internal disks are boot-only on Disaggregated** — `autoScaleHardware()` now resets the internal capacity disks to a fixed **2 × 0.96 TB** mirror (`DISAGG_BOOT_DISK_COUNT` / `DISAGG_BOOT_DISK_SIZE_TB`) for disaggregated clusters and never scales them to the workload, so the *Physical Machine Storage Configuration* and the exported JSON reflect OS/boot storage only.
-- **Storage no longer drives node count on Disaggregated** — the conservative node-scaling loop and the storage-headroom check now skip internal disk utilisation for disaggregated clusters (SAN capacity is sized separately), so node count is driven by compute, memory, and GPU pressure. Required alongside the boot-disk reset so shrinking the internal disks doesn't artificially spike storage utilisation and force a higher node count.
-- **Hyperconverged → Disaggregated switch resets the internal disk fields** — changing the deployment type to Disaggregated resets the internal disk fields to the boot mirror immediately, so a design first sized as Hyperconverged no longer carries its inflated internal-disk values into the disaggregated view.
-- **4 PB storage-limit warning now points to Disaggregated Storage and gates the right action** — when a Hyperconverged design's total raw cluster storage exceeds the 4 PB (4,000 TB) per-storage-pool maximum, the storage-limit banner and the matching sizing note now suggest switching the deployment type to **Disaggregated Storage** (external SAN, which removes the internal-storage limit) alongside the existing "reduce machines, disk count, or disk size" advice. The banner previously claimed "export is blocked" even though only the Word export was gated — it now correctly states that **Configure in Designer** is blocked (reports can still be exported), and the stray Word-export block was removed so all exports behave consistently. The **Configure in Designer** button is also greyed out with a hover tooltip while the limit is exceeded, so the blocked action is visible up-front rather than only on click.
-- **GitHub Enterprise Local is now Public Preview in the Knowledge tab** — the GHEL reference-architecture card and its *About this architecture* narrative now read **Public Preview** (was *Private Preview*), matching the Sizer's GHEL workload modal, and the narrative now includes a **Learn more** link to [What is GitHub Enterprise Local? (preview)](https://aka.ms/GHEL). The **Foundry Local** card now also reads **Public Preview** (was a *New* badge) for consistency, with its own **Learn more** link to [What is Foundry Local on Azure Local?](https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local), and the **General Purpose Workloads** tile description now opens with “Azure Local VMs enable data residency, …”.
-- **Knowledge tab pages are now shareable via the URL** — opening the Knowledge tab and switching between its sub-pages now reflects the current view in the address bar as `?tab=knowledge&topic=<slug>`, so the link can be copied and shared. Previously the address bar always showed the bare root URL, with no way to link to a specific Knowledge page (reference architectures, Outbound Connectivity, or AzLoFlows). Opening a shared link now restores both the tab and the correct sub-page; the Designer tab still uses a clean root URL and the Sizer→Designer import flow is unaffected.
+- **Share-as-URL round-trip fixed** — the page-load initialisation no longer clobbers a shared-URL config. `loadSizerFromURL()` already fully applies the config and recalculates, but the fresh-load `initHardwareDefaults()` then ran anyway and reset the CPU config to defaults, forcing a different result. That initialisation is now skipped when a shared-URL config has been loaded, so the machine count, CPU, and memory match exactly what was shared. Designer imports and fresh loads are unchanged.
+- **Disaggregated Storage Connectivity restored on import/resume** — the *Storage Connectivity* choice (Fibre Channel vs iSCSI) was written to exports and shared URLs but never re-applied when loading, so an iSCSI SAN design silently reverted to the Fibre Channel default. It is now restored on both JSON import / Share-as-URL and on session resume.
 
 ---
 
@@ -409,6 +405,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.68 - Share-as-URL now faithfully reproduces the shared Sizer configuration
+
+> **Sharing a Sizer design via URL and reopening it produced a different, larger design.** A shared disaggregated cluster of **12 machines / 64 cores / 1024 GB** reloaded as **22 machines / 32 cores / 512 GB**. On page load `loadSizerFromURL()` applied the shared config and recalculated, but the fresh-load `initHardwareDefaults()` then ran anyway and reset the CPU generation / cores-per-socket back to defaults (e.g. 64 → 32 cores); the follow-up recalculation auto-scaled into a bigger node count and lower per-node memory. The fresh-load initialisation is now skipped when a shared-URL config has been loaded (Designer imports and fresh loads are unchanged; JSON *file* import was already unaffected). Also fixed: the disaggregated *Storage Connectivity* choice (Fibre Channel vs iSCSI) is now restored on JSON import / Share-as-URL and on session resume instead of silently reverting to the Fibre Channel default. Sizer-only; no JSON-schema shape change.
 
 #### 0.22.67 - Disaggregated Sizer no longer mirrors SAN capacity onto internal disks (issue #261)
 

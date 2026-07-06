@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.68] - 2026-07-06
+
+Sizer bug fix — **Share as URL** now faithfully reproduces the shared configuration. A shared design (e.g. a disaggregated cluster with **12 machines / 64 cores / 1024 GB**) previously reloaded as a different, larger design (**22 machines / 32 cores / 512 GB**) because the page-load hardware initialisation reset the CPU configuration back to defaults *after* the shared config had been applied, then re-ran auto-scaling with the wrong core count. JSON *file* import was unaffected. Sizer-only; no JSON-schema shape change.
+
+### Fixed
+
+- **Share-as-URL no longer clobbers the imported CPU config** (`sizer/sizer.js`) — the `DOMContentLoaded` handler ran `loadSizerFromURL()` (which fully applies the shared config via `applyImportedSizerState()` and runs `calculateRequirements()`) and then *unconditionally* ran the fresh-load initialisation, including `initHardwareDefaults()`. That reset the CPU generation and cores-per-socket back to their defaults (e.g. **64 → 32** cores), and the trailing `calculateRequirements()` then auto-scaled into a different node count and per-node memory than what was shared. The fresh-load initialisation block is now guarded with `if (!urlImported)` so it is skipped when a shared-URL config has been loaded. Designer imports (which carry no CPU spec and rely on `initHardwareDefaults()` to populate the dropdowns) and fresh loads are unchanged. JSON *file* import was already unaffected because it runs on a button click after load, never re-hit by `initHardwareDefaults()`.
+- **Disaggregated Storage Connectivity restored on import/resume** (`sizer/sizer.js`) — `disaggStorageType` (Fibre Channel vs iSCSI) is exported by `getSizerState()` and restored by the Designer-transfer path, but `applyImportedSizerState()` (JSON import + Share-as-URL) and `resumeSizerState()` (session resume) never re-applied it, so an iSCSI SAN design silently reverted to the `fc_san` default on load. Both paths now restore it.
+
+---
+
 ## [0.22.67] - 2026-06-12
 
 Sizer bug fix (issue #261) — selecting **Disaggregated Storage** no longer sizes the **internal disks** to hold the workload's storage. On a disaggregated cluster the workload data lives on an **external SAN**, so the physical machines only need OS / boot disks. The Sizer now pins the internal *Physical Machine Storage Configuration* to a fixed **2 × 0.96 TB** boot mirror and excludes internal storage from the node-count decision. Sizer-only; no JSON-schema shape change (the `capacityDiskCount` / `capacityDiskSize` fields already exist — only their values change for disaggregated).
