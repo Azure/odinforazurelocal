@@ -17,7 +17,7 @@ Designer content improvement — the **Private Endpoints** step now spells out t
 
 ### Added
 
-- **Proxy-bypass reminder on the Private Endpoints step** (`index.html`) — when *Enabled* is selected, an information box now appears below the service list: *"When using a Proxy, it is recommended to add your Private Endpoints to the Proxy Bypass List,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
+- **Proxy-bypass reminder on the Private Endpoints step** (`index.html`) — when *Enabled* is selected, an information box now appears below the service list: *"When using a Proxy, you **must** add your Private Endpoints to the Proxy Bypass List — otherwise the traffic is routed through the proxy to the public endpoint, defeating the Private Endpoint,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
 
 ---
 

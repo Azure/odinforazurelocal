@@ -58,7 +58,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 **What's new**
 - **All three unsupported Arc endpoints are now shown** — the card lists `*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, and `*.dp.kubernetesconfiguration.azure.com`, with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*.
-- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy, it is recommended to add your Private Endpoints to the Proxy Bypass List,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
+- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy, you **must** add your Private Endpoints to the Proxy Bypass List — otherwise the traffic is routed through the proxy to the public endpoint, defeating the Private Endpoint,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
 
 ---
 
@@ -408,7 +408,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 #### 0.22.69 - Private Endpoints step lists all unsupported Arc endpoints + proxy-bypass reminder
 
-> **The Designer's Private Endpoints step now spells out the full set of Arc endpoints that cannot use Private Link.** The red "not supported" card previously named only `his.arc.azure.com`; it now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs (`*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, `*.dp.kubernetesconfiguration.azure.com`), with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*, and spans the full width of the services grid. When *Enabled* is selected, a new information box below the service list reminds users to add their Private Endpoints to the proxy bypass list, linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2). Content/UI only; no logic or JSON-schema change.
+> **The Designer's Private Endpoints step now spells out the full set of Arc endpoints that cannot use Private Link.** The red "not supported" card previously named only `his.arc.azure.com`; it now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs (`*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, `*.dp.kubernetesconfiguration.azure.com`), with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*, and spans the full width of the services grid. When *Enabled* is selected, a new information box below the service list states that users **must** add their Private Endpoints to the proxy bypass list, linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2). Content/UI only; no logic or JSON-schema change.
 
 #### 0.22.68 - Share-as-URL now faithfully reproduces the shared Sizer configuration
 
