@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.69] - 2026-07-09
+
+Designer content improvement — the **Private Endpoints** step now spells out the **full set of Arc endpoints that cannot use Private Link** (not just a single FQDN) and, when *Enabled* is selected, adds a proxy-bypass reminder that links to the Microsoft Learn proxy-configuration guide. Content/UI only; no logic or JSON-schema change.
+
+### Changed
+
+- **Private Endpoints step lists all three unsupported Arc endpoints** (`index.html`) — the red "not supported" card previously named only `his.arc.azure.com`. It now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs (`*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, `*.dp.kubernetesconfiguration.azure.com`), with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*. The card now spans the full width of the services grid.
+
+### Added
+
+- **Proxy-bypass reminder on the Private Endpoints step** (`index.html`) — when *Enabled* is selected, an information box now appears below the service list: *"When using a Proxy server, you **must** add your Private Endpoints to the **Proxy Bypass List** configuration of the physical machines — otherwise the private traffic will attempt to route through the proxy server,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
+
+---
+
 ## [0.22.68] - 2026-07-06
 
 Sizer bug fix — **Share as URL** now faithfully reproduces the shared configuration. A shared design (e.g. a disaggregated cluster with **12 machines / 64 cores / 1024 GB**) previously reloaded as a different, larger design (**22 machines / 32 cores / 512 GB**) because the page-load hardware initialisation reset the CPU configuration back to defaults *after* the shared config had been applied, then re-ran auto-scaling with the wrong core count. JSON *file* import was unaffected. Sizer-only; no JSON-schema shape change.

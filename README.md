@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.68 - Available here: https://aka.ms/ODIN
+## Version 0.22.69 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,13 +52,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.68 - Latest Release
+### 🎉 Version 0.22.69 - Latest Release
 
-> **Sizer bug fix — Share as URL now faithfully reproduces the shared configuration.** A shared design (e.g. a disaggregated cluster with **12 machines / 64 cores / 1024 GB**) previously reloaded as a different, larger design (**22 machines / 32 cores / 512 GB**). On page load the Sizer applied the shared config and then *re-ran* its fresh-load hardware initialisation, which reset the CPU generation and cores-per-socket back to defaults (e.g. 64 → 32 cores); the follow-up recalculation then auto-scaled into a bigger node count and lower per-node memory. JSON *file* import was unaffected. Sizer-only; no JSON-schema shape change.
+> **Designer content improvement — the Private Endpoints step now lists the full set of unsupported Arc endpoints and adds a proxy-bypass reminder.** The red "not supported" card previously named only a single FQDN (`his.arc.azure.com`); it now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs. When *Enabled* is selected, a new information box reminds you to add your Private Endpoints to the proxy bypass list, linking to the Microsoft Learn proxy-configuration guide. Content/UI only; no logic or JSON-schema change.
 
 **What's new**
-- **Share-as-URL round-trip fixed** — the page-load initialisation no longer clobbers a shared-URL config. `loadSizerFromURL()` already fully applies the config and recalculates, but the fresh-load `initHardwareDefaults()` then ran anyway and reset the CPU config to defaults, forcing a different result. That initialisation is now skipped when a shared-URL config has been loaded, so the machine count, CPU, and memory match exactly what was shared. Designer imports and fresh loads are unchanged.
-- **Disaggregated Storage Connectivity restored on import/resume** — the *Storage Connectivity* choice (Fibre Channel vs iSCSI) was written to exports and shared URLs but never re-applied when loading, so an iSCSI SAN design silently reverted to the Fibre Channel default. It is now restored on both JSON import / Share-as-URL and on session resume.
+- **All three unsupported Arc endpoints are now shown** — the card lists `*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, and `*.dp.kubernetesconfiguration.azure.com`, with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*.
+- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy server, you **must** add your Private Endpoints to the **Proxy Bypass List** configuration of the physical machines — otherwise the private traffic will attempt to route through the proxy server,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
 
 ---
 
@@ -405,6 +405,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.69 - Private Endpoints step lists all unsupported Arc endpoints + proxy-bypass reminder
+
+> **The Designer's Private Endpoints step now spells out the full set of Arc endpoints that cannot use Private Link.** The red "not supported" card previously named only `his.arc.azure.com`; it now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs (`*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, `*.dp.kubernetesconfiguration.azure.com`), with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*, and spans the full width of the services grid. When *Enabled* is selected, a new information box below the service list states that users **must** add their Private Endpoints to the proxy bypass list, linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2). Content/UI only; no logic or JSON-schema change.
 
 #### 0.22.68 - Share-as-URL now faithfully reproduces the shared Sizer configuration
 
