@@ -58,7 +58,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 **What's new**
 - **All three unsupported Arc endpoints are now shown** — the card lists `*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, and `*.dp.kubernetesconfiguration.azure.com`, with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*.
-- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy, you **must** add your Private Endpoints to the Proxy Bypass List — otherwise the traffic is routed through the proxy to the public endpoint, defeating the Private Endpoint,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
+- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy server, you **must** add your Private Endpoints to the **Proxy Bypass List** configuration of the physical machines — otherwise the private traffic will attempt to route through the proxy server,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
 
 ---
 
