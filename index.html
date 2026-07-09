@@ -571,7 +571,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.22.68 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.22.69 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -2203,12 +2203,17 @@
 
                         <div class="private-endpoints-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                             <!-- Arc Private Link (Not Supported) -->
-                            <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed;">
-                                <input type="checkbox" disabled aria-label="Arc Private Link Endpoint (not supported for Azure Local)" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                            <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed; grid-column: 1 / -1;">
+                                <input type="checkbox" disabled aria-label="Arc Private Link Scopes (not supported for Azure Local)" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🔗 Arc Private Link Endpoint</strong>
-                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>his.arc.azure.com</code></div>
-                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 Not supported for Azure Local</div>
+                                    <strong style="color: var(--text-primary);">🔗 Arc Private Link Scopes</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Arc endpoints must always resolve to <strong>public IPs</strong>:</div>
+                                    <ul style="margin: 4px 0 0 1.1rem; padding: 0; font-size: 0.82rem; color: var(--text-secondary);">
+                                        <li><code>*.his.arc.azure.com</code></li>
+                                        <li><code>*.guestconfiguration.azure.com</code></li>
+                                        <li><code>*.dp.kubernetesconfiguration.azure.com</code></li>
+                                    </ul>
+                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 6px;">🚫 Azure Arc Private Link Scopes are not supported by Azure Local</div>
                                 </div>
                             </div>
 
@@ -2286,6 +2291,13 @@
                         <div id="pe-selection-summary" class="hidden" style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
                             <strong style="color: var(--success);">Selected Services:</strong>
                             <span id="pe-selection-count">0</span> service(s) selected
+                        </div>
+
+                        <div class="info-box" style="margin-top: 1rem;">
+                            <strong style="color: var(--accent-blue);">ℹ️ Information</strong>
+                            <p style="margin-top: 0.5rem;">When using a Proxy, it is recommended to add your Private Endpoints to the Proxy Bypass List.
+                                <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Configure proxy settings for Azure Local</a>
+                            </p>
                         </div>
                     </div>
 
