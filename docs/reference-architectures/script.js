@@ -349,7 +349,7 @@
         'SharePoint, Skype for Business and SQL': 'icons/sovereign-m365-sharepoint.png',
         'SharePoint Server': 'icons/m365-sharepoint-server.png',
         'Skype for Business': 'icons/m365-skype-server.png',
-        'SQL Server': 'icons/sovereign-m365-skype.png',
+        'SQL Server': 'icons/m365-sql-server.png',
         'M365 Local Workload Servers': 'icons/sovereign-m365-exchange.png'
     };
 
@@ -416,13 +416,13 @@
 
     // Storage choice for a purpose+scale combination. Defaults to 'local'.
     function getStorageFor(purposeId, scaleId) {
-        var key = purposeId + '|' + scaleId;
+        const key = purposeId + '|' + scaleId;
         return state.storageByPurposeScale[key] || 'local';
     }
 
     // Cluster count for a purpose + scale combination. Defaults to 1.
     function getClusterCountFor(purposeId, scaleId) {
-        var key = purposeId + '|' + scaleId;
+        const key = purposeId + '|' + scaleId;
         return state.clusterCountByPurposeScale[key] || 1;
     }
 
@@ -3401,7 +3401,7 @@
             const cyl2X = zone2X + (zoneW - cylW) / 2;
 
             // Draw storage cylinder helper
-            var drawStorageCylinder = function(cx, cy, cw, ch, label) {
+            const drawStorageCylinder = function(cx, cy, cw, ch, label) {
                 const ellipseH = 8;
                 // Cylinder body
                 const body = document.createElementNS(SVG_NS, 'rect');
