@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.22.67';
+const WIZARD_VERSION = '0.22.70';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -477,6 +477,9 @@ function loadStateFromLocalStorage() {
 
         const parsed = JSON.parse(saved);
         if (parsed.version && parsed.data) {
+            // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships 6-NIC iSCSI
+            // only). Remap any resumed session to the supported 6-NIC layout.
+            if (parsed.data.disaggStorageType === 'iscsi_4nic') parsed.data.disaggStorageType = 'iscsi_6nic';
             return parsed;
         }
         return null;
@@ -9399,6 +9402,11 @@ function importConfiguration() {
                                 console.warn('Import: skipped unsafe key(s):', skippedDangerous.join(', '));
                             }
 
+                            // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships
+                            // 6-NIC iSCSI only). Silently remap any legacy imported
+                            // design to the supported 6-NIC layout.
+                            if (state.disaggStorageType === 'iscsi_4nic') state.disaggStorageType = 'iscsi_6nic';
+
                             // Update UI with error handling
                             try {
                                 updateUI();
@@ -9519,7 +9527,10 @@ function checkForSizerImport() {
 
         // Disaggregated-specific fields from Sizer
         if (payload.architecture === 'disaggregated') {
-            if (payload.disaggStorageType) state.disaggStorageType = payload.disaggStorageType;
+            if (payload.disaggStorageType) {
+                // iSCSI 4-NIC retired in v0.22.70 — remap legacy Sizer payloads to 6-NIC.
+                state.disaggStorageType = payload.disaggStorageType === 'iscsi_4nic' ? 'iscsi_6nic' : payload.disaggStorageType;
+            }
             if (payload.disaggRackCount) state.disaggRackCount = payload.disaggRackCount;
             if (payload.disaggNodesPerRack) state.disaggNodesPerRack = payload.disaggNodesPerRack;
             if (payload.disaggSpineCount) state.disaggSpineCount = payload.disaggSpineCount;

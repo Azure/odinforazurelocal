@@ -2817,7 +2817,8 @@ function checkForDesignerImport() {
         }
         if (payload.disaggStorageType) {
             const storageTypeSelect = document.getElementById('disagg-storage-type');
-            if (storageTypeSelect) storageTypeSelect.value = payload.disaggStorageType;
+            // iSCSI 4-NIC retired in v0.22.70 — remap legacy imports to 6-NIC.
+            if (storageTypeSelect) storageTypeSelect.value = payload.disaggStorageType === 'iscsi_4nic' ? 'iscsi_6nic' : payload.disaggStorageType;
         }
 
         // Apply node count (after node options are updated for the cluster type)
@@ -2968,7 +2969,8 @@ function resumeSizerState() {
     // iSCSI SAN config doesn't silently revert to the fc_san default on resume.
     if (d.clusterType === 'disaggregated' && d.disaggStorageType) {
         const storageTypeEl = document.getElementById('disagg-storage-type');
-        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType;
+        // iSCSI 4-NIC retired in v0.22.70 — remap legacy sessions to 6-NIC.
+        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType === 'iscsi_4nic' ? 'iscsi_6nic' : d.disaggStorageType;
     }
     if (d.disaggSpineCount) {
         _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
@@ -9909,7 +9911,8 @@ function applyImportedSizerState(d) {
     // default (getSizerState exports it; the Designer-transfer path restores it).
     if (d.clusterType === 'disaggregated' && d.disaggStorageType) {
         const storageTypeEl = document.getElementById('disagg-storage-type');
-        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType;
+        // iSCSI 4-NIC retired in v0.22.70 — remap legacy imports to 6-NIC.
+        if (storageTypeEl) storageTypeEl.value = d.disaggStorageType === 'iscsi_4nic' ? 'iscsi_6nic' : d.disaggStorageType;
     }
     if (d.disaggSpineCount) {
         _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;

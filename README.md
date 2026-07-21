@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.69 - Available here: https://aka.ms/ODIN
+## Version 0.22.70 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,17 +52,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.69 - Latest Release
+### 🎉 Version 0.22.70 - Latest Release
 
-> **Designer content improvement — the Private Endpoints step now lists the full set of unsupported Arc endpoints and adds a proxy-bypass reminder.** The red "not supported" card previously named only a single FQDN (`his.arc.azure.com`); it now reads **Arc Private Link Scopes** and lists all three Arc endpoints that must always resolve to public IPs. When *Enabled* is selected, a new information box reminds you to add your Private Endpoints to the proxy bypass list, linking to the Microsoft Learn proxy-configuration guide. Content/UI only; no logic or JSON-schema change.
+> **iSCSI external SAN attach is now 6-NIC only.** Azure Local build **2607** ships iSCSI SAN support with the dedicated 6-NIC layout, so the earlier **4-NIC shared-fabric** option has been withdrawn. The Designer's DA1 *Storage Type* card and the Sizer's *Storage Connectivity* dropdown now list only **Fibre Channel SAN** and **iSCSI SAN (6-NIC)**, and any saved or imported design that still used the 4-NIC layout is transparently upgraded to 6-NIC on load. The hidden 4-NIC rendering paths and the `iscsi_4nic` value in the published JSON schemas are retained so legacy state and older exports still work.
 
 **What's new**
-- **All three unsupported Arc endpoints are now shown** — the card lists `*.his.arc.azure.com`, `*.guestconfiguration.azure.com`, and `*.dp.kubernetesconfiguration.azure.com`, with the clarified note that *Azure Arc Private Link Scopes are not supported by Azure Local*.
-- **Proxy-bypass reminder** — when Private Endpoints are *Enabled*, an information box appears: *"When using a Proxy server, you **must** add your Private Endpoints to the **Proxy Bypass List** configuration of the physical machines — otherwise the private traffic will attempt to route through the proxy server,"* linking to [Configure proxy settings for Azure Local](https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2).
-
----
-
-## Getting Started
+- **iSCSI SAN (4-NIC) removed from the pickers** — the DA1 storage-type card (Designer) and the disaggregated *Storage Connectivity* dropdown (Sizer) now offer only Fibre Channel SAN and iSCSI SAN (6-NIC).
+- **Legacy 4-NIC designs auto-upgrade to 6-NIC** — a saved session, imported Designer/Sizer JSON, or Share-as-URL link that still carries `iscsi_4nic` is silently remapped to `iscsi_6nic` across every load path, so nothing reverts to the Fibre Channel default or lands on an unavailable option.
+- **Switch Config Quick Start iSCSI profile retired** — the *Disaggregated — iSCSI* Quick Start builder (which scaffolded a 4-NIC cluster) has been removed; build iSCSI disaggregated clusters in the Designer instead. iSCSI QoS auditing and the disaggregated-iSCSI QoS profile are unchanged.
+- **6-NIC iSCSI + backup topology corrected** — when In-Guest Backup is enabled on a 6-NIC iSCSI cluster, NIC3/NIC4 now stay as **standalone Cluster 1/2** networks and the customer **manually adds a Backup vNIC (VLAN 800) on top of the Management + Compute vSwitch**. The earlier `ClusterBackupSwitch`-on-NIC3/NIC4 design has been removed from the host-networking diagrams (Designer and report), intent zones, port layouts, and QoS notes; iSCSI still lives on dedicated NIC5/NIC6.
+- **iSCSI Fabric VLAN mode is now selectable** — DA4 adds an **Access/Trunk** toggle for iSCSI Fabric A/B (paired, like the Cluster networks), and the DA8 override VLAN fields are now read-only and bound to DA4 (`0` in Access mode, the DA4 VLAN ID in Trunk mode). The Backup Network is now always **Trunk**, since the backup vNIC always tags its VLAN.
+- **Fixed a false "missing subnet" error on Confirm Overrides** — the DA8 Cluster/iSCSI subnet defaults are now seeded into state, so leaving the pre-filled defaults untouched no longer blocks confirmation (and those defaults flow through to the summary and ARM export).
 
 ### Quick Start
 
@@ -405,6 +405,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.70 - iSCSI external SAN attach is now 6-NIC only (Azure Local build 2607)
+
+> **Azure Local build 2607 ships iSCSI SAN attach with the dedicated 6-NIC layout only; the earlier 4-NIC shared-fabric option (`iscsi_4nic`) has been withdrawn.** The Designer's DA1 *Storage Type* card and the Sizer's disaggregated *Storage Connectivity* dropdown now offer only **Fibre Channel SAN** and **iSCSI SAN (6-NIC)**. Any saved session, imported Designer/Sizer JSON, or Share-as-URL link that still carries `iscsi_4nic` is transparently remapped to `iscsi_6nic` across every load path, so nothing reverts to the Fibre Channel default or lands on a now-absent dropdown option. The Switch Config *Disaggregated — iSCSI* Quick Start builder (which scaffolded a 4-NIC cluster) was removed — build iSCSI disaggregated clusters in the Designer instead; the generic disaggregated-iSCSI QoS profile and QoS auditing are unchanged. This is a hide-and-remap change: the underlying 4-NIC rendering paths stay in place (unreachable via the UI) so legacy state keeps rendering, and `iscsi_4nic` remains in the published JSON schemas so older exports still validate. **6-NIC iSCSI + backup topology correction:** when In-Guest Backup is enabled on a 6-NIC iSCSI cluster, NIC3/NIC4 now stay as **standalone Cluster 1/2** networks (identical to the no-backup 6-NIC layout) and the customer **manually adds a Backup vNIC (VLAN 800, orange) on top of the Management + Compute ATC vSwitch** — the earlier `ClusterBackupSwitch`-on-NIC3/NIC4 SET has been removed from both host-networking diagrams (Designer wizard preview and 2-node report), the intent-zone descriptions, the port-count/port-list layouts, and the QoS notes. iSCSI still lives on dedicated NIC5/NIC6. **iSCSI Fabric VLAN mode + override binding:** DA4 now exposes an Access/Trunk toggle for iSCSI Fabric A/B (paired, mirroring the Cluster networks); the DA8 override VLAN fields are read-only and bound to DA4 (0 in Access mode, the DA4 VLAN ID in Trunk mode), and the Backup Network row is fixed to Trunk since the backup vNIC always tags its VLAN. The "OCP" adapter label was also dropped from the disaggregated wizard option text (the host-networking diagrams still show the OCP port names). **Fix:** the DA8 Cluster/iSCSI subnet defaults are now seeded into state, so leaving the pre-filled defaults untouched no longer triggers a false *"Missing required fields"* error on Confirm Overrides.
 
 #### 0.22.69 - Private Endpoints step lists all unsupported Arc endpoints + proxy-bypass reminder
 

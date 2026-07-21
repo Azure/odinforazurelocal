@@ -4317,27 +4317,22 @@
             // --- Build NIC groups dynamically from adapter mapping ---
             const nicGroups = [];
 
-            // Cluster NIC SET wrapper mode (mirrors wizard preview):
-            //   'clusterbackup' — iSCSI 6-NIC + backup: ClusterBackupSwitch SET (Cluster1/2 vNICs + Backup VLAN trunk)
-            //   null            — standalone physical cluster NICs, including iSCSI 4-NIC shared paths
-            const clusterSetMode = (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup' : null;
-            const clusterSetName = clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
-                : null;
+            // 6-NIC iSCSI + backup: the customer manually adds a Backup vNIC on top of
+            // the Mgmt+Compute ATC SET (OCP-NIC1/NIC2). NIC3/NIC4 stay standalone
+            // Cluster 1/2 — there is no separate ClusterBackupSwitch SET. (build 2607)
+            const mgmtBackupVnic = (storageType === 'iscsi_6nic' && backupEnabled);
             const vlansState = state.disaggVlans || {};
-            const cluster1VnicsAbove = clusterSetMode === 'clusterbackup'
-                ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') }]
-                : [];
-            const cluster2VnicsAbove = clusterSetMode === 'clusterbackup'
-                ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') }]
-                : [];
 
             // Define zone metadata — for 4-NIC, cluster groups are physical shared Cluster+iSCSI paths.
             const clusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
             const clusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
             const zoneMeta = {
-                mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }] },
-                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster1VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
-                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster2VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
+                mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicsAbove: mgmtBackupVnic
+                    ? [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') },
+                        { name: 'Backup vNIC', vlan: 'VLAN ' + (vlansState.backup || '800'), color: '#f97316' }]
+                    : [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }] },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
                 iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiA || '300'), forcedLeaf: 'A' },
                 iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiB || '400'), forcedLeaf: 'B' },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
@@ -4393,36 +4388,14 @@
                 nicGroups.push(grp);
             }
 
-            // When a SET wraps the cluster NICs, merge cluster_1 + cluster_2 into a single
-            // "cluster_set" group so NIC3 and NIC4 share one dashed box (same UX as
-            // Mgmt+Compute combining OCP-NIC1 + OCP-NIC2). The merged group's box is the
-            // SET visual wrapper — no separate overlay rectangle is needed.
-            if (clusterSetMode) {
-                let c1Idx = -1, c2Idx = -1;
-                for (let ci = 0; ci < nicGroups.length; ci++) {
-                    if (nicGroups[ci].key === 'cluster_1') c1Idx = ci;
-                    else if (nicGroups[ci].key === 'cluster_2') c2Idx = ci;
-                }
-                if (c1Idx !== -1 && c2Idx !== -1) {
-                    const c1g = nicGroups[c1Idx], c2g = nicGroups[c2Idx];
-                    const mergedGrp = {
-                        key: 'cluster_set',
-                        label: clusterSetName,
-                        color: '#22c55e',
-                        nics: c1g.nics.concat(c2g.nics),
-                        vnicsAbove: (c1g.vnicsAbove || []).concat(c2g.vnicsAbove || []),
-                        showBackupBadge: clusterSetMode === 'clusterbackup'
-                    };
-                    nicGroups.splice(Math.max(c1Idx, c2Idx), 1);
-                    nicGroups.splice(Math.min(c1Idx, c2Idx), 1, mergedGrp);
-                }
-            }
-
             // Fallback: if no adapter mapping, use hardcoded defaults
             if (nicGroups.length === 0) {
+                // 6-NIC iSCSI + backup: Backup vNIC rides on the Mgmt+Compute SET (no dedicated NICs).
+                const mgmtVnicsFallback = [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }];
+                if (mgmtBackupVnic) mgmtVnicsFallback.push({ name: 'Backup vNIC', vlan: 'VLAN ' + (vlansState.backup || '800'), color: '#f97316' });
                 nicGroups.push({
                     key: 'mgmt_compute', label: 'Mgmt + Compute', color: '#3b82f6',
-                    vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }],
+                    vnicsAbove: mgmtVnicsFallback,
                     nics: [
                         { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
                         { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
@@ -4438,13 +4411,13 @@
                     vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'),
                     nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
                 });
-                if (backupEnabled) {
-                    const bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
+                // Dedicated backup NICs only exist on FC SAN + backup.
+                if (backupEnabled && storageType === 'fc_san') {
                     nicGroups.push({
                         key: 'backup', label: 'In-Guest Backup Compute Intent', color: '#f97316',
                         nics: [
-                            { id: bkSlot + '_1', name: getNicName(bkSlot, 1), speed: getPortSpeed(bkSlot, 1), leaf: 'A' },
-                            { id: bkSlot + '_2', name: getNicName(bkSlot, 2), speed: getPortSpeed(bkSlot, 2), leaf: 'B' }
+                            { id: 'backup_1', name: getNicName('backup', 1), speed: getPortSpeed('backup', 1), leaf: 'A' },
+                            { id: 'backup_2', name: getNicName('backup', 2), speed: getPortSpeed('backup', 2), leaf: 'B' }
                         ]
                     });
                 }
@@ -4519,33 +4492,20 @@
             // included in the downloaded image). Each entry: { title, color, lines: [str] }.
             function findGrp(key) { for (let fi = 0; fi < nicGroups.length; fi++) if (nicGroups[fi].key === key) return nicGroups[fi]; return null; }
             const legendEntries = [];
-            if (clusterSetMode) {
-                // After the merge step, cluster_1/cluster_2 are gone — use the merged cluster_set group.
-                const setGrp = findGrp('cluster_set');
-                const memberNames = setGrp ? setGrp.nics.map(function(nx){ return nx.name; }) : [];
-                const vnicLabels = [].concat(cluster1VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }))
-                    .concat(cluster2VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }));
-                const setLines = [
-                    'Members: ' + memberNames.join(', '),
-                    'Host vNICs: ' + (vnicLabels.length ? vnicLabels.join(', ') : 'none')
-                ];
-                if (clusterSetMode === 'clusterbackup') {
-                    setLines.push('Trunk: Backup VLAN ' + (vlansState.backup || '800') + ' (no host vNIC)');
-                }
-                legendEntries.push({ title: clusterSetName + ' (SET — customer-managed, outside ATC)', color: '#22c55e', lines: setLines });
-            }
             const mgmtGrp = findGrp('mgmt_compute');
             if (mgmtGrp) {
+                const mgmtVnicLabels = ['Mgmt vNIC (VLAN ' + (vlansState.mgmt || '7') + ')'];
+                if (mgmtBackupVnic) mgmtVnicLabels.push('Backup vNIC (VLAN ' + (vlansState.backup || '800') + ', customer-managed)');
                 legendEntries.push({
                     title: 'Mgmt + Compute (ATC SET)',
                     color: mgmtGrp.color,
                     lines: [
                         'Members: ' + mgmtGrp.nics.map(function(nx){ return nx.name; }).join(', '),
-                        'Host vNICs: Mgmt vNIC (VLAN ' + (vlansState.mgmt || '7') + ')'
+                        'Host vNICs: ' + mgmtVnicLabels.join(', ')
                     ]
                 });
             }
-            if (!clusterSetMode) {
+            {
                 const sc1 = findGrp('cluster_1'), sc2 = findGrp('cluster_2');
                 if (sc1 || sc2) {
                     const allClusterNics = [].concat(sc1 ? sc1.nics.map(function(nx){ return nx.name; }) : [])
@@ -4628,8 +4588,6 @@
                 let out = '';
                 const rw = rowWidth(groups);
                 let currentX = nodeLeft + (nodeW - rw) / 2;
-                // Track cluster bounding box for SET wrapper (drawn after the loop).
-                let clusterSetBoxX = null, clusterSetBoxW = null, clusterSetBoxBottomY = null;
 
                 for (let gi = 0; gi < groups.length; gi++) {
                     const grp = groups[gi];
@@ -4642,13 +4600,6 @@
                     const boxH = adapterH + 28 + vnicAreaHGrp;
                     const boxY = baseY - 14 - vnicAreaHGrp;
                     const rgb = colorRgb(grp.color);
-
-                    // Track merged cluster_set box for the Backup VLAN badge anchor.
-                    if (grp.key === 'cluster_set') {
-                        clusterSetBoxX = boxX;
-                        clusterSetBoxW = boxTotalW;
-                        clusterSetBoxBottomY = boxY + boxH;
-                    }
 
                     // Group box
                     out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
@@ -4720,16 +4671,6 @@
                     currentX += grpW + groupGap;
                 }
 
-                // Backup VLAN trunk badge (clusterbackup mode only) — anchored under the merged
-                // cluster_set group's dashed box (which is now the SET visual wrapper itself).
-                if (clusterSetMode === 'clusterbackup' && clusterSetBoxX !== null) {
-                    const bRgb = colorRgb('#f97316');
-                    const badgeW = 220, badgeH = 22;
-                    const badgeX = clusterSetBoxX + (clusterSetBoxW - badgeW) / 2;
-                    const badgeY = clusterSetBoxBottomY + 26;
-                    out += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="5" fill="rgba(' + bRgb + ',0.12)" stroke="rgba(' + bRgb + ',0.6)" stroke-dasharray="3 2" />';
-                    out += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 14) + '" text-anchor="middle" font-size="8" fill="rgba(' + bRgb + ',0.95)" font-weight="600">Backup VLAN ' + escapeHtml(String(vlansState.backup || '800')) + ' — trunk, no host vNIC</text>';
-                }
                 return out;
             }
 
@@ -4873,7 +4814,7 @@
                 + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
                 + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'Cluster A/B + iSCSI Path A/B (Physical NIC3/NIC4, no SET)' : 'Cluster 1 &amp; 2 (Standalone)')
                 + (hasDedicatedIscsi ? ', iSCSI A &amp; B (Standalone)' : '')
-                + (backupEnabled ? ', In-Guest Backup (SET)' : '')
+                + (backupEnabled ? (hasDedicatedIscsi ? ', Backup vNIC on Mgmt+Compute SET (customer-managed)' : ', In-Guest Backup (SET)') : '')
                 + (hasDedicatedIscsi ? '. Dedicated iSCSI adapters connect through leaf switch fabric to storage array.' : (hasSharedIscsi ? '. iSCSI shares the standalone physical cluster NICs and uses per-target /32 routes through the leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
@@ -4961,7 +4902,7 @@
                 + (hasSharedIscsi ? 'Standalone physical NIC3/NIC4 (green) carry Cluster A/B and iSCSI Path A/B on the same VLAN/subnet/source IP. iSCSI target portal /32 routes are pinned to those physical adapters through the leaf switch fabric. ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
                 + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to the iSCSI storage array (MPIO Active/Active, dual controllers). ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
-                + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
+                + (backupEnabled ? (hasDedicatedIscsi ? 'In-Guest Backup rides on a customer-managed Backup vNIC (orange) added on top of the Mgmt+Compute SET — no dedicated NICs. ' : 'In-Guest Backup uses a Compute Intent (orange). ') : '')
                 + '</div>';
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
