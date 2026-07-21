@@ -9065,17 +9065,6 @@
             return r;
         })());
 
-        testSuite('Quick Start: disagg_iscsi rack-aware', 'switch-config.js', (() => {
-            const r = [];
-            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware');
-            r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
-            r.push(assert(s.disaggStorageType === 'iscsi_4nic', 'disaggStorageType=iscsi_4nic', 'iscsi_4nic', s.disaggStorageType));
-            r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware', 'rack-aware', s.scale));
-            r.push(assert(s.nodes === 4, 'nodes=4 for rack-aware default (2 racks * 2 nodes)', 4, s.nodes));
-            r.push(assert(s.disaggRackCount === 2, 'disaggRackCount=2 for rack-aware default', 2, s.disaggRackCount));
-            return r;
-        })());
-
         testSuite('Quick Start: disagg_fc explicit rack count (4 racks)', 'switch-config.js', (() => {
             // The Deployment Type picker allows the user to specify any
             // number of disaggregated racks from 1 to 8. The third arg to
@@ -9088,9 +9077,9 @@
             return r;
         })());
 
-        testSuite('Quick Start: disagg_iscsi 8 racks (max)', 'switch-config.js', (() => {
+        testSuite('Quick Start: disagg_fc 8 racks (max)', 'switch-config.js', (() => {
             const r = [];
-            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware', 8);
+            const s = window.__buildQuickStartState('disagg_fc', 'rack_aware', 8);
             r.push(assert(s.disaggRackCount === 8, 'disaggRackCount=8', 8, s.disaggRackCount));
             r.push(assert(s.nodes === 16, 'nodes=16 for 8 racks', 16, s.nodes));
             return r;
@@ -9200,6 +9189,41 @@
             Object.keys(state).forEach(function(k) { delete state[k]; });
             Object.assign(state, origState);
             saveStateToLocalStorage();
+
+            return results;
+        })());
+
+        testSuite('Legacy iscsi_4nic remaps to iscsi_6nic on resume', 'script.js', (() => {
+            // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships 6-NIC iSCSI
+            // only). loadStateFromLocalStorage() should transparently upgrade any
+            // persisted 4-NIC session to the supported 6-NIC layout.
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+            var origRaw = localStorage.getItem(WIZARD_STATE_KEY);
+
+            localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify({
+                version: WIZARD_VERSION,
+                data: { architecture: 'disaggregated', disaggStorageType: 'iscsi_4nic' }
+            }));
+            var loaded = loadStateFromLocalStorage();
+            results.push(assert(loaded && loaded.data.disaggStorageType === 'iscsi_6nic',
+                'iscsi_4nic session remapped to iscsi_6nic on load',
+                'iscsi_6nic', loaded && loaded.data.disaggStorageType));
+
+            // A 6-NIC (or any other) value must pass through untouched.
+            localStorage.setItem(WIZARD_STATE_KEY, JSON.stringify({
+                version: WIZARD_VERSION,
+                data: { architecture: 'disaggregated', disaggStorageType: 'iscsi_6nic' }
+            }));
+            var loaded6 = loadStateFromLocalStorage();
+            results.push(assert(loaded6 && loaded6.data.disaggStorageType === 'iscsi_6nic',
+                'iscsi_6nic session preserved unchanged', 'iscsi_6nic', loaded6 && loaded6.data.disaggStorageType));
+
+            // Restore
+            if (origRaw === null) localStorage.removeItem(WIZARD_STATE_KEY);
+            else localStorage.setItem(WIZARD_STATE_KEY, origRaw);
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
 
             return results;
         })());
@@ -9491,6 +9515,98 @@
             return results;
         })());
 
+        testSuite('DA4: updateDisaggIscsiVlanMode pairs iscsiA & iscsiB', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            results.push(assert(typeof updateDisaggIscsiVlanMode === 'function',
+                'updateDisaggIscsiVlanMode is defined', true,
+                typeof updateDisaggIscsiVlanMode === 'function'));
+
+            if (typeof updateDisaggIscsiVlanMode === 'function') {
+                state.disaggIscsiVlanMode = { iscsiA: 'access', iscsiB: 'access' };
+
+                // Toggle iscsiA to trunk — iscsiB should follow
+                updateDisaggIscsiVlanMode('iscsiA', 'trunk');
+                results.push(assert(state.disaggIscsiVlanMode.iscsiA === 'trunk',
+                    'iscsiA set to trunk', 'trunk', state.disaggIscsiVlanMode.iscsiA));
+                results.push(assert(state.disaggIscsiVlanMode.iscsiB === 'trunk',
+                    'iscsiB paired to trunk when iscsiA toggled', 'trunk', state.disaggIscsiVlanMode.iscsiB));
+
+                // Toggle iscsiB back to access — iscsiA should follow
+                updateDisaggIscsiVlanMode('iscsiB', 'access');
+                results.push(assert(state.disaggIscsiVlanMode.iscsiA === 'access',
+                    'iscsiA paired to access when iscsiB toggled', 'access', state.disaggIscsiVlanMode.iscsiA));
+                results.push(assert(state.disaggIscsiVlanMode.iscsiB === 'access',
+                    'iscsiB set to access', 'access', state.disaggIscsiVlanMode.iscsiB));
+
+                // Unknown values normalize to access
+                updateDisaggIscsiVlanMode('iscsiA', 'garbage');
+                results.push(assert(state.disaggIscsiVlanMode.iscsiA === 'access',
+                    'unknown mode value normalizes to access', 'access', state.disaggIscsiVlanMode.iscsiA));
+            }
+
+            // State init default
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
+        testSuite('DA8: iSCSI override VLAN is bound to DA4 mode (access=0, trunk=VLAN)', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            var oldOverridesSection = document.getElementById('da8-intent-overrides');
+            var oldOverridesContainer = document.getElementById('da8-intent-overrides-container');
+            var overridesSection = oldOverridesSection || document.createElement('div');
+            var overridesContainer = oldOverridesContainer || document.createElement('div');
+            if (!oldOverridesSection) { overridesSection.id = 'da8-intent-overrides'; document.body.appendChild(overridesSection); }
+            if (!oldOverridesContainer) { overridesContainer.id = 'da8-intent-overrides-container'; document.body.appendChild(overridesContainer); }
+
+            Object.assign(state, {
+                architecture: 'disaggregated',
+                disaggStorageType: 'iscsi_6nic',
+                disaggBackupEnabled: false,
+                disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 },
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
+                disaggAdapterMapping: { ocp_p1: 'mgmt_compute', ocp_p2: 'mgmt_compute', pcie1_p1: 'cluster_1', pcie1_p2: 'cluster_2', pcie2_p1: 'iscsi_a', pcie2_p2: 'iscsi_b', bmc_p1: 'pool' },
+                disaggAdapterMappingConfirmed: true,
+                disaggIntentOverrides: { mgmt_compute: { rdmaMode: 'Disabled', jumboFrames: '1514', enableIov: '' } },
+                disaggOverridesConfirmed: false
+            });
+
+            try {
+                // Access mode → override VLAN shows 0
+                state.disaggIscsiVlanMode = { iscsiA: 'access', iscsiB: 'access' };
+                renderDisaggOverrides();
+                var accessHtml = overridesContainer.innerHTML;
+                results.push(assert(accessHtml.indexOf('iSCSI Network A') !== -1,
+                    'iSCSI Network A override card rendered', true, accessHtml.indexOf('iSCSI Network A') !== -1));
+                results.push(assert(accessHtml.indexOf('bound to DA4') !== -1,
+                    'iSCSI VLAN input is bound/locked to DA4', true, accessHtml.indexOf('bound to DA4') !== -1));
+                results.push(assert(accessHtml.indexOf('value="0" readonly') !== -1,
+                    'access mode renders readonly VLAN value 0', true, accessHtml.indexOf('value="0" readonly') !== -1));
+
+                // Trunk mode → override VLAN shows the DA4 VLAN id (300 / 400)
+                state.disaggIscsiVlanMode = { iscsiA: 'trunk', iscsiB: 'trunk' };
+                renderDisaggOverrides();
+                var trunkHtml = overridesContainer.innerHTML;
+                results.push(assert(trunkHtml.indexOf('value="300" readonly') !== -1,
+                    'trunk mode renders readonly iSCSI A VLAN 300', true, trunkHtml.indexOf('value="300" readonly') !== -1));
+                results.push(assert(trunkHtml.indexOf('value="400" readonly') !== -1,
+                    'trunk mode renders readonly iSCSI B VLAN 400', true, trunkHtml.indexOf('value="400" readonly') !== -1));
+            } catch (e) {
+                results.push(assert(false, 'iSCSI override VLAN binding threw: ' + e.message, true, false));
+            }
+
+            // State init default
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
         testSuite('DA8: iSCSI 4-NIC uses physical NIC3/NIC4 shared paths', 'disaggregated.js', (() => {
             var results = [];
             var origState = JSON.parse(JSON.stringify(state));
@@ -9588,9 +9704,15 @@
                 results.push(assert(defaultMapping.pcie2_p1 === 'iscsi_a' && defaultMapping.pcie2_p2 === 'iscsi_b',
                     '6-NIC + Backup default mapping keeps NIC5/NIC6 on iSCSI', 'iscsi_a/iscsi_b',
                     defaultMapping.pcie2_p1 + '/' + defaultMapping.pcie2_p2));
-                results.push(assert(html.indexOf('ClusterBackupSwitch') !== -1,
-                    '6-NIC + Backup diagram keeps ClusterBackupSwitch', true,
-                    html.indexOf('ClusterBackupSwitch') !== -1));
+                results.push(assert(html.indexOf('ClusterBackupSwitch') === -1,
+                    '6-NIC + Backup diagram no longer uses ClusterBackupSwitch', true,
+                    html.indexOf('ClusterBackupSwitch') === -1));
+                results.push(assert(html.indexOf('Backup vNIC (VLAN 800, customer-managed)') !== -1,
+                    '6-NIC + Backup adds a customer-managed Backup vNIC to the Mgmt+Compute SET', true,
+                    html.indexOf('Backup vNIC (VLAN 800, customer-managed)') !== -1));
+                results.push(assert(html.indexOf('Cluster Network 1') !== -1 && html.indexOf('Cluster Network 2') !== -1,
+                    '6-NIC + Backup keeps NIC3/NIC4 as standalone Cluster 1/2', true,
+                    html.indexOf('Cluster Network 1') !== -1 && html.indexOf('Cluster Network 2') !== -1));
                 results.push(assert(html.indexOf('iSCSI Storage A') !== -1 && html.indexOf('iSCSI Storage B') !== -1,
                     '6-NIC + Backup diagram keeps dedicated iSCSI groups', true,
                     html.indexOf('iSCSI Storage A') !== -1 && html.indexOf('iSCSI Storage B') !== -1));

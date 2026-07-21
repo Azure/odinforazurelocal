@@ -339,7 +339,7 @@
      * field downstream.
      *
      * @param {string} profile  One of hci_converged | hci_switched |
-     *                          hci_switchless | disagg_fc | disagg_iscsi.
+     *                          hci_switchless | disagg_fc.
      * @param {string} scale    'single' | 'rack_aware' (HCI scale toggle).
      * @param {number} [disaggRackCount] Explicit rack count (1–8) for
      *                          disaggregated profiles. When omitted, the
@@ -396,14 +396,6 @@
                 s.nodes = dRacks * 2;
                 s.scale = dRacks > 1 ? 'rack-aware' : 'single';
                 break;
-            case 'disagg_iscsi':
-                s.architecture = 'disaggregated';
-                s.disaggStorageType = 'iscsi_4nic';
-                s.storage = 'switched';
-                s.disaggRackCount = dRacks;
-                s.nodes = dRacks * 2;
-                s.scale = dRacks > 1 ? 'rack-aware' : 'single';
-                break;
             default:
                 s.architecture = 'hyperconverged';
                 s.intent = 'compute_management';
@@ -423,9 +415,10 @@
         const ds = designerState;
         let profile = 'hci_switched';
         if (ds.architecture === 'disaggregated') {
-            if (ds.disaggStorageType === 'fc_san') profile = 'disagg_fc';
-            else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profile = 'disagg_iscsi';
-            else profile = 'disagg_fc';
+            // iSCSI 4-NIC retired in v0.22.70 and the disagg_iscsi Quick Start
+            // builder was removed; disagg_fc is the only disaggregated Quick
+            // Start profile, so all disaggregated designs preselect to it.
+            profile = 'disagg_fc';
         } else if ((ds.storage || '').toLowerCase() === 'switchless') {
             profile = 'hci_switchless';
         } else if ((ds.intent || '').toLowerCase() === 'all_traffic' || (ds.intent || '').toLowerCase() === 'all traffic') {

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.70] - 2026-07-21
+
+Disaggregated storage — **iSCSI external SAN attach is now 6-NIC only**. Azure Local build **2607** ships iSCSI SAN support with the dedicated 6-NIC layout; the earlier **4-NIC shared-fabric** option (`iscsi_4nic`) has been withdrawn from the product for now. The DA1 *Storage Type* card and the Sizer *Storage Connectivity* dropdown no longer offer iSCSI SAN (4-NIC), and any saved/imported design that still carries the value is transparently upgraded to iSCSI SAN (6-NIC). The underlying 4-NIC rendering paths are left in place (hidden) so legacy state keeps rendering; the `iscsi_4nic` value also remains in the published JSON schemas so older exports still validate.
+
+### Changed
+
+- **iSCSI SAN (4-NIC) removed from the storage-type pickers** (`index.html`, `sizer/index.html`) — the DA1 option-card (Designer) and the disaggregated *Storage Connectivity* `<option>` (Sizer) now list only **Fibre Channel SAN** and **iSCSI SAN (6-NIC)**.
+- **Switch Config Quick Start iSCSI profile retired** (`switch-config/index.html`, `switch-config/switch-config.js`) — the *Disaggregated — iSCSI* Quick Start builder (which scaffolded an `iscsi_4nic` cluster) has been removed, along with its `preselectQuickStartFromDesigner` branch (disaggregated designs now preselect the Fibre Channel Quick Start profile). The generic `disagg_iscsi` **QoS profile/template** and the standalone QoS-audit dropdown are unchanged — they still serve real 6-NIC iSCSI designs.
+- **6-NIC iSCSI + backup topology corrected** (`js/disaggregated.js`, `report/report.js`, `index.html`) — when In-Guest Backup is enabled on a 6-NIC iSCSI cluster, NIC3/NIC4 now stay as **standalone Cluster 1/2** networks (identical to the no-backup 6-NIC layout) and the customer **manually adds a Backup vNIC (VLAN 800, orange) on top of the Management + Compute ATC vSwitch**. The earlier design that wrapped NIC3/NIC4 in a `ClusterBackupSwitch` SET to trunk the Backup VLAN has been removed from both host-networking diagrams (Designer wizard preview and 2-node report), the intent-zone descriptions, the port-count/port-list layouts, and the QoS notes. iSCSI still lives on dedicated NIC5/NIC6. No JSON-schema shape change.
+- **iSCSI Fabric VLAN mode is now selectable and bound to the overrides** (`js/disaggregated.js`) — DA4 exposes an **Access/Trunk** toggle for **iSCSI Fabric A/B** (paired, mirroring the Cluster networks). On the DA8 overrides the iSCSI Network A/B VLAN fields are now **read-only and bound to DA4**: `0` in Access mode (host untagged — leaf tags/strips), or the DA4 iSCSI VLAN ID in Trunk mode.
+- **Backup Network is always Trunk** (`js/disaggregated.js`) — because In-Guest Backup now rides on a host **vNIC** (on the Management + Compute SET), which always tags its VLAN, the DA4 Backup Network row is fixed to **Trunk** (the Access option was removed).
+- **"OCP" removed from the disaggregated wizard option text** (`js/disaggregated.js`) — the DA1 iSCSI 6-NIC explanation, the DA2 backup warning, the port-count option cards, and the DA8 override cards no longer label the Management + Compute adapters as `OCP-NIC1/NIC2` (physical OCP placement is a recommendation, not an enforced requirement). The host-networking diagrams still show the OCP port names.
+
+### Fixed
+
+- **Legacy 4-NIC designs auto-upgrade to 6-NIC on load** (`js/script.js`, `sizer/sizer.js`) — a persisted session, an imported Designer/Sizer JSON, or a Share-as-URL link that still carries `iscsi_4nic` is now silently remapped to `iscsi_6nic` across every restore path (`loadStateFromLocalStorage()`, `importConfiguration()`, the Sizer→Designer transfer, `applyImportedSizerState()`, and the two Sizer resume/transfer paths), so nothing reverts to the Fibre Channel default or lands on a now-absent dropdown option.
+- **Confirm Overrides no longer falsely reports missing subnets** (`js/disaggregated.js`) — the DA8 Cluster/iSCSI **Subnet (CIDR)** (and iSCSI VLAN) fields render pre-filled defaults; those defaults are now seeded into state when the overrides step renders, so leaving them untouched no longer triggers *"Missing required fields: Cluster 1 Subnet, Cluster 2 Subnet, iSCSI A Subnet, iSCSI B Subnet"* on **Confirm Overrides** (and the default subnets now flow through to the summary and ARM export instead of being silently empty).
+
+---
+
 ## [0.22.69] - 2026-07-09
 
 Designer content improvement — the **Private Endpoints** step now spells out the **full set of Arc endpoints that cannot use Private Link** (not just a single FQDN) and, when *Enabled* is selected, adds a proxy-bypass reminder that links to the Microsoft Learn proxy-configuration guide. Content/UI only; no logic or JSON-schema change.
