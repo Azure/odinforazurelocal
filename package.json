@@ -23,7 +23,7 @@
   "overrides": {
     "basic-ftp": ">=5.3.1",
     "ip-address": ">=10.1.1",
-    "fast-uri": ">=3.1.2",
+    "fast-uri": ">=4.1.1",
     "brace-expansion@>=1.0.0 <2.0.0": "1.1.16",
     "brace-expansion@>=5.0.0 <6.0.0": "5.0.7",
     "ws": ">=8.21.0",
