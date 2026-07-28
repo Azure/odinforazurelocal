@@ -181,4 +181,4 @@ jobs:
           done
 
       - name: Run npm audit (high severity blocks build)
-        run: npm audit --audit-level=high
+        run: node scripts/check-npm-audit.js
