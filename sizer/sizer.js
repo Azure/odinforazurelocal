@@ -5142,7 +5142,8 @@ function renderWorkloads() {
         const workloadType = normalizeWorkloadType(w.type);
         const normalizedWorkload = workloadType === w.type ? w : Object.assign({}, w, { type: workloadType });
         const details = getWorkloadDetails(normalizedWorkload);
-        const actionId = Number.isSafeInteger(Number(w.id)) ? Number(w.id) : -1;
+        const numericId = Number(w.id);
+        const actionId = Number.isSafeInteger(numericId) && numericId >= 0 ? numericId : -1;
         html += `
             <div class="workload-card">
                 <div class="workload-icon ${workloadType}">
@@ -5150,12 +5151,12 @@ function renderWorkloads() {
                 </div>
                 <div class="workload-card-content">
                     <div class="workload-card-title">
-                        ${escapeHtmlSizer(w.name || '')}
+                        ${escapeHtmlSizer(w.name == null ? '' : w.name)}
                         <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(workloadType)}</span>
                         ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
-                    <div class="workload-card-details">${escapeHtmlSizer(details)}</div>
+                    <div class="workload-card-details">${escapeHtmlSizer(details)}${workloadType === 'ghel' ? ' <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>' : ''}</div>
                 </div>
                 <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
                     <button class="edit" onclick="editWorkload(${actionId})" title="Edit">
@@ -5289,7 +5290,7 @@ function getWorkloadDetails(w) {
             const ghelTopology = ghelReplicas === 0 ? '1 VM'
                 : ghelReplicas === 1 ? '2 VMs (HA pair)'
                     : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
-            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>`;
+            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM`;
             break;
         }
         default:
@@ -9891,6 +9892,7 @@ function onClusterNameInput() { // eslint-disable-line no-unused-vars
 // Handle the selected file for import
 function isDesignerExportPayload(parsed) {
     return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+    typeof parsed.version === 'string' &&
         parsed.state && typeof parsed.state === 'object' && !Array.isArray(parsed.state));
 }
 

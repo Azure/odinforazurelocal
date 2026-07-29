@@ -77,6 +77,7 @@ function openInteractionDialog(options) {
     const settings = options || {};
     const previousFocus = document.activeElement;
     const dialog = document.createElement('dialog');
+    const supportsModalDialog = typeof dialog.showModal === 'function';
     const form = document.createElement('form');
     const header = document.createElement('div');
     const title = document.createElement('h2');
@@ -90,6 +91,7 @@ function openInteractionDialog(options) {
 
     dialog.className = 'odin-dialog';
     dialog.setAttribute('aria-labelledby', titleId);
+    dialog.setAttribute('aria-modal', 'true');
     form.className = 'odin-dialog__form';
     form.method = 'dialog';
     header.className = 'odin-dialog__header';
@@ -126,6 +128,7 @@ function openInteractionDialog(options) {
     return new Promise(resolve => {
         let settled = false;
         let input = null;
+        let fallbackBackdrop = null;
         if (settings.input) {
             const field = document.createElement('label');
             const label = document.createElement('span');
@@ -135,7 +138,7 @@ function openInteractionDialog(options) {
             label.textContent = settings.input.label || 'Value';
             input = document.createElement(settings.input.multiline ? 'textarea' : 'input');
             input.className = settings.input.readOnly ? 'odin-dialog__copy-value' : 'odin-dialog__input';
-            input.value = settings.input.value || '';
+            input.value = settings.input.value == null ? '' : String(settings.input.value);
             input.readOnly = Boolean(settings.input.readOnly);
             if (!settings.input.multiline) input.type = settings.input.type || 'text';
             if (settings.input.placeholder) input.placeholder = settings.input.placeholder;
@@ -154,7 +157,8 @@ function openInteractionDialog(options) {
         const finish = value => {
             if (settled) return;
             settled = true;
-            dialog.close();
+            if (supportsModalDialog) dialog.close();
+            if (fallbackBackdrop) fallbackBackdrop.remove();
             dialog.remove();
             if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
             resolve(value);
@@ -180,8 +184,37 @@ function openInteractionDialog(options) {
                 event.clientY < bounds.top || event.clientY > bounds.bottom;
             if (outside) finish(settings.input ? null : false);
         });
+        dialog.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !supportsModalDialog) {
+                event.preventDefault();
+                finish(settings.input ? null : false);
+                return;
+            }
+            if (event.key !== 'Tab' || supportsModalDialog) return;
+            const focusable = Array.from(dialog.querySelectorAll('button, input, textarea, select, [tabindex]:not([tabindex="-1"])'))
+                .filter(element => !element.disabled);
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
 
-        dialog.showModal();
+        if (supportsModalDialog) {
+            dialog.showModal();
+        } else {
+            fallbackBackdrop = document.createElement('div');
+            fallbackBackdrop.className = 'odin-dialog-backdrop';
+            fallbackBackdrop.addEventListener('click', () => finish(settings.input ? null : false));
+            dialog.classList.add('odin-dialog--fallback');
+            dialog.setAttribute('open', '');
+            document.body.insertBefore(fallbackBackdrop, dialog);
+        }
         if (input) {
             input.focus();
             if (settings.input.select !== false) input.select();

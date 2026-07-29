@@ -92,6 +92,21 @@
     backdrop-filter: blur(4px);
 }
 
+.odin-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 12999;
+    background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.odin-dialog--fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 13000;
+}
+
 .odin-dialog[open] { animation: odin-dialog-in 160ms ease-out; }
 
 .odin-dialog__form { margin: 0; }
@@ -148,7 +163,7 @@
 .odin-dialog__input:focus,
 .odin-dialog__copy-value:focus {
     border-color: var(--accent-blue);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue) 30%, transparent);
+    box-shadow: 0 0 0 2px var(--accent-blue);
 }
 
 .odin-dialog__copy-value {

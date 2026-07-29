@@ -287,6 +287,34 @@
                 'readonly=' + copyValue.readOnly + ', value=' + copyValue.value));
             copyDialog.querySelector('.odin-dialog__button--primary').click();
 
+            const originalShowModal = HTMLDialogElement.prototype.showModal;
+            HTMLDialogElement.prototype.showModal = undefined;
+            showConfirmDialog({ title: 'Fallback dialog', message: 'Safari compatibility check' });
+            HTMLDialogElement.prototype.showModal = originalShowModal;
+            const fallbackDialog = document.querySelector('.odin-dialog--fallback');
+            const fallbackBackdrop = document.querySelector('.odin-dialog-backdrop');
+            results.push(assert(
+                fallbackDialog && fallbackBackdrop && fallbackDialog.getAttribute('aria-modal') === 'true',
+                'Dialog fallback provides modal semantics and a backdrop without showModal',
+                true,
+                Boolean(fallbackDialog && fallbackBackdrop)));
+            fallbackDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            results.push(assert(
+                !document.querySelector('.odin-dialog--fallback') && !document.querySelector('.odin-dialog-backdrop'),
+                'Escape closes the non-native dialog fallback and removes its backdrop',
+                true,
+                Boolean(!document.querySelector('.odin-dialog--fallback') && !document.querySelector('.odin-dialog-backdrop'))));
+
+            showTextInputDialog({ title: 'Zero value', input: { value: 0 } });
+            const zeroDialog = document.querySelector('.odin-dialog');
+            const zeroInput = zeroDialog.querySelector('.odin-dialog__input');
+            results.push(assert(
+                zeroInput.value === '0',
+                'Text dialog preserves numeric zero input values',
+                '0',
+                zeroInput.value));
+            zeroDialog.querySelector('.odin-dialog__close').click();
+
             const toastRegion = document.getElementById('odin-toast-region');
             if (toastRegion) toastRegion.remove();
             return results;
@@ -364,16 +392,16 @@
         testSuite('Imported configuration XSS hardening', 'script.js + sizer.js', [
             (function() {
                 const originalScenario = state.scenario;
-                const imported = JSON.parse('{"scenario":"connected","__proto__":{"polluted":true},"unexpectedHtml":"<img src=x onerror=alert(1)>"}');
-                const skipped = applyKnownDesignerState(imported);
-                const safe = state.scenario === 'connected' &&
-                    !Object.prototype.hasOwnProperty.call(state, '__proto__') &&
-                    !Object.prototype.hasOwnProperty.call(state, 'unexpectedHtml') &&
-                    skipped.includes('__proto__') && skipped.includes('unexpectedHtml') &&
+                const imported = JSON.parse('{"version":"0.22.71","state":{"scenario":"connected","__proto__":{"polluted":true},"unexpectedHtml":"<img src=x onerror=alert(1)>"}}');
+                const prepared = prepareDesignerImport(imported);
+                const safe = prepared.ok && prepared.state.scenario === 'connected' &&
+                    state.scenario === originalScenario &&
+                    !Object.prototype.hasOwnProperty.call(prepared.state, '__proto__') &&
+                    !Object.prototype.hasOwnProperty.call(prepared.state, 'unexpectedHtml') &&
+                    prepared.skippedKeys.includes('__proto__') && prepared.skippedKeys.includes('unexpectedHtml') &&
                     ({}).polluted === undefined;
-                state.scenario = originalScenario;
                 return assert(safe,
-                    'Designer import applies known keys and rejects unknown or dangerous keys',
+                    'Designer import prepares known keys atomically and rejects unknown or dangerous keys',
                     true,
                     safe);
             })(),
@@ -449,6 +477,16 @@
             assert(isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } }) === true,
                 'Sizer identifies a Designer export for reciprocal entry-point guidance', true,
                 isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } })),
+            assert(isDesignerExportPayload({ state: { scenario: 'connected' } }) === false,
+                'Sizer does not misclassify an unrelated unversioned state object as a Designer export', false,
+                isDesignerExportPayload({ state: { scenario: 'connected' } })),
+            (function() {
+                const details = getWorkloadDetails({ type: 'ghel', tier: 'up-to-1000', replicas: 0 });
+                return assert(!details.includes('<a') && details.includes('per VM'),
+                    'GHEL workload details remain plain text before trusted link rendering',
+                    true,
+                    details);
+                    })(),
             (function() {
                 const originalScenario = state.scenario;
                 state.scenario = 'retired-mode';

@@ -15,7 +15,7 @@ Security hardening for browser-side configuration imports and exports. Shared Si
 
 - **HTML validation tooling is development-only** (`package.json`, `package-lock.json`) — `html-validate` and its transitive dependency tree are now recorded under `devDependencies`, matching the static site's architecture and allowing Dependabot to classify tooling vulnerabilities as development scope. The HTML validation CI job now uses reproducible `npm ci` installation from the committed lockfile.
 - **Firebase counter rules documented with increment-only validation** (`js/analytics.js`) — the checked-in rules example now blocks counter deletion and arbitrary numeric replacement while permitting initial creation at `1` and atomic `ServerValue.increment(1)` updates.
-- **Designer and Sizer interactions unified** (`js/notifications.js`, `css/interactions.css`) — shared theme-aware toasts now include accessible status semantics and dismiss controls. Reset, Start Over, Share URL, and Designer Export use consistent centered dialogs instead of browser-native prompts and confirmations.
+- **Designer and Sizer interactions unified** (`js/notifications.js`, `css/interactions.css`) — shared theme-aware toasts now include accessible status semantics and dismiss controls. Reset, Start Over, Share URL, and Designer Export use consistent centered dialogs instead of browser-native prompts and confirmations, with an in-app fallback for Safari 14.
 
 ### Fixed
 
@@ -26,7 +26,7 @@ Security hardening for browser-side configuration imports and exports. Shared Si
 - **Wrong import entry points are identified** (`js/script.js`, `sizer/sizer.js`) — importing a Sizer export in Designer, or a Designer export in Sizer, now opens a centered guidance dialog that explains the mismatch and offers a direct action to open the correct tool.
 - **Azure Local machine paste import hardened** (`sizer/sizer.js`) — pasted JSON is size-limited, must contain one machine resource, safely normalizes display fields, and rejects core or memory values outside the Sizer's supported envelope before rendering a preview.
 - **CSV formula injection neutralized** (`sizer/sizer.js`) — exported spreadsheet cells beginning with formula-trigger characters are prefixed as text before CSV quoting.
-- **Security and interaction regression coverage added** (`tests/index.html`) — tests cover malicious workload markup and IDs, dangerous Designer keys, printable-document markup, legacy migration, cross-tool detection, machine paste bounds, import normalization, CSV formula prefixes, and shared toast/dialog safety and accessibility. Full suite passes **1,449 / 1,449**.
+- **Security and interaction regression coverage added** (`tests/index.html`) — tests cover malicious workload markup and IDs, dangerous Designer keys, printable-document markup, legacy migration, cross-tool detection, machine paste bounds, import normalization, CSV formula prefixes, and shared toast/dialog safety, accessibility, and Safari fallback behavior. Full suite passes **1,454 / 1,454**.
 
 ---
 
