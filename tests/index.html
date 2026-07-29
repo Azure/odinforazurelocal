@@ -4560,16 +4560,15 @@
                     document.body.appendChild(container);
                 }
                 const savedWorkloads = workloads.slice();
-                workloads = [{
-                    id: '1);alert(1);//',
-                    type: 'vm" onclick="alert(3)',
-                    name: '<img src=x onerror=alert(1)>',
-                    vcpus: '<img src=x onerror=alert(2)>',
-                    memory: 16,
-                    storage: 100,
-                    count: 1
-                }];
+                const originalGetWorkloadDetails = getWorkloadDetails;
+                let normalizedPrototype = undefined;
+                getWorkloadDetails = function(workload) {
+                    normalizedPrototype = Object.getPrototypeOf(workload);
+                    return originalGetWorkloadDetails(workload);
+                };
+                workloads = [JSON.parse('{"id":"1);alert(1);//","type":"vm\\" onclick=\\"alert(3)","name":"<img src=x onerror=alert(1)>","vcpus":"<img src=x onerror=alert(2)>","memory":16,"storage":100,"count":1,"__proto__":{"polluted":true}}')];
                 renderWorkloads();
+                getWorkloadDetails = originalGetWorkloadDetails;
                 const injectedElement = container.querySelector('img[onerror]');
                 const editHandler = container.querySelector('button.edit').getAttribute('onclick');
                 const markupRenderedAsText = container.textContent.includes('<img src=x onerror=alert(1)>');
@@ -4580,11 +4579,12 @@
                 workloads = savedWorkloads;
                 _emptyStateEl = null;
                 if (createdContainer) container.remove();
-                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText && typeAttributeSafe,
-                    'renderWorkloads escapes imported markup and normalizes action IDs and workload types',
-                    'text only + safe ID + safe type',
+                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText && typeAttributeSafe && normalizedPrototype === null,
+                    'renderWorkloads escapes imported markup and safely normalizes IDs, types, and prototypes',
+                    'text only + safe ID + safe type + null prototype',
                     (injectedElement ? 'element injected' : 'text only') + ' + ' + editHandler + ' + ' +
-                    (typeAttributeSafe ? 'safe type' : 'unsafe type'));
+                    (typeAttributeSafe ? 'safe type' : 'unsafe type') + ' + ' +
+                    (normalizedPrototype === null ? 'null prototype' : 'unsafe prototype'));
             })()
         ]);
 

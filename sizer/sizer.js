@@ -5140,7 +5140,9 @@ function renderWorkloads() {
     let html = '';
     workloads.forEach(w => {
         const workloadType = normalizeWorkloadType(w.type);
-        const normalizedWorkload = workloadType === w.type ? w : Object.assign({}, w, { type: workloadType });
+        const normalizedWorkload = workloadType === w.type
+            ? w
+            : Object.assign(Object.create(null), w, { type: workloadType });
         const details = getWorkloadDetails(normalizedWorkload);
         const numericId = Number(w.id);
         const actionId = Number.isSafeInteger(numericId) && numericId >= 0 ? numericId : -1;
