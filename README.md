@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.70 - Available here: https://aka.ms/ODIN
+## Version 0.22.71 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,17 +52,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.70 - Latest Release
+### 🎉 Version 0.22.71 - Latest Release
 
-> **iSCSI external SAN attach is now 6-NIC only.** Azure Local build **2607** ships iSCSI SAN support with the dedicated 6-NIC layout, so the earlier **4-NIC shared-fabric** option has been withdrawn. The Designer's DA1 *Storage Type* card and the Sizer's *Storage Connectivity* dropdown now list only **Fibre Channel SAN** and **iSCSI SAN (6-NIC)**, and any saved or imported design that still used the 4-NIC layout is transparently upgraded to 6-NIC on load. The hidden 4-NIC rendering paths and the `iscsi_4nic` value in the published JSON schemas are retained so legacy state and older exports still work.
+> **Browser-side import and export security hardening.** Shared Sizer URLs, imported JSON files, restored browser state, and generated documents are now consistently treated as untrusted input. ODIN remains a static client-side site: configuration data is not uploaded to an application server.
 
 **What's new**
-- **iSCSI SAN (4-NIC) removed from the pickers** — the DA1 storage-type card (Designer) and the disaggregated *Storage Connectivity* dropdown (Sizer) now offer only Fibre Channel SAN and iSCSI SAN (6-NIC).
-- **Legacy 4-NIC designs auto-upgrade to 6-NIC** — a saved session, imported Designer/Sizer JSON, or Share-as-URL link that still carries `iscsi_4nic` is silently remapped to `iscsi_6nic` across every load path, so nothing reverts to the Fibre Channel default or lands on an unavailable option.
-- **Switch Config Quick Start iSCSI profile retired** — the *Disaggregated — iSCSI* Quick Start builder (which scaffolded a 4-NIC cluster) has been removed; build iSCSI disaggregated clusters in the Designer instead. iSCSI QoS auditing and the disaggregated-iSCSI QoS profile are unchanged.
-- **6-NIC iSCSI + backup topology corrected** — when In-Guest Backup is enabled on a 6-NIC iSCSI cluster, NIC3/NIC4 now stay as **standalone Cluster 1/2** networks and the customer **manually adds a Backup vNIC (VLAN 800) on top of the Management + Compute vSwitch**. The earlier `ClusterBackupSwitch`-on-NIC3/NIC4 design has been removed from the host-networking diagrams (Designer and report), intent zones, port layouts, and QoS notes; iSCSI still lives on dedicated NIC5/NIC6.
-- **iSCSI Fabric VLAN mode is now selectable** — DA4 adds an **Access/Trunk** toggle for iSCSI Fabric A/B (paired, like the Cluster networks), and the DA8 override VLAN fields are now read-only and bound to DA4 (`0` in Access mode, the DA4 VLAN ID in Trunk mode). The Backup Network is now always **Trunk**, since the backup vNIC always tags its VLAN.
-- **Fixed a false "missing subnet" error on Confirm Overrides** — the DA8 Cluster/iSCSI subnet defaults are now seeded into state, so leaving the pre-filled defaults untouched no longer blocks confirmation (and those defaults flow through to the summary and ARM export).
+- **Sizer import and Share-as-URL XSS protection** — imported workload names/details are escaped before HTML rendering, and imported action IDs are normalized before entering handlers.
+- **Designer print-document XSS protection** — imported state values are escaped before printable HTML generation, and Designer imports ignore unknown or dangerous state properties.
+- **Bounded imports** — JSON files are limited to 5 MB, shared URL payloads are bounded, and imported workload collections and names have explicit limits.
+- **Safer CSV exports** — formula-trigger prefixes are neutralized before spreadsheet cells are written.
+- **Development dependency classification corrected** — `html-validate` and its transitive tree are now development-only, and HTML validation CI installs the committed lockfile with `npm ci`.
+- **Firebase rule guidance tightened** — documented rules permit only counter creation at `1` and atomic `+1` updates, while blocking deletion and arbitrary replacement.
 
 ### Quick Start
 

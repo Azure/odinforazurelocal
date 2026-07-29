@@ -280,6 +280,60 @@
                 'No escaping needed', 'Normal text', escapeHtml('Normal text')),
             assert(escapeHtml('') === '', 'Empty string returns empty', '', escapeHtml(''))
         ]);
+
+        testSuite('Imported configuration XSS hardening', 'script.js + sizer.js', [
+            (function() {
+                const originalScenario = state.scenario;
+                const imported = JSON.parse('{"scenario":"connected","__proto__":{"polluted":true},"unexpectedHtml":"<img src=x onerror=alert(1)>"}');
+                const skipped = applyKnownDesignerState(imported);
+                const safe = state.scenario === 'connected' &&
+                    !Object.prototype.hasOwnProperty.call(state, '__proto__') &&
+                    !Object.prototype.hasOwnProperty.call(state, 'unexpectedHtml') &&
+                    skipped.includes('__proto__') && skipped.includes('unexpectedHtml') &&
+                    ({}).polluted === undefined;
+                state.scenario = originalScenario;
+                return assert(safe,
+                    'Designer import applies known keys and rejects unknown or dangerous keys',
+                    true,
+                    safe);
+            })(),
+            (function() {
+                const saved = {
+                    scenario: state.scenario,
+                    clusterRole: state.clusterRole,
+                    autonomousCloudFqdn: state.autonomousCloudFqdn,
+                    adDomain: state.adDomain,
+                    dnsServers: state.dnsServers,
+                    nodeSettings: state.nodeSettings
+                };
+                const payload = '<img src=x onerror=alert(1)>';
+                state.scenario = 'disconnected';
+                state.clusterRole = 'management';
+                state.autonomousCloudFqdn = payload;
+                state.adDomain = payload;
+                state.dnsServers = [payload];
+                state.nodeSettings = [{ name: payload, ipCidr: payload }];
+                const html = buildPrintableConfigurationHtml({ ready: true, missing: [] });
+                Object.keys(saved).forEach(function(key) { state[key] = saved[key]; });
+                const safe = html.indexOf('<img src=x') === -1 &&
+                    html.indexOf('&lt;img src=x onerror=alert(1)&gt;') !== -1;
+                return assert(safe,
+                    'Printable Designer document escapes imported configuration fields',
+                    true,
+                    safe);
+            })()
+        ]);
+
+        testSuite('CSV spreadsheet hardening', 'sizer.js', [
+            assert(escapeSpreadsheetCell('=1+1') === "'=1+1", 'Neutralizes = formula prefix', "'=1+1", escapeSpreadsheetCell('=1+1')),
+            assert(escapeSpreadsheetCell('+SUM(A1:A2)') === "'+SUM(A1:A2)", 'Neutralizes + formula prefix', "'+SUM(A1:A2)", escapeSpreadsheetCell('+SUM(A1:A2)')),
+            assert(escapeSpreadsheetCell('-1+2') === "'-1+2", 'Neutralizes - formula prefix', "'-1+2", escapeSpreadsheetCell('-1+2')),
+            assert(escapeSpreadsheetCell('@SUM(A1:A2)') === "'@SUM(A1:A2)", 'Neutralizes @ formula prefix', "'@SUM(A1:A2)", escapeSpreadsheetCell('@SUM(A1:A2)')),
+            assert(escapeSpreadsheetCell('\t=1+1') === "'\t=1+1", 'Neutralizes tab formula prefix', "'\t=1+1", escapeSpreadsheetCell('\t=1+1')),
+            assert(escapeSpreadsheetCell('\r=1+1') === "'\r=1+1", 'Neutralizes carriage-return formula prefix', "'\r=1+1", escapeSpreadsheetCell('\r=1+1')),
+            assert(escapeSpreadsheetCell('ordinary value') === 'ordinary value', 'Preserves ordinary CSV values', 'ordinary value', escapeSpreadsheetCell('ordinary value')),
+            assert(escapeSpreadsheetCell('a,"b"') === '"a,""b"""', 'Quotes and escapes CSV delimiters', '"a,""b"""', escapeSpreadsheetCell('a,"b"'))
+        ]);
         
         // Test: sanitizeInput
         testSuite('sanitizeInput()', 'utils.js', [
@@ -4308,6 +4362,37 @@
                 return assert(!threw && recovered,
                     'renderWorkloads: empty-state recovered after innerHTML replacement',
                     'no error + recovered', (threw ? 'error thrown' : 'no error') + ' + ' + (recovered ? 'recovered' : 'lost'));
+            })(),
+            (() => {
+                let container = document.getElementById('workloads-list');
+                const createdContainer = !container;
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'workloads-list';
+                    container.style.display = 'none';
+                    document.body.appendChild(container);
+                }
+                const savedWorkloads = workloads.slice();
+                workloads = [{
+                    id: '1);alert(1);//',
+                    type: 'vm',
+                    name: '<img src=x onerror=alert(1)>',
+                    vcpus: '<img src=x onerror=alert(2)>',
+                    memory: 16,
+                    storage: 100,
+                    count: 1
+                }];
+                renderWorkloads();
+                const injectedElement = container.querySelector('img[onerror]');
+                const editHandler = container.querySelector('button.edit').getAttribute('onclick');
+                const markupRenderedAsText = container.textContent.includes('<img src=x onerror=alert(1)>');
+                workloads = savedWorkloads;
+                _emptyStateEl = null;
+                if (createdContainer) container.remove();
+                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText,
+                    'renderWorkloads escapes imported markup and normalizes action IDs',
+                    'text only + safe ID',
+                    (injectedElement ? 'element injected' : 'text only') + ' + ' + editHandler);
             })()
         ]);
 
@@ -11395,7 +11480,19 @@
                 'vm,aks (2 entries)',
                 keptTypes ? keptTypes.join(',') + ' (' + payload.workloads.length + ' entries)' : 'not-an-array'));
 
-            // 4. Non-array workloads coerced to empty array
+            // 4. Imported text and action IDs are bounded before rendering
+            var unsafeWl = {
+                clusterType: 'standard',
+                workloads: [{ type: 'vm', id: '1);alert(1);//', name: 'x'.repeat(MAX_WORKLOAD_NAME_CHARS + 50) }]
+            };
+            try { applyImportedSizerState(unsafeWl); } catch (e) { /* expected */ }
+            out.push(assert(
+                unsafeWl.workloads[0].id === 1 && unsafeWl.workloads[0].name.length === MAX_WORKLOAD_NAME_CHARS,
+                'Normalizes imported workload IDs and bounds names',
+                'id=1, name=' + MAX_WORKLOAD_NAME_CHARS,
+                'id=' + unsafeWl.workloads[0].id + ', name=' + unsafeWl.workloads[0].name.length));
+
+            // 5. Non-array workloads coerced to empty array
             var badWl = { clusterType: 'standard', workloads: 'totally-not-an-array' };
             try { applyImportedSizerState(badWl); } catch (e) { /* expected */ }
             out.push(assert(

@@ -8,18 +8,18 @@
 // {
 //   "rules": {
 //     "analytics": {
-//       ".read": true,
-//       "pageViews": {
-//         ".write": true,
-//         ".validate": "newData.isNumber()"
-//       },
-//       "formCompletions": {
-//         "designDocument": {
-//           ".write": true,
-//           ".validate": "newData.isNumber()"
-//         },
-//         "armDeployment": {
-//           ".write": true,
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//       ".write": "newData.exists()",
+//       ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
 //           ".validate": "newData.isNumber()"
 //         },
 //         "sizerCalculation": {

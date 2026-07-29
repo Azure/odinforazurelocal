@@ -53,6 +53,19 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.71</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">July 29, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security hardening for browser-side configuration imports and exports. Shared Sizer URLs, imported JSON files, restored browser state, and generated documents are now consistently treated as untrusted input.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>Import XSS protections</strong> &mdash; Sizer workload cards escape imported names/details and normalize action IDs; Designer printable documents escape all imported state values and reject unknown state keys.</li>
+                        <li><strong>Bounded imports</strong> &mdash; JSON files are limited to 5&nbsp;MB, shared URL payloads are bounded, and imported workload counts/names have explicit limits.</li>
+                        <li><strong>CSV formula protection</strong> &mdash; spreadsheet formula-trigger prefixes are neutralized before export.</li>
+                        <li><strong>Dependency classification corrected</strong> &mdash; HTML validation tooling is development-only and CI installs it reproducibly with <code>npm ci</code>.</li>
+                        <li><strong>Firebase rule guidance tightened</strong> &mdash; documented counter rules allow only creation at <code>1</code> and atomic <code>+1</code> updates.</li>
+                        <li>All <strong>1,427 / 1,427</strong> tests pass, including direct malicious-markup regressions.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.22.70</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">July 21, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Disaggregated storage &mdash; <strong>iSCSI external SAN now supports the 6-NIC layout only</strong>. Azure Local build <strong>2607</strong> ships iSCSI SAN attach with dedicated 6-NIC connectivity; the earlier <strong>4-NIC shared-fabric</strong> option has been withdrawn. The DA1 <em>Storage Type</em> card and the Sizer <em>Storage Connectivity</em> dropdown no longer offer iSCSI SAN (4-NIC), and any saved or imported design that used it is transparently upgraded to iSCSI SAN (6-NIC).</p>

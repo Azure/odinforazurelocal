@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.71] - 2026-07-29
+
+Security hardening for browser-side configuration imports and exports. Shared Sizer URLs, imported JSON files, restored browser state, and generated documents are now treated as untrusted input. This release also corrects npm dependency metadata so local validation tooling is classified as development-only.
+
+### Changed
+
+- **HTML validation tooling is development-only** (`package.json`, `package-lock.json`) — `html-validate` and its transitive dependency tree are now recorded under `devDependencies`, matching the static site's architecture and allowing Dependabot to classify tooling vulnerabilities as development scope. The HTML validation CI job now uses reproducible `npm ci` installation from the committed lockfile.
+- **Firebase counter rules documented with increment-only validation** (`js/analytics.js`) — the checked-in rules example now blocks counter deletion and arbitrary numeric replacement while permitting initial creation at `1` and atomic `ServerValue.increment(1)` updates.
+
+### Fixed
+
+- **Sizer import and Share-as-URL DOM XSS closed** (`sizer/sizer.js`) — imported workload names and detail strings are HTML-escaped before workload-card rendering, and imported action IDs are normalized to safe integers before entering inline handlers. This protects file import, shared URLs, and restored `localStorage` state.
+- **Designer print-document DOM XSS closed** (`js/script.js`) — every state-derived value in the printable configuration document is escaped before `document.write()`. Designer imports now accept only keys defined by the current wizard state and ignore unknown or dangerous properties.
+- **Import resource limits added** (`js/script.js`, `sizer/sizer.js`) — Designer and Sizer JSON files are limited to 5 MB; shared Sizer configuration parameters are bounded; imported workload collections are capped at 1,000 entries and names at 200 characters.
+- **CSV formula injection neutralized** (`sizer/sizer.js`) — exported spreadsheet cells beginning with formula-trigger characters are prefixed as text before CSV quoting.
+- **Security regression coverage added** (`tests/index.html`) — tests cover malicious workload markup and IDs, dangerous Designer keys, printable-document markup, import normalization, and CSV formula prefixes. Full suite passes **1,427 / 1,427**.
+
+---
+
 ## [0.22.70] - 2026-07-21
 
 Disaggregated storage — **iSCSI external SAN attach is now 6-NIC only**. Azure Local build **2607** ships iSCSI SAN support with the dedicated 6-NIC layout; the earlier **4-NIC shared-fabric** option (`iscsi_4nic`) has been withdrawn from the product for now. The DA1 *Storage Type* card and the Sizer *Storage Connectivity* dropdown no longer offer iSCSI SAN (4-NIC), and any saved/imported design that still carries the value is transparently upgraded to iSCSI SAN (6-NIC). The underlying 4-NIC rendering paths are left in place (hidden) so legacy state keeps rendering; the `iscsi_4nic` value also remains in the published JSON schemas so older exports still validate.

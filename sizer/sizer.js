@@ -10,6 +10,10 @@ const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 const SIZER_VERSION = 2;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
+const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_SHARED_CONFIG_CHARS = 12000;
+const MAX_IMPORTED_WORKLOADS = 1000;
+const MAX_WORKLOAD_NAME_CHARS = 200;
 
 // Initialize and track page view for analytics
 if (typeof initializeAnalytics === 'function') {
@@ -5126,6 +5130,7 @@ function renderWorkloads() {
     workloads.forEach(w => {
         const iconClass = w.type;
         const details = getWorkloadDetails(w);
+        const actionId = Number.isSafeInteger(Number(w.id)) ? Number(w.id) : -1;
         html += `
             <div class="workload-card">
                 <div class="workload-icon ${iconClass}">
@@ -5133,27 +5138,27 @@ function renderWorkloads() {
                 </div>
                 <div class="workload-card-content">
                     <div class="workload-card-title">
-                        ${w.name}
+                        ${escapeHtmlSizer(w.name || '')}
                         <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
                         ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
-                    <div class="workload-card-details">${details}</div>
+                    <div class="workload-card-details">${escapeHtmlSizer(details)}</div>
                 </div>
                 <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
-                    <button class="edit" onclick="editWorkload(${w.id})" title="Edit">
+                    <button class="edit" onclick="editWorkload(${actionId})" title="Edit">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                         </svg>
                     </button>
-                    <button class="clone" onclick="cloneWorkload(${w.id})" title="Clone">
+                    <button class="clone" onclick="cloneWorkload(${actionId})" title="Clone">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                         </svg>
                     </button>
-                    <button class="delete" onclick="deleteWorkload(${w.id})" title="Delete">
+                    <button class="delete" onclick="deleteWorkload(${actionId})" title="Delete">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                         </svg>
@@ -8220,6 +8225,15 @@ function exportSizerJSON() {
     }
 }
 
+function escapeSpreadsheetCell(cell) {
+    const value = String(cell == null ? '' : cell);
+    const safeValue = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
+    if (safeValue.indexOf(',') !== -1 || safeValue.indexOf('"') !== -1 || safeValue.indexOf('\n') !== -1) {
+        return '"' + safeValue.replace(/"/g, '""') + '"';
+    }
+    return safeValue;
+}
+
 // Export hardware BOM as CSV spreadsheet
 function exportSizerCSV() { // eslint-disable-line no-unused-vars
     try {
@@ -8332,13 +8346,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 
         // Convert to CSV string
         const csv = rows.map(function(row) {
-            return row.map(function(cell) {
-                const s = String(cell == null ? '' : cell);
-                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
-                    return '"' + s.replace(/"/g, '""') + '"';
-                }
-                return s;
-            }).join(',');
+            return row.map(escapeSpreadsheetCell).join(',');
         }).join('\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -8404,6 +8412,10 @@ function loadSizerFromURL() {
     const params = new URLSearchParams(window.location.search);
     const configParam = params.get('config');
     if (!configParam) return false;
+    if (configParam.length > MAX_SHARED_CONFIG_CHARS) {
+        console.warn('Shared configuration exceeds the supported URL size.');
+        return false;
+    }
 
     try {
         const json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
@@ -9809,6 +9821,10 @@ function handleSizerFileImport(event) {
         alert('Please select a valid JSON file.');
         return;
     }
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+        alert('The selected JSON file is too large. The maximum supported size is 5 MB.');
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -9883,9 +9899,14 @@ function applyImportedSizerState(d) {
             d.workloads = [];
         } else {
             const originalCount = d.workloads.length;
-            d.workloads = d.workloads.filter(function(w) {
+            d.workloads = d.workloads.slice(0, MAX_IMPORTED_WORKLOADS).filter(function(w) {
                 return w && typeof w === 'object' && !Array.isArray(w) &&
                     typeof w.type === 'string' && VALID_WORKLOAD_TYPES.indexOf(w.type) !== -1;
+            }).map(function(w, index) {
+                w.name = String(w.name == null ? '' : w.name).substring(0, MAX_WORKLOAD_NAME_CHARS);
+                const importedId = Number(w.id);
+                w.id = Number.isSafeInteger(importedId) && importedId >= 0 ? importedId : index + 1;
+                return w;
             });
             if (d.workloads.length !== originalCount) {
                 console.warn('Import: dropped ' + (originalCount - d.workloads.length) +

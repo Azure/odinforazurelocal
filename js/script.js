@@ -1,7 +1,8 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.22.70';
+const WIZARD_VERSION = '0.22.71';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
+const MAX_DESIGNER_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 
 // ============================================================================
 // TAB NAVIGATION MODULE
@@ -9323,6 +9324,19 @@ function closeDesignerImportModal() { // eslint-disable-line no-unused-vars
     if (modal) modal.style.display = 'none';
 }
 
+function applyKnownDesignerState(importedState) {
+    const safeKeys = Object.keys(getInitialWizardState());
+    const skippedKeys = [];
+    Object.keys(importedState).forEach(key => {
+        if (safeKeys.includes(key)) {
+            state[key] = importedState[key];
+        } else {
+            skippedKeys.push(key);
+        }
+    });
+    return skippedKeys;
+}
+
 function importConfiguration() {
     try {
         const input = document.createElement('input');
@@ -9331,6 +9345,10 @@ function importConfiguration() {
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            if (file.size > MAX_DESIGNER_IMPORT_FILE_BYTES) {
+                showToast('The selected JSON file is too large. The maximum supported size is 5 MB.', 'error');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -9346,7 +9364,7 @@ function importConfiguration() {
                     }
 
                     // Check if this is an Odin configuration export
-                    if (!imported.state) {
+                    if (!imported.state || typeof imported.state !== 'object' || Array.isArray(imported.state)) {
                         showToast('Invalid configuration file. Expected Odin export or Azure ARM template.', 'error');
                         return;
                     }
@@ -9357,9 +9375,11 @@ function importConfiguration() {
                     // Track changes if there was previous state
                     const hadPreviousState = Object.keys(state).some(k => state[k] != null);
                     const changes = [];
+                    const safeKeys = Object.keys(getInitialWizardState());
 
                     if (hadPreviousState) {
-                        Object.keys(imported.state).forEach(key => {
+                        safeKeys.forEach(key => {
+                            if (!Object.prototype.hasOwnProperty.call(imported.state, key)) return;
                             if (JSON.stringify(state[key]) !== JSON.stringify(imported.state[key])) {
                                 changes.push(key);
                             }
@@ -9369,37 +9389,10 @@ function importConfiguration() {
                     // Use setTimeout to prevent blocking and allow UI to update
                     setTimeout(() => {
                         try {
-                            // Keys that could pollute Object.prototype if assigned via
-                            // bracket notation. JSON.parse makes __proto__ an OWN
-                            // enumerable property, so it survives into the loops below —
-                            // reject it (and constructor/prototype) defensively. This is
-                            // a hard skip, not a hard reject: the rest of the (valid)
-                            // import still applies. (#237 import hardening)
-                            const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
-                            const skippedDangerous = [];
+                            const skippedKeys = applyKnownDesignerState(imported.state);
 
-                            // Apply imported state safely - only copy known properties
-                            const safeKeys = Object.keys(state);
-                            safeKeys.forEach(key => {
-                                if (DANGEROUS_KEYS.includes(key)) return;
-                                if (Object.prototype.hasOwnProperty.call(imported.state, key)) {
-                                    state[key] = imported.state[key];
-                                }
-                            });
-
-                            // Also copy any additional properties from import
-                            Object.keys(imported.state).forEach(key => {
-                                if (DANGEROUS_KEYS.includes(key)) {
-                                    skippedDangerous.push(key);
-                                    return;
-                                }
-                                if (!safeKeys.includes(key)) {
-                                    state[key] = imported.state[key];
-                                }
-                            });
-
-                            if (skippedDangerous.length > 0) {
-                                console.warn('Import: skipped unsafe key(s):', skippedDangerous.join(', '));
+                            if (skippedKeys.length > 0) {
+                                console.warn('Import: skipped unknown or unsafe key(s):', skippedKeys.join(', '));
                             }
 
                             // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships
@@ -11273,16 +11266,7 @@ function showShortcutsHelp() {
 // PDF EXPORT
 // ============================================
 
-function exportToPDF() {
-    const readiness = getReportReadiness();
-
-    // Generate a printable HTML document
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        showToast('Pop-up blocked. Please allow pop-ups for PDF export.', 'error');
-        return;
-    }
-
+function buildPrintableConfigurationHtml(readiness) {
     const getDisplayName = (key, value) => {
         const displayNames = {
             scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'Microsoft 365 Local', rackscale: 'Multi-Rack' },
@@ -11306,6 +11290,7 @@ function exportToPDF() {
         if (displayNames[key] && displayNames[key][value]) return displayNames[key][value];
         return value || 'Not configured';
     };
+    const printable = value => escapeHtml(value == null ? '' : value);
 
     const html = `
 <!DOCTYPE html>
@@ -11347,51 +11332,51 @@ function exportToPDF() {
     <div class="section">
         <div class="section-title">🏢 Deployment Configuration</div>
         <div class="grid">
-            <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${getDisplayName('scenario', state.scenario)}</div></div>
+            <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${printable(getDisplayName('scenario', state.scenario))}</div></div>
             ${state.scenario === 'disconnected' && state.clusterRole ? `
             <div class="item"><div class="item-label">Cluster Role</div><div class="item-value">${state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'}</div></div>
-            <div class="item"><div class="item-label">Autonomous Cloud FQDN</div><div class="item-value">${state.autonomousCloudFqdn || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Autonomous Cloud FQDN</div><div class="item-value">${printable(state.autonomousCloudFqdn || 'Not configured')}</div></div>
             ` : `
-            <div class="item"><div class="item-label">Azure Cloud</div><div class="item-value">${getDisplayName('region', state.region)}</div></div>
-            <div class="item"><div class="item-label">Azure Region</div><div class="item-value">${state.localInstanceRegion?.replace(/_/g, ' ') || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Azure Cloud</div><div class="item-value">${printable(getDisplayName('region', state.region))}</div></div>
+            <div class="item"><div class="item-label">Azure Region</div><div class="item-value">${printable(String(state.localInstanceRegion || 'Not configured').replace(/_/g, ' '))}</div></div>
             `}
-            <div class="item"><div class="item-label">Scale</div><div class="item-value">${getDisplayName('scale', state.scale)}</div></div>
+            <div class="item"><div class="item-label">Scale</div><div class="item-value">${printable(getDisplayName('scale', state.scale))}</div></div>
         </div>
     </div>
 
     <div class="section">
         <div class="section-title">🖥️ Cluster Configuration</div>
         <div class="grid">
-            <div class="item"><div class="item-label">Node Count</div><div class="item-value">${state.nodes || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">Witness Type</div><div class="item-value">${getDisplayName('witnessType', state.witnessType)}</div></div>
-            <div class="item"><div class="item-label">Ports per Node</div><div class="item-value">${state.ports || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">Storage Connectivity</div><div class="item-value">${getDisplayName('storage', state.storage)}</div></div>
+            <div class="item"><div class="item-label">Node Count</div><div class="item-value">${printable(state.nodes || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Witness Type</div><div class="item-value">${printable(getDisplayName('witnessType', state.witnessType))}</div></div>
+            <div class="item"><div class="item-label">Ports per Node</div><div class="item-value">${printable(state.ports || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Storage Connectivity</div><div class="item-value">${printable(getDisplayName('storage', state.storage))}</div></div>
         </div>
     </div>
 
     <div class="section">
         <div class="section-title">🌐 Network Configuration</div>
         <div class="grid">
-            <div class="item"><div class="item-label">IP Assignment</div><div class="item-value">${getDisplayName('ip', state.ip)}</div></div>
-            <div class="item"><div class="item-label">Infrastructure CIDR</div><div class="item-value">${state.infraCidr || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">Default Gateway</div><div class="item-value">${state.infraGateway || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">Infrastructure VLAN</div><div class="item-value">${state.infraVlan === 'custom' ? state.infraVlanId : (state.infraVlan || 'Not configured')}</div></div>
-            <div class="item"><div class="item-label">Outbound Connectivity</div><div class="item-value">${getDisplayName('outbound', state.outbound)}</div></div>
-            <div class="item"><div class="item-label">Arc Gateway</div><div class="item-value">${getDisplayName('arc', state.arc)}</div></div>
+            <div class="item"><div class="item-label">IP Assignment</div><div class="item-value">${printable(getDisplayName('ip', state.ip))}</div></div>
+            <div class="item"><div class="item-label">Infrastructure CIDR</div><div class="item-value">${printable(state.infraCidr || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Default Gateway</div><div class="item-value">${printable(state.infraGateway || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Infrastructure VLAN</div><div class="item-value">${printable(state.infraVlan === 'custom' ? state.infraVlanId : (state.infraVlan || 'Not configured'))}</div></div>
+            <div class="item"><div class="item-label">Outbound Connectivity</div><div class="item-value">${printable(getDisplayName('outbound', state.outbound))}</div></div>
+            <div class="item"><div class="item-label">Arc Gateway</div><div class="item-value">${printable(getDisplayName('arc', state.arc))}</div></div>
         </div>
     </div>
 
     <div class="section">
         <div class="section-title">🔐 Identity & Security</div>
         <div class="grid">
-            <div class="item"><div class="item-label">Identity Provider</div><div class="item-value">${getDisplayName('activeDirectory', state.activeDirectory)}</div></div>
-            <div class="item"><div class="item-label">AD Domain</div><div class="item-value">${state.adDomain || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">DNS Servers</div><div class="item-value">${state.dnsServers?.join(', ') || 'Not configured'}</div></div>
-            <div class="item"><div class="item-label">Security Configuration</div><div class="item-value">${getDisplayName('securityConfiguration', state.securityConfiguration)}</div></div>
+            <div class="item"><div class="item-label">Identity Provider</div><div class="item-value">${printable(getDisplayName('activeDirectory', state.activeDirectory))}</div></div>
+            <div class="item"><div class="item-label">AD Domain</div><div class="item-value">${printable(state.adDomain || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">DNS Servers</div><div class="item-value">${printable(Array.isArray(state.dnsServers) ? state.dnsServers.join(', ') : 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Security Configuration</div><div class="item-value">${printable(getDisplayName('securityConfiguration', state.securityConfiguration))}</div></div>
         </div>
     </div>
 
-    ${state.nodeSettings && state.nodeSettings.length > 0 ? `
+    ${Array.isArray(state.nodeSettings) && state.nodeSettings.length > 0 ? `
     <div class="section">
         <div class="section-title">📝 Node Settings</div>
         <table>
@@ -11400,8 +11385,8 @@ function exportToPDF() {
             </thead>
             <tbody>
                 ${state.nodeSettings.map((node, i) => {
-        const escName = (node.name || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        const escIp = (node.ipCidr || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const escName = printable(node && node.name ? node.name : 'Not set');
+            const escIp = printable(node && node.ipCidr ? node.ipCidr : 'Not set');
         return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
     }).join('')}
             </tbody>
@@ -11425,6 +11410,21 @@ function exportToPDF() {
 </body>
 </html>
     `;
+
+    return html;
+}
+
+function exportToPDF() {
+    const readiness = getReportReadiness();
+
+    // Generate a printable HTML document
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showToast('Pop-up blocked. Please allow pop-ups for PDF export.', 'error');
+        return;
+    }
+
+    const html = buildPrintableConfigurationHtml(readiness);
 
     printWindow.document.write(html);
     printWindow.document.close();
