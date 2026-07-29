@@ -10,6 +10,15 @@ const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 const SIZER_VERSION = 2;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
+const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_SHARED_CONFIG_CHARS = 12000;
+const MAX_IMPORTED_WORKLOADS = 1000;
+const MAX_WORKLOAD_NAME_CHARS = 200;
+const MAX_CLUSTER_JSON_BYTES = 5 * 1024 * 1024;
+const MAX_CLUSTER_IMPORT_TEXT_CHARS = 500;
+const MAX_CLUSTER_IMPORT_SOCKETS = 8;
+const MAX_CLUSTER_IMPORT_CORES = 384;
+const MAX_CLUSTER_IMPORT_MEMORY_GB = 4096;
 
 // Initialize and track page view for analytics
 if (typeof initializeAnalytics === 'function') {
@@ -5105,6 +5114,12 @@ function cloneWorkload(id) {
 }
 
 // Render workloads list
+function normalizeWorkloadType(type) {
+    return typeof type === 'string' && Object.prototype.hasOwnProperty.call(WORKLOAD_DEFAULTS, type)
+        ? type
+        : '';
+}
+
 function renderWorkloads() {
     const container = document.getElementById('workloads-list');
     // Use cached reference — getElementById returns null after innerHTML replacement
@@ -5124,36 +5139,41 @@ function renderWorkloads() {
 
     let html = '';
     workloads.forEach(w => {
-        const iconClass = w.type;
-        const details = getWorkloadDetails(w);
+        const workloadType = normalizeWorkloadType(w.type);
+        const normalizedWorkload = workloadType === w.type
+            ? w
+            : Object.assign(Object.create(null), w, { type: workloadType });
+        const details = getWorkloadDetails(normalizedWorkload);
+        const numericId = Number(w.id);
+        const actionId = Number.isSafeInteger(numericId) && numericId >= 0 ? numericId : -1;
         html += `
             <div class="workload-card">
-                <div class="workload-icon ${iconClass}">
-                    ${getWorkloadIcon(w.type)}
+                <div class="workload-icon ${workloadType}">
+                    ${getWorkloadIcon(workloadType)}
                 </div>
                 <div class="workload-card-content">
                     <div class="workload-card-title">
-                        ${w.name}
-                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
+                        ${escapeHtmlSizer(w.name == null ? '' : w.name)}
+                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(workloadType)}</span>
                         ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
-                    <div class="workload-card-details">${details}</div>
+                    <div class="workload-card-details">${escapeHtmlSizer(details)}${workloadType === 'ghel' ? ' <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>' : ''}</div>
                 </div>
                 <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
-                    <button class="edit" onclick="editWorkload(${w.id})" title="Edit">
+                    <button class="edit" onclick="editWorkload(${actionId})" title="Edit">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                         </svg>
                     </button>
-                    <button class="clone" onclick="cloneWorkload(${w.id})" title="Clone">
+                    <button class="clone" onclick="cloneWorkload(${actionId})" title="Clone">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                         </svg>
                     </button>
-                    <button class="delete" onclick="deleteWorkload(${w.id})" title="Delete">
+                    <button class="delete" onclick="deleteWorkload(${actionId})" title="Delete">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                         </svg>
@@ -5272,7 +5292,7 @@ function getWorkloadDetails(w) {
             const ghelTopology = ghelReplicas === 0 ? '1 VM'
                 : ghelReplicas === 1 ? '2 VMs (HA pair)'
                     : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
-            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>`;
+            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM`;
             break;
         }
         default:
@@ -8220,6 +8240,15 @@ function exportSizerJSON() {
     }
 }
 
+function escapeSpreadsheetCell(cell) {
+    const value = String(cell == null ? '' : cell);
+    const safeValue = /^(?:[\t\r]|\s*[=+\-@])/.test(value) ? "'" + value : value;
+    if (safeValue.indexOf(',') !== -1 || safeValue.indexOf('"') !== -1 || safeValue.indexOf('\r') !== -1 || safeValue.indexOf('\n') !== -1) {
+        return '"' + safeValue.replace(/"/g, '""') + '"';
+    }
+    return safeValue;
+}
+
 // Export hardware BOM as CSV spreadsheet
 function exportSizerCSV() { // eslint-disable-line no-unused-vars
     try {
@@ -8332,13 +8361,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 
         // Convert to CSV string
         const csv = rows.map(function(row) {
-            return row.map(function(cell) {
-                const s = String(cell == null ? '' : cell);
-                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
-                    return '"' + s.replace(/"/g, '""') + '"';
-                }
-                return s;
-            }).join(',');
+            return row.map(escapeSpreadsheetCell).join(',');
         }).join('\n');
 
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -8359,7 +8382,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 }
 
 // Share sizer configuration via URL (compressed base64 in query parameter)
-function shareSizerURL() { // eslint-disable-line no-unused-vars
+async function shareSizerURL() { // eslint-disable-line no-unused-vars
     if (workloads.length === 0) {
         showToast('Add at least one workload before sharing', 'error');
         return;
@@ -8367,7 +8390,18 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
     try {
         const clusterNameEl = document.getElementById('cluster-name');
         const defaultName = (clusterNameEl && clusterNameEl.value ? clusterNameEl.value.trim() : '').substring(0, 100);
-        const shareName = prompt('Enter a name for this configuration (optional):', defaultName);
+        const shareName = await window.showTextInputDialog({
+            title: 'Share Sizer configuration',
+            message: 'Add an optional name to help recipients identify this configuration. The generated URL will be copied to your clipboard.',
+            confirmLabel: 'Copy share URL',
+            cancelLabel: 'Cancel',
+            input: {
+                label: 'Configuration name (optional)',
+                value: defaultName,
+                maxLength: 100,
+                hint: 'The configuration remains in the URL and is not uploaded to a server.'
+            }
+        });
         if (shareName === null) return; // User cancelled
 
         const state = getSizerState();
@@ -8380,7 +8414,7 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
         const url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
 
         if (url.length > 8000) {
-            alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.');
+            showToast('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.', 'error', 6000);
             return;
         }
 
@@ -8388,14 +8422,24 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
             navigator.clipboard.writeText(url).then(function() {
                 showToast('Shareable URL copied to clipboard!', 'success');
             }).catch(function() {
-                prompt('Copy this URL to share your configuration:', url);
+                window.showCopyDialog({
+                    title: 'Copy share URL',
+                    message: 'Clipboard access was unavailable. Copy the selected URL below.',
+                    label: 'Share URL',
+                    value: url
+                });
             });
         } else {
-            prompt('Copy this URL to share your configuration:', url);
+            await window.showCopyDialog({
+                title: 'Copy share URL',
+                message: 'Clipboard access is unavailable. Copy the selected URL below.',
+                label: 'Share URL',
+                value: url
+            });
         }
     } catch (e) {
         console.error('Share URL failed:', e);
-        alert('Failed to generate shareable URL. Use Export JSON instead.');
+        showToast('Failed to generate shareable URL. Use Export JSON instead.', 'error', 6000);
     }
 }
 
@@ -8404,6 +8448,10 @@ function loadSizerFromURL() {
     const params = new URLSearchParams(window.location.search);
     const configParam = params.get('config');
     if (!configParam) return false;
+    if (configParam.length > MAX_SHARED_CONFIG_CHARS) {
+        console.warn('Shared configuration exceeds the supported URL size.');
+        return false;
+    }
 
     try {
         const json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
@@ -8805,6 +8853,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         errDiv.style.display = '';
         return;
     }
+    if (new Blob([text]).size > MAX_CLUSTER_JSON_BYTES) {
+        errDiv.textContent = 'The pasted JSON is too large. The maximum supported size is 5 MB.';
+        errDiv.style.display = '';
+        return;
+    }
 
     let data;
     try {
@@ -8815,8 +8868,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return;
     }
 
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        errDiv.textContent = 'The pasted JSON must contain one Azure Local machine resource.';
+        errDiv.style.display = '';
+        return;
+    }
+
     // Validate it's an Azure Local machine resource
-    const resourceType = (data.type || '').toLowerCase();
+    const resourceType = typeof data.type === 'string' ? data.type.toLowerCase() : '';
     const isNode = resourceType === 'microsoft.hybridcompute/machines';
 
     if (!isNode) {
@@ -8828,13 +8887,32 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     let coreCount, memoryGiB, cpuMfr, sockets;
 
     // Node-level JSON — rich data available
-    const nProps = data.properties;
-    const hwProfile = nProps && nProps.hardwareProfile;
-    const detected = nProps && nProps.detectedProperties;
+    const nProps = data.properties && typeof data.properties === 'object' && !Array.isArray(data.properties)
+        ? data.properties
+        : null;
+    const hwProfile = nProps && nProps.hardwareProfile && typeof nProps.hardwareProfile === 'object' && !Array.isArray(nProps.hardwareProfile)
+        ? nProps.hardwareProfile
+        : null;
+    const detected = nProps && nProps.detectedProperties && typeof nProps.detectedProperties === 'object' && !Array.isArray(nProps.detectedProperties)
+        ? nProps.detectedProperties
+        : null;
 
-    const clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
-    const manufacturer = (detected && detected.manufacturer) || 'Unknown';
-    const model = (detected && detected.model) || 'Unknown';
+    const normalizeImportedText = function(value, fallback) {
+        if (typeof value === 'string' || typeof value === 'number') {
+            return String(value).slice(0, MAX_CLUSTER_IMPORT_TEXT_CHARS);
+        }
+        if (Array.isArray(value)) {
+            const joined = value.filter(function(item) {
+                return typeof item === 'string' || typeof item === 'number';
+            }).join(', ');
+            if (joined) return joined.slice(0, MAX_CLUSTER_IMPORT_TEXT_CHARS);
+        }
+        return fallback;
+    };
+
+    const clusterName = normalizeImportedText(nProps && nProps.displayName, normalizeImportedText(data.name, 'Unknown'));
+    const manufacturer = normalizeImportedText(detected && detected.manufacturer, 'Unknown');
+    const model = normalizeImportedText(detected && detected.model, 'Unknown');
 
     // Extract sockets, total cores, and processor name from the JSON.
     //
@@ -8852,14 +8930,16 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // machine. We now prefer `detected` (which is unambiguous) and fall back to
     // hwProfile only when `detected` is missing or invalid.
     const procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
-    const processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+    const processorName = normalizeImportedText(detected && detected.processorNames,
+        normalizeImportedText(procFromHw && procFromHw.name, ''));
 
     // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
     const detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
-    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= 8) {
+    const hardwareSockets = hwProfile ? parseInt(hwProfile.numberOfCpuSockets, 10) : NaN;
+    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= MAX_CLUSTER_IMPORT_SOCKETS) {
         sockets = detectedSockets;
-    } else if (hwProfile && hwProfile.numberOfCpuSockets >= 1 && hwProfile.numberOfCpuSockets <= 8) {
-        sockets = hwProfile.numberOfCpuSockets;
+    } else if (!isNaN(hardwareSockets) && hardwareSockets >= 1 && hardwareSockets <= MAX_CLUSTER_IMPORT_SOCKETS) {
+        sockets = hardwareSockets;
     } else {
         sockets = 0; // unknown — heuristic below
     }
@@ -8879,18 +8959,29 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     }
 
     if (hwProfile && hwProfile.totalPhysicalMemoryInBytes) {
-        memoryGiB = Math.round(hwProfile.totalPhysicalMemoryInBytes / (1024 * 1024 * 1024));
+        memoryGiB = Math.round(Number(hwProfile.totalPhysicalMemoryInBytes) / (1024 * 1024 * 1024));
     } else if (detected && detected.totalPhysicalMemoryInGigabytes) {
         memoryGiB = parseInt(detected.totalPhysicalMemoryInGigabytes, 10) || 0;
     } else {
         memoryGiB = 0;
     }
 
+    if (!isFinite(coreCount) || coreCount < 1 || coreCount > MAX_CLUSTER_IMPORT_CORES) {
+        errDiv.textContent = 'The machine core count is outside the supported range (1–384 cores).';
+        errDiv.style.display = '';
+        return;
+    }
+    if (!isFinite(memoryGiB) || memoryGiB < 0 || memoryGiB > MAX_CLUSTER_IMPORT_MEMORY_GB) {
+        errDiv.textContent = 'The machine memory is outside the supported range (up to 4096 GB).';
+        errDiv.style.display = '';
+        return;
+    }
+
     const nodeCount = 2; // default — user sets in preview
 
     // Determine CPU manufacturer from processor name or heuristics
     cpuMfr = 'intel'; // default
-    const cpuNameLower = (processorName || '').toLowerCase();
+    const cpuNameLower = processorName.toLowerCase();
     if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
         cpuMfr = 'amd';
     }
@@ -8909,7 +9000,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
     // missing or obviously wrong we fall back to a heuristic based on core count.
     // Bug #207 fix: do NOT unconditionally override the imported sockets value.
-    if (!sockets || sockets < 1 || sockets > 8) {
+    if (!sockets || sockets < 1 || sockets > MAX_CLUSTER_IMPORT_SOCKETS) {
         sockets = coreCount > 64 ? 2 : 1;
     }
     coresPerSocket = sockets > 0 ? Math.round(coreCount / sockets) : coreCount;
@@ -9002,7 +9093,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     } else {
         previewHTML += '<span>CPU Generation: <em style="color: var(--text-secondary);">Not in catalog</em></span>';
     }
-    previewHTML += '<span>Location: <strong>' + escapeHtml(data.location || '—') + '</strong></span>';
+    previewHTML += '<span>Location: <strong>' + escapeHtml(normalizeImportedText(data.location, '—')) + '</strong></span>';
     previewHTML += '</div>';
     if (genMatchConfidence !== 'exact' && processorName) {
         previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ CPU "' + escapeHtml(processorName) + '" is not in the current hardware catalog. The exact processor name and core count will be imported — verify the configuration after import.</div>';
@@ -9801,6 +9892,12 @@ function onClusterNameInput() { // eslint-disable-line no-unused-vars
 }
 
 // Handle the selected file for import
+function isDesignerExportPayload(parsed) {
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+    typeof parsed.version === 'string' &&
+        parsed.state && typeof parsed.state === 'object' && !Array.isArray(parsed.state));
+}
+
 function handleSizerFileImport(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -9809,11 +9906,26 @@ function handleSizerFileImport(event) {
         alert('Please select a valid JSON file.');
         return;
     }
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+        alert('The selected JSON file is too large. The maximum supported size is 5 MB.');
+        return;
+    }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const parsed = JSON.parse(e.target.result);
+
+            if (isDesignerExportPayload(parsed)) {
+                const openDesigner = await window.showConfirmDialog({
+                    title: 'Designer configuration detected',
+                    message: 'This file was exported from ODIN Designer and cannot be imported into Sizer. Open Designer, then use Import Configuration to load this file.',
+                    confirmLabel: 'Open Designer',
+                    cancelLabel: 'Stay in Sizer'
+                });
+                if (openDesigner) window.location.href = '../?tab=designer';
+                return;
+            }
 
             // Accept either { _meta, data } wrapper or raw state object
             const d = parsed.data || parsed;
@@ -9883,9 +9995,14 @@ function applyImportedSizerState(d) {
             d.workloads = [];
         } else {
             const originalCount = d.workloads.length;
-            d.workloads = d.workloads.filter(function(w) {
+            d.workloads = d.workloads.slice(0, MAX_IMPORTED_WORKLOADS).filter(function(w) {
                 return w && typeof w === 'object' && !Array.isArray(w) &&
                     typeof w.type === 'string' && VALID_WORKLOAD_TYPES.indexOf(w.type) !== -1;
+            }).map(function(w, index) {
+                w.name = String(w.name == null ? '' : w.name).substring(0, MAX_WORKLOAD_NAME_CHARS);
+                const importedId = Number(w.id);
+                w.id = Number.isSafeInteger(importedId) && importedId >= 0 ? importedId : index + 1;
+                return w;
             });
             if (d.workloads.length !== originalCount) {
                 console.warn('Import: dropped ' + (originalCount - d.workloads.length) +
@@ -10112,12 +10229,6 @@ function applyImportedSizerState(d) {
 
 // Reset scenario
 function resetScenario() {
-    // Confirm if there are workloads added
-    if (workloads.length > 0) {
-        if (!confirm('Are you sure you want to reset? This will remove all workloads and restore default settings.')) {
-            return;
-        }
-    }
     clearSizerState();
     workloads = [];
     workloadIdCounter = 0;
@@ -10204,6 +10315,22 @@ function resetScenario() {
 
     // Clear any lingering RVTools import preview/state.
     resetRVToolsImport();
+}
+
+async function requestSizerReset() { // eslint-disable-line no-unused-vars
+    const workloadText = workloads.length > 0
+        ? ` This will remove ${workloads.length} workload${workloads.length === 1 ? '' : 's'}.`
+        : '';
+    const confirmed = await window.showConfirmDialog({
+        title: 'Reset Sizer?',
+        message: `This restores all Sizer hardware, cluster, growth, and workload settings to their defaults.${workloadText}`,
+        confirmLabel: 'Reset Sizer',
+        cancelLabel: 'Keep configuration',
+        danger: true
+    });
+    if (!confirmed) return;
+    resetScenario();
+    showToast('Sizer reset to default settings', 'success');
 }
 
 // Set default hardware config (Intel 6th Gen Xeon Granite Rapids / Sierra Forest, 32 cores)

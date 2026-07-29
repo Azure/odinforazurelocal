@@ -1,0 +1,256 @@
+/* Shared toast and compact dialog interactions for Designer and Sizer. */
+
+.odin-toast-region {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 12000;
+    display: flex;
+    width: min(400px, calc(100vw - 32px));
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.odin-toast {
+    --toast-accent: var(--accent-blue);
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) 28px;
+    align-items: start;
+    gap: 10px;
+    padding: 13px 12px 13px 14px;
+    overflow: hidden;
+    color: var(--text-primary);
+    background: var(--card-bg-transparent, var(--card-bg));
+    border: 1px solid var(--glass-border);
+    border-left: 4px solid var(--toast-accent);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+    pointer-events: auto;
+    animation: odin-toast-in 180ms ease-out;
+}
+
+.odin-toast--success { --toast-accent: var(--success); }
+.odin-toast--error { --toast-accent: var(--danger); }
+.odin-toast--warning { --toast-accent: var(--warning); }
+.odin-toast--leaving { animation: odin-toast-out 160ms ease-in forwards; }
+
+.odin-toast__icon {
+    color: var(--toast-accent);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+}
+
+.odin-toast__message {
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+.odin-toast__dismiss,
+.odin-dialog__close {
+    display: inline-grid;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    place-items: center;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.odin-toast__dismiss:hover,
+.odin-dialog__close:hover {
+    color: var(--text-primary);
+    background: var(--subtle-bg-hover);
+}
+
+.odin-dialog {
+    width: min(480px, calc(100vw - 32px));
+    max-width: none;
+    max-height: min(80vh, 640px);
+    margin: auto;
+    padding: 0;
+    overflow: auto;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.55);
+}
+
+.odin-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.odin-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 12999;
+    background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.odin-dialog--fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 13000;
+}
+
+.odin-dialog[open] { animation: odin-dialog-in 160ms ease-out; }
+
+.odin-dialog__form { margin: 0; }
+
+.odin-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px 12px;
+}
+
+.odin-dialog__title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.odin-dialog__body {
+    padding: 0 20px 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.odin-dialog__message { margin: 0; }
+
+.odin-dialog__field {
+    display: grid;
+    gap: 7px;
+    margin-top: 16px;
+}
+
+.odin-dialog__label {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.odin-dialog__input,
+.odin-dialog__copy-value {
+    width: 100%;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    font: inherit;
+    outline: none;
+}
+
+.odin-dialog__input:focus,
+.odin-dialog__copy-value:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue);
+}
+
+.odin-dialog__copy-value {
+    min-height: 108px;
+    resize: vertical;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.odin-dialog__hint {
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.odin-dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--glass-border);
+}
+
+.odin-dialog__button {
+    min-height: 38px;
+    padding: 8px 16px;
+    color: var(--text-primary);
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.odin-dialog__button:hover { background: var(--subtle-bg-hover); }
+
+.odin-dialog__button--primary {
+    color: var(--button-text);
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.odin-dialog__button--primary:hover { filter: brightness(1.1); }
+
+.odin-dialog__button--danger {
+    color: var(--button-text);
+    background: var(--danger);
+    border-color: var(--danger);
+}
+
+.odin-dialog__button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+@keyframes odin-toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes odin-toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes odin-dialog-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 600px) {
+    .odin-toast-region {
+        right: 16px;
+        bottom: 16px;
+        left: 16px;
+        width: auto;
+    }
+
+    .odin-dialog__footer { flex-direction: column-reverse; }
+    .odin-dialog__button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .odin-toast,
+    .odin-toast--leaving,
+    .odin-dialog[open] {
+        animation: none;
+    }
+}

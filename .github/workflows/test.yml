@@ -107,10 +107,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
       
-      - name: Install html-validate
+      - name: Install dependencies
         run: |
           for i in 1 2 3 4 5; do
-            npm install html-validate && break
+            npm ci && break
             echo "Attempt $i failed, retrying in 15s..."
             sleep 15
           done

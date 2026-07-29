@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="sizer.css">
+    <link rel="stylesheet" href="../css/interactions.css">
     <link rel="stylesheet" href="rack3d.css">
 </head>
 <body>
@@ -35,7 +36,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.22.70 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.22.71 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -69,7 +70,7 @@
                             <button class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
                                 📤 Export
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="resetScenario()" title="Reset all workloads and settings">
+                            <button class="btn btn-secondary btn-sm" onclick="requestSizerReset()" title="Reset all workloads and settings">
                                 🔄 Reset
                             </button>
                         </div>

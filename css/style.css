@@ -8,6 +8,9 @@
     --accent-blue: #0078d4;
     --accent-purple: #8b5cf6;
     --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --button-text: #ffffff;
     --glass-border: rgba(255, 255, 255, 0.1);
     --subtle-bg: rgba(255, 255, 255, 0.03);
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);

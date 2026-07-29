@@ -213,6 +213,114 @@
         }
 
         // ========================================================================
+        // JS/NOTIFICATIONS.JS TESTS - SHARED INTERACTIONS
+        // ========================================================================
+        sectionHeader('🔔 js/notifications.js - Shared Interactions');
+
+        testSuite('Shared toast and dialog behavior', 'notifications.js', (() => {
+            const results = [];
+            const unsafeMessage = '<img src=x onerror=alert(1)>Import failed';
+            const toast = showToast(unsafeMessage, 'error', 0);
+            const toastMessage = toast.querySelector('.odin-toast__message');
+            const dismissButton = toast.querySelector('.odin-toast__dismiss');
+
+            results.push(assert(
+                toast.getAttribute('role') === 'alert' && toastMessage.textContent === unsafeMessage && !toastMessage.querySelector('img'),
+                'Error toast uses alert semantics and renders untrusted content as text',
+                'role=alert, escaped text',
+                'role=' + toast.getAttribute('role') + ', img=' + Boolean(toastMessage.querySelector('img'))));
+            results.push(assert(
+                dismissButton && dismissButton.getAttribute('aria-label') === 'Dismiss notification',
+                'Toast provides an accessible dismiss control',
+                'Dismiss notification',
+                dismissButton && dismissButton.getAttribute('aria-label')));
+            dismissButton.click();
+            results.push(assert(
+                toast.classList.contains('odin-toast--leaving'),
+                'Toast dismiss control starts removal',
+                true,
+                toast.classList.contains('odin-toast--leaving')));
+            toast.remove();
+
+            const confirmPromise = showConfirmDialog({
+                title: 'Sizer configuration detected',
+                message: 'Open the correct tool to import this file.',
+                confirmLabel: 'Open Sizer',
+                cancelLabel: 'Stay in Designer'
+            });
+            const confirmDialog = document.querySelector('.odin-dialog');
+            const confirmButtons = confirmDialog.querySelectorAll('.odin-dialog__button');
+            results.push(assert(
+                confirmPromise instanceof Promise &&
+                confirmDialog.querySelector('.odin-dialog__title').textContent === 'Sizer configuration detected' &&
+                confirmButtons[0].textContent === 'Stay in Designer' && confirmButtons[1].textContent === 'Open Sizer',
+                'Guidance dialog exposes clear destination and stay actions',
+                'Stay in Designer / Open Sizer',
+                confirmButtons[0].textContent + ' / ' + confirmButtons[1].textContent));
+            confirmButtons[0].click();
+            results.push(assert(
+                !document.body.contains(confirmDialog),
+                'Cancelling a guidance dialog removes it without navigation',
+                false,
+                document.body.contains(confirmDialog)));
+
+            showTextInputDialog({
+                title: 'Export configuration',
+                input: { label: 'Filename', value: 'config.json', maxLength: 120, required: true }
+            });
+            const inputDialog = document.querySelector('.odin-dialog');
+            const dialogInput = inputDialog.querySelector('.odin-dialog__input');
+            results.push(assert(
+                dialogInput.value === 'config.json' && dialogInput.required && dialogInput.maxLength === 120,
+                'Text dialog preserves value and validation constraints',
+                'config.json, required, maxlength=120',
+                dialogInput.value + ', required=' + dialogInput.required + ', maxlength=' + dialogInput.maxLength));
+            inputDialog.querySelector('.odin-dialog__close').click();
+
+            showCopyDialog({ title: 'Copy share URL', value: 'https://example.test/share' });
+            const copyDialog = document.querySelector('.odin-dialog');
+            const copyValue = copyDialog.querySelector('.odin-dialog__copy-value');
+            results.push(assert(
+                copyValue.readOnly && copyValue.value === 'https://example.test/share',
+                'Copy fallback exposes the generated value in a readonly field',
+                'readonly share URL',
+                'readonly=' + copyValue.readOnly + ', value=' + copyValue.value));
+            copyDialog.querySelector('.odin-dialog__button--primary').click();
+
+            const originalShowModal = HTMLDialogElement.prototype.showModal;
+            HTMLDialogElement.prototype.showModal = undefined;
+            showConfirmDialog({ title: 'Fallback dialog', message: 'Safari compatibility check' });
+            HTMLDialogElement.prototype.showModal = originalShowModal;
+            const fallbackDialog = document.querySelector('.odin-dialog--fallback');
+            const fallbackBackdrop = document.querySelector('.odin-dialog-backdrop');
+            results.push(assert(
+                fallbackDialog && fallbackBackdrop && fallbackDialog.getAttribute('aria-modal') === 'true',
+                'Dialog fallback provides modal semantics and a backdrop without showModal',
+                true,
+                Boolean(fallbackDialog && fallbackBackdrop)));
+            fallbackDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            results.push(assert(
+                !document.querySelector('.odin-dialog--fallback') && !document.querySelector('.odin-dialog-backdrop'),
+                'Escape closes the non-native dialog fallback and removes its backdrop',
+                true,
+                Boolean(!document.querySelector('.odin-dialog--fallback') && !document.querySelector('.odin-dialog-backdrop'))));
+
+            showTextInputDialog({ title: 'Zero value', input: { value: 0 } });
+            const zeroDialog = document.querySelector('.odin-dialog');
+            const zeroInput = zeroDialog.querySelector('.odin-dialog__input');
+            results.push(assert(
+                zeroInput.value === '0',
+                'Text dialog preserves numeric zero input values',
+                '0',
+                zeroInput.value));
+            zeroDialog.querySelector('.odin-dialog__close').click();
+
+            const toastRegion = document.getElementById('odin-toast-region');
+            if (toastRegion) toastRegion.remove();
+            return results;
+        })());
+
+        // ========================================================================
         // JS/UTILS.JS TESTS
         // ========================================================================
         sectionHeader('📦 js/utils.js - Core Utilities');
@@ -279,6 +387,139 @@
             assert(escapeHtml('Normal text') === 'Normal text', 
                 'No escaping needed', 'Normal text', escapeHtml('Normal text')),
             assert(escapeHtml('') === '', 'Empty string returns empty', '', escapeHtml(''))
+        ]);
+
+        testSuite('Imported configuration XSS hardening', 'script.js + sizer.js', [
+            (function() {
+                const originalScenario = state.scenario;
+                const imported = JSON.parse('{"version":"0.22.71","state":{"scenario":"connected","__proto__":{"polluted":true},"unexpectedHtml":"<img src=x onerror=alert(1)>"}}');
+                const prepared = prepareDesignerImport(imported);
+                const safe = prepared.ok && prepared.state.scenario === 'connected' &&
+                    state.scenario === originalScenario &&
+                    !Object.prototype.hasOwnProperty.call(prepared.state, '__proto__') &&
+                    !Object.prototype.hasOwnProperty.call(prepared.state, 'unexpectedHtml') &&
+                    prepared.skippedKeys.includes('__proto__') && prepared.skippedKeys.includes('unexpectedHtml') &&
+                    ({}).polluted === undefined;
+                return assert(safe,
+                    'Designer import prepares known keys atomically and rejects unknown or dangerous keys',
+                    true,
+                    safe);
+            })(),
+            (function() {
+                const saved = {
+                    scenario: state.scenario,
+                    clusterRole: state.clusterRole,
+                    autonomousCloudFqdn: state.autonomousCloudFqdn,
+                    adDomain: state.adDomain,
+                    dnsServers: state.dnsServers,
+                    nodeSettings: state.nodeSettings
+                };
+                const payload = '<img src=x onerror=alert(1)>';
+                state.scenario = 'disconnected';
+                state.clusterRole = 'management';
+                state.autonomousCloudFqdn = payload;
+                state.adDomain = payload;
+                state.dnsServers = [payload];
+                state.nodeSettings = [{ name: payload, ipCidr: payload }];
+                const html = buildPrintableConfigurationHtml({ ready: true, missing: [] });
+                Object.keys(saved).forEach(function(key) { state[key] = saved[key]; });
+                const safe = html.indexOf('<img src=x') === -1 &&
+                    html.indexOf('&lt;img src=x onerror=alert(1)&gt;') !== -1;
+                return assert(safe,
+                    'Printable Designer document escapes imported configuration fields',
+                    true,
+                    safe);
+            })()
+        ]);
+
+        testSuite('Designer import compatibility and entry-point detection', 'script.js + sizer.js', [
+            (function() {
+                const before = JSON.stringify(state);
+                const prepared = prepareDesignerImport({
+                    version: '0.14.54',
+                    state: {
+                        scenario: 'hyperconverged',
+                        region: 'azure_commercial',
+                        localInstanceRegion: 'east_us',
+                        scale: 'medium',
+                        nodes: '2'
+                    }
+                });
+                const valid = prepared.ok &&
+                    prepared.state.scenario === 'connected' &&
+                    prepared.state.architecture === 'hyperconverged' &&
+                    prepared.state.region === 'azure_commercial' &&
+                    prepared.state.privateEndpoints === null &&
+                    prepared.migrations.length > 0 &&
+                    JSON.stringify(state) === before;
+                return assert(valid,
+                    'v0.14.54 Hyperconverged export migrates to the current Connected/HCI shape without mutating live state',
+                    true, valid);
+            })(),
+            (function() {
+                const before = JSON.stringify(state);
+                const prepared = prepareDesignerImport({ version: '0.1.0', state: { scenario: 'retired-mode' } });
+                const rejected = !prepared.ok && JSON.stringify(state) === before;
+                return assert(rejected,
+                    'unsupported Designer deployment type is rejected atomically',
+                    true, rejected);
+            })(),
+            (function() {
+                const prepared = prepareDesignerImport({
+                    _meta: { tool: 'ODIN Sizer for Azure Local', version: 2 },
+                    data: { clusterType: 'standard', workloads: [] }
+                });
+                const directed = !prepared.ok && /Sizer/.test(prepared.message) && /Import JSON/.test(prepared.message);
+                return assert(directed,
+                    'Designer identifies a Sizer export and directs the user to Sizer Import JSON',
+                    true, directed);
+            })(),
+            assert(isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } }) === true,
+                'Sizer identifies a Designer export for reciprocal entry-point guidance', true,
+                isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } })),
+            assert(isDesignerExportPayload({ state: { scenario: 'connected' } }) === false,
+                'Sizer does not misclassify an unrelated unversioned state object as a Designer export', false,
+                isDesignerExportPayload({ state: { scenario: 'connected' } })),
+            (function() {
+                const details = getWorkloadDetails({ type: 'ghel', tier: 'up-to-1000', replicas: 0 });
+                return assert(!details.includes('<a') && details.includes('per VM'),
+                    'GHEL workload details remain plain text before trusted link rendering',
+                    true,
+                    details);
+                    })(),
+            (function() {
+                const originalScenario = state.scenario;
+                state.scenario = 'retired-mode';
+                const deploymentCheck = computeWizardProgress().checks.find(function(check) {
+                    return check.label === 'Deployment Type';
+                });
+                state.scenario = originalScenario;
+                return assert(deploymentCheck && deploymentCheck.done === false,
+                    'unsupported truthy scenario does not count as completed progress',
+                    false, deploymentCheck && deploymentCheck.done);
+            })(),
+            (function() {
+                const prepared = prepareDesignerImport({
+                    version: '0.22.71',
+                    state: { scenario: 'connected', architecture: 'hyperconverged', sdnFeatures: { lnet: true } }
+                });
+                return assert(prepared.ok === false,
+                    'malformed Designer collection fields are rejected before apply',
+                    false, prepared.ok);
+            })()
+        ]);
+
+        testSuite('CSV spreadsheet hardening', 'sizer.js', [
+            assert(escapeSpreadsheetCell('=1+1') === "'=1+1", 'Neutralizes = formula prefix', "'=1+1", escapeSpreadsheetCell('=1+1')),
+            assert(escapeSpreadsheetCell('+SUM(A1:A2)') === "'+SUM(A1:A2)", 'Neutralizes + formula prefix', "'+SUM(A1:A2)", escapeSpreadsheetCell('+SUM(A1:A2)')),
+            assert(escapeSpreadsheetCell('-1+2') === "'-1+2", 'Neutralizes - formula prefix', "'-1+2", escapeSpreadsheetCell('-1+2')),
+            assert(escapeSpreadsheetCell('@SUM(A1:A2)') === "'@SUM(A1:A2)", 'Neutralizes @ formula prefix', "'@SUM(A1:A2)", escapeSpreadsheetCell('@SUM(A1:A2)')),
+            assert(escapeSpreadsheetCell('\t=1+1') === "'\t=1+1", 'Neutralizes tab formula prefix', "'\t=1+1", escapeSpreadsheetCell('\t=1+1')),
+            assert(escapeSpreadsheetCell('\r=1+1') === '"\'\r=1+1"', 'Neutralizes and quotes carriage-return formula prefix', '"\'\r=1+1"', escapeSpreadsheetCell('\r=1+1')),
+            assert(escapeSpreadsheetCell('  =1+1') === "'  =1+1", 'Neutralizes whitespace-prefixed formulas', "'  =1+1", escapeSpreadsheetCell('  =1+1')),
+            assert(escapeSpreadsheetCell('line\rbreak') === '"line\rbreak"', 'Quotes embedded carriage returns', '"line\rbreak"', escapeSpreadsheetCell('line\rbreak')),
+            assert(escapeSpreadsheetCell('ordinary value') === 'ordinary value', 'Preserves ordinary CSV values', 'ordinary value', escapeSpreadsheetCell('ordinary value')),
+            assert(escapeSpreadsheetCell('a,"b"') === '"a,""b"""', 'Quotes and escapes CSV delimiters', '"a,""b"""', escapeSpreadsheetCell('a,"b"'))
         ]);
         
         // Test: sanitizeInput
@@ -4308,6 +4549,42 @@
                 return assert(!threw && recovered,
                     'renderWorkloads: empty-state recovered after innerHTML replacement',
                     'no error + recovered', (threw ? 'error thrown' : 'no error') + ' + ' + (recovered ? 'recovered' : 'lost'));
+            })(),
+            (() => {
+                let container = document.getElementById('workloads-list');
+                const createdContainer = !container;
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'workloads-list';
+                    container.style.display = 'none';
+                    document.body.appendChild(container);
+                }
+                const savedWorkloads = workloads.slice();
+                const originalGetWorkloadDetails = getWorkloadDetails;
+                let normalizedPrototype = undefined;
+                getWorkloadDetails = function(workload) {
+                    normalizedPrototype = Object.getPrototypeOf(workload);
+                    return originalGetWorkloadDetails(workload);
+                };
+                workloads = [JSON.parse('{"id":"1);alert(1);//","type":"vm\\" onclick=\\"alert(3)","name":"<img src=x onerror=alert(1)>","vcpus":"<img src=x onerror=alert(2)>","memory":16,"storage":100,"count":1,"__proto__":{"polluted":true}}')];
+                renderWorkloads();
+                getWorkloadDetails = originalGetWorkloadDetails;
+                const injectedElement = container.querySelector('img[onerror]');
+                const editHandler = container.querySelector('button.edit').getAttribute('onclick');
+                const markupRenderedAsText = container.textContent.includes('<img src=x onerror=alert(1)>');
+                const iconClassList = container.querySelector('.workload-icon').classList;
+                const typeAttributeSafe = iconClassList.length === 1 &&
+                    iconClassList.contains('workload-icon') &&
+                    container.querySelector('[onclick*="alert(3)"]') === null;
+                workloads = savedWorkloads;
+                _emptyStateEl = null;
+                if (createdContainer) container.remove();
+                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText && typeAttributeSafe && normalizedPrototype === null,
+                    'renderWorkloads escapes imported markup and safely normalizes IDs, types, and prototypes',
+                    'text only + safe ID + safe type + null prototype',
+                    (injectedElement ? 'element injected' : 'text only') + ' + ' + editHandler + ' + ' +
+                    (typeAttributeSafe ? 'safe type' : 'unsafe type') + ' + ' +
+                    (normalizedPrototype === null ? 'null prototype' : 'unsafe prototype'));
             })()
         ]);
 
@@ -9964,6 +10241,106 @@
         // ========================================================================
         sectionHeader('🐛 Regression Tests - Issue #207: Sizer JSON Import (Azure Local Machine)');
 
+        testSuite('parseAndPreviewClusterJSON: input hardening and bounds', 'sizer.js', (() => {
+            var results = [];
+            var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+
+            function makeStub() {
+                ids.forEach(function(id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+
+            function parseText(text) {
+                makeStub();
+                document.getElementById('cluster-json-input').value = text;
+                parseAndPreviewClusterJSON();
+                return {
+                    error: document.getElementById('cluster-json-error').textContent,
+                    preview: document.getElementById('cluster-json-preview'),
+                    pending: window._pendingClusterImport
+                };
+            }
+
+            function machine(overrides) {
+                var payload = {
+                    type: 'Microsoft.HybridCompute/machines',
+                    name: 'node-01',
+                    location: 'eastus',
+                    properties: {
+                        displayName: 'node-01',
+                        detectedProperties: {
+                            manufacturer: 'Contoso',
+                            model: 'Model 1',
+                            processorCount: '2',
+                            coreCount: '64',
+                            processorNames: 'AMD EPYC',
+                            totalPhysicalMemoryInGigabytes: '512'
+                        }
+                    }
+                };
+                if (overrides) overrides(payload);
+                return JSON.stringify(payload);
+            }
+
+            var nullResult = parseText('null');
+            results.push(assert(!nullResult.pending && /one Azure Local machine resource/.test(nullResult.error),
+                'null JSON is rejected without creating a pending import', true,
+                !nullResult.pending && /one Azure Local machine resource/.test(nullResult.error)));
+
+            var wrongType = parseText(JSON.stringify({ type: { resource: 'Microsoft.HybridCompute/machines' } }));
+            results.push(assert(!wrongType.pending && /JSON View of a machine/.test(wrongType.error),
+                'non-string resource type is rejected without throwing', true,
+                !wrongType.pending && /JSON View of a machine/.test(wrongType.error)));
+
+            var hostile = '<img src=x onerror=alert(1)>';
+            var hostileResult = parseText(machine(function(payload) {
+                payload.name = hostile;
+                payload.location = hostile;
+                payload.properties.displayName = hostile;
+                payload.properties.detectedProperties.manufacturer = hostile;
+                payload.properties.detectedProperties.model = hostile;
+                payload.properties.detectedProperties.processorNames = [hostile, 'AMD EPYC'];
+            }));
+            results.push(assert(hostileResult.pending && hostileResult.preview.querySelector('img') === null,
+                'hostile machine display fields are escaped in the preview', true,
+                Boolean(hostileResult.pending && hostileResult.preview.querySelector('img') === null)));
+            results.push(assert(hostileResult.pending && /AMD EPYC/.test(hostileResult.pending.processorName),
+                'processorNames arrays are normalized safely', true,
+                Boolean(hostileResult.pending && /AMD EPYC/.test(hostileResult.pending.processorName))));
+
+            var oversized = parseText('x'.repeat(MAX_CLUSTER_JSON_BYTES + 1));
+            results.push(assert(!oversized.pending && /too large/.test(oversized.error),
+                'oversized pasted JSON is rejected before parsing', true,
+                !oversized.pending && /too large/.test(oversized.error)));
+
+            var tooManyCores = parseText(machine(function(payload) {
+                payload.properties.detectedProperties.coreCount = '385';
+            }));
+            results.push(assert(!tooManyCores.pending && /1–384 cores/.test(tooManyCores.error),
+                'core count above the supported envelope is rejected', true,
+                !tooManyCores.pending && /1–384 cores/.test(tooManyCores.error)));
+
+            var tooMuchMemory = parseText(machine(function(payload) {
+                payload.properties.detectedProperties.totalPhysicalMemoryInGigabytes = '4097';
+            }));
+            results.push(assert(!tooMuchMemory.pending && /up to 4096 GB/.test(tooMuchMemory.error),
+                'memory above the supported envelope is rejected', true,
+                !tooMuchMemory.pending && /up to 4096 GB/.test(tooMuchMemory.error)));
+
+            ids.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            });
+            delete window._pendingClusterImport;
+            return results;
+        })());
+
         testSuite('parseAndPreviewClusterJSON: respects numberOfCpuSockets from JSON (#207)', 'sizer.js', (() => {
             var results = [];
 
@@ -11395,7 +11772,19 @@
                 'vm,aks (2 entries)',
                 keptTypes ? keptTypes.join(',') + ' (' + payload.workloads.length + ' entries)' : 'not-an-array'));
 
-            // 4. Non-array workloads coerced to empty array
+            // 4. Imported text and action IDs are bounded before rendering
+            var unsafeWl = {
+                clusterType: 'standard',
+                workloads: [{ type: 'vm', id: '1);alert(1);//', name: 'x'.repeat(MAX_WORKLOAD_NAME_CHARS + 50) }]
+            };
+            try { applyImportedSizerState(unsafeWl); } catch (e) { /* expected */ }
+            out.push(assert(
+                unsafeWl.workloads[0].id === 1 && unsafeWl.workloads[0].name.length === MAX_WORKLOAD_NAME_CHARS,
+                'Normalizes imported workload IDs and bounds names',
+                'id=1, name=' + MAX_WORKLOAD_NAME_CHARS,
+                'id=' + unsafeWl.workloads[0].id + ', name=' + unsafeWl.workloads[0].name.length));
+
+            // 5. Non-array workloads coerced to empty array
             var badWl = { clusterType: 'standard', workloads: 'totally-not-an-array' };
             try { applyImportedSizerState(badWl); } catch (e) { /* expected */ }
             out.push(assert(
