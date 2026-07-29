@@ -5,36 +5,218 @@
 // No external dependencies - fully self-contained.
 // ============================================================================
 
+let interactionDialogCounter = 0;
+
+function ensureToastRegion() {
+    let region = document.getElementById('odin-toast-region');
+    if (!region) {
+        region = document.createElement('div');
+        region.id = 'odin-toast-region';
+        region.className = 'odin-toast-region';
+        region.setAttribute('aria-live', 'polite');
+        region.setAttribute('aria-atomic', 'false');
+        document.body.appendChild(region);
+    }
+    return region;
+}
+
 /**
- * Show a toast notification
+ * Show a shared toast notification.
  * @param {string} message - Message to display
- * @param {string} type - Type: 'info', 'success', or 'error'
+ * @param {string} type - Type: 'info', 'success', 'warning', or 'error'
  * @param {number} duration - Duration in milliseconds (default 3000)
+ * @returns {HTMLElement} The toast element
  */
 function showToast(message, type = 'info', duration = 3000) {
+    const supportedTypes = ['info', 'success', 'warning', 'error'];
+    const safeType = supportedTypes.includes(type) ? type : 'info';
+    const icons = { info: 'i', success: '\u2713', warning: '!', error: '!' };
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 10000;
-        font-size: 14px;
-        font-weight: 500;
-        animation: slideIn 0.3s ease;
-    `;
-    document.body.appendChild(toast);
+    toast.className = `toast odin-toast odin-toast--${safeType}`;
+    toast.setAttribute('role', safeType === 'error' ? 'alert' : 'status');
 
-    setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
+    const icon = document.createElement('span');
+    icon.className = 'odin-toast__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = icons[safeType];
+
+    const text = document.createElement('span');
+    text.className = 'odin-toast__message';
+    text.textContent = String(message == null ? '' : message);
+
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'odin-toast__dismiss';
+    dismiss.setAttribute('aria-label', 'Dismiss notification');
+    dismiss.textContent = '\u00d7';
+
+    let timer = null;
+    const removeToast = () => {
+        if (!toast.isConnected || toast.classList.contains('odin-toast--leaving')) return;
+        if (timer) clearTimeout(timer);
+        toast.classList.add('odin-toast--leaving');
+        setTimeout(() => toast.remove(), 180);
+    };
+    const startTimer = () => {
+        if (timer) clearTimeout(timer);
+        if (duration > 0) timer = setTimeout(removeToast, duration);
+    };
+
+    dismiss.addEventListener('click', removeToast);
+    toast.addEventListener('mouseenter', () => timer && clearTimeout(timer));
+    toast.addEventListener('mouseleave', startTimer);
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    toast.appendChild(dismiss);
+    ensureToastRegion().appendChild(toast);
+    startTimer();
+    return toast;
+}
+
+function openInteractionDialog(options) {
+    const settings = options || {};
+    const previousFocus = document.activeElement;
+    const dialog = document.createElement('dialog');
+    const form = document.createElement('form');
+    const header = document.createElement('div');
+    const title = document.createElement('h2');
+    const close = document.createElement('button');
+    const body = document.createElement('div');
+    const message = document.createElement('p');
+    const footer = document.createElement('div');
+    const cancel = document.createElement('button');
+    const confirm = document.createElement('button');
+    const titleId = `odin-dialog-title-${++interactionDialogCounter}`;
+
+    dialog.className = 'odin-dialog';
+    dialog.setAttribute('aria-labelledby', titleId);
+    form.className = 'odin-dialog__form';
+    form.method = 'dialog';
+    header.className = 'odin-dialog__header';
+    title.id = titleId;
+    title.className = 'odin-dialog__title';
+    title.textContent = settings.title || 'Confirm action';
+    close.type = 'button';
+    close.className = 'odin-dialog__close';
+    close.setAttribute('aria-label', 'Close dialog');
+    close.textContent = '\u00d7';
+    body.className = 'odin-dialog__body';
+    message.className = 'odin-dialog__message';
+    message.textContent = settings.message || '';
+    footer.className = 'odin-dialog__footer';
+    cancel.type = 'button';
+    cancel.className = 'odin-dialog__button';
+    cancel.textContent = settings.cancelLabel || 'Cancel';
+    confirm.type = 'submit';
+    confirm.className = 'odin-dialog__button odin-dialog__button--primary';
+    if (settings.danger) confirm.classList.add('odin-dialog__button--danger');
+    confirm.textContent = settings.confirmLabel || 'Confirm';
+
+    header.appendChild(title);
+    header.appendChild(close);
+    body.appendChild(message);
+    footer.appendChild(cancel);
+    footer.appendChild(confirm);
+    form.appendChild(header);
+    form.appendChild(body);
+    form.appendChild(footer);
+    dialog.appendChild(form);
+    document.body.appendChild(dialog);
+
+    return new Promise(resolve => {
+        let settled = false;
+        let input = null;
+        if (settings.input) {
+            const field = document.createElement('label');
+            const label = document.createElement('span');
+            const hint = document.createElement('span');
+            field.className = 'odin-dialog__field';
+            label.className = 'odin-dialog__label';
+            label.textContent = settings.input.label || 'Value';
+            input = document.createElement(settings.input.multiline ? 'textarea' : 'input');
+            input.className = settings.input.readOnly ? 'odin-dialog__copy-value' : 'odin-dialog__input';
+            input.value = settings.input.value || '';
+            input.readOnly = Boolean(settings.input.readOnly);
+            if (!settings.input.multiline) input.type = settings.input.type || 'text';
+            if (settings.input.placeholder) input.placeholder = settings.input.placeholder;
+            if (settings.input.maxLength) input.maxLength = settings.input.maxLength;
+            if (settings.input.required) input.required = true;
+            field.appendChild(label);
+            field.appendChild(input);
+            if (settings.input.hint) {
+                hint.className = 'odin-dialog__hint';
+                hint.textContent = settings.input.hint;
+                field.appendChild(hint);
+            }
+            body.appendChild(field);
+        }
+
+        const finish = value => {
+            if (settled) return;
+            settled = true;
+            dialog.close();
+            dialog.remove();
+            if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+            resolve(value);
+        };
+        close.addEventListener('click', () => finish(settings.input ? null : false));
+        cancel.addEventListener('click', () => finish(settings.input ? null : false));
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            if (input && !input.readOnly && !input.checkValidity()) {
+                input.reportValidity();
+                return;
+            }
+            finish(input ? input.value : true);
+        });
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            finish(settings.input ? null : false);
+        });
+        dialog.addEventListener('click', event => {
+            if (event.target !== dialog) return;
+            const bounds = dialog.getBoundingClientRect();
+            const outside = event.clientX < bounds.left || event.clientX > bounds.right ||
+                event.clientY < bounds.top || event.clientY > bounds.bottom;
+            if (outside) finish(settings.input ? null : false);
+        });
+
+        dialog.showModal();
+        if (input) {
+            input.focus();
+            if (settings.input.select !== false) input.select();
+        } else {
+            confirm.focus();
+        }
+    });
+}
+
+function showConfirmDialog(options) {
+    return openInteractionDialog(options);
+}
+
+function showTextInputDialog(options) {
+    return openInteractionDialog(Object.assign({}, options, {
+        input: Object.assign({ label: 'Value', type: 'text' }, options && options.input)
+    }));
+}
+
+function showCopyDialog(options) {
+    const settings = options || {};
+    return openInteractionDialog({
+        title: settings.title || 'Copy value',
+        message: settings.message || 'Copy the value below.',
+        confirmLabel: 'Close',
+        cancelLabel: 'Cancel',
+        input: {
+            label: settings.label || 'Value',
+            value: settings.value || '',
+            multiline: true,
+            readOnly: true,
+            select: true,
+            hint: settings.hint || 'Press Ctrl+C to copy the selected value.'
+        }
+    });
 }
 
 /**
@@ -117,28 +299,7 @@ function reportUiError(err, context) {
  * @param {string} type - Type: 'info', 'success', or 'error'
  */
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 24px;
-        background: ${type === 'success' ? 'rgba(16, 185, 129, 0.9)' : type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(59, 130, 246, 0.9)'};
-        color: white;
-        border-radius: 8px;
-        font-weight: 600;
-        z-index: 10001;
-        animation: slideIn 0.3s ease-out;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    `;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    return showToast(message, type, 3000);
 }
 
 /**

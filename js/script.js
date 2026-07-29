@@ -8270,6 +8270,17 @@ function resetAll() {
     showToast('Started fresh - all previous data cleared', 'info');
 }
 
+async function requestDesignerReset() { // eslint-disable-line no-unused-vars
+    const confirmed = await window.showConfirmDialog({
+        title: 'Start over?',
+        message: 'This clears the current Designer configuration and returns every step to its default. Theme and text-size preferences are preserved.',
+        confirmLabel: 'Start over',
+        cancelLabel: 'Keep configuration',
+        danger: true
+    });
+    if (confirmed) resetAll();
+}
+
 // NOTE: DNS management functions moved to js/dns.js
 // - addDnsServer, removeDnsServer, updateDnsServer, renderDnsServers
 // - updateDnsServiceExistingNote, updateDnsServiceExisting
@@ -8521,12 +8532,23 @@ function updateSdnManagementOptions() {
 // ============================================================================
 
 // Export configuration as JSON
-function exportConfiguration() {
+async function exportConfiguration() {
     try {
         const defaultFilename = `azure-local-config-${new Date().toISOString().split('T')[0]}.json`;
 
-        // Show prompt for filename
-        const filename = prompt('Enter filename for the exported configuration:', defaultFilename);
+        const filename = await window.showTextInputDialog({
+            title: 'Export Designer configuration',
+            message: 'Choose a filename for the JSON configuration file.',
+            confirmLabel: 'Export JSON',
+            cancelLabel: 'Cancel',
+            input: {
+                label: 'Filename',
+                value: defaultFilename,
+                maxLength: 120,
+                required: true,
+                hint: 'The .json extension is added automatically when needed.'
+            }
+        });
 
         // User cancelled
         if (filename === null) return;
@@ -8540,12 +8562,12 @@ function exportConfiguration() {
         // Inform user if filename was changed during sanitization
         const intendedFilename = rawFilename.endsWith('.json') ? rawFilename : rawFilename + '.json';
         if (safeFilename !== intendedFilename) {
-            const proceed = confirm(
-                'Some characters in the filename were adjusted for safety.\n\n' +
-                'The configuration will be saved as:\n' +
-                safeFilename +
-                '\n\nDo you want to continue?'
-            );
+            const proceed = await window.showConfirmDialog({
+                title: 'Use adjusted filename?',
+                message: `Some characters were adjusted for safety. The configuration will be saved as ${safeFilename}.`,
+                confirmLabel: 'Use filename',
+                cancelLabel: 'Cancel'
+            });
             if (!proceed) {
                 showToast('Export cancelled', 'info');
                 return;
@@ -9439,7 +9461,7 @@ function importConfiguration() {
             }
 
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
 
@@ -9453,7 +9475,17 @@ function importConfiguration() {
 
                     const prepared = prepareDesignerImport(imported);
                     if (!prepared.ok) {
-                        showToast(prepared.message, 'error', 7000);
+                        if (isSizerExportPayload(imported)) {
+                            const openSizer = await window.showConfirmDialog({
+                                title: 'Sizer configuration detected',
+                                message: 'This file was exported from ODIN Sizer and cannot be imported into Designer. Open Sizer, then use its Import button to load this file.',
+                                confirmLabel: 'Open Sizer',
+                                cancelLabel: 'Stay in Designer'
+                            });
+                            if (openSizer) window.location.href = 'sizer/index.html';
+                        } else {
+                            showToast(prepared.message, 'error', 7000);
+                        }
                         return;
                     }
 
@@ -11250,9 +11282,7 @@ function initKeyboardShortcuts() {
         // Alt+S for start over (with confirmation)
         if (e.altKey && e.key === 's') {
             e.preventDefault();
-            if (confirm('Are you sure you want to start over? All current configuration will be lost.')) {
-                resetAll();
-            }
+            requestDesignerReset();
         }
 
         // Alt+? for shortcuts help

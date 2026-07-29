@@ -8379,7 +8379,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 }
 
 // Share sizer configuration via URL (compressed base64 in query parameter)
-function shareSizerURL() { // eslint-disable-line no-unused-vars
+async function shareSizerURL() { // eslint-disable-line no-unused-vars
     if (workloads.length === 0) {
         showToast('Add at least one workload before sharing', 'error');
         return;
@@ -8387,7 +8387,18 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
     try {
         const clusterNameEl = document.getElementById('cluster-name');
         const defaultName = (clusterNameEl && clusterNameEl.value ? clusterNameEl.value.trim() : '').substring(0, 100);
-        const shareName = prompt('Enter a name for this configuration (optional):', defaultName);
+        const shareName = await window.showTextInputDialog({
+            title: 'Share Sizer configuration',
+            message: 'Add an optional name to help recipients identify this configuration. The generated URL will be copied to your clipboard.',
+            confirmLabel: 'Copy share URL',
+            cancelLabel: 'Cancel',
+            input: {
+                label: 'Configuration name (optional)',
+                value: defaultName,
+                maxLength: 100,
+                hint: 'The configuration remains in the URL and is not uploaded to a server.'
+            }
+        });
         if (shareName === null) return; // User cancelled
 
         const state = getSizerState();
@@ -8400,7 +8411,7 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
         const url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
 
         if (url.length > 8000) {
-            alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.');
+            showToast('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.', 'error', 6000);
             return;
         }
 
@@ -8408,14 +8419,24 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
             navigator.clipboard.writeText(url).then(function() {
                 showToast('Shareable URL copied to clipboard!', 'success');
             }).catch(function() {
-                prompt('Copy this URL to share your configuration:', url);
+                window.showCopyDialog({
+                    title: 'Copy share URL',
+                    message: 'Clipboard access was unavailable. Copy the selected URL below.',
+                    label: 'Share URL',
+                    value: url
+                });
             });
         } else {
-            prompt('Copy this URL to share your configuration:', url);
+            await window.showCopyDialog({
+                title: 'Copy share URL',
+                message: 'Clipboard access is unavailable. Copy the selected URL below.',
+                label: 'Share URL',
+                value: url
+            });
         }
     } catch (e) {
         console.error('Share URL failed:', e);
-        alert('Failed to generate shareable URL. Use Export JSON instead.');
+        showToast('Failed to generate shareable URL. Use Export JSON instead.', 'error', 6000);
     }
 }
 
@@ -9887,12 +9908,18 @@ function handleSizerFileImport(event) {
     }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const parsed = JSON.parse(e.target.result);
 
             if (isDesignerExportPayload(parsed)) {
-                alert('This is an ODIN Designer configuration. Import it from the Designer using Import Configuration.');
+                const openDesigner = await window.showConfirmDialog({
+                    title: 'Designer configuration detected',
+                    message: 'This file was exported from ODIN Designer and cannot be imported into Sizer. Open Designer, then use Import Configuration to load this file.',
+                    confirmLabel: 'Open Designer',
+                    cancelLabel: 'Stay in Sizer'
+                });
+                if (openDesigner) window.location.href = '../?tab=designer';
                 return;
             }
 
@@ -10198,12 +10225,6 @@ function applyImportedSizerState(d) {
 
 // Reset scenario
 function resetScenario() {
-    // Confirm if there are workloads added
-    if (workloads.length > 0) {
-        if (!confirm('Are you sure you want to reset? This will remove all workloads and restore default settings.')) {
-            return;
-        }
-    }
     clearSizerState();
     workloads = [];
     workloadIdCounter = 0;
@@ -10290,6 +10311,22 @@ function resetScenario() {
 
     // Clear any lingering RVTools import preview/state.
     resetRVToolsImport();
+}
+
+async function requestSizerReset() { // eslint-disable-line no-unused-vars
+    const workloadText = workloads.length > 0
+        ? ` This will remove ${workloads.length} workload${workloads.length === 1 ? '' : 's'}.`
+        : '';
+    const confirmed = await window.showConfirmDialog({
+        title: 'Reset Sizer?',
+        message: `This restores all Sizer hardware, cluster, growth, and workload settings to their defaults.${workloadText}`,
+        confirmLabel: 'Reset Sizer',
+        cancelLabel: 'Keep configuration',
+        danger: true
+    });
+    if (!confirmed) return;
+    resetScenario();
+    showToast('Sizer reset to default settings', 'success');
 }
 
 // Set default hardware config (Intel 6th Gen Xeon Granite Rapids / Sierra Forest, 32 cores)

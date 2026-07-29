@@ -213,6 +213,86 @@
         }
 
         // ========================================================================
+        // JS/NOTIFICATIONS.JS TESTS - SHARED INTERACTIONS
+        // ========================================================================
+        sectionHeader('🔔 js/notifications.js - Shared Interactions');
+
+        testSuite('Shared toast and dialog behavior', 'notifications.js', (() => {
+            const results = [];
+            const unsafeMessage = '<img src=x onerror=alert(1)>Import failed';
+            const toast = showToast(unsafeMessage, 'error', 0);
+            const toastMessage = toast.querySelector('.odin-toast__message');
+            const dismissButton = toast.querySelector('.odin-toast__dismiss');
+
+            results.push(assert(
+                toast.getAttribute('role') === 'alert' && toastMessage.textContent === unsafeMessage && !toastMessage.querySelector('img'),
+                'Error toast uses alert semantics and renders untrusted content as text',
+                'role=alert, escaped text',
+                'role=' + toast.getAttribute('role') + ', img=' + Boolean(toastMessage.querySelector('img'))));
+            results.push(assert(
+                dismissButton && dismissButton.getAttribute('aria-label') === 'Dismiss notification',
+                'Toast provides an accessible dismiss control',
+                'Dismiss notification',
+                dismissButton && dismissButton.getAttribute('aria-label')));
+            dismissButton.click();
+            results.push(assert(
+                toast.classList.contains('odin-toast--leaving'),
+                'Toast dismiss control starts removal',
+                true,
+                toast.classList.contains('odin-toast--leaving')));
+            toast.remove();
+
+            const confirmPromise = showConfirmDialog({
+                title: 'Sizer configuration detected',
+                message: 'Open the correct tool to import this file.',
+                confirmLabel: 'Open Sizer',
+                cancelLabel: 'Stay in Designer'
+            });
+            const confirmDialog = document.querySelector('.odin-dialog');
+            const confirmButtons = confirmDialog.querySelectorAll('.odin-dialog__button');
+            results.push(assert(
+                confirmPromise instanceof Promise &&
+                confirmDialog.querySelector('.odin-dialog__title').textContent === 'Sizer configuration detected' &&
+                confirmButtons[0].textContent === 'Stay in Designer' && confirmButtons[1].textContent === 'Open Sizer',
+                'Guidance dialog exposes clear destination and stay actions',
+                'Stay in Designer / Open Sizer',
+                confirmButtons[0].textContent + ' / ' + confirmButtons[1].textContent));
+            confirmButtons[0].click();
+            results.push(assert(
+                !document.body.contains(confirmDialog),
+                'Cancelling a guidance dialog removes it without navigation',
+                false,
+                document.body.contains(confirmDialog)));
+
+            showTextInputDialog({
+                title: 'Export configuration',
+                input: { label: 'Filename', value: 'config.json', maxLength: 120, required: true }
+            });
+            const inputDialog = document.querySelector('.odin-dialog');
+            const dialogInput = inputDialog.querySelector('.odin-dialog__input');
+            results.push(assert(
+                dialogInput.value === 'config.json' && dialogInput.required && dialogInput.maxLength === 120,
+                'Text dialog preserves value and validation constraints',
+                'config.json, required, maxlength=120',
+                dialogInput.value + ', required=' + dialogInput.required + ', maxlength=' + dialogInput.maxLength));
+            inputDialog.querySelector('.odin-dialog__close').click();
+
+            showCopyDialog({ title: 'Copy share URL', value: 'https://example.test/share' });
+            const copyDialog = document.querySelector('.odin-dialog');
+            const copyValue = copyDialog.querySelector('.odin-dialog__copy-value');
+            results.push(assert(
+                copyValue.readOnly && copyValue.value === 'https://example.test/share',
+                'Copy fallback exposes the generated value in a readonly field',
+                'readonly share URL',
+                'readonly=' + copyValue.readOnly + ', value=' + copyValue.value));
+            copyDialog.querySelector('.odin-dialog__button--primary').click();
+
+            const toastRegion = document.getElementById('odin-toast-region');
+            if (toastRegion) toastRegion.remove();
+            return results;
+        })());
+
+        // ========================================================================
         // JS/UTILS.JS TESTS
         // ========================================================================
         sectionHeader('📦 js/utils.js - Core Utilities');
