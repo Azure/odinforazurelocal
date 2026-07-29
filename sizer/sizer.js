@@ -14,6 +14,11 @@ const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SHARED_CONFIG_CHARS = 12000;
 const MAX_IMPORTED_WORKLOADS = 1000;
 const MAX_WORKLOAD_NAME_CHARS = 200;
+const MAX_CLUSTER_JSON_BYTES = 5 * 1024 * 1024;
+const MAX_CLUSTER_IMPORT_TEXT_CHARS = 500;
+const MAX_CLUSTER_IMPORT_SOCKETS = 8;
+const MAX_CLUSTER_IMPORT_CORES = 384;
+const MAX_CLUSTER_IMPORT_MEMORY_GB = 4096;
 
 // Initialize and track page view for analytics
 if (typeof initializeAnalytics === 'function') {
@@ -8817,6 +8822,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         errDiv.style.display = '';
         return;
     }
+    if (new Blob([text]).size > MAX_CLUSTER_JSON_BYTES) {
+        errDiv.textContent = 'The pasted JSON is too large. The maximum supported size is 5 MB.';
+        errDiv.style.display = '';
+        return;
+    }
 
     let data;
     try {
@@ -8827,8 +8837,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return;
     }
 
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        errDiv.textContent = 'The pasted JSON must contain one Azure Local machine resource.';
+        errDiv.style.display = '';
+        return;
+    }
+
     // Validate it's an Azure Local machine resource
-    const resourceType = (data.type || '').toLowerCase();
+    const resourceType = typeof data.type === 'string' ? data.type.toLowerCase() : '';
     const isNode = resourceType === 'microsoft.hybridcompute/machines';
 
     if (!isNode) {
@@ -8840,13 +8856,32 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     let coreCount, memoryGiB, cpuMfr, sockets;
 
     // Node-level JSON — rich data available
-    const nProps = data.properties;
-    const hwProfile = nProps && nProps.hardwareProfile;
-    const detected = nProps && nProps.detectedProperties;
+    const nProps = data.properties && typeof data.properties === 'object' && !Array.isArray(data.properties)
+        ? data.properties
+        : null;
+    const hwProfile = nProps && nProps.hardwareProfile && typeof nProps.hardwareProfile === 'object' && !Array.isArray(nProps.hardwareProfile)
+        ? nProps.hardwareProfile
+        : null;
+    const detected = nProps && nProps.detectedProperties && typeof nProps.detectedProperties === 'object' && !Array.isArray(nProps.detectedProperties)
+        ? nProps.detectedProperties
+        : null;
 
-    const clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
-    const manufacturer = (detected && detected.manufacturer) || 'Unknown';
-    const model = (detected && detected.model) || 'Unknown';
+    const normalizeImportedText = function(value, fallback) {
+        if (typeof value === 'string' || typeof value === 'number') {
+            return String(value).slice(0, MAX_CLUSTER_IMPORT_TEXT_CHARS);
+        }
+        if (Array.isArray(value)) {
+            const joined = value.filter(function(item) {
+                return typeof item === 'string' || typeof item === 'number';
+            }).join(', ');
+            if (joined) return joined.slice(0, MAX_CLUSTER_IMPORT_TEXT_CHARS);
+        }
+        return fallback;
+    };
+
+    const clusterName = normalizeImportedText(nProps && nProps.displayName, normalizeImportedText(data.name, 'Unknown'));
+    const manufacturer = normalizeImportedText(detected && detected.manufacturer, 'Unknown');
+    const model = normalizeImportedText(detected && detected.model, 'Unknown');
 
     // Extract sockets, total cores, and processor name from the JSON.
     //
@@ -8864,14 +8899,16 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // machine. We now prefer `detected` (which is unambiguous) and fall back to
     // hwProfile only when `detected` is missing or invalid.
     const procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
-    const processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+    const processorName = normalizeImportedText(detected && detected.processorNames,
+        normalizeImportedText(procFromHw && procFromHw.name, ''));
 
     // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
     const detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
-    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= 8) {
+    const hardwareSockets = hwProfile ? parseInt(hwProfile.numberOfCpuSockets, 10) : NaN;
+    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= MAX_CLUSTER_IMPORT_SOCKETS) {
         sockets = detectedSockets;
-    } else if (hwProfile && hwProfile.numberOfCpuSockets >= 1 && hwProfile.numberOfCpuSockets <= 8) {
-        sockets = hwProfile.numberOfCpuSockets;
+    } else if (!isNaN(hardwareSockets) && hardwareSockets >= 1 && hardwareSockets <= MAX_CLUSTER_IMPORT_SOCKETS) {
+        sockets = hardwareSockets;
     } else {
         sockets = 0; // unknown — heuristic below
     }
@@ -8891,18 +8928,29 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     }
 
     if (hwProfile && hwProfile.totalPhysicalMemoryInBytes) {
-        memoryGiB = Math.round(hwProfile.totalPhysicalMemoryInBytes / (1024 * 1024 * 1024));
+        memoryGiB = Math.round(Number(hwProfile.totalPhysicalMemoryInBytes) / (1024 * 1024 * 1024));
     } else if (detected && detected.totalPhysicalMemoryInGigabytes) {
         memoryGiB = parseInt(detected.totalPhysicalMemoryInGigabytes, 10) || 0;
     } else {
         memoryGiB = 0;
     }
 
+    if (!isFinite(coreCount) || coreCount < 1 || coreCount > MAX_CLUSTER_IMPORT_CORES) {
+        errDiv.textContent = 'The machine core count is outside the supported range (1–384 cores).';
+        errDiv.style.display = '';
+        return;
+    }
+    if (!isFinite(memoryGiB) || memoryGiB < 0 || memoryGiB > MAX_CLUSTER_IMPORT_MEMORY_GB) {
+        errDiv.textContent = 'The machine memory is outside the supported range (up to 4096 GB).';
+        errDiv.style.display = '';
+        return;
+    }
+
     const nodeCount = 2; // default — user sets in preview
 
     // Determine CPU manufacturer from processor name or heuristics
     cpuMfr = 'intel'; // default
-    const cpuNameLower = (processorName || '').toLowerCase();
+    const cpuNameLower = processorName.toLowerCase();
     if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
         cpuMfr = 'amd';
     }
@@ -8921,7 +8969,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
     // missing or obviously wrong we fall back to a heuristic based on core count.
     // Bug #207 fix: do NOT unconditionally override the imported sockets value.
-    if (!sockets || sockets < 1 || sockets > 8) {
+    if (!sockets || sockets < 1 || sockets > MAX_CLUSTER_IMPORT_SOCKETS) {
         sockets = coreCount > 64 ? 2 : 1;
     }
     coresPerSocket = sockets > 0 ? Math.round(coreCount / sockets) : coreCount;
@@ -9014,7 +9062,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     } else {
         previewHTML += '<span>CPU Generation: <em style="color: var(--text-secondary);">Not in catalog</em></span>';
     }
-    previewHTML += '<span>Location: <strong>' + escapeHtml(data.location || '—') + '</strong></span>';
+    previewHTML += '<span>Location: <strong>' + escapeHtml(normalizeImportedText(data.location, '—')) + '</strong></span>';
     previewHTML += '</div>';
     if (genMatchConfidence !== 'exact' && processorName) {
         previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ CPU "' + escapeHtml(processorName) + '" is not in the current hardware catalog. The exact processor name and core count will be imported — verify the configuration after import.</div>';
@@ -9813,6 +9861,11 @@ function onClusterNameInput() { // eslint-disable-line no-unused-vars
 }
 
 // Handle the selected file for import
+function isDesignerExportPayload(parsed) {
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+        parsed.state && typeof parsed.state === 'object' && !Array.isArray(parsed.state));
+}
+
 function handleSizerFileImport(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -9830,6 +9883,11 @@ function handleSizerFileImport(event) {
     reader.onload = function(e) {
         try {
             const parsed = JSON.parse(e.target.result);
+
+            if (isDesignerExportPayload(parsed)) {
+                alert('This is an ODIN Designer configuration. Import it from the Designer using Import Configuration.');
+                return;
+            }
 
             // Accept either { _meta, data } wrapper or raw state object
             const d = parsed.data || parsed;

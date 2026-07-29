@@ -14,6 +14,9 @@ Designer and Sizer configurations are processed entirely in the browser. Importe
 - Reject oversized JSON files before `FileReader` parsing and cap imported workload counts.
 - Neutralize spreadsheet formula prefixes in CSV exports.
 - Add regression tests for malicious markup and malformed/oversized import structures.
+- Migrate recognized legacy Designer values before apply and reject unsupported state atomically.
+- Detect Sizer and Designer exports used at the wrong import entry point and direct users to the correct tool.
+- Apply size, shape, text, core-count, and memory bounds to pasted Azure Local machine JSON.
 - Record the security fix in the current release changelog.
 
 ## Files touched
@@ -37,4 +40,5 @@ Designer and Sizer configurations are processed entirely in the browser. Importe
 2. Fix Designer import/print XSS and add regression coverage.
 3. Add file-size and collection-count bounds.
 4. Neutralize CSV formula prefixes and add regression coverage.
-5. Run lint, HTML validation, audit, and the full test suite.
+5. Add legacy migration, wrong-entry-point detection, and Azure Local machine paste bounds.
+6. Run lint, HTML validation, audit, and the full test suite.

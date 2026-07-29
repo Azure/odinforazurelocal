@@ -60,6 +60,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer import and Share-as-URL XSS protection** — imported workload names/details are escaped before HTML rendering, and imported action IDs are normalized before entering handlers.
 - **Designer print-document XSS protection** — imported state values are escaped before printable HTML generation, and Designer imports ignore unknown or dangerous state properties.
 - **Bounded imports** — JSON files are limited to 5 MB, shared URL payloads are bounded, and imported workload collections and names have explicit limits.
+- **Predictable import compatibility** — recognized legacy Designer exports are migrated to current values; incompatible files are rejected before changing the design. Sizer and Designer exports imported at the wrong entry point now direct users to the correct importer.
+- **Azure Local machine paste validation** — pasted machine JSON is size- and type-checked, display values are normalized, and unsupported core or memory values are rejected before preview.
 - **Safer CSV exports** — formula-trigger prefixes are neutralized before spreadsheet cells are written.
 - **Development dependency classification corrected** — `html-validate` and its transitive tree are now development-only, and HTML validation CI installs the committed lockfile with `npm ci`.
 - **Firebase rule guidance tightened** — documented rules permit only counter creation at `1` and atomic `+1` updates, while blocking deletion and arbitrary replacement.

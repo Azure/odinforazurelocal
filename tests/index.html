@@ -324,6 +324,73 @@
             })()
         ]);
 
+        testSuite('Designer import compatibility and entry-point detection', 'script.js + sizer.js', [
+            (function() {
+                const before = JSON.stringify(state);
+                const prepared = prepareDesignerImport({
+                    version: '0.14.54',
+                    state: {
+                        scenario: 'hyperconverged',
+                        region: 'azure_commercial',
+                        localInstanceRegion: 'east_us',
+                        scale: 'medium',
+                        nodes: '2'
+                    }
+                });
+                const valid = prepared.ok &&
+                    prepared.state.scenario === 'connected' &&
+                    prepared.state.architecture === 'hyperconverged' &&
+                    prepared.state.region === 'azure_commercial' &&
+                    prepared.state.privateEndpoints === null &&
+                    prepared.migrations.length > 0 &&
+                    JSON.stringify(state) === before;
+                return assert(valid,
+                    'v0.14.54 Hyperconverged export migrates to the current Connected/HCI shape without mutating live state',
+                    true, valid);
+            })(),
+            (function() {
+                const before = JSON.stringify(state);
+                const prepared = prepareDesignerImport({ version: '0.1.0', state: { scenario: 'retired-mode' } });
+                const rejected = !prepared.ok && JSON.stringify(state) === before;
+                return assert(rejected,
+                    'unsupported Designer deployment type is rejected atomically',
+                    true, rejected);
+            })(),
+            (function() {
+                const prepared = prepareDesignerImport({
+                    _meta: { tool: 'ODIN Sizer for Azure Local', version: 2 },
+                    data: { clusterType: 'standard', workloads: [] }
+                });
+                const directed = !prepared.ok && /Sizer/.test(prepared.message) && /Import JSON/.test(prepared.message);
+                return assert(directed,
+                    'Designer identifies a Sizer export and directs the user to Sizer Import JSON',
+                    true, directed);
+            })(),
+            assert(isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } }) === true,
+                'Sizer identifies a Designer export for reciprocal entry-point guidance', true,
+                isDesignerExportPayload({ version: '0.22.71', state: { scenario: 'connected' } })),
+            (function() {
+                const originalScenario = state.scenario;
+                state.scenario = 'retired-mode';
+                const deploymentCheck = computeWizardProgress().checks.find(function(check) {
+                    return check.label === 'Deployment Type';
+                });
+                state.scenario = originalScenario;
+                return assert(deploymentCheck && deploymentCheck.done === false,
+                    'unsupported truthy scenario does not count as completed progress',
+                    false, deploymentCheck && deploymentCheck.done);
+            })(),
+            (function() {
+                const prepared = prepareDesignerImport({
+                    version: '0.22.71',
+                    state: { scenario: 'connected', architecture: 'hyperconverged', sdnFeatures: { lnet: true } }
+                });
+                return assert(prepared.ok === false,
+                    'malformed Designer collection fields are rejected before apply',
+                    false, prepared.ok);
+            })()
+        ]);
+
         testSuite('CSV spreadsheet hardening', 'sizer.js', [
             assert(escapeSpreadsheetCell('=1+1') === "'=1+1", 'Neutralizes = formula prefix', "'=1+1", escapeSpreadsheetCell('=1+1')),
             assert(escapeSpreadsheetCell('+SUM(A1:A2)') === "'+SUM(A1:A2)", 'Neutralizes + formula prefix', "'+SUM(A1:A2)", escapeSpreadsheetCell('+SUM(A1:A2)')),
@@ -10050,6 +10117,106 @@
         // REGRESSION TESTS — Issue #207: Sizer JSON Import bugs
         // ========================================================================
         sectionHeader('🐛 Regression Tests - Issue #207: Sizer JSON Import (Azure Local Machine)');
+
+        testSuite('parseAndPreviewClusterJSON: input hardening and bounds', 'sizer.js', (() => {
+            var results = [];
+            var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+
+            function makeStub() {
+                ids.forEach(function(id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+
+            function parseText(text) {
+                makeStub();
+                document.getElementById('cluster-json-input').value = text;
+                parseAndPreviewClusterJSON();
+                return {
+                    error: document.getElementById('cluster-json-error').textContent,
+                    preview: document.getElementById('cluster-json-preview'),
+                    pending: window._pendingClusterImport
+                };
+            }
+
+            function machine(overrides) {
+                var payload = {
+                    type: 'Microsoft.HybridCompute/machines',
+                    name: 'node-01',
+                    location: 'eastus',
+                    properties: {
+                        displayName: 'node-01',
+                        detectedProperties: {
+                            manufacturer: 'Contoso',
+                            model: 'Model 1',
+                            processorCount: '2',
+                            coreCount: '64',
+                            processorNames: 'AMD EPYC',
+                            totalPhysicalMemoryInGigabytes: '512'
+                        }
+                    }
+                };
+                if (overrides) overrides(payload);
+                return JSON.stringify(payload);
+            }
+
+            var nullResult = parseText('null');
+            results.push(assert(!nullResult.pending && /one Azure Local machine resource/.test(nullResult.error),
+                'null JSON is rejected without creating a pending import', true,
+                !nullResult.pending && /one Azure Local machine resource/.test(nullResult.error)));
+
+            var wrongType = parseText(JSON.stringify({ type: { resource: 'Microsoft.HybridCompute/machines' } }));
+            results.push(assert(!wrongType.pending && /JSON View of a machine/.test(wrongType.error),
+                'non-string resource type is rejected without throwing', true,
+                !wrongType.pending && /JSON View of a machine/.test(wrongType.error)));
+
+            var hostile = '<img src=x onerror=alert(1)>';
+            var hostileResult = parseText(machine(function(payload) {
+                payload.name = hostile;
+                payload.location = hostile;
+                payload.properties.displayName = hostile;
+                payload.properties.detectedProperties.manufacturer = hostile;
+                payload.properties.detectedProperties.model = hostile;
+                payload.properties.detectedProperties.processorNames = [hostile, 'AMD EPYC'];
+            }));
+            results.push(assert(hostileResult.pending && hostileResult.preview.querySelector('img') === null,
+                'hostile machine display fields are escaped in the preview', true,
+                Boolean(hostileResult.pending && hostileResult.preview.querySelector('img') === null)));
+            results.push(assert(hostileResult.pending && /AMD EPYC/.test(hostileResult.pending.processorName),
+                'processorNames arrays are normalized safely', true,
+                Boolean(hostileResult.pending && /AMD EPYC/.test(hostileResult.pending.processorName))));
+
+            var oversized = parseText('x'.repeat(MAX_CLUSTER_JSON_BYTES + 1));
+            results.push(assert(!oversized.pending && /too large/.test(oversized.error),
+                'oversized pasted JSON is rejected before parsing', true,
+                !oversized.pending && /too large/.test(oversized.error)));
+
+            var tooManyCores = parseText(machine(function(payload) {
+                payload.properties.detectedProperties.coreCount = '385';
+            }));
+            results.push(assert(!tooManyCores.pending && /1–384 cores/.test(tooManyCores.error),
+                'core count above the supported envelope is rejected', true,
+                !tooManyCores.pending && /1–384 cores/.test(tooManyCores.error)));
+
+            var tooMuchMemory = parseText(machine(function(payload) {
+                payload.properties.detectedProperties.totalPhysicalMemoryInGigabytes = '4097';
+            }));
+            results.push(assert(!tooMuchMemory.pending && /up to 4096 GB/.test(tooMuchMemory.error),
+                'memory above the supported envelope is rejected', true,
+                !tooMuchMemory.pending && /up to 4096 GB/.test(tooMuchMemory.error)));
+
+            ids.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            });
+            delete window._pendingClusterImport;
+            return results;
+        })());
 
         testSuite('parseAndPreviewClusterJSON: respects numberOfCpuSockets from JSON (#207)', 'sizer.js', (() => {
             var results = [];

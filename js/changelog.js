@@ -59,10 +59,12 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
                         <li><strong>Import XSS protections</strong> &mdash; Sizer workload cards escape imported names/details and normalize action IDs; Designer printable documents escape all imported state values and reject unknown state keys.</li>
                         <li><strong>Bounded imports</strong> &mdash; JSON files are limited to 5&nbsp;MB, shared URL payloads are bounded, and imported workload counts/names have explicit limits.</li>
+                        <li><strong>Legacy import compatibility</strong> &mdash; recognized older Designer values are migrated before apply; incompatible state is rejected without changing the current design. Sizer/Designer files used at the wrong import entry point now identify the correct tool.</li>
+                        <li><strong>Azure Local machine paste validation</strong> &mdash; pasted machine JSON is size- and type-checked, text fields are normalized, and unsupported core or memory values are rejected before preview.</li>
                         <li><strong>CSV formula protection</strong> &mdash; spreadsheet formula-trigger prefixes are neutralized before export.</li>
                         <li><strong>Dependency classification corrected</strong> &mdash; HTML validation tooling is development-only and CI installs it reproducibly with <code>npm ci</code>.</li>
                         <li><strong>Firebase rule guidance tightened</strong> &mdash; documented counter rules allow only creation at <code>1</code> and atomic <code>+1</code> updates.</li>
-                        <li>All <strong>1,429 / 1,429</strong> tests pass, including direct malicious-markup regressions.</li>
+                        <li>All <strong>1,442 / 1,442</strong> tests pass, including direct malicious-markup and legacy-import regressions.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

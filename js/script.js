@@ -521,7 +521,7 @@ function computeWizardProgress() {
     const checks = [];
     const add = (label, done) => checks.push({ label, done: Boolean(done) });
 
-    add('Deployment Type', Boolean(state.scenario));
+    add('Deployment Type', ['connected', 'disconnected', 'rackscale', 'm365local'].includes(state.scenario));
     add('Azure Cloud', Boolean(state.region));
     add('Azure Local Instance Region', Boolean(state.localInstanceRegion));
 
@@ -9337,6 +9337,94 @@ function applyKnownDesignerState(importedState) {
     return skippedKeys;
 }
 
+function isSizerExportPayload(imported) {
+    if (!imported || typeof imported !== 'object' || Array.isArray(imported)) return false;
+    const data = imported.data && typeof imported.data === 'object' && !Array.isArray(imported.data)
+        ? imported.data
+        : imported;
+    const tool = imported._meta && typeof imported._meta.tool === 'string' ? imported._meta.tool : '';
+    return /ODIN Sizer/i.test(tool) || Array.isArray(data.workloads) || typeof data.clusterType === 'string';
+}
+
+function migrateDesignerState(candidate) {
+    const migrations = [];
+    if (candidate.scenario === 'hyperconverged') {
+        candidate.scenario = 'connected';
+        candidate.architecture = candidate.architecture || 'hyperconverged';
+        migrations.push('legacy Hyperconverged deployment type');
+    } else if (candidate.scenario === 'multirack') {
+        candidate.scenario = 'rackscale';
+        migrations.push('legacy Multi-Rack deployment type');
+    }
+    if ((candidate.scenario === 'connected' || candidate.scenario === 'disconnected') && !candidate.architecture) {
+        candidate.architecture = 'hyperconverged';
+        migrations.push('default Hyperconverged architecture');
+    }
+    if (candidate.disaggStorageType === 'iscsi_4nic') {
+        candidate.disaggStorageType = 'iscsi_6nic';
+        migrations.push('retired 4-NIC iSCSI layout');
+    }
+    if (Array.isArray(candidate.sdnFeatures)) {
+        const supportedSdnFeatures = candidate.sdnFeatures.filter(feature => feature === 'lnet' || feature === 'nsg');
+        if (supportedSdnFeatures.length !== candidate.sdnFeatures.length) {
+            candidate.sdnFeatures = supportedSdnFeatures;
+            candidate.sdnEnabled = supportedSdnFeatures.length > 0 ? candidate.sdnEnabled : 'no';
+            candidate.sdnManagement = supportedSdnFeatures.length > 0 ? 'arc_managed' : null;
+            migrations.push('retired SDN features');
+        }
+    }
+    if (candidate.sdnManagement && candidate.sdnManagement !== 'arc_managed') {
+        candidate.sdnManagement = Array.isArray(candidate.sdnFeatures) && candidate.sdnFeatures.length > 0
+            ? 'arc_managed'
+            : null;
+        migrations.push('legacy SDN management mode');
+    }
+    return migrations;
+}
+
+function prepareDesignerImport(imported) {
+    if (isSizerExportPayload(imported)) {
+        return {
+            ok: false,
+            message: 'This is an ODIN Sizer configuration. Import it from the Sizer using Import JSON.'
+        };
+    }
+    if (!imported || typeof imported !== 'object' || Array.isArray(imported) ||
+        !imported.state || typeof imported.state !== 'object' || Array.isArray(imported.state)) {
+        return { ok: false, message: 'Invalid configuration file. Expected Odin export or Azure ARM template.' };
+    }
+
+    const candidate = getInitialWizardState();
+    const safeKeys = new Set(Object.keys(candidate));
+    const skippedKeys = [];
+    Object.keys(imported.state).forEach(key => {
+        if (safeKeys.has(key)) candidate[key] = imported.state[key];
+        else skippedKeys.push(key);
+    });
+    const migrations = migrateDesignerState(candidate);
+
+    const supportedScenarios = new Set(['connected', 'disconnected', 'rackscale', 'm365local']);
+    const supportedArchitectures = new Set(['hyperconverged', 'disaggregated']);
+    if (candidate.scenario !== null && !supportedScenarios.has(candidate.scenario)) {
+        return {
+            ok: false,
+            message: 'This Designer configuration uses an unsupported deployment type and was not imported.'
+        };
+    }
+    if (candidate.architecture !== null && !supportedArchitectures.has(candidate.architecture)) {
+        return {
+            ok: false,
+            message: 'This Designer configuration uses an unsupported architecture and was not imported.'
+        };
+    }
+    if (!Array.isArray(candidate.sdnFeatures) || !Array.isArray(candidate.dnsServers) ||
+        !Array.isArray(candidate.nodeSettings) || !Array.isArray(candidate.privateEndpointsList)) {
+        return { ok: false, message: 'This Designer configuration has an incompatible data structure and was not imported.' };
+    }
+
+    return { ok: true, state: candidate, skippedKeys: skippedKeys, migrations: migrations };
+}
+
 function importConfiguration() {
     try {
         const input = document.createElement('input');
@@ -9363,9 +9451,9 @@ function importConfiguration() {
                         return;
                     }
 
-                    // Check if this is an Odin configuration export
-                    if (!imported.state || typeof imported.state !== 'object' || Array.isArray(imported.state)) {
-                        showToast('Invalid configuration file. Expected Odin export or Azure ARM template.', 'error');
+                    const prepared = prepareDesignerImport(imported);
+                    if (!prepared.ok) {
+                        showToast(prepared.message, 'error', 7000);
                         return;
                     }
 
@@ -9375,12 +9463,11 @@ function importConfiguration() {
                     // Track changes if there was previous state
                     const hadPreviousState = Object.keys(state).some(k => state[k] != null);
                     const changes = [];
-                    const safeKeys = Object.keys(getInitialWizardState());
+                    const safeKeys = Object.keys(prepared.state);
 
                     if (hadPreviousState) {
                         safeKeys.forEach(key => {
-                            if (!Object.prototype.hasOwnProperty.call(imported.state, key)) return;
-                            if (JSON.stringify(state[key]) !== JSON.stringify(imported.state[key])) {
+                            if (JSON.stringify(state[key]) !== JSON.stringify(prepared.state[key])) {
                                 changes.push(key);
                             }
                         });
@@ -9389,16 +9476,12 @@ function importConfiguration() {
                     // Use setTimeout to prevent blocking and allow UI to update
                     setTimeout(() => {
                         try {
-                            const skippedKeys = applyKnownDesignerState(imported.state);
+                            Object.keys(state).forEach(key => { delete state[key]; });
+                            Object.assign(state, prepared.state);
 
-                            if (skippedKeys.length > 0) {
-                                console.warn('Import: skipped unknown or unsafe key(s):', skippedKeys.join(', '));
+                            if (prepared.skippedKeys.length > 0) {
+                                console.warn('Import: skipped unknown or unsafe key(s):', prepared.skippedKeys.join(', '));
                             }
-
-                            // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships
-                            // 6-NIC iSCSI only). Silently remap any legacy imported
-                            // design to the supported 6-NIC layout.
-                            if (state.disaggStorageType === 'iscsi_4nic') state.disaggStorageType = 'iscsi_6nic';
 
                             // Update UI with error handling
                             try {
@@ -9413,7 +9496,9 @@ function importConfiguration() {
 
                             saveStateToLocalStorage();
 
-                            if (changes.length > 0) {
+                            if (prepared.migrations.length > 0) {
+                                showToast(`Configuration imported and updated for this version (${prepared.migrations.length} migration${prepared.migrations.length === 1 ? '' : 's'}).`, 'success', 6000);
+                            } else if (changes.length > 0) {
                                 showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
                             } else {
                                 showToast('Configuration imported successfully!', 'success');
@@ -9809,18 +9894,7 @@ function resumeSavedState() {
     if (saved && saved.data) {
         Object.assign(state, saved.data);
 
-        // Migrate legacy scenario values from old saved states
-        if (state.scenario === 'hyperconverged') {
-            state.scenario = 'connected';
-            state.architecture = state.architecture || 'hyperconverged';
-        }
-        if (state.scenario === 'multirack') {
-            state.scenario = 'rackscale';
-        }
-        // Ensure architecture defaults for connected/disconnected if missing
-        if ((state.scenario === 'connected' || state.scenario === 'disconnected') && !state.architecture) {
-            state.architecture = 'hyperconverged';
-        }
+        migrateDesignerState(state);
 
         // Restore SDN enabled card selection
         if (state.sdnEnabled) {
@@ -9832,17 +9906,6 @@ function resumeSavedState() {
                 if (yesCard) yesCard.classList.remove('selected');
                 if (noCard) noCard.classList.remove('selected');
                 sdnEnabledCard.classList.add('selected');
-            }
-        }
-
-        // Migrate legacy SDN features (vnet, slb) from saved state — only LNET and NSG supported
-        if (state.sdnFeatures && state.sdnFeatures.length > 0) {
-            state.sdnFeatures = state.sdnFeatures.filter(f => f === 'lnet' || f === 'nsg');
-            if (state.sdnFeatures.length > 0) {
-                state.sdnManagement = 'arc_managed';
-            } else {
-                state.sdnEnabled = 'no';
-                state.sdnManagement = null;
             }
         }
 
@@ -9869,11 +9932,6 @@ function resumeSavedState() {
 
         // Restore SDN management selection AFTER updateSdnManagementOptions
         // Arc management is now auto-selected when features are present
-        if (state.sdnManagement && state.sdnManagement !== 'arc_managed') {
-            // Migrate legacy on-prem selection to arc_managed
-            state.sdnManagement = state.sdnFeatures.length > 0 ? 'arc_managed' : null;
-        }
-
         updateUI();
 
         // Restore disaggregated UI state (card selections, slider, explanations)
