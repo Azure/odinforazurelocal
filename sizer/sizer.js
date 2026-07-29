@@ -8227,8 +8227,8 @@ function exportSizerJSON() {
 
 function escapeSpreadsheetCell(cell) {
     const value = String(cell == null ? '' : cell);
-    const safeValue = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
-    if (safeValue.indexOf(',') !== -1 || safeValue.indexOf('"') !== -1 || safeValue.indexOf('\n') !== -1) {
+    const safeValue = /^(?:[\t\r]|\s*[=+\-@])/.test(value) ? "'" + value : value;
+    if (safeValue.indexOf(',') !== -1 || safeValue.indexOf('"') !== -1 || safeValue.indexOf('\r') !== -1 || safeValue.indexOf('\n') !== -1) {
         return '"' + safeValue.replace(/"/g, '""') + '"';
     }
     return safeValue;

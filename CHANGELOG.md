@@ -22,7 +22,7 @@ Security hardening for browser-side configuration imports and exports. Shared Si
 - **Designer print-document DOM XSS closed** (`js/script.js`) — every state-derived value in the printable configuration document is escaped before `document.write()`. Designer imports now accept only keys defined by the current wizard state and ignore unknown or dangerous properties.
 - **Import resource limits added** (`js/script.js`, `sizer/sizer.js`) — Designer and Sizer JSON files are limited to 5 MB; shared Sizer configuration parameters are bounded; imported workload collections are capped at 1,000 entries and names at 200 characters.
 - **CSV formula injection neutralized** (`sizer/sizer.js`) — exported spreadsheet cells beginning with formula-trigger characters are prefixed as text before CSV quoting.
-- **Security regression coverage added** (`tests/index.html`) — tests cover malicious workload markup and IDs, dangerous Designer keys, printable-document markup, import normalization, and CSV formula prefixes. Full suite passes **1,427 / 1,427**.
+- **Security regression coverage added** (`tests/index.html`) — tests cover malicious workload markup and IDs, dangerous Designer keys, printable-document markup, import normalization, and CSV formula prefixes. Full suite passes **1,429 / 1,429**.
 
 ---
 

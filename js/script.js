@@ -9325,10 +9325,10 @@ function closeDesignerImportModal() { // eslint-disable-line no-unused-vars
 }
 
 function applyKnownDesignerState(importedState) {
-    const safeKeys = Object.keys(getInitialWizardState());
+    const safeKeys = new Set(Object.keys(getInitialWizardState()));
     const skippedKeys = [];
     Object.keys(importedState).forEach(key => {
-        if (safeKeys.includes(key)) {
+        if (safeKeys.has(key)) {
             state[key] = importedState[key];
         } else {
             skippedKeys.push(key);

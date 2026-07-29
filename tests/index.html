@@ -330,7 +330,9 @@
             assert(escapeSpreadsheetCell('-1+2') === "'-1+2", 'Neutralizes - formula prefix', "'-1+2", escapeSpreadsheetCell('-1+2')),
             assert(escapeSpreadsheetCell('@SUM(A1:A2)') === "'@SUM(A1:A2)", 'Neutralizes @ formula prefix', "'@SUM(A1:A2)", escapeSpreadsheetCell('@SUM(A1:A2)')),
             assert(escapeSpreadsheetCell('\t=1+1') === "'\t=1+1", 'Neutralizes tab formula prefix', "'\t=1+1", escapeSpreadsheetCell('\t=1+1')),
-            assert(escapeSpreadsheetCell('\r=1+1') === "'\r=1+1", 'Neutralizes carriage-return formula prefix', "'\r=1+1", escapeSpreadsheetCell('\r=1+1')),
+            assert(escapeSpreadsheetCell('\r=1+1') === '"\'\r=1+1"', 'Neutralizes and quotes carriage-return formula prefix', '"\'\r=1+1"', escapeSpreadsheetCell('\r=1+1')),
+            assert(escapeSpreadsheetCell('  =1+1') === "'  =1+1", 'Neutralizes whitespace-prefixed formulas', "'  =1+1", escapeSpreadsheetCell('  =1+1')),
+            assert(escapeSpreadsheetCell('line\rbreak') === '"line\rbreak"', 'Quotes embedded carriage returns', '"line\rbreak"', escapeSpreadsheetCell('line\rbreak')),
             assert(escapeSpreadsheetCell('ordinary value') === 'ordinary value', 'Preserves ordinary CSV values', 'ordinary value', escapeSpreadsheetCell('ordinary value')),
             assert(escapeSpreadsheetCell('a,"b"') === '"a,""b"""', 'Quotes and escapes CSV delimiters', '"a,""b"""', escapeSpreadsheetCell('a,"b"'))
         ]);

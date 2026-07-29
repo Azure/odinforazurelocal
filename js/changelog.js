@@ -62,7 +62,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>CSV formula protection</strong> &mdash; spreadsheet formula-trigger prefixes are neutralized before export.</li>
                         <li><strong>Dependency classification corrected</strong> &mdash; HTML validation tooling is development-only and CI installs it reproducibly with <code>npm ci</code>.</li>
                         <li><strong>Firebase rule guidance tightened</strong> &mdash; documented counter rules allow only creation at <code>1</code> and atomic <code>+1</code> updates.</li>
-                        <li>All <strong>1,427 / 1,427</strong> tests pass, including direct malicious-markup regressions.</li>
+                        <li>All <strong>1,429 / 1,429</strong> tests pass, including direct malicious-markup regressions.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
