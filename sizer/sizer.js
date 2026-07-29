@@ -5114,6 +5114,12 @@ function cloneWorkload(id) {
 }
 
 // Render workloads list
+function normalizeWorkloadType(type) {
+    return typeof type === 'string' && Object.prototype.hasOwnProperty.call(WORKLOAD_DEFAULTS, type)
+        ? type
+        : '';
+}
+
 function renderWorkloads() {
     const container = document.getElementById('workloads-list');
     // Use cached reference — getElementById returns null after innerHTML replacement
@@ -5133,18 +5139,19 @@ function renderWorkloads() {
 
     let html = '';
     workloads.forEach(w => {
-        const iconClass = w.type;
-        const details = getWorkloadDetails(w);
+        const workloadType = normalizeWorkloadType(w.type);
+        const normalizedWorkload = workloadType === w.type ? w : Object.assign({}, w, { type: workloadType });
+        const details = getWorkloadDetails(normalizedWorkload);
         const actionId = Number.isSafeInteger(Number(w.id)) ? Number(w.id) : -1;
         html += `
             <div class="workload-card">
-                <div class="workload-icon ${iconClass}">
-                    ${getWorkloadIcon(w.type)}
+                <div class="workload-icon ${workloadType}">
+                    ${getWorkloadIcon(workloadType)}
                 </div>
                 <div class="workload-card-content">
                     <div class="workload-card-title">
                         ${escapeHtmlSizer(w.name || '')}
-                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
+                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(workloadType)}</span>
                         ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>

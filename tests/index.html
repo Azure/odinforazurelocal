@@ -4444,7 +4444,7 @@
                 const savedWorkloads = workloads.slice();
                 workloads = [{
                     id: '1);alert(1);//',
-                    type: 'vm',
+                    type: 'vm" onclick="alert(3)',
                     name: '<img src=x onerror=alert(1)>',
                     vcpus: '<img src=x onerror=alert(2)>',
                     memory: 16,
@@ -4455,13 +4455,18 @@
                 const injectedElement = container.querySelector('img[onerror]');
                 const editHandler = container.querySelector('button.edit').getAttribute('onclick');
                 const markupRenderedAsText = container.textContent.includes('<img src=x onerror=alert(1)>');
+                const iconClassList = container.querySelector('.workload-icon').classList;
+                const typeAttributeSafe = iconClassList.length === 1 &&
+                    iconClassList.contains('workload-icon') &&
+                    container.querySelector('[onclick*="alert(3)"]') === null;
                 workloads = savedWorkloads;
                 _emptyStateEl = null;
                 if (createdContainer) container.remove();
-                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText,
-                    'renderWorkloads escapes imported markup and normalizes action IDs',
-                    'text only + safe ID',
-                    (injectedElement ? 'element injected' : 'text only') + ' + ' + editHandler);
+                return assert(!injectedElement && editHandler === 'editWorkload(-1)' && markupRenderedAsText && typeAttributeSafe,
+                    'renderWorkloads escapes imported markup and normalizes action IDs and workload types',
+                    'text only + safe ID + safe type',
+                    (injectedElement ? 'element injected' : 'text only') + ' + ' + editHandler + ' + ' +
+                    (typeAttributeSafe ? 'safe type' : 'unsafe type'));
             })()
         ]);
 
