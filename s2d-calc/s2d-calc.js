@@ -758,8 +758,8 @@
                 poolVolumeSizingLabel.textContent = 'Equal volume size';
                 poolVolumeSizingValue.textContent = `${formatLimit(pool.equalVolumeTB)} TB each`;
             } else if (!pool.cappedAtLimit) {
-                poolVolumeSizingLabel.textContent = 'Thin volume sizing';
-                poolVolumeSizingValue.textContent = `Grows dynamically, up to ${formatLimit(volumeCalculation.exactTB)} TB per volume`;
+                poolVolumeSizingLabel.textContent = 'Thin provisioning';
+                poolVolumeSizingValue.textContent = 'Consumes pool capacity as data is written; see Maximum supported individual volume size above';
             }
             poolCappedNote.hidden = !pool.cappedAtLimit;
             poolCappedNote.textContent = pool.cappedAtLimit
