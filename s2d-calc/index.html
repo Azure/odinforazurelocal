@@ -56,10 +56,10 @@
                 </fieldset>
 
                 <fieldset>
-                    <legend>Node count</legend>
+                    <legend>Machine count</legend>
                     <div class="s2d-node-control">
-                        <input id="node-range" type="range" min="1" max="16" step="1" value="4" aria-label="Node count slider">
-                        <label for="node-number">Nodes</label>
+                        <input id="node-range" type="range" min="1" max="16" step="1" value="4" aria-label="Machine count slider">
+                        <label for="node-number">Machines</label>
                         <input id="node-number" type="number" min="1" max="16" step="1" value="4" inputmode="numeric" aria-describedby="validation-message">
                     </div>
                 </fieldset>
@@ -106,7 +106,7 @@
                 <p class="s2d-result-label" id="result-heading">Maximum supported volume size</p>
                 <div id="result" class="s2d-result-value">&lt; 20.8 TB</div>
                 <p id="result-announcement" class="s2d-sr-only" aria-live="polite" aria-atomic="true"></p>
-                <p id="result-summary" class="s2d-result-summary">3 copies | Thin provisioned | 4 nodes | 1 GiB extents</p>
+                <p id="result-summary" class="s2d-result-summary">3 copies | Thin provisioned | 4 machines | 1 GiB extents</p>
                 <div class="s2d-rule"></div>
                 <p class="s2d-result-detail">The usable result includes 0.5 TB of volume overhead and remains below the 64 TB volume limit.</p>
                 <p class="s2d-result-detail"><a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-overview" target="_blank" rel="noopener noreferrer">Storage Spaces Direct overview</a></p>
@@ -142,16 +142,16 @@
                     </fieldset>
 
                     <div id="single-controls" class="s2d-fields-grid">
-                        <label class="s2d-field"><span>Drives per node</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Drives per machine</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Disk size</span><select id="disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="custom-disk-size-field" hidden><span>Custom disk size (TB)</span><input id="custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
                     </div>
 
                     <div id="tiering-controls" class="s2d-fields-grid" hidden>
-                        <label class="s2d-field"><span>Cache drives per node</span><input id="cache-drives-per-node" type="number" min="2" max="24" step="1" value="2" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Cache drives per machine</span><input id="cache-drives-per-node" type="number" min="2" max="24" step="1" value="2" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Cache disk size</span><select id="cache-disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="cache-custom-disk-size-field" hidden><span>Custom cache disk size (TB)</span><input id="cache-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
-                        <label class="s2d-field"><span>Capacity drives per node</span><input id="capacity-drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Capacity drives per machine</span><input id="capacity-drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Capacity disk size</span><select id="capacity-disk-size"><option value="3.2">3.2 TB</option><option value="6.4" selected>6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="capacity-custom-disk-size-field" hidden><span>Custom capacity disk size (TB)</span><input id="capacity-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
                     </div>
@@ -186,7 +186,7 @@
             </div>
             <ol class="s2d-derivation">
                 <li><span>01</span><div><h3>Record capacity</h3><p>4 MiB / 64 bytes / 2 = <strong>32,768 records</strong></p></div></li>
-                <li><span>02</span><div><h3>Effective node count</h3><p id="effective-node-formula">4 selected nodes = 4 effective nodes</p></div></li>
+                <li><span>02</span><div><h3>Effective machine count</h3><p id="effective-node-formula">4 selected machines = 4 effective machines</p></div></li>
                 <li><span>03</span><div><h3>Base record-limit formula</h3><p id="substitution">32,768 x 4 x 1 GiB / 6 = 21.33 TB</p></div></li>
                 <li><span>04</span><div><h3>Usable volume size</h3><p id="logical-substitution">21.33 TB - 0.5 TB overhead = 20.83 TB</p></div></li>
             </ol>
@@ -201,7 +201,7 @@
             </div>
             <div class="s2d-table-scroll" tabindex="0" aria-label="Reference examples; scroll horizontally if needed">
                 <table>
-                    <thead><tr><th scope="col">Provisioning</th><th scope="col">Extent</th><th scope="col">Nodes</th><th scope="col">Copies</th><th scope="col">Space limit</th></tr></thead>
+                    <thead><tr><th scope="col">Provisioning</th><th scope="col">Extent</th><th scope="col">Machines</th><th scope="col">Copies</th><th scope="col">Space limit</th></tr></thead>
                     <tbody>
                         <tr data-example="thin-1-2"><td>Thin</td><td>1 GiB</td><td>1</td><td>2</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="thin-4-3"><td>Thin</td><td>1 GiB</td><td>4</td><td>3</td><td>&lt; 20.8 TB <span class="s2d-selected" hidden>Selected</span></td></tr>

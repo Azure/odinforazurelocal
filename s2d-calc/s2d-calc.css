@@ -354,7 +354,7 @@ select {
     flex-direction: column;
     justify-content: center;
     min-height: 440px;
-    border-top: 3px solid var(--success);
+    border-top: 3px solid var(--accent-blue);
 }
 
 .s2d-result[data-state='invalid'] {
@@ -371,7 +371,7 @@ select {
 
 .s2d-result-value {
     margin: 8px 0 12px;
-    color: var(--success);
+    color: var(--accent-blue);
     font-size: 3.8rem;
     font-weight: 700;
     line-height: 1;
@@ -491,7 +491,7 @@ select {
 }
 
 .s2d-volume-count strong {
-    color: var(--success);
+    color: var(--accent-blue);
     font-size: 3rem;
     line-height: 1;
 }
@@ -728,5 +728,80 @@ select {
     *::after {
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+.s2d-resume-banner {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: min(600px, calc(100% - 32px));
+    padding: 16px 24px;
+    color: var(--button-text);
+    background: var(--accent-blue);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    transform: translateX(-50%);
+}
+
+.s2d-resume-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.s2d-resume-copy span {
+    font-size: 0.75rem;
+    opacity: 0.9;
+}
+
+.s2d-resume-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.s2d-resume-button {
+    min-height: 38px;
+    padding: 8px 14px;
+    color: var(--button-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border: 0;
+    border-radius: 6px;
+}
+
+.s2d-resume-primary {
+    color: var(--accent-blue);
+    background: var(--button-text);
+}
+
+.s2d-resume-secondary {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 600px) {
+    .s2d-resume-banner {
+        top: 12px;
+        align-items: stretch;
+        flex-direction: column;
+        padding: 16px;
+    }
+
+    .s2d-resume-actions,
+    .s2d-resume-button {
+        width: 100%;
+    }
+}
+
+@media print {
+    .s2d-resume-banner {
+        display: none !important;
     }
 }

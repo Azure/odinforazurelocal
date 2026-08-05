@@ -243,7 +243,7 @@
                     provisioning: 'fixed', thinExtentMiB: 1024
                 });
                 return assert(result.valid && result.effectiveNodes === 2 && result.exactTB === 15.5,
-                    'single-node two-copy calculation uses two effective nodes', '2 nodes / 15.5 TB', `${result.effectiveNodes} nodes / ${result.exactTB} TB`);
+                    'single-machine two-copy calculation uses two effective machines', '2 machines / 15.5 TB', `${result.effectiveNodes} machines / ${result.exactTB} TB`);
             })(),
             (function() {
                 const result = volumeCalculator.calculateLimit({
@@ -258,16 +258,16 @@
                     platform: 'azureLocal', nodes: 5, copies: 4,
                     provisioning: 'thin', thinExtentMiB: 1024
                 });
-                return assert(!result.valid && /even node count/.test(result.errors.join(' ')),
-                    'four-copy Azure Local rejects odd node counts', 'validation error', result.errors.join(' '));
+                return assert(!result.valid && /even machine count/.test(result.errors.join(' ')),
+                    'four-copy Azure Local rejects odd machine counts', 'validation error', result.errors.join(' '));
             })(),
             (function() {
                 const result = volumeCalculator.validateConfiguration({
                     platform: 'azureLocal', nodes: 9, copies: 4,
                     provisioning: 'fixed', thinExtentMiB: 1024
                 });
-                return assert(!result.valid && /at most 8 nodes/.test(result.errors.join(' ')),
-                    'four-copy Azure Local enforces its eight-node maximum', 'validation error', result.errors.join(' '));
+                return assert(!result.valid && /at most 8 machines/.test(result.errors.join(' ')),
+                    'four-copy Azure Local enforces its eight-machine maximum', 'validation error', result.errors.join(' '));
             })(),
             (function() {
                 return assert(volumeCalculator.formatLimit(20.899) === '20.8',
@@ -330,6 +330,11 @@
                     'false / true / false',
                     `${invalidClaim} / ${firstValidClaim} / ${repeatedValidClaim}`);
             })()
+        ]);
+
+        testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [
+            assert(typeof globalThis.showS2dOnboarding === 'function',
+                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding)
         ]);
 
         testSuite('Shared release branding', 'header-branding.js', [

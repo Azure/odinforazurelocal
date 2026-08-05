@@ -85,7 +85,7 @@
         const validNodeRange = Number.isInteger(nodes) && nodes >= 1 && nodes <= 16;
 
         if (!validNodeRange) {
-            errors.push('Node count must be a whole number from 1 through 16.');
+            errors.push('Machine count must be a whole number from 1 through 16.');
         }
         if (copies !== 2 && copies !== 3 && copies !== 4) {
             errors.push('Data copies must be 2, 3, or 4.');
@@ -102,12 +102,12 @@
 
         const minimum = CONSTANTS.minimumNodes[copies];
         if (minimum && validNodeRange && nodes < minimum) {
-            errors.push(`${copies} copies require at least ${minimum} nodes.`);
+            errors.push(`${copies} copies require at least ${minimum} machines.`);
         }
 
         const maximum = platformConfig ? platformConfig.maximumNodes[copies] : undefined;
         if (maximum && validNodeRange && nodes > maximum) {
-            errors.push(`${copies} copies support at most ${maximum} nodes.`);
+            errors.push(`${copies} copies support at most ${maximum} machines.`);
         }
 
         if (copies === 4 && validNodeRange && minimum && maximum && nodes >= minimum && nodes <= maximum && nodes % 2 !== 0) {
@@ -115,7 +115,7 @@
             for (let candidate = minimum; candidate <= maximum; candidate += 2) {
                 evenNodeCounts.push(candidate);
             }
-            errors.push(`4 copies require an even node count (${formatNodeList(evenNodeCounts)}).`);
+            errors.push(`4 copies require an even machine count (${formatNodeList(evenNodeCounts)}).`);
         }
 
         return { valid: errors.length === 0, errors };
@@ -190,10 +190,10 @@
 
         if (tiering) {
             if (!isDriveCountInRange(normalized.cacheDrivesPerNode)) {
-                errors.push('Cache drives per node must be a whole number from 2 through 24.');
+                errors.push('Cache drives per machine must be a whole number from 2 through 24.');
             }
             if (!isDriveCountInRange(normalized.capacityDrivesPerNode)) {
-                errors.push('Capacity drives per node must be a whole number from 2 through 24.');
+                errors.push('Capacity drives per machine must be a whole number from 2 through 24.');
             }
             if (!isDiskSizeInRange(normalized.cacheDiskSizeTB)) {
                 errors.push('Cache disk size must be a number from 0.1 to 100 TB.');
@@ -203,7 +203,7 @@
             }
         } else {
             if (!isDriveCountInRange(normalized.drivesPerNode)) {
-                errors.push('Drives per node must be a whole number from 2 through 24.');
+                errors.push('Drives per machine must be a whole number from 2 through 24.');
             }
             if (!isDiskSizeInRange(normalized.driveSizeTB)) {
                 errors.push('Custom disk size must be a number from 0.1 to 100 TB.');
@@ -264,7 +264,7 @@
             '',
             'CONFIGURATION',
             `  Platform:            ${config.platformLabel}`,
-            `  Node count:          ${config.nodes}`,
+            `  Machine count:       ${config.nodes}`,
             `  Data copies:         ${config.copies}`,
             `  Provisioning:        ${config.provisioningLabel}`
         ];
@@ -276,7 +276,7 @@
             lines.push(`    Capacity:          ${config.tiered.capacityDrives} drives x ${config.tiered.capacitySizeTB} TB`);
         } else {
             lines.push('  Disk configuration:  Single disk type');
-            lines.push(`    Drives per node:   ${config.single.drives}`);
+            lines.push(`    Drives per machine: ${config.single.drives}`);
             lines.push(`    Disk size:         ${config.single.sizeTB} TB`);
         }
 
@@ -320,6 +320,100 @@
         calculatePoolConsumption,
         buildExportReport,
         createCalculationTelemetryGate
+    });
+
+    const S2D_ONBOARDING_KEY = 'odin_s2d_onboarding_v0_23_01';
+    const S2D_STATE_KEY = 'odin_s2d_calc_state';
+    const S2D_STATE_VERSION = 1;
+    const s2dOnboardingSteps = [
+        {
+            icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+            isImage: true,
+            title: 'Welcome to the S2D Calculator',
+            description: 'Plan maximum supported volume sizes and storage-pool consumption for Azure Local or Windows Server.',
+            features: [
+                { icon: '1', title: 'Choose a Platform', text: 'Select Azure Local or Windows Server so the calculator applies the matching extent and topology rules' },
+                { icon: '2', title: 'Set Resiliency', text: 'Choose the physical machine count, data copies, and thin or fixed provisioning model' },
+                { icon: '3', title: 'Review the Limit', text: 'The blue result shows the maximum supported usable volume size for the selected configuration' }
+            ]
+        },
+        {
+            icon: 'S2D',
+            title: 'Estimate Pool Consumption',
+            description: 'Model the physical disks in each machine to estimate usable pool capacity and volume count.',
+            features: [
+                { icon: '1', title: 'Choose Disk Layout', text: 'Use a single disk type or separate cache and capacity tiers' },
+                { icon: '2', title: 'Enter Disk Details', text: 'Set drives per machine and select a standard or custom disk size' },
+                { icon: '3', title: 'Read the Estimate', text: 'Review raw capacity, rebuild reservation, available capacity, and volumes to create' }
+            ]
+        },
+        {
+            icon: '?',
+            title: 'Understand and Share the Result',
+            description: 'Use the derivation and export tools to validate or share your planning assumptions.',
+            features: [
+                { icon: '1', title: 'Follow the Formula', text: 'The derivation explains record capacity, effective machine count, the base limit, and usable size' },
+                { icon: '2', title: 'Compare Examples', text: 'Reference configurations highlight the row that matches your current valid selection' },
+                { icon: '3', title: 'Export a Report', text: 'Download a text report containing the configuration, results, derivation, and pool estimate' },
+                { icon: 'i', title: 'Open Help Again', text: 'Use the Help button in the navigation bar whenever you want to replay this guide' }
+            ]
+        }
+    ];
+    let currentS2dOnboardingStep = 0;
+
+    function closeS2dOnboarding() {
+        try { localStorage.setItem(S2D_ONBOARDING_KEY, 'true'); } catch (_) { /* localStorage blocked */ }
+        document.querySelectorAll('.onboarding-overlay').forEach(overlay => overlay.remove());
+    }
+
+    function renderS2dOnboardingStep() {
+        const step = s2dOnboardingSteps[currentS2dOnboardingStep];
+        document.querySelectorAll('.onboarding-overlay').forEach(overlay => overlay.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'onboarding-overlay';
+        overlay.innerHTML = `
+            <div class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="s2d-onboarding-title">
+                <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
+                <h2 class="onboarding-title" id="s2d-onboarding-title">${step.title}</h2>
+                <p class="onboarding-description">${step.description}</p>
+                <div class="onboarding-features">
+                    ${step.features.map(feature => `
+                        <div class="onboarding-feature">
+                            <span class="onboarding-feature-icon">${feature.icon}</span>
+                            <div class="onboarding-feature-text"><strong>${feature.title}</strong>${feature.text}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="onboarding-progress" aria-label="Step ${currentS2dOnboardingStep + 1} of ${s2dOnboardingSteps.length}">
+                    ${s2dOnboardingSteps.map((_, index) => `<div class="onboarding-dot${index === currentS2dOnboardingStep ? ' active' : ''}"></div>`).join('')}
+                </div>
+                <div class="onboarding-buttons">
+                    <button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>
+                    <button class="onboarding-btn onboarding-btn-primary" data-action="next">${currentS2dOnboardingStep === s2dOnboardingSteps.length - 1 ? 'Get Started' : 'Next'}</button>
+                </div>
+            </div>`;
+
+        overlay.querySelector('[data-action="skip"]').addEventListener('click', closeS2dOnboarding);
+        overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
+            if (currentS2dOnboardingStep === s2dOnboardingSteps.length - 1) {
+                closeS2dOnboarding();
+                return;
+            }
+            currentS2dOnboardingStep += 1;
+            renderS2dOnboardingStep();
+        });
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-action="next"]').focus();
+    }
+
+    globalThis.showS2dOnboarding = function() {
+        currentS2dOnboardingStep = 0;
+        renderS2dOnboardingStep();
+    };
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.querySelector('.onboarding-overlay')) closeS2dOnboarding();
     });
 
     function initializeCalculatorPage() {
@@ -453,9 +547,9 @@
 
             const extentLabel = formatExtent(calculation.extentMiB);
             const provisioningLabel = configuration.provisioning === 'thin' ? 'Thin' : 'Fixed';
-            const nodeLabel = configuration.nodes === 1 ? '1 node' : `${configuration.nodes} nodes`;
-            const selectedNodeLabel = calculation.selectedNodes === 1 ? 'selected node' : 'selected nodes';
-            const effectiveNodeLabel = calculation.effectiveNodes === 1 ? 'effective node' : 'effective nodes';
+            const nodeLabel = configuration.nodes === 1 ? '1 machine' : `${configuration.nodes} machines`;
+            const selectedNodeLabel = calculation.selectedNodes === 1 ? 'selected machine' : 'selected machines';
+            const effectiveNodeLabel = calculation.effectiveNodes === 1 ? 'effective machine' : 'effective machines';
             const showEffectiveNodeNote = calculation.selectedNodes === 1 && calculation.effectiveNodes === 2;
 
             resultCard.setAttribute('data-state', 'valid');
@@ -465,13 +559,13 @@
             resultSummary.textContent = `${configuration.copies} copies | ${provisioningLabel} provisioned | ${nodeLabel} | ${extentLabel} extents`;
             effectiveNodeNote.hidden = !showEffectiveNodeNote;
             effectiveNodeNote.textContent = showEffectiveNodeNote
-                ? 'One selected node is calculated as two effective nodes for two-way mirror.'
+                ? 'One selected machine is calculated as two effective machines for two-way mirror.'
                 : '';
             validationMessage.hidden = true;
             validationMessage.textContent = '';
             nodeNumber.setAttribute('aria-invalid', 'false');
             effectiveNodeFormula.textContent = configuration.copies === 4
-                ? 'Node count does not affect four-copy volume size'
+                ? 'Machine count does not affect four-copy volume size'
                 : `${calculation.selectedNodes} ${selectedNodeLabel} = ${calculation.effectiveNodes} ${effectiveNodeLabel}`;
             substitution.textContent = configuration.copies === 4
                 ? `32,768 x ${extentLabel} / 0.5 / 4 = ${formatExact(calculation.baseExactTB)} TB`
@@ -569,7 +663,7 @@
                 poolAvailableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
                 poolCappedNote.hidden = true;
-                showPoolMessage(poolCapNote, 'A storage pool cannot exceed 4 PB (4,000 TB). Reduce the node count, drives per node, or disk size.');
+                showPoolMessage(poolCapNote, 'A storage pool cannot exceed 4 PB (4,000 TB). Reduce the machine count, drives per machine, or disk size.');
                 poolCapNoteLink.hidden = false;
                 return;
             }
@@ -594,6 +688,99 @@
             renderPool();
         }
 
+        function getSavedState() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(S2D_STATE_KEY));
+                return saved && saved.version === S2D_STATE_VERSION && saved.data ? saved : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function clearSavedState() {
+            try { localStorage.removeItem(S2D_STATE_KEY); } catch (_) { /* localStorage blocked */ }
+        }
+
+        function saveState() {
+            const data = {
+                platform: selectedValue('platform'),
+                nodes: nodeNumber.value,
+                copies: selectedValue('copies'),
+                provisioning: selectedValue('provisioning'),
+                thinExtentMiB: selectedValue('thinExtentMiB'),
+                tiering: selectedValue('tiering'),
+                drivesPerNode: drivesPerNode.value,
+                diskSize: diskSize.value,
+                customDiskSize: customDiskSize.value,
+                cacheDrives: cacheDrives.value,
+                cacheDiskSize: cacheDiskSize.value,
+                cacheCustomDiskSize: cacheCustomDiskSize.value,
+                capacityDrives: capacityDrives.value,
+                capacityDiskSize: capacityDiskSize.value,
+                capacityCustomDiskSize: capacityCustomDiskSize.value
+            };
+            try {
+                localStorage.setItem(S2D_STATE_KEY, JSON.stringify({
+                    version: S2D_STATE_VERSION,
+                    timestamp: new Date().toISOString(),
+                    data
+                }));
+            } catch (_) { /* localStorage blocked */ }
+        }
+
+        function applySavedState(saved) {
+            const data = saved.data;
+            setRadio('platform', data.platform);
+            nodeNumber.value = data.nodes;
+            setRadio('copies', data.copies);
+            setRadio('provisioning', data.provisioning);
+            setRadio('thinExtentMiB', data.thinExtentMiB);
+            setRadio('tiering', data.tiering);
+            drivesPerNode.value = data.drivesPerNode;
+            diskSize.value = data.diskSize;
+            customDiskSize.value = data.customDiskSize;
+            cacheDrives.value = data.cacheDrives;
+            cacheDiskSize.value = data.cacheDiskSize;
+            cacheCustomDiskSize.value = data.cacheCustomDiskSize;
+            capacityDrives.value = data.capacityDrives;
+            capacityDiskSize.value = data.capacityDiskSize;
+            capacityCustomDiskSize.value = data.capacityCustomDiskSize;
+            nodeRange.value = nodeNumber.value;
+            renderAll();
+        }
+
+        function dismissResumeBanner() {
+            const banner = document.getElementById('s2d-resume-banner');
+            if (banner) banner.remove();
+        }
+
+        function showResumeBanner(saved) {
+            const banner = document.createElement('div');
+            const timestamp = saved.timestamp ? new Date(saved.timestamp).toLocaleString() : 'Unknown time';
+            banner.id = 's2d-resume-banner';
+            banner.className = 's2d-resume-banner';
+            banner.setAttribute('role', 'status');
+            banner.innerHTML = `
+                <div class="s2d-resume-copy">
+                    <strong>Previous S2D Calc Session Found</strong>
+                    <span>Last saved: ${timestamp}</span>
+                </div>
+                <div class="s2d-resume-actions">
+                    <button type="button" class="s2d-resume-button s2d-resume-primary" data-action="resume">Resume</button>
+                    <button type="button" class="s2d-resume-button s2d-resume-secondary" data-action="fresh">Start Fresh</button>
+                </div>`;
+            banner.querySelector('[data-action="resume"]').addEventListener('click', () => {
+                applySavedState(saved);
+                dismissResumeBanner();
+            });
+            banner.querySelector('[data-action="fresh"]').addEventListener('click', () => {
+                clearSavedState();
+                resetConfiguration();
+                dismissResumeBanner();
+            });
+            document.body.appendChild(banner);
+        }
+
         function scheduleCalculationTelemetry() {
             if (telemetryTimer !== null) clearTimeout(telemetryTimer);
             telemetryTimer = setTimeout(() => {
@@ -607,6 +794,7 @@
 
         function renderUserChange() {
             renderAll();
+            saveState();
             scheduleCalculationTelemetry();
         }
 
@@ -633,6 +821,7 @@
             capacityDrives.value = '12';
             capacityDiskSize.value = '6.4';
             capacityCustomDiskSize.value = '';
+            clearSavedState();
             renderAll();
         }
 
@@ -734,22 +923,27 @@
         });
         document.querySelectorAll('input[name="tiering"]').forEach(radio => radio.addEventListener('change', () => {
             renderPool();
+            saveState();
             scheduleCalculationTelemetry();
         }));
         [drivesPerNode, diskSize, customDiskSize, cacheDrives, cacheDiskSize, cacheCustomDiskSize,
             capacityDrives, capacityDiskSize, capacityCustomDiskSize].forEach(control => {
             control.addEventListener('input', () => {
                 renderPool();
+                saveState();
                 scheduleCalculationTelemetry();
             });
             control.addEventListener('change', () => {
                 renderPool();
+                saveState();
                 scheduleCalculationTelemetry();
             });
         });
         exportButton.addEventListener('click', downloadReport);
         resetButton.addEventListener('click', resetConfiguration);
         renderAll();
+        const saved = getSavedState();
+        if (saved) showResumeBanner(saved);
     }
 
     let currentTheme = 'dark';
@@ -797,6 +991,13 @@
 
     initializeCalculatorPage();
     applyPageTheme();
+    if (document.getElementById('calculator-form')) {
+        try {
+            if (!localStorage.getItem(S2D_ONBOARDING_KEY)) globalThis.showS2dOnboarding();
+        } catch (_) {
+            globalThis.showS2dOnboarding();
+        }
+    }
     if (typeof initializeAnalytics === 'function' && initializeAnalytics()) {
         trackPageView();
         fetchAndDisplayStats();
