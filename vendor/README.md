@@ -28,9 +28,10 @@ It reads the collector ZIP entirely in the browser and expands only the validate
 JSZip, and no collector data is transmitted to an external service. Do not add a
 static `<script src=".../jszip-3.10.1.min.js">` tag to `sizer/index.html`.
 
-- **SHA-256:** `f12f367798e35ee2d9993dba6167fc61ddb52fb89880f5a99fbb606335188410`
-  (lower-case). This hash is pinned by `node scripts/run-tests.js` alongside the
-  SheetJS integrity check.
+- **Canonical SHA-256:** `acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e`
+  (lower-case, LF line endings). This hash is pinned by `node scripts/run-tests.js`
+  alongside the SheetJS integrity check. The verifier normalizes line endings so
+  Windows and Linux check the same canonical bytes.
 
 ## SheetJS (`xlsx-0.20.3.min.js`) — special handling
 

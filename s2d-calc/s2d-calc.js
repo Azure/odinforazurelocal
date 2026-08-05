@@ -327,6 +327,7 @@
 
     function isValidSharedState(payload) {
         if (!payload || payload.version !== S2D_STATE_VERSION || !payload.data || typeof payload.data !== 'object') return false;
+        if (payload.name !== undefined && (typeof payload.name !== 'string' || payload.name.length > 100)) return false;
         const requiredFields = [
             'platform', 'nodes', 'copies', 'provisioning', 'thinExtentMiB', 'tiering',
             'drivesPerNode', 'diskSize', 'customDiskSize', 'cacheDrives', 'cacheDiskSize',
@@ -339,7 +340,27 @@
         if (!['256', '1024'].includes(payload.data.thinExtentMiB)) return false;
         if (!['single', 'tiered'].includes(payload.data.tiering)) return false;
         const nodes = Number(payload.data.nodes);
-        return Number.isInteger(nodes) && nodes >= 1 && nodes <= 16;
+        if (!Number.isInteger(nodes) || nodes < 1 || nodes > 16) return false;
+
+        const driveFields = ['drivesPerNode', 'cacheDrives', 'capacityDrives'];
+        if (!driveFields.every(field => {
+            const value = Number(payload.data[field]);
+            return Number.isInteger(value) && value >= 2 && value <= 24;
+        })) return false;
+
+        const sizeFields = [
+            ['diskSize', 'customDiskSize'],
+            ['cacheDiskSize', 'cacheCustomDiskSize'],
+            ['capacityDiskSize', 'capacityCustomDiskSize']
+        ];
+        return sizeFields.every(([sizeField, customField]) => {
+            const selectedSize = payload.data[sizeField];
+            const customValue = payload.data[customField];
+            if (!['3.2', '6.4', '12.4', 'custom'].includes(selectedSize)) return false;
+            if (customValue === '') return selectedSize !== 'custom';
+            const customSize = Number(customValue);
+            return Number.isFinite(customSize) && customSize >= 0.1 && customSize <= 100;
+        });
     }
 
     function encodeSharedConfiguration(payload) {

@@ -402,7 +402,22 @@
             })(),
             assert(volumeCalculator.decodeSharedConfiguration('not-valid-base64') === null,
                 'malformed S2D share configuration is rejected', null,
-                volumeCalculator.decodeSharedConfiguration('not-valid-base64'))
+                volumeCalculator.decodeSharedConfiguration('not-valid-base64')),
+            (function() {
+                const payload = {
+                    version: 1,
+                    data: {
+                        platform: 'azureLocal', nodes: '4', copies: '3', provisioning: 'thin',
+                        thinExtentMiB: '1024', tiering: 'single', drivesPerNode: '999', diskSize: '6.4',
+                        customDiskSize: '', cacheDrives: '2', cacheDiskSize: '3.2', cacheCustomDiskSize: '',
+                        capacityDrives: '4', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
+                    }
+                };
+                const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+                const decoded = volumeCalculator.decodeSharedConfiguration(encoded);
+                return assert(decoded === null,
+                    'out-of-range S2D share values are rejected before state is applied', null, decoded);
+            })()
         ]);
 
         testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [

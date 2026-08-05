@@ -31,8 +31,13 @@ const VENDOR_INTEGRITY_PINS = [
     },
     {
         file: path.join('vendor', 'jszip-3.10.1.min.js'),
-        sha256: 'f12f367798e35ee2d9993dba6167fc61ddb52fb89880f5a99fbb606335188410',
+        sha256: 'acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e',
         label: 'JSZip 3.10.1 (Azure Migrate import)'
+    },
+    {
+        file: path.join('report', 'vendor', 'pptxgen.bundle.js'),
+        sha256: 'cd078ca9e91c6f9e061ee0a3c310d6ff157c3a71b1dea7f40fd53818017266ff',
+        label: 'PptxGenJS 3.12.0 (PowerPoint export)'
     }
 ];
 
@@ -45,7 +50,8 @@ function checkVendorIntegrity() {
             allOk = false;
             return;
         }
-        const actual = crypto.createHash('sha256').update(fs.readFileSync(absPath)).digest('hex');
+        const canonicalBytes = Buffer.from(fs.readFileSync(absPath, 'utf8').replace(/\r\n/g, '\n'), 'utf8');
+        const actual = crypto.createHash('sha256').update(canonicalBytes).digest('hex');
         if (actual !== pin.sha256) {
             console.error(`❌ SHA-256 mismatch for ${pin.file} (${pin.label})`);
             console.error(`     Expected: ${pin.sha256}`);
