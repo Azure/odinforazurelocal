@@ -279,23 +279,41 @@
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 20.8333333333,
+                    copies: 3,
                     drivesPerNode: 12, driveSizeTB: 3.2
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && result.volumesNeeded === 7,
-                    'single-tier pool reserves one drive per server', '153.6 / 12.8 / 7', `${result.rawPoolTB} / ${result.reservedTB} / ${result.volumesNeeded}`);
+                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - (140.8 / 3)) < 1e-9 && result.volumesNeeded === 4,
+                    'single-tier pool reports copy-adjusted usable capacity and at least one volume per machine',
+                    '153.6 / 12.8 / 46.93 / 4', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.volumesNeeded}`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 20,
+                    copies: 3,
                     tiering: true, cacheDrivesPerNode: 2, cacheDiskSizeTB: 3.2,
                     capacityDrivesPerNode: 12, capacityDiskSizeTB: 6.4
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 332.8) < 1e-9 && result.reservationDiskSizeTB === 6.4,
-                    'tiered pool includes cache and capacity while reserving capacity disks', '332.8 / 6.4', `${result.rawPoolTB} / ${result.reservationDiskSizeTB}`);
+                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.volumesNeeded === 5,
+                    'tiered pool excludes cache from capacity and reserves capacity disks',
+                    '307.2 / 25.6 cache / 6.4 / 5', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.volumesNeeded}`);
+            })(),
+            (function() {
+                const twoCopy = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20, copies: 2,
+                    drivesPerNode: 8, driveSizeTB: 3.2
+                });
+                const fourCopy = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20, copies: 4,
+                    drivesPerNode: 8, driveSizeTB: 3.2
+                });
+                return assert(twoCopy.valid && fourCopy.valid && Math.abs(twoCopy.usableTB - 44.8) < 1e-9 && Math.abs(fourCopy.usableTB - 22.4) < 1e-9,
+                    'usable capacity applies 50% two-copy and 25% four-copy efficiency',
+                    '44.8 / 22.4', `${twoCopy.usableTB} / ${fourCopy.usableTB}`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 16, maxVolumeTB: 20,
+                    copies: 3,
                     drivesPerNode: 24, driveSizeTB: 12.4
                 });
                 return assert(result.valid && result.poolCapped && result.rawPoolTB > 4000,
@@ -304,6 +322,7 @@
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 10,
+                    copies: 3,
                     drivesPerNode: 1, driveSizeTB: 3.2
                 });
                 return assert(!result.valid && /2 through 24/.test(result.errors.join(' ')),
@@ -312,6 +331,7 @@
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 1,
+                    copies: 3,
                     drivesPerNode: 24, driveSizeTB: 3.2
                 });
                 return assert(result.valid && result.cappedAtLimit && result.volumesNeeded === 64,

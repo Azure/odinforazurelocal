@@ -174,6 +174,7 @@
         const normalized = input && typeof input === 'object' ? input : {};
         const servers = normalized.servers;
         const maxVolumeTB = normalized.maxVolumeTB;
+        const copies = normalized.copies;
         const tiering = normalized.tiering === true;
         const errors = [];
         const isDriveCountInRange = value => Number.isInteger(value) &&
@@ -186,6 +187,9 @@
         }
         if (typeof maxVolumeTB !== 'number' || !Number.isFinite(maxVolumeTB) || maxVolumeTB <= 0) {
             errors.push('Maximum volume size must be greater than 0 TB.');
+        }
+        if (copies !== 2 && copies !== 3 && copies !== 4) {
+            errors.push('Data copies must be 2, 3, or 4.');
         }
 
         if (tiering) {
@@ -212,9 +216,9 @@
 
         if (errors.length > 0) return { valid: false, errors };
 
+        const cacheTB = tiering ? servers * normalized.cacheDrivesPerNode * normalized.cacheDiskSizeTB : 0;
         const rawPoolTB = tiering
-            ? servers * (normalized.cacheDrivesPerNode * normalized.cacheDiskSizeTB +
-                normalized.capacityDrivesPerNode * normalized.capacityDiskSizeTB)
+            ? servers * normalized.capacityDrivesPerNode * normalized.capacityDiskSizeTB
             : servers * normalized.drivesPerNode * normalized.driveSizeTB;
 
         if (rawPoolTB > CONSTANTS.maxPoolTB) {
@@ -222,6 +226,7 @@
                 valid: true,
                 poolCapped: true,
                 rawPoolTB,
+                cacheTB,
                 maxPoolTB: CONSTANTS.maxPoolTB,
                 servers,
                 tiering
@@ -232,22 +237,28 @@
         const reservationDiskSizeTB = tiering ? normalized.capacityDiskSizeTB : normalized.driveSizeTB;
         const reservedTB = reservedDrives * reservationDiskSizeTB;
         const availableTB = Math.max(rawPoolTB - reservedTB, 0);
-        const exactVolumes = availableTB / maxVolumeTB;
-        const requiredVolumes = Math.ceil(exactVolumes - 1e-9);
+        const usableTB = availableTB / copies;
+        const exactVolumes = usableTB / maxVolumeTB;
+        const capacityRequiredVolumes = Math.ceil(exactVolumes - 1e-9);
+        const recommendedVolumes = Math.max(servers, capacityRequiredVolumes);
 
         return {
             valid: true,
             tiering,
             rawPoolTB,
+            cacheTB,
             poolCapped: false,
             maxPoolTB: CONSTANTS.maxPoolTB,
             reservedDrives,
             reservationDiskSizeTB,
             reservedTB,
             availableTB,
+            usableTB,
+            copies,
             exactVolumes,
-            volumesNeeded: Math.min(requiredVolumes, CONSTANTS.maxVolumesPerCluster),
-            cappedAtLimit: requiredVolumes > CONSTANTS.maxVolumesPerCluster,
+            capacityRequiredVolumes,
+            volumesNeeded: Math.min(recommendedVolumes, CONSTANTS.maxVolumesPerCluster),
+            cappedAtLimit: recommendedVolumes > CONSTANTS.maxVolumesPerCluster,
             maxVolumes: CONSTANTS.maxVolumesPerCluster,
             servers,
             maxVolumeTB
@@ -294,7 +305,8 @@
         if (pool.state === 'ok') {
             lines.push(`  Total pool capacity: ${pool.capacity}`);
             lines.push(`  Reserved for rebuild: ${pool.reserved}`);
-            lines.push(`  Available capacity:  ${pool.available}`);
+            lines.push(`  Available pool capacity: ${pool.available}`);
+            lines.push(`  Usable capacity (${config.copies} copies): ${pool.usable}`);
             lines.push(`  Volumes to create:   ${pool.volumes}`);
         } else {
             lines.push(`  ${pool.message}`);
@@ -490,11 +502,14 @@
         const poolCapacity = document.getElementById('pool-capacity');
         const poolReserved = document.getElementById('pool-reserved');
         const poolAvailable = document.getElementById('pool-available');
+        const poolUsable = document.getElementById('pool-usable');
+        const poolUsableLabel = document.getElementById('pool-usable-label');
         const poolFormula = document.getElementById('pool-formula');
         const poolVolumes = document.getElementById('pool-volumes');
         const poolVolumesBlock = document.getElementById('pool-volumes-block');
         const poolReservedLine = document.getElementById('pool-reserved-line');
         const poolAvailableLine = document.getElementById('pool-available-line');
+        const poolUsableLine = document.getElementById('pool-usable-line');
         const poolCappedNote = document.getElementById('pool-capped-note');
         const poolCapNote = document.getElementById('pool-cap-note');
         const poolCapNoteLink = document.getElementById('pool-cap-note-link');
@@ -654,6 +669,7 @@
             if (!volumeCalculation.valid) {
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
+                poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
                 showPoolMessage(poolPlaceholder, 'Enter a valid volume configuration to calculate pool consumption.');
                 return;
@@ -663,6 +679,7 @@
                 ? {
                     servers: volumeCalculation.selectedNodes,
                     maxVolumeTB: volumeCalculation.exactTB,
+                    copies: getConfiguration().copies,
                     tiering: true,
                     cacheDrivesPerNode: Number(cacheDrives.value),
                     cacheDiskSizeTB: readSize(cacheDiskSize, cacheCustomDiskSize),
@@ -672,6 +689,7 @@
                 : {
                     servers: volumeCalculation.selectedNodes,
                     maxVolumeTB: volumeCalculation.exactTB,
+                    copies: getConfiguration().copies,
                     drivesPerNode: Number(drivesPerNode.value),
                     driveSizeTB: readSize(diskSize, customDiskSize)
                 };
@@ -680,6 +698,7 @@
             if (!pool.valid) {
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
+                poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
                 showPoolMessage(poolValidationMessage, pool.errors.join(' '));
                 return;
@@ -689,7 +708,7 @@
             const serverLabel = input.servers === 1 ? '1 server' : `${input.servers} servers`;
             poolCapacity.textContent = capacityLabel;
             poolFormula.textContent = tiering
-                ? `${serverLabel} x (${input.cacheDrivesPerNode} x ${input.cacheDiskSizeTB} + ${input.capacityDrivesPerNode} x ${input.capacityDiskSizeTB}) TB = ${capacityLabel}`
+                ? `${serverLabel} x ${input.capacityDrivesPerNode} capacity drives x ${input.capacityDiskSizeTB} TB = ${capacityLabel}; cache drives do not add usable capacity`
                 : `${serverLabel} x ${input.drivesPerNode} drives x ${input.driveSizeTB} TB = ${capacityLabel}`;
 
             poolValidationMessage.hidden = true;
@@ -697,6 +716,7 @@
             if (pool.poolCapped) {
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
+                poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
                 poolCappedNote.hidden = true;
                 showPoolMessage(poolCapNote, 'A storage pool cannot exceed 4 PB (4,000 TB). Reduce the machine count, drives per machine, or disk size.');
@@ -708,9 +728,12 @@
             poolCapNoteLink.hidden = true;
             poolReservedLine.hidden = false;
             poolAvailableLine.hidden = false;
+            poolUsableLine.hidden = false;
             poolVolumesBlock.hidden = false;
             poolReserved.textContent = `${formatLimit(pool.reservedTB)} TB`;
             poolAvailable.textContent = `${formatLimit(pool.availableTB)} TB`;
+            poolUsableLabel.textContent = `Usable capacity (with ${pool.copies} copies)`;
+            poolUsable.textContent = `${formatLimit(pool.usableTB)} TB`;
             poolVolumes.textContent = pool.cappedAtLimit ? '64 max' : String(pool.volumesNeeded);
             poolCappedNote.hidden = !pool.cappedAtLimit;
             poolCappedNote.textContent = pool.cappedAtLimit
@@ -984,6 +1007,7 @@
                     capacity: poolCapacity.textContent,
                     reserved: poolReserved.textContent,
                     available: poolAvailable.textContent,
+                    usable: poolUsable.textContent,
                     volumes: poolVolumes.textContent
                 };
             }
