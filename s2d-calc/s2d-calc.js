@@ -406,7 +406,7 @@
             features: [
                 { icon: '1', title: 'Follow the Formula', text: 'The derivation explains record capacity, effective machine count, the base limit, and usable size' },
                 { icon: '2', title: 'Compare Examples', text: 'Reference configurations highlight the row that matches your current valid selection' },
-                { icon: '3', title: 'Export a Report', text: 'Download a text report containing the configuration, results, derivation, and pool estimate' },
+                { icon: '3', title: 'Export or Share', text: 'Download a text report or copy a named configuration URL that keeps your settings in the link' },
                 { icon: 'i', title: 'Open Help Again', text: 'Use the Help button in the navigation bar whenever you want to replay this guide' }
             ]
         }
