@@ -759,7 +759,11 @@
                 poolVolumeSizingValue.textContent = `${formatLimit(pool.equalVolumeTB)} TB each`;
             } else if (!pool.cappedAtLimit) {
                 poolVolumeSizingLabel.textContent = 'Thin provisioning';
-                poolVolumeSizingValue.textContent = 'Thin volumes use pool capacity dynamically, as data is written';
+                poolVolumeSizingValue.replaceChildren(
+                    'Thin volumes use pool capacity',
+                    document.createElement('br'),
+                    'dynamically, as data is written'
+                );
             }
             poolCappedNote.hidden = !pool.cappedAtLimit;
             poolCappedNote.textContent = pool.cappedAtLimit
@@ -1036,7 +1040,7 @@
                     available: poolAvailable.textContent,
                     usable: poolUsable.textContent,
                     volumes: poolVolumes.textContent,
-                    volumeSizing: `${poolVolumeSizingLabel.textContent}: ${poolVolumeSizingValue.textContent}`
+                    volumeSizing: `${poolVolumeSizingLabel.textContent}: ${poolVolumeSizingValue.innerText.replace(/\s+/g, ' ')}`
                 };
             }
 
