@@ -171,6 +171,18 @@ select {
     width: 18px;
     height: 18px;
     fill: none;
+
+.s2d-report-help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.s2d-report-help-icon span:last-child {
+    font-size: 0.85em;
+}
     stroke: currentColor;
     stroke-linecap: round;
     stroke-linejoin: round;

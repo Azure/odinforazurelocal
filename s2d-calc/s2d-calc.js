@@ -396,11 +396,12 @@
             features: [
                 { icon: '1', title: 'Choose Disk Layout', text: 'Use a single disk type or separate cache and capacity tiers' },
                 { icon: '2', title: 'Enter Disk Details', text: 'Set drives per machine and select a standard or custom disk size' },
-                { icon: '3', title: 'Read the Estimate', text: 'Review raw capacity, rebuild reservation, available capacity, and volumes to create' }
+                { icon: '3', title: 'Read the Estimate', text: 'Review raw capacity, rebuild reservation, available capacity, and usable capacity' },
+                { icon: '4', title: 'Plan Volumes', text: 'See how many volumes to create and compare equal-size Fixed volumes with dynamic Thin provisioning' }
             ]
         },
         {
-            icon: '?',
+            icon: '<span class="s2d-report-help-icon" aria-hidden="true"><span>📄</span><span>?</span></span>',
             title: 'Understand and Share the Result',
             description: 'Use the derivation and export tools to validate or share your planning assumptions.',
             features: [
