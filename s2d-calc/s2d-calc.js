@@ -1,0 +1,804 @@
+/*
+ * S2D Calc calculation logic adapted from:
+ * https://github.com/troettinger/TomTools/blob/master/S2D/calculator.html
+ *
+ * MIT License
+ *
+ * Copyright (c) 2018 Thomas Roettinger
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+(function() {
+    'use strict';
+
+    const CONSTANTS = Object.freeze({
+        usableRecords: 32768,
+        nodeFailureSupportedPercent: 0.5,
+        maxVolumeTB: 64,
+        maxVolumesPerCluster: 64,
+        reservationDrivesCap: 4,
+        maxPoolTB: 4000,
+        volumeOverheadTB: 0.5,
+        minimumDrivesPerNode: 2,
+        maximumDrivesPerNode: 24,
+        minimumCustomDiskSizeTB: 0.1,
+        maximumCustomDiskSizeTB: 100,
+        minimumNodes: Object.freeze({
+            2: 1,
+            3: 3,
+            4: 4
+        }),
+        defaultPlatform: 'azureLocal',
+        platforms: Object.freeze({
+            azureLocal: Object.freeze({
+                label: 'Azure Local',
+                extentMiB: Object.freeze({ thin: 1024, fixed: 1024 }),
+                maximumNodes: Object.freeze({ 4: 8 }),
+                fourCopyDoc: Object.freeze({
+                    href: 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-requirements',
+                    text: 'Learn more about rack-aware cluster requirements'
+                })
+            }),
+            windowsServer: Object.freeze({
+                label: 'Windows Server',
+                extentMiB: Object.freeze({ thin: 256, fixed: 1024 }),
+                maximumNodes: Object.freeze({ 4: 10 }),
+                fourCopyDoc: Object.freeze({
+                    href: 'https://learn.microsoft.com/en-us/windows-server/failover-clustering/topologies',
+                    text: 'Learn more about failover cluster topologies'
+                })
+            })
+        })
+    });
+
+    function formatNodeList(values) {
+        if (values.length === 0) return '';
+        if (values.length === 1) return String(values[0]);
+        return `${values.slice(0, -1).join(', ')}, or ${values[values.length - 1]}`;
+    }
+
+    function validateConfiguration(configuration) {
+        const normalized = configuration && typeof configuration === 'object' ? configuration : {};
+        const nodes = normalized.nodes;
+        const copies = normalized.copies;
+        const provisioning = normalized.provisioning;
+        const thinExtentMiB = normalized.thinExtentMiB === undefined ? 1024 : normalized.thinExtentMiB;
+        const platform = normalized.platform || CONSTANTS.defaultPlatform;
+        const platformConfig = CONSTANTS.platforms[platform];
+        const errors = [];
+        const validNodeRange = Number.isInteger(nodes) && nodes >= 1 && nodes <= 16;
+
+        if (!validNodeRange) {
+            errors.push('Node count must be a whole number from 1 through 16.');
+        }
+        if (copies !== 2 && copies !== 3 && copies !== 4) {
+            errors.push('Data copies must be 2, 3, or 4.');
+        }
+        if (provisioning !== 'thin' && provisioning !== 'fixed') {
+            errors.push('Provisioning must be Thin or Fixed.');
+        }
+        if (platform === 'azureLocal' && provisioning === 'thin' && thinExtentMiB !== 256 && thinExtentMiB !== 1024) {
+            errors.push('Thin extent size must be 256 MiB or 1 GiB.');
+        }
+        if (!platformConfig) {
+            errors.push('Platform must be Azure Local or Windows Server.');
+        }
+
+        const minimum = CONSTANTS.minimumNodes[copies];
+        if (minimum && validNodeRange && nodes < minimum) {
+            errors.push(`${copies} copies require at least ${minimum} nodes.`);
+        }
+
+        const maximum = platformConfig ? platformConfig.maximumNodes[copies] : undefined;
+        if (maximum && validNodeRange && nodes > maximum) {
+            errors.push(`${copies} copies support at most ${maximum} nodes.`);
+        }
+
+        if (copies === 4 && validNodeRange && minimum && maximum && nodes >= minimum && nodes <= maximum && nodes % 2 !== 0) {
+            const evenNodeCounts = [];
+            for (let candidate = minimum; candidate <= maximum; candidate += 2) {
+                evenNodeCounts.push(candidate);
+            }
+            errors.push(`4 copies require an even node count (${formatNodeList(evenNodeCounts)}).`);
+        }
+
+        return { valid: errors.length === 0, errors };
+    }
+
+    function calculateLimit(configuration) {
+        const validation = validateConfiguration(configuration);
+        if (!validation.valid) return { valid: false, errors: validation.errors };
+
+        const nodes = configuration.nodes;
+        const copies = configuration.copies;
+        const provisioning = configuration.provisioning;
+        const thinExtentMiB = configuration.thinExtentMiB === undefined ? 1024 : configuration.thinExtentMiB;
+        const platform = configuration.platform || CONSTANTS.defaultPlatform;
+        const platformConfig = CONSTANTS.platforms[platform];
+        const extentMiB = platform === 'azureLocal' && provisioning === 'thin'
+            ? thinExtentMiB
+            : platformConfig.extentMiB[provisioning];
+        const effectiveNodes = nodes === 1 && copies === 2 ? 2 : nodes;
+        const baseExactTB = copies === 4
+            ? (CONSTANTS.usableRecords * extentMiB) /
+                (CONSTANTS.nodeFailureSupportedPercent * copies * 1024 * 1024)
+            : (CONSTANTS.usableRecords * effectiveNodes * extentMiB) /
+                (2 * copies * 1024 * 1024);
+        const cappedTB = Math.min(baseExactTB, CONSTANTS.maxVolumeTB);
+        const exactTB = Math.max(cappedTB - CONSTANTS.volumeOverheadTB, 0);
+        const baseSpaceMiB = baseExactTB * 1024 * 1024;
+        const numberOfExtents = (copies * baseSpaceMiB) / extentMiB;
+        const records = copies === 4
+            ? CONSTANTS.nodeFailureSupportedPercent * numberOfExtents
+            : (2 / effectiveNodes) * numberOfExtents;
+
+        return {
+            valid: true,
+            baseExactTB,
+            exactTB,
+            capped: baseExactTB > CONSTANTS.maxVolumeTB,
+            maxVolumeTB: CONSTANTS.maxVolumeTB,
+            volumeOverheadTB: CONSTANTS.volumeOverheadTB,
+            extentMiB,
+            extentGiB: extentMiB / 1024,
+            numberOfExtents,
+            selectedNodes: nodes,
+            effectiveNodes,
+            records,
+            usableRecords: CONSTANTS.usableRecords
+        };
+    }
+
+    function formatLimit(value) {
+        const floored = Math.floor(value * 10) / 10;
+        return Number.isInteger(floored) ? String(floored) : floored.toFixed(1);
+    }
+
+    function calculatePoolConsumption(input) {
+        const normalized = input && typeof input === 'object' ? input : {};
+        const servers = normalized.servers;
+        const maxVolumeTB = normalized.maxVolumeTB;
+        const tiering = normalized.tiering === true;
+        const errors = [];
+        const isDriveCountInRange = value => Number.isInteger(value) &&
+            value >= CONSTANTS.minimumDrivesPerNode && value <= CONSTANTS.maximumDrivesPerNode;
+        const isDiskSizeInRange = value => typeof value === 'number' && Number.isFinite(value) &&
+            value >= CONSTANTS.minimumCustomDiskSizeTB && value <= CONSTANTS.maximumCustomDiskSizeTB;
+
+        if (!Number.isInteger(servers) || servers < 1) {
+            errors.push('Server count must be a whole number of at least 1.');
+        }
+        if (typeof maxVolumeTB !== 'number' || !Number.isFinite(maxVolumeTB) || maxVolumeTB <= 0) {
+            errors.push('Maximum volume size must be greater than 0 TB.');
+        }
+
+        if (tiering) {
+            if (!isDriveCountInRange(normalized.cacheDrivesPerNode)) {
+                errors.push('Cache drives per node must be a whole number from 2 through 24.');
+            }
+            if (!isDriveCountInRange(normalized.capacityDrivesPerNode)) {
+                errors.push('Capacity drives per node must be a whole number from 2 through 24.');
+            }
+            if (!isDiskSizeInRange(normalized.cacheDiskSizeTB)) {
+                errors.push('Cache disk size must be a number from 0.1 to 100 TB.');
+            }
+            if (!isDiskSizeInRange(normalized.capacityDiskSizeTB)) {
+                errors.push('Capacity disk size must be a number from 0.1 to 100 TB.');
+            }
+        } else {
+            if (!isDriveCountInRange(normalized.drivesPerNode)) {
+                errors.push('Drives per node must be a whole number from 2 through 24.');
+            }
+            if (!isDiskSizeInRange(normalized.driveSizeTB)) {
+                errors.push('Custom disk size must be a number from 0.1 to 100 TB.');
+            }
+        }
+
+        if (errors.length > 0) return { valid: false, errors };
+
+        const rawPoolTB = tiering
+            ? servers * (normalized.cacheDrivesPerNode * normalized.cacheDiskSizeTB +
+                normalized.capacityDrivesPerNode * normalized.capacityDiskSizeTB)
+            : servers * normalized.drivesPerNode * normalized.driveSizeTB;
+
+        if (rawPoolTB > CONSTANTS.maxPoolTB) {
+            return {
+                valid: true,
+                poolCapped: true,
+                rawPoolTB,
+                maxPoolTB: CONSTANTS.maxPoolTB,
+                servers,
+                tiering
+            };
+        }
+
+        const reservedDrives = Math.min(servers, CONSTANTS.reservationDrivesCap);
+        const reservationDiskSizeTB = tiering ? normalized.capacityDiskSizeTB : normalized.driveSizeTB;
+        const reservedTB = reservedDrives * reservationDiskSizeTB;
+        const availableTB = Math.max(rawPoolTB - reservedTB, 0);
+        const exactVolumes = availableTB / maxVolumeTB;
+        const requiredVolumes = Math.ceil(exactVolumes - 1e-9);
+
+        return {
+            valid: true,
+            tiering,
+            rawPoolTB,
+            poolCapped: false,
+            maxPoolTB: CONSTANTS.maxPoolTB,
+            reservedDrives,
+            reservationDiskSizeTB,
+            reservedTB,
+            availableTB,
+            exactVolumes,
+            volumesNeeded: Math.min(requiredVolumes, CONSTANTS.maxVolumesPerCluster),
+            cappedAtLimit: requiredVolumes > CONSTANTS.maxVolumesPerCluster,
+            maxVolumes: CONSTANTS.maxVolumesPerCluster,
+            servers,
+            maxVolumeTB
+        };
+    }
+
+    function buildExportReport(snapshot) {
+        const config = snapshot.config;
+        const results = snapshot.results;
+        const pool = snapshot.pool;
+        const lines = [
+            'Storage Spaces Direct - Storage Planning Report',
+            `Generated: ${snapshot.generatedAt}`,
+            '',
+            'CONFIGURATION',
+            `  Platform:            ${config.platformLabel}`,
+            `  Node count:          ${config.nodes}`,
+            `  Data copies:         ${config.copies}`,
+            `  Provisioning:        ${config.provisioningLabel}`
+        ];
+
+        if (config.thinExtentLabel) lines.push(`  Thin extent size:    ${config.thinExtentLabel}`);
+        if (config.tiering) {
+            lines.push('  Disk configuration:  Storage tiering');
+            lines.push(`    Cache:             ${config.tiered.cacheDrives} drives x ${config.tiered.cacheSizeTB} TB`);
+            lines.push(`    Capacity:          ${config.tiered.capacityDrives} drives x ${config.tiered.capacitySizeTB} TB`);
+        } else {
+            lines.push('  Disk configuration:  Single disk type');
+            lines.push(`    Drives per node:   ${config.single.drives}`);
+            lines.push(`    Disk size:         ${config.single.sizeTB} TB`);
+        }
+
+        lines.push('', 'RESULTS');
+        if (results.valid) {
+            lines.push(`  Maximum volume size: ${results.headline}`);
+            lines.push(`  ${results.summary}`);
+            lines.push('  Derivation:');
+            results.derivation.forEach(line => lines.push(`    ${line}`));
+        } else {
+            lines.push(`  Results unavailable: ${results.validationMessage}`);
+        }
+
+        lines.push('', 'POOL CONSUMPTION');
+        if (pool.state === 'ok') {
+            lines.push(`  Total pool capacity: ${pool.capacity}`);
+            lines.push(`  Reserved for rebuild: ${pool.reserved}`);
+            lines.push(`  Available capacity:  ${pool.available}`);
+            lines.push(`  Volumes to create:   ${pool.volumes}`);
+        } else {
+            lines.push(`  ${pool.message}`);
+        }
+
+        return lines.join('\n');
+    }
+
+    function createCalculationTelemetryGate() {
+        let hasTrackedCalculation = false;
+        return function(valid) {
+            if (hasTrackedCalculation || !valid) return false;
+            hasTrackedCalculation = true;
+            return true;
+        };
+    }
+
+    globalThis.volumeCalculator = Object.freeze({
+        CONSTANTS,
+        validateConfiguration,
+        calculateLimit,
+        formatLimit,
+        calculatePoolConsumption,
+        buildExportReport,
+        createCalculationTelemetryGate
+    });
+
+    function initializeCalculatorPage() {
+        const form = document.getElementById('calculator-form');
+        if (!form) return;
+
+        const nodeRange = document.getElementById('node-range');
+        const nodeNumber = document.getElementById('node-number');
+        const resultCard = document.getElementById('result-card');
+        const result = document.getElementById('result');
+        const resultAnnouncement = document.getElementById('result-announcement');
+        const resultSummary = document.getElementById('result-summary');
+        const effectiveNodeNote = document.getElementById('effective-node-note');
+        const validationMessage = document.getElementById('validation-message');
+        const effectiveNodeFormula = document.getElementById('effective-node-formula');
+        const substitution = document.getElementById('substitution');
+        const logicalSubstitution = document.getElementById('logical-substitution');
+        const thinExtentLabel = document.getElementById('thin-extent-label');
+        const thinExtentFieldset = document.getElementById('thin-extent-fieldset');
+        const thinExtentControls = form.querySelectorAll('input[name="thinExtentMiB"]');
+        const fourCopyNote = document.getElementById('four-copy-note');
+        const fourCopyNoteLink = document.getElementById('four-copy-note-link');
+        const exampleRows = document.querySelectorAll('[data-example]');
+        const drivesPerNode = document.getElementById('drives-per-node');
+        const diskSize = document.getElementById('disk-size');
+        const customDiskSize = document.getElementById('custom-disk-size');
+        const customDiskSizeField = document.getElementById('custom-disk-size-field');
+        const tieringControls = document.getElementById('tiering-controls');
+        const singleControls = document.getElementById('single-controls');
+        const cacheDrives = document.getElementById('cache-drives-per-node');
+        const cacheDiskSize = document.getElementById('cache-disk-size');
+        const cacheCustomDiskSize = document.getElementById('cache-custom-disk-size');
+        const cacheCustomDiskSizeField = document.getElementById('cache-custom-disk-size-field');
+        const capacityDrives = document.getElementById('capacity-drives-per-node');
+        const capacityDiskSize = document.getElementById('capacity-disk-size');
+        const capacityCustomDiskSize = document.getElementById('capacity-custom-disk-size');
+        const capacityCustomDiskSizeField = document.getElementById('capacity-custom-disk-size-field');
+        const poolResults = document.getElementById('pool-results');
+        const poolCapacity = document.getElementById('pool-capacity');
+        const poolReserved = document.getElementById('pool-reserved');
+        const poolAvailable = document.getElementById('pool-available');
+        const poolFormula = document.getElementById('pool-formula');
+        const poolVolumes = document.getElementById('pool-volumes');
+        const poolVolumesBlock = document.getElementById('pool-volumes-block');
+        const poolReservedLine = document.getElementById('pool-reserved-line');
+        const poolAvailableLine = document.getElementById('pool-available-line');
+        const poolCappedNote = document.getElementById('pool-capped-note');
+        const poolCapNote = document.getElementById('pool-cap-note');
+        const poolCapNoteLink = document.getElementById('pool-cap-note-link');
+        const poolPlaceholder = document.getElementById('pool-placeholder');
+        const poolValidationMessage = document.getElementById('pool-validation-message');
+        const exportButton = document.getElementById('export-report');
+        const resetButton = document.getElementById('reset-config');
+        let telemetryTimer = null;
+        const claimCalculationTelemetry = createCalculationTelemetryGate();
+
+        function selectedValue(name) {
+            const selected = document.querySelector(`input[name="${name}"]:checked`);
+            return selected ? selected.value : '';
+        }
+
+        function getConfiguration() {
+            return {
+                nodes: Number(nodeNumber.value),
+                copies: Number(selectedValue('copies')),
+                provisioning: selectedValue('provisioning'),
+                thinExtentMiB: Number(selectedValue('thinExtentMiB')),
+                platform: selectedValue('platform')
+            };
+        }
+
+        function formatExtent(extentMiB) {
+            return extentMiB >= 1024 ? `${extentMiB / 1024} GiB` : `${extentMiB} MiB`;
+        }
+
+        function formatExact(value) {
+            return value.toFixed(2);
+        }
+
+        function synchronizeExtentControls() {
+            const showExtent = selectedValue('platform') === 'azureLocal' && selectedValue('provisioning') === 'thin';
+            thinExtentFieldset.hidden = !showExtent;
+            if (!showExtent) {
+                thinExtentControls.forEach(control => {
+                    control.checked = control.value === '1024';
+                });
+            }
+        }
+
+        function clearSelectedExamples() {
+            exampleRows.forEach(row => {
+                row.removeAttribute('data-selected');
+                const badge = row.querySelector('.s2d-selected');
+                if (badge) badge.hidden = true;
+            });
+        }
+
+        function renderVolume() {
+            const configuration = getConfiguration();
+            const calculation = calculateLimit(configuration);
+            clearSelectedExamples();
+
+            const platformConfig = CONSTANTS.platforms[configuration.platform] || CONSTANTS.platforms.azureLocal;
+            const thinExtentForLabel = configuration.platform === 'azureLocal'
+                ? configuration.thinExtentMiB
+                : platformConfig.extentMiB.thin;
+            thinExtentLabel.textContent = `${formatExtent(thinExtentForLabel)} extents`;
+
+            if (configuration.copies === 4) {
+                fourCopyNote.hidden = false;
+                fourCopyNoteLink.href = platformConfig.fourCopyDoc.href;
+                fourCopyNoteLink.textContent = platformConfig.fourCopyDoc.text;
+            } else {
+                fourCopyNote.hidden = true;
+            }
+
+            if (!calculation.valid) {
+                resultCard.setAttribute('data-state', 'invalid');
+                result.hidden = true;
+                resultSummary.hidden = true;
+                effectiveNodeNote.hidden = true;
+                validationMessage.hidden = false;
+                validationMessage.textContent = calculation.errors.join(' ');
+                nodeNumber.setAttribute('aria-invalid', 'true');
+                resultAnnouncement.textContent = `Results unavailable. ${validationMessage.textContent}`;
+                effectiveNodeFormula.textContent = 'Unavailable for the selected configuration';
+                substitution.textContent = 'Correct the configuration to calculate the base limit.';
+                logicalSubstitution.textContent = 'Correct the configuration to calculate usable volume size.';
+                return calculation;
+            }
+
+            const extentLabel = formatExtent(calculation.extentMiB);
+            const provisioningLabel = configuration.provisioning === 'thin' ? 'Thin' : 'Fixed';
+            const nodeLabel = configuration.nodes === 1 ? '1 node' : `${configuration.nodes} nodes`;
+            const selectedNodeLabel = calculation.selectedNodes === 1 ? 'selected node' : 'selected nodes';
+            const effectiveNodeLabel = calculation.effectiveNodes === 1 ? 'effective node' : 'effective nodes';
+            const showEffectiveNodeNote = calculation.selectedNodes === 1 && calculation.effectiveNodes === 2;
+
+            resultCard.setAttribute('data-state', 'valid');
+            result.hidden = false;
+            result.textContent = `< ${formatLimit(calculation.exactTB)} TB`;
+            resultSummary.hidden = false;
+            resultSummary.textContent = `${configuration.copies} copies | ${provisioningLabel} provisioned | ${nodeLabel} | ${extentLabel} extents`;
+            effectiveNodeNote.hidden = !showEffectiveNodeNote;
+            effectiveNodeNote.textContent = showEffectiveNodeNote
+                ? 'One selected node is calculated as two effective nodes for two-way mirror.'
+                : '';
+            validationMessage.hidden = true;
+            validationMessage.textContent = '';
+            nodeNumber.setAttribute('aria-invalid', 'false');
+            effectiveNodeFormula.textContent = configuration.copies === 4
+                ? 'Node count does not affect four-copy volume size'
+                : `${calculation.selectedNodes} ${selectedNodeLabel} = ${calculation.effectiveNodes} ${effectiveNodeLabel}`;
+            substitution.textContent = configuration.copies === 4
+                ? `32,768 x ${extentLabel} / 0.5 / 4 = ${formatExact(calculation.baseExactTB)} TB`
+                : `32,768 x ${calculation.effectiveNodes} x ${extentLabel} / ${2 * configuration.copies} = ${formatExact(calculation.baseExactTB)} TB`;
+            logicalSubstitution.textContent = calculation.capped
+                ? `${formatExact(calculation.baseExactTB)} TB capped at ${calculation.maxVolumeTB} TB - ${calculation.volumeOverheadTB} TB overhead = ${formatExact(calculation.exactTB)} TB`
+                : `${formatExact(calculation.baseExactTB)} TB - ${calculation.volumeOverheadTB} TB overhead = ${formatExact(calculation.exactTB)} TB`;
+
+            const announcement = [result.textContent, resultSummary.textContent];
+            if (!effectiveNodeNote.hidden) announcement.push(effectiveNodeNote.textContent);
+            resultAnnouncement.textContent = `${announcement.join('. ')}.`;
+
+            const exampleKey = `${configuration.provisioning}-${configuration.nodes}-${configuration.copies}`;
+            const matchingRow = calculation.extentMiB === 1024
+                ? document.querySelector(`[data-example="${exampleKey}"]`)
+                : null;
+            if (matchingRow) {
+                matchingRow.setAttribute('data-selected', 'true');
+                const badge = matchingRow.querySelector('.s2d-selected');
+                if (badge) badge.hidden = false;
+            }
+
+            return calculation;
+        }
+
+        function readSize(select, customInput) {
+            return Number(select.value === 'custom' ? customInput.value : select.value);
+        }
+
+        function showPoolMessage(target, message) {
+            poolResults.querySelectorAll('.s2d-alert').forEach(alert => {
+                alert.hidden = true;
+                alert.textContent = '';
+            });
+            poolCapNoteLink.hidden = true;
+            poolPlaceholder.hidden = true;
+            target.hidden = false;
+            target.textContent = message;
+        }
+
+        function renderPool() {
+            const tiering = selectedValue('tiering') === 'tiered';
+            singleControls.hidden = tiering;
+            tieringControls.hidden = !tiering;
+            customDiskSizeField.hidden = diskSize.value !== 'custom';
+            cacheCustomDiskSizeField.hidden = cacheDiskSize.value !== 'custom';
+            capacityCustomDiskSizeField.hidden = capacityDiskSize.value !== 'custom';
+
+            const volumeCalculation = calculateLimit(getConfiguration());
+            if (!volumeCalculation.valid) {
+                poolReservedLine.hidden = true;
+                poolAvailableLine.hidden = true;
+                poolVolumesBlock.hidden = true;
+                showPoolMessage(poolPlaceholder, 'Enter a valid volume configuration to calculate pool consumption.');
+                return;
+            }
+
+            const input = tiering
+                ? {
+                    servers: volumeCalculation.selectedNodes,
+                    maxVolumeTB: volumeCalculation.exactTB,
+                    tiering: true,
+                    cacheDrivesPerNode: Number(cacheDrives.value),
+                    cacheDiskSizeTB: readSize(cacheDiskSize, cacheCustomDiskSize),
+                    capacityDrivesPerNode: Number(capacityDrives.value),
+                    capacityDiskSizeTB: readSize(capacityDiskSize, capacityCustomDiskSize)
+                }
+                : {
+                    servers: volumeCalculation.selectedNodes,
+                    maxVolumeTB: volumeCalculation.exactTB,
+                    drivesPerNode: Number(drivesPerNode.value),
+                    driveSizeTB: readSize(diskSize, customDiskSize)
+                };
+            const pool = calculatePoolConsumption(input);
+
+            if (!pool.valid) {
+                poolReservedLine.hidden = true;
+                poolAvailableLine.hidden = true;
+                poolVolumesBlock.hidden = true;
+                showPoolMessage(poolValidationMessage, pool.errors.join(' '));
+                return;
+            }
+
+            const capacityLabel = `${formatLimit(pool.rawPoolTB)} TB`;
+            const serverLabel = input.servers === 1 ? '1 server' : `${input.servers} servers`;
+            poolCapacity.textContent = capacityLabel;
+            poolFormula.textContent = tiering
+                ? `${serverLabel} x (${input.cacheDrivesPerNode} x ${input.cacheDiskSizeTB} + ${input.capacityDrivesPerNode} x ${input.capacityDiskSizeTB}) TB = ${capacityLabel}`
+                : `${serverLabel} x ${input.drivesPerNode} drives x ${input.driveSizeTB} TB = ${capacityLabel}`;
+
+            poolValidationMessage.hidden = true;
+            poolPlaceholder.hidden = true;
+            if (pool.poolCapped) {
+                poolReservedLine.hidden = true;
+                poolAvailableLine.hidden = true;
+                poolVolumesBlock.hidden = true;
+                poolCappedNote.hidden = true;
+                showPoolMessage(poolCapNote, 'A storage pool cannot exceed 4 PB (4,000 TB). Reduce the node count, drives per node, or disk size.');
+                poolCapNoteLink.hidden = false;
+                return;
+            }
+
+            poolCapNote.hidden = true;
+            poolCapNoteLink.hidden = true;
+            poolReservedLine.hidden = false;
+            poolAvailableLine.hidden = false;
+            poolVolumesBlock.hidden = false;
+            poolReserved.textContent = `${formatLimit(pool.reservedTB)} TB`;
+            poolAvailable.textContent = `${formatLimit(pool.availableTB)} TB`;
+            poolVolumes.textContent = pool.cappedAtLimit ? '64 max' : String(pool.volumesNeeded);
+            poolCappedNote.hidden = !pool.cappedAtLimit;
+            poolCappedNote.textContent = pool.cappedAtLimit
+                ? '64 maximum-size volumes cannot cover the whole pool.'
+                : '';
+        }
+
+        function renderAll() {
+            synchronizeExtentControls();
+            renderVolume();
+            renderPool();
+        }
+
+        function scheduleCalculationTelemetry() {
+            if (telemetryTimer !== null) clearTimeout(telemetryTimer);
+            telemetryTimer = setTimeout(() => {
+                telemetryTimer = null;
+                if (typeof trackFormCompletion === 'function'
+                    && claimCalculationTelemetry(calculateLimit(getConfiguration()).valid)) {
+                    trackFormCompletion('s2dCalculation');
+                }
+            }, 600);
+        }
+
+        function renderUserChange() {
+            renderAll();
+            scheduleCalculationTelemetry();
+        }
+
+        function setRadio(name, value) {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+                radio.checked = radio.value === value;
+            });
+        }
+
+        function resetConfiguration() {
+            nodeNumber.value = '4';
+            nodeRange.value = '4';
+            setRadio('platform', 'azureLocal');
+            setRadio('copies', '3');
+            setRadio('provisioning', 'thin');
+            setRadio('thinExtentMiB', '1024');
+            setRadio('tiering', 'single');
+            drivesPerNode.value = '12';
+            diskSize.value = '3.2';
+            customDiskSize.value = '';
+            cacheDrives.value = '2';
+            cacheDiskSize.value = '3.2';
+            cacheCustomDiskSize.value = '';
+            capacityDrives.value = '12';
+            capacityDiskSize.value = '6.4';
+            capacityCustomDiskSize.value = '';
+            renderAll();
+        }
+
+        function twoDigits(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function collectExportSnapshot(date) {
+            const configuration = getConfiguration();
+            const tiering = selectedValue('tiering') === 'tiered';
+            const showExtent = configuration.platform === 'azureLocal' && configuration.provisioning === 'thin';
+            const config = {
+                platformLabel: CONSTANTS.platforms[configuration.platform].label,
+                nodes: configuration.nodes,
+                copies: configuration.copies,
+                provisioningLabel: configuration.provisioning === 'thin' ? 'Thin' : 'Fixed',
+                thinExtentLabel: showExtent ? formatExtent(configuration.thinExtentMiB) : null,
+                tiering
+            };
+            if (tiering) {
+                config.tiered = {
+                    cacheDrives: cacheDrives.value,
+                    cacheSizeTB: readSize(cacheDiskSize, cacheCustomDiskSize),
+                    capacityDrives: capacityDrives.value,
+                    capacitySizeTB: readSize(capacityDiskSize, capacityCustomDiskSize)
+                };
+            } else {
+                config.single = {
+                    drives: drivesPerNode.value,
+                    sizeTB: readSize(diskSize, customDiskSize)
+                };
+            }
+
+            let pool;
+            if (!poolPlaceholder.hidden) {
+                pool = { state: 'invalid', message: poolPlaceholder.textContent };
+            } else if (!poolValidationMessage.hidden) {
+                pool = { state: 'invalid', message: poolValidationMessage.textContent };
+            } else if (!poolCapNote.hidden) {
+                pool = { state: 'capped', message: poolCapNote.textContent };
+            } else {
+                pool = {
+                    state: 'ok',
+                    capacity: poolCapacity.textContent,
+                    reserved: poolReserved.textContent,
+                    available: poolAvailable.textContent,
+                    volumes: poolVolumes.textContent
+                };
+            }
+
+            return {
+                generatedAt: `${date.getFullYear()}-${twoDigits(date.getMonth() + 1)}-${twoDigits(date.getDate())} ${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`,
+                config,
+                results: {
+                    valid: resultCard.getAttribute('data-state') === 'valid',
+                    headline: result.textContent,
+                    summary: resultSummary.textContent,
+                    derivation: [
+                        '4 MiB / 64 bytes / 2 = 32,768 records',
+                        effectiveNodeFormula.textContent,
+                        substitution.textContent,
+                        logicalSubstitution.textContent
+                    ],
+                    validationMessage: validationMessage.textContent
+                },
+                pool
+            };
+        }
+
+        function downloadReport() {
+            const now = new Date();
+            const report = buildExportReport(collectExportSnapshot(now));
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `s2d-planning-${now.getFullYear()}${twoDigits(now.getMonth() + 1)}${twoDigits(now.getDate())}-${twoDigits(now.getHours())}${twoDigits(now.getMinutes())}${twoDigits(now.getSeconds())}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        nodeRange.addEventListener('input', () => {
+            nodeNumber.value = nodeRange.value;
+            renderUserChange();
+        });
+        nodeNumber.addEventListener('input', () => {
+            const numericValue = Number(nodeNumber.value);
+            if (Number.isInteger(numericValue) && numericValue >= 1 && numericValue <= 16) {
+                nodeRange.value = nodeNumber.value;
+            }
+            renderUserChange();
+        });
+        form.addEventListener('change', renderUserChange);
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            renderUserChange();
+        });
+        document.querySelectorAll('input[name="tiering"]').forEach(radio => radio.addEventListener('change', () => {
+            renderPool();
+            scheduleCalculationTelemetry();
+        }));
+        [drivesPerNode, diskSize, customDiskSize, cacheDrives, cacheDiskSize, cacheCustomDiskSize,
+            capacityDrives, capacityDiskSize, capacityCustomDiskSize].forEach(control => {
+            control.addEventListener('input', () => {
+                renderPool();
+                scheduleCalculationTelemetry();
+            });
+            control.addEventListener('change', () => {
+                renderPool();
+                scheduleCalculationTelemetry();
+            });
+        });
+        exportButton.addEventListener('click', downloadReport);
+        resetButton.addEventListener('click', resetConfiguration);
+        renderAll();
+    }
+
+    let currentTheme = 'dark';
+    try {
+        currentTheme = localStorage.getItem('odin-theme') || 'dark';
+    } catch (_) {
+        currentTheme = 'dark';
+    }
+
+    function applyPageTheme() {
+        const root = document.documentElement;
+        const themeButton = document.getElementById('theme-toggle');
+        const logo = document.getElementById('odin-logo') || document.querySelector('.odin-tab-logo img');
+        const light = currentTheme === 'light';
+        root.style.setProperty('--bg-dark', light ? '#f5f5f5' : '#000000');
+        root.style.setProperty('--card-bg', light ? '#ffffff' : '#111111');
+        root.style.setProperty('--card-bg-transparent', light ? 'rgba(255, 255, 255, 0.95)' : 'rgba(17, 17, 17, 0.95)');
+        root.style.setProperty('--text-primary', light ? '#000000' : '#ffffff');
+        root.style.setProperty('--text-secondary', light ? '#6b7280' : '#a1a1aa');
+        root.style.setProperty('--glass-border', light ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)');
+        root.style.setProperty('--subtle-bg', light ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', light ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)');
+        root.style.setProperty('--select-bg', light ? '#ffffff' : '#1a1a1a');
+        root.style.setProperty('--nav-bg', light
+            ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)'
+            : 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', light ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)');
+        root.style.setProperty('--nav-active-bg', light ? 'rgba(0, 120, 212, 0.12)' : 'rgba(0, 120, 212, 0.15)');
+        root.style.setProperty('--disclaimer-bg', light ? 'rgba(255, 193, 7, 0.25)' : 'rgba(255, 193, 7, 0.15)');
+        root.style.setProperty('--disclaimer-border', light ? 'rgba(255, 193, 7, 0.5)' : 'rgba(255, 193, 7, 0.4)');
+        document.body.style.background = light ? '#f5f5f5' : '#000000';
+        if (themeButton) themeButton.textContent = light ? '☀️' : '🌙';
+        if (logo) logo.src = light ? '../images/odin-logo-white-background.png' : '../images/odin-logo.png';
+    }
+
+    globalThis.toggleTheme = function() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyPageTheme();
+        try {
+            localStorage.setItem('odin-theme', currentTheme);
+        } catch (_) {
+            // Theme still applies for this page when browser storage is unavailable.
+        }
+    };
+
+    initializeCalculatorPage();
+    applyPageTheme();
+    if (typeof initializeAnalytics === 'function' && initializeAnalytics()) {
+        trackPageView();
+        fetchAndDisplayStats();
+    }
+})();

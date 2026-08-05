@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" type="image/png" href="../images/odin-logo.png">
+    <title>Storage Spaces Direct (S2D) Calculator for Azure Local - ODIN</title>
+    <!-- Firebase SDK (anonymous page-view + button-click counters; see js/analytics.js) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="s2d-calc.css">
+</head>
+<body>
+    <div class="background-globes"></div>
+
+    <nav class="odin-tab-nav" id="odin-nav" data-active="s2d" data-base="../" aria-label="Main navigation"></nav>
+    <script src="../js/nav.js"></script>
+
+    <main class="container">
+        <div class="disclaimer-wrapper">
+            <div class="disclaimer-banner">
+                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. ODIN is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
+            </div>
+        </div>
+
+        <header class="s2d-header">
+            <div class="header-title-wrapper">
+                <h1 class="header-title"><span>Storage Spaces Direct (S2D)</span><span>Calculator for Azure Local</span></h1>
+                <div class="header-logo-wrapper" data-odin-branding data-base="../"></div>
+            </div>
+            <p class="header-description">This planning tool helps determine the maximum supported volume size and the number of volumes needed based on storage pool utilization and resiliency for hyperconverged deployments of Azure Local and Windows Server.</p>
+            <div id="page-statistics" data-stats-bar></div>
+        </header>
+
+        <section class="s2d-workspace" aria-label="Maximum volume size calculator">
+            <form class="s2d-panel s2d-config" id="calculator-form">
+                <div class="s2d-section-heading">
+                    <span class="s2d-section-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg>
+                    </span>
+                    <div>
+                        <h2>Volume configuration</h2>
+                        <p>Set the platform, resiliency, and provisioning model.</p>
+                    </div>
+                </div>
+
+                <fieldset>
+                    <legend>Platform</legend>
+                    <div class="s2d-segmented">
+                        <label><input type="radio" name="platform" value="azureLocal" checked><span>Azure Local</span></label>
+                        <label><input type="radio" name="platform" value="windowsServer"><span>Windows Server</span></label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Node count</legend>
+                    <div class="s2d-node-control">
+                        <input id="node-range" type="range" min="1" max="16" step="1" value="4" aria-label="Node count slider">
+                        <label for="node-number">Nodes</label>
+                        <input id="node-number" type="number" min="1" max="16" step="1" value="4" inputmode="numeric" aria-describedby="validation-message">
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Data copies</legend>
+                    <div class="s2d-segmented s2d-segmented-three">
+                        <label><input type="radio" name="copies" value="2"><span>2 copies</span></label>
+                        <label><input type="radio" name="copies" value="3" checked><span>3 copies</span></label>
+                        <label><input type="radio" name="copies" value="4"><span>4 copies</span></label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Provisioning</legend>
+                    <div class="s2d-segmented">
+                        <label><input type="radio" name="provisioning" value="thin" checked><span>Thin <small id="thin-extent-label">1 GiB extents</small></span></label>
+                        <label><input type="radio" name="provisioning" value="fixed"><span>Fixed <small>1 GiB extents</small></span></label>
+                    </div>
+                </fieldset>
+
+                <fieldset id="thin-extent-fieldset">
+                    <legend>Thin extent size</legend>
+                    <div class="s2d-segmented">
+                        <label><input type="radio" name="thinExtentMiB" value="1024" checked><span>1 GiB</span></label>
+                        <label><input type="radio" name="thinExtentMiB" value="256"><span>256 MiB</span></label>
+                    </div>
+                    <p class="s2d-field-note">1 GiB extents apply to Azure Local express storage configuration.</p>
+                </fieldset>
+                <button type="submit" class="s2d-sr-only">Recalculate</button>
+            </form>
+
+            <section class="s2d-panel s2d-result" id="result-card" data-state="valid" aria-labelledby="result-heading">
+                <div class="s2d-result-actions" role="group" aria-label="Calculator actions">
+                    <button type="button" class="s2d-button" id="export-report">
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5"/><path d="M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2"/></svg>
+                        Export report
+                    </button>
+                    <button type="button" class="s2d-button" id="reset-config">
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                        Reset
+                    </button>
+                </div>
+                <p class="s2d-result-label" id="result-heading">Maximum supported volume size</p>
+                <div id="result" class="s2d-result-value">&lt; 20.8 TB</div>
+                <p id="result-announcement" class="s2d-sr-only" aria-live="polite" aria-atomic="true"></p>
+                <p id="result-summary" class="s2d-result-summary">3 copies | Thin provisioned | 4 nodes | 1 GiB extents</p>
+                <div class="s2d-rule"></div>
+                <p class="s2d-result-detail">The usable result includes 0.5 TB of volume overhead and remains below the 64 TB volume limit.</p>
+                <p class="s2d-result-detail"><a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-overview" target="_blank" rel="noopener noreferrer">Storage Spaces Direct overview</a></p>
+                <p class="s2d-result-detail"><a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/backup-and-storage/usability-limit-volume-shadow-copy-service" target="_blank" rel="noopener noreferrer">Learn about the 64 TB volume limit</a></p>
+                <p id="four-copy-note" class="s2d-result-detail" hidden>
+                    Four-copy resiliency has specific cluster topology requirements.
+                    <a id="four-copy-note-link" href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-requirements" target="_blank" rel="noopener noreferrer">View topology requirements</a>
+                </p>
+                <p id="effective-node-note" class="s2d-result-detail" hidden></p>
+                <div id="validation-message" class="s2d-alert" role="alert" hidden></div>
+            </section>
+        </section>
+
+        <section class="s2d-panel s2d-pool" aria-labelledby="pool-heading">
+            <div class="s2d-section-heading">
+                <span class="s2d-section-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+                </span>
+                <div>
+                    <h2 id="pool-heading">Pool consumption</h2>
+                    <p>Estimate usable capacity and the number of maximum-size volumes required.</p>
+                </div>
+            </div>
+
+            <div class="s2d-pool-layout">
+                <div class="s2d-pool-settings">
+                    <fieldset>
+                        <legend>Disk configuration</legend>
+                        <div class="s2d-segmented">
+                            <label><input type="radio" name="tiering" value="single" checked><span>Single disk type</span></label>
+                            <label><input type="radio" name="tiering" value="tiered"><span>Storage tiering</span></label>
+                        </div>
+                    </fieldset>
+
+                    <div id="single-controls" class="s2d-fields-grid">
+                        <label class="s2d-field"><span>Drives per node</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Disk size</span><select id="disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
+                        <label class="s2d-field s2d-field-wide" id="custom-disk-size-field" hidden><span>Custom disk size (TB)</span><input id="custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
+                    </div>
+
+                    <div id="tiering-controls" class="s2d-fields-grid" hidden>
+                        <label class="s2d-field"><span>Cache drives per node</span><input id="cache-drives-per-node" type="number" min="2" max="24" step="1" value="2" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Cache disk size</span><select id="cache-disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
+                        <label class="s2d-field s2d-field-wide" id="cache-custom-disk-size-field" hidden><span>Custom cache disk size (TB)</span><input id="cache-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
+                        <label class="s2d-field"><span>Capacity drives per node</span><input id="capacity-drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Capacity disk size</span><select id="capacity-disk-size"><option value="3.2">3.2 TB</option><option value="6.4" selected>6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
+                        <label class="s2d-field s2d-field-wide" id="capacity-custom-disk-size-field" hidden><span>Custom capacity disk size (TB)</span><input id="capacity-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
+                    </div>
+                </div>
+
+                <div class="s2d-pool-result" id="pool-results">
+                    <dl class="s2d-metrics">
+                        <div><dt>Total pool capacity</dt><dd id="pool-capacity">153.6 TB</dd></div>
+                        <div id="pool-reserved-line"><dt>Reserved for rebuild</dt><dd id="pool-reserved">12.8 TB</dd></div>
+                        <div id="pool-available-line"><dt>Available capacity</dt><dd id="pool-available">140.8 TB</dd></div>
+                    </dl>
+                    <p id="pool-formula" class="s2d-formula-line">4 servers x 12 drives x 3.2 TB = 153.6 TB</p>
+                    <div class="s2d-volume-count" id="pool-volumes-block">
+                        <span id="pool-volumes-label">Volumes to create</span>
+                        <strong id="pool-volumes">7</strong>
+                    </div>
+                    <p id="pool-capped-note" class="s2d-result-detail" hidden></p>
+                    <div id="pool-cap-note" class="s2d-alert" role="alert" hidden></div>
+                    <p id="pool-cap-note-link" class="s2d-result-detail" hidden><a href="https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements#maximum-capacity" target="_blank" rel="noopener noreferrer">Learn about the 4 PB pool limit</a></p>
+                    <p id="pool-placeholder" class="s2d-result-detail" hidden>Enter a valid volume configuration to calculate pool consumption.</p>
+                    <div id="pool-validation-message" class="s2d-alert" role="alert" hidden></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="s2d-panel" aria-labelledby="derivation-heading">
+            <div class="s2d-section-heading">
+                <span class="s2d-section-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
+                </span>
+                <div><h2 id="derivation-heading">How the result is calculated</h2><p>Follow the record limit through to the usable volume size.</p></div>
+            </div>
+            <ol class="s2d-derivation">
+                <li><span>01</span><div><h3>Record capacity</h3><p>4 MiB / 64 bytes / 2 = <strong>32,768 records</strong></p></div></li>
+                <li><span>02</span><div><h3>Effective node count</h3><p id="effective-node-formula">4 selected nodes = 4 effective nodes</p></div></li>
+                <li><span>03</span><div><h3>Base record-limit formula</h3><p id="substitution">32,768 x 4 x 1 GiB / 6 = 21.33 TB</p></div></li>
+                <li><span>04</span><div><h3>Usable volume size</h3><p id="logical-substitution">21.33 TB - 0.5 TB overhead = 20.83 TB</p></div></li>
+            </ol>
+        </section>
+
+        <section class="s2d-panel" aria-labelledby="examples-heading">
+            <div class="s2d-section-heading">
+                <span class="s2d-section-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg>
+                </span>
+                <div><h2 id="examples-heading">Reference examples</h2><p>Common base-limit configurations using 1 GiB extents.</p></div>
+            </div>
+            <div class="s2d-table-scroll" tabindex="0" aria-label="Reference examples; scroll horizontally if needed">
+                <table>
+                    <thead><tr><th scope="col">Provisioning</th><th scope="col">Extent</th><th scope="col">Nodes</th><th scope="col">Copies</th><th scope="col">Space limit</th></tr></thead>
+                    <tbody>
+                        <tr data-example="thin-1-2"><td>Thin</td><td>1 GiB</td><td>1</td><td>2</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-4-3"><td>Thin</td><td>1 GiB</td><td>4</td><td>3</td><td>&lt; 20.8 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-6-3"><td>Thin</td><td>1 GiB</td><td>6</td><td>3</td><td>&lt; 31.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-8-3"><td>Thin</td><td>1 GiB</td><td>8</td><td>3</td><td>&lt; 42.1 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-4-3"><td>Fixed</td><td>1 GiB</td><td>4</td><td>3</td><td>&lt; 20.8 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-6-3"><td>Fixed</td><td>1 GiB</td><td>6</td><td>3</td><td>&lt; 31.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-8-3"><td>Fixed</td><td>1 GiB</td><td>8</td><td>3</td><td>&lt; 42.1 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-4-4"><td>Fixed</td><td>1 GiB</td><td>4</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-6-4"><td>Fixed</td><td>1 GiB</td><td>6</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-8-4"><td>Fixed</td><td>1 GiB</td><td>8</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-4-4"><td>Thin</td><td>1 GiB</td><td>4</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-16-2"><td>Fixed</td><td>1 GiB</td><td>16</td><td>2</td><td>&lt; 63.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="s2d-footer" data-odin-footer></footer>
+    </main>
+
+    <script src="../js/version.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/analytics.js"></script>
+    <script src="../js/stats-bar.js"></script>
+    <script src="../js/changelog.js"></script>
+    <script src="../js/header-branding.js"></script>
+    <script src="../js/footer.js"></script>
+    <script src="s2d-calc.js"></script>
+</body>
+</html>

@@ -14,10 +14,23 @@ work fully offline (clone-and-open use case).
 | `three-OrbitControls-0.128.0.js` | three.js OrbitControls (examples)                       | 0.128.0 | MIT | https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js |
 | `xlsx-0.20.3.min.js`             | [SheetJS Community](https://sheetjs.com)               | 0.20.3  | Apache-2.0 | https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js |
 
-These files are loaded as plain `<script src="...">` tags from `index.html`,
-`sizer/index.html`, and `report/report.html`. Do not minify, transpile, bundle,
-or otherwise modify them. To upgrade, fetch the new version from the source
-URL above and update the entries in this table.
+These files are loaded as plain scripts by the pages that need them. SheetJS and
+JSZip are injected lazily by the Sizer for inventory imports, so they must not be
+added as static `<script>` tags there. Do not minify, transpile, bundle, or otherwise
+modify vendored files. To upgrade, fetch the new version from the source URL above
+and update the entries in this table.
+
+## JSZip (`jszip-3.10.1.min.js`) — Sizer handling
+
+The Sizer lazy-loads JSZip only when a user opens the **Azure Migrate** import tab.
+It reads the collector ZIP entirely in the browser and expands only the validated
+`server/machinestatic.json` entry. Users who do not use Azure Migrate do not load
+JSZip, and no collector data is transmitted to an external service. Do not add a
+static `<script src=".../jszip-3.10.1.min.js">` tag to `sizer/index.html`.
+
+- **SHA-256:** `f12f367798e35ee2d9993dba6167fc61ddb52fb89880f5a99fbb606335188410`
+  (lower-case). This hash is pinned by `node scripts/run-tests.js` alongside the
+  SheetJS integrity check.
 
 ## SheetJS (`xlsx-0.20.3.min.js`) — special handling
 

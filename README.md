@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.71 - Available here: https://aka.ms/ODIN
+## Version 0.23.01 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -52,20 +52,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 <a id="whats-new"></a>
-### 🎉 Version 0.22.71 - Latest Release
+### 🎉 Version 0.23.01 - Latest Release
 
-> **Browser-side import and export security hardening.** Shared Sizer URLs, imported JSON files, restored browser state, and generated documents are now consistently treated as untrusted input. ODIN remains a static client-side site: configuration data is not uploaded to an application server.
+> **New storage planning and discovered-estate import workflows.** This release adds a browser-only Storage Spaces Direct calculator, Azure Migrate collector ZIP import in Sizer, refreshed Agentic Retrieval guidance, and a shared application release header.
 
 **What's new**
-- **Sizer import and Share-as-URL XSS protection** — imported workload names/details are escaped before HTML rendering, and imported action IDs are normalized before entering handlers.
-- **Designer print-document XSS protection** — imported state values are escaped before printable HTML generation, and Designer imports ignore unknown or dangerous state properties.
-- **Bounded imports** — JSON files are limited to 5 MB, shared URL payloads are bounded, and imported workload collections and names have explicit limits.
-- **Predictable import compatibility** — recognized legacy Designer exports are migrated to current values; incompatible files are rejected before changing the design. Sizer and Designer exports imported at the wrong entry point now direct users to the correct importer.
-- **Consistent, accessible interactions** — Designer and Sizer now share dismissible toasts and centered dialogs for Reset, Start Over, Share URL, and Designer Export, including an in-app fallback for Safari 14. A wrong-tool JSON import opens clear guidance with a direct action to the correct tool.
-- **Azure Local machine paste validation** — pasted machine JSON is size- and type-checked, display values are normalized, and unsupported core or memory values are rejected before preview.
-- **Safer CSV exports** — formula-trigger prefixes are neutralized before spreadsheet cells are written.
-- **Development dependency classification corrected** — `html-validate` and its transitive tree are now development-only, and HTML validation CI installs the committed lockfile with `npm ci`.
-- **Firebase rule guidance tightened** — documented rules permit only counter creation at `1` and atomic `+1` updates, while blocking deletion and arbitrary replacement.
+- **Azure Migrate collector import** — import an original `Azure-Migrate-Discovery-*.zip` in Sizer and convert discovered processor, memory, and disk capacity into privacy-preserving grouped VM workloads or one workload per machine. Processing stays in the browser and validates archive paths, encryption, duplicates, size, and JSON structure.
+- **Storage Spaces Direct calculator** — plan maximum supported volume size and storage-pool consumption for Azure Local and Windows Server using thin/fixed provisioning, resiliency, single-tier or tiered disks, formula derivation, reference examples, and text-report export.
+- **Meaningful S2D usage counting** — the anonymous **S2D Calcs** total increments only for the first valid user-driven calculation per page load, rather than for every setting explored.
+- **Agentic Retrieval guidance** — the former Edge RAG label is updated throughout Sizer with canonical Microsoft Learn overview and requirements links; the persisted `edgerag` payload type remains compatible.
+- **Shared release branding and privacy disclosure** — Designer, Sizer, ToR Switch, and S2D Calc now use one application release value and shared logo/version/What's New markup, preventing page-version drift. Shared footers explain local data handling and anonymous counters consistently.
+- **Validation** — all **1,487 / 1,487** browser tests pass, with schema-drift and vendored-library integrity checks included.
 
 ### Quick Start
 
@@ -393,8 +390,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.22.63  
-**Last Updated**: June 2026  
+**Version**: 0.23.01<br>
+**Last Updated**: August 2026<br>
 **Compatibility**: Azure Local 2506+
 
 ---
@@ -407,7 +404,17 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
-### Version 0.22.x Series (June 2026)
+### Version 0.23.x Series (August 2026)
+
+#### 0.23.01 - S2D calculator, Azure Migrate import, and shared release branding
+
+> Adds a browser-only **Storage Spaces Direct calculator** for maximum-volume and pool-consumption planning across Azure Local and Windows Server, plus **Azure Migrate collector ZIP import** in Sizer with privacy-preserving grouping, per-machine and used-storage options, and strict archive validation. Edge RAG is relabeled **Agentic Retrieval** with canonical Learn guidance while retaining its compatible payload type. Designer, Sizer, ToR Switch, and S2D Calc now share one release-version source and branding component, along with a shared privacy footer. The anonymous S2D counter records only the first valid user-driven calculation per page load.
+
+### Version 0.22.x Series (June-July 2026)
+
+#### 0.22.71 - Browser-side import and export security hardening
+
+> Treats shared Sizer URLs, imported JSON files, restored browser state, and generated documents as untrusted input. Adds bounded imports, workload-card and printable-document XSS protection, atomic legacy migration, wrong-tool import guidance, machine-paste validation, CSV formula neutralization, shared accessible interactions, reproducible HTML-validation dependencies, and increment-only Firebase counter guidance. All 1,454 browser tests passed for this release.
 
 #### 0.22.70 - iSCSI external SAN attach is now 6-NIC only (Azure Local build 2607)
 

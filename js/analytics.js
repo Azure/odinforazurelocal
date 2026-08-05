@@ -33,6 +33,10 @@
 //         "qosAuditAnalyzed": {
 //           ".write": "newData.exists()",
 //           ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
+//         },
+//         "s2dCalculation": {
+//           ".write": "newData.exists()",
+//           ".validate": "newData.isNumber() && ((!data.exists() && newData.val() == 1) || (data.isNumber() && newData.val() == data.val() + 1))"
 //         }
 //       }
 //     },
@@ -197,14 +201,14 @@ function trackPageView() {
 /**
  * Track form completion events
  * @param {string} eventType - Event type: 'designDocument', 'armDeployment', 'sizerCalculation',
- *                             'switchConfigGenerated', or 'qosAuditAnalyzed'
+ *                             'switchConfigGenerated', 'qosAuditAnalyzed', or 's2dCalculation'
  */
 function trackFormCompletion(eventType) {
     if (!analytics.enabled || !analytics.database) {
         return;
     }
 
-    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation', 'switchConfigGenerated', 'qosAuditAnalyzed'];
+    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation', 'switchConfigGenerated', 'qosAuditAnalyzed', 's2dCalculation'];
     if (!validEvents.includes(eventType)) {
         console.warn('Analytics: Invalid event type:', eventType);
         return;
@@ -281,6 +285,13 @@ function fetchAndDisplayStats() {
                 if (qosAuditsEl) {
                     const formCompletions = data.formCompletions || {};
                     qosAuditsEl.textContent = formatNumber(formCompletions.qosAuditAnalyzed || 0);
+                }
+
+                // Update S2D calculations
+                const s2dCalcsEl = document.getElementById('stat-s2d-calcs');
+                if (s2dCalcsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    s2dCalcsEl.textContent = formatNumber(formCompletions.s2dCalculation || 0);
                 }
 
                 console.log('Analytics: Stats displayed');

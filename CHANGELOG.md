@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.01] - 2026-08-05
+
+New browser-only planning and import workflows for storage and discovered estates, plus refreshed AI workload guidance and shared application branding. This release adds the S2D calculator, Azure Migrate collector import, and a single release-version source across interactive tools.
+
+### Changed
+
+- **Sizer AI workload knowledge links updated** (`sizer/sizer.js`) — Edge RAG is now labeled **Agentic Retrieval** throughout Sizer, and its workload dialog links directly to the canonical Microsoft Learn overview and requirements pages. The Foundry Local dialog now also links to the ten-minute model catalog and inference walkthrough. The persisted `edgerag` workload type remains unchanged for compatibility.
+- **Azure Migrate collector import added to Sizer** (`sizer/index.html`, `sizer/sizer.js`) — the Sizer can now read a full `Azure-Migrate-Discovery-*.zip` export entirely in the browser and convert discovered processor cores, allocated memory, and disk capacity into VM workloads. Imports default to privacy-preserving grouping and provisioned storage, with options for one workload per machine using source names and used storage. ZIP validation limits extraction to `server/machinestatic.json` and rejects encrypted, duplicate, unsafe, malformed, or oversized input. Performance-based and standalone incremental exports are outside this initial scope.
+- **Storage Spaces Direct calculator added** (`s2d-calc/`, `js/nav.js`) — a new **S2D Calc** navigation destination provides browser-only maximum-volume and pool-consumption planning for Azure Local and Windows Server. The ODIN-styled page includes live validation, thin-extent and resiliency rules, single-tier and tiered pool estimates, formula derivation, reference examples, text-report export, responsive layout, shared theming, and source-retained MIT attribution. A new anonymous integer-only `s2dCalculation` counter appears as **S2D Calcs** in the shared seven-tile statistics banner, arranged 3+4 on desktop. It increments only for the first valid user-driven recalculation per page load, so exploring multiple settings does not inflate the total; deploying this release requires adding the matching increment-only child rule under `analytics/formCompletions` in Firebase Realtime Database.
+- **Shared release branding and privacy footer** (`js/version.js`, `js/header-branding.js`, `js/footer.js`) — Designer, Sizer, ToR Switch, and S2D Calc now render their logo, release version, What's New control, and privacy disclosure from shared components. `ODIN_VERSION` is the single application-release source and also stamps Designer exports; `SIZER_VERSION` remains the independent Sizer payload-format version.
+
+---
+
 ## [0.22.71] - 2026-07-29
 
 Security hardening for browser-side configuration imports and exports. Shared Sizer URLs, imported JSON files, restored browser state, and generated documents are now treated as untrusted input. This release also corrects npm dependency metadata so local validation tooling is classified as development-only.

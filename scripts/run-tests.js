@@ -15,12 +15,12 @@ const writeNunit = hasNunitFlag || (!hasJunitFlag && !hasNunitFlag);
 const writeJunit = hasJunitFlag || (!hasJunitFlag && !hasNunitFlag);
 
 // ---------------------------------------------------------------------------
-// Vendored-blob integrity pins (issue #230 — SheetJS for RVTools import).
+// Vendored-blob integrity pins (inventory import parsers).
 // The browser test harness runs over file://, which is not a secure context,
 // so window.crypto.subtle is unavailable there. The SHA-256 pin for large
 // vendored binaries is therefore enforced here, Node-side, as a fail-fast gate
 // before the browser tests run. Catches accidental corruption or a tampered /
-// swapped vendored blob. To upgrade SheetJS, update vendor/README.md and the
+// swapped vendored blob. To upgrade a parser, update vendor/README.md and the
 // expected hash below in the same commit. Hashes are lower-case hex.
 // ---------------------------------------------------------------------------
 const VENDOR_INTEGRITY_PINS = [
@@ -28,6 +28,11 @@ const VENDOR_INTEGRITY_PINS = [
         file: path.join('vendor', 'xlsx-0.20.3.min.js'),
         sha256: 'cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41',
         label: 'SheetJS Community 0.20.3 (RVTools import)'
+    },
+    {
+        file: path.join('vendor', 'jszip-3.10.1.min.js'),
+        sha256: 'f12f367798e35ee2d9993dba6167fc61ddb52fb89880f5a99fbb606335188410',
+        label: 'JSZip 3.10.1 (Azure Migrate import)'
     }
 ];
 
