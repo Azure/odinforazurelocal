@@ -102,7 +102,7 @@
 
         const minimum = CONSTANTS.minimumNodes[copies];
         if (minimum && validNodeRange && nodes < minimum) {
-            errors.push(`${copies} copies require at least ${minimum} machines.`);
+            errors.push(`${copies} copies of data requires at least ${minimum} machines, (increase the Machine count).`);
         }
 
         const maximum = platformConfig ? platformConfig.maximumNodes[copies] : undefined;
@@ -238,9 +238,12 @@
         const reservedTB = reservedDrives * reservationDiskSizeTB;
         const availableTB = Math.max(rawPoolTB - reservedTB, 0);
         const usableTB = availableTB / copies;
-        const exactVolumes = usableTB / maxVolumeTB;
-        const capacityRequiredVolumes = Math.ceil(exactVolumes - 1e-9);
-        const recommendedVolumes = Math.max(servers, capacityRequiredVolumes);
+        const exactVolumes = availableTB / maxVolumeTB;
+        const requiredVolumes = Math.ceil(exactVolumes - 1e-9);
+        const volumesNeeded = Math.min(requiredVolumes, CONSTANTS.maxVolumesPerCluster);
+        const equalVolumeTB = requiredVolumes > CONSTANTS.maxVolumesPerCluster || volumesNeeded === 0
+            ? null
+            : usableTB / volumesNeeded;
 
         return {
             valid: true,
@@ -256,9 +259,10 @@
             usableTB,
             copies,
             exactVolumes,
-            capacityRequiredVolumes,
-            volumesNeeded: Math.min(recommendedVolumes, CONSTANTS.maxVolumesPerCluster),
-            cappedAtLimit: recommendedVolumes > CONSTANTS.maxVolumesPerCluster,
+            capacityRequiredVolumes: requiredVolumes,
+            volumesNeeded,
+            equalVolumeTB,
+            cappedAtLimit: requiredVolumes > CONSTANTS.maxVolumesPerCluster,
             maxVolumes: CONSTANTS.maxVolumesPerCluster,
             servers,
             maxVolumeTB
@@ -304,10 +308,11 @@
         lines.push('', 'POOL CONSUMPTION');
         if (pool.state === 'ok') {
             lines.push(`  Total pool capacity: ${pool.capacity}`);
-            lines.push(`  Reserved for rebuild: ${pool.reserved}`);
+            lines.push(`  ${pool.reservedLabel}: ${pool.reserved}`);
             lines.push(`  Available pool capacity: ${pool.available}`);
             lines.push(`  Usable capacity (${config.copies} copies): ${pool.usable}`);
             lines.push(`  Volumes to create:   ${pool.volumes}`);
+            lines.push(`  ${pool.volumeSizing}`);
         } else {
             lines.push(`  ${pool.message}`);
         }
@@ -377,7 +382,7 @@
             icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
             isImage: true,
             title: 'Welcome to the S2D Calculator',
-            description: 'Plan maximum supported volume sizes and storage-pool consumption for Azure Local or Windows Server.',
+            description: 'Plan maximum supported individual volume sizes and storage-pool consumption for Azure Local or Windows Server.',
             features: [
                 { icon: '1', title: 'Choose a Platform', text: 'Select Azure Local or Windows Server so the calculator applies the matching extent and topology rules' },
                 { icon: '2', title: 'Set Resiliency', text: 'Choose the physical machine count, data copies, and thin or fixed provisioning model' },
@@ -385,7 +390,7 @@
             ]
         },
         {
-            icon: 'S2D',
+            icon: 'S2D 💽',
             title: 'Estimate Pool Consumption',
             description: 'Model the physical disks in each machine to estimate usable pool capacity and volume count.',
             features: [
@@ -483,6 +488,8 @@
         const thinExtentControls = form.querySelectorAll('input[name="thinExtentMiB"]');
         const fourCopyNote = document.getElementById('four-copy-note');
         const fourCopyNoteLink = document.getElementById('four-copy-note-link');
+        const threeCopyRecommendation = document.getElementById('three-copy-recommendation');
+        const threeCopyRecommendationBreak = document.getElementById('three-copy-recommendation-break');
         const exampleRows = document.querySelectorAll('[data-example]');
         const drivesPerNode = document.getElementById('drives-per-node');
         const diskSize = document.getElementById('disk-size');
@@ -501,12 +508,16 @@
         const poolResults = document.getElementById('pool-results');
         const poolCapacity = document.getElementById('pool-capacity');
         const poolReserved = document.getElementById('pool-reserved');
+        const poolReservedLabel = document.getElementById('pool-reserved-label');
         const poolAvailable = document.getElementById('pool-available');
         const poolUsable = document.getElementById('pool-usable');
         const poolUsableLabel = document.getElementById('pool-usable-label');
         const poolFormula = document.getElementById('pool-formula');
         const poolVolumes = document.getElementById('pool-volumes');
         const poolVolumesBlock = document.getElementById('pool-volumes-block');
+        const poolVolumeSizing = document.getElementById('pool-volume-sizing');
+        const poolVolumeSizingLabel = document.getElementById('pool-volume-sizing-label');
+        const poolVolumeSizingValue = document.getElementById('pool-volume-sizing-value');
         const poolReservedLine = document.getElementById('pool-reserved-line');
         const poolAvailableLine = document.getElementById('pool-available-line');
         const poolUsableLine = document.getElementById('pool-usable-line');
@@ -580,6 +591,8 @@
             } else {
                 fourCopyNote.hidden = true;
             }
+            threeCopyRecommendation.hidden = !(configuration.nodes >= 3 && configuration.copies === 2);
+            threeCopyRecommendationBreak.hidden = threeCopyRecommendation.hidden;
 
             if (!calculation.valid) {
                 resultCard.setAttribute('data-state', 'invalid');
@@ -627,6 +640,7 @@
 
             const announcement = [result.textContent, resultSummary.textContent];
             if (!effectiveNodeNote.hidden) announcement.push(effectiveNodeNote.textContent);
+            if (!threeCopyRecommendation.hidden) announcement.push(threeCopyRecommendation.textContent);
             resultAnnouncement.textContent = `${announcement.join('. ')}.`;
 
             const exampleKey = `${configuration.provisioning}-${configuration.nodes}-${configuration.copies}`;
@@ -671,6 +685,7 @@
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
+                poolVolumeSizing.hidden = true;
                 showPoolMessage(poolPlaceholder, 'Enter a valid volume configuration to calculate pool consumption.');
                 return;
             }
@@ -700,6 +715,7 @@
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
+                poolVolumeSizing.hidden = true;
                 showPoolMessage(poolValidationMessage, pool.errors.join(' '));
                 return;
             }
@@ -718,6 +734,7 @@
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
                 poolVolumesBlock.hidden = true;
+                poolVolumeSizing.hidden = true;
                 poolCappedNote.hidden = true;
                 showPoolMessage(poolCapNote, 'A storage pool cannot exceed 4 PB (4,000 TB). Reduce the machine count, drives per machine, or disk size.');
                 poolCapNoteLink.hidden = false;
@@ -730,11 +747,20 @@
             poolAvailableLine.hidden = false;
             poolUsableLine.hidden = false;
             poolVolumesBlock.hidden = false;
+            poolVolumeSizing.hidden = pool.cappedAtLimit;
+            poolReservedLabel.textContent = `Reserved for rebuild (${pool.reservedDrives} x drives)`;
             poolReserved.textContent = `${formatLimit(pool.reservedTB)} TB`;
             poolAvailable.textContent = `${formatLimit(pool.availableTB)} TB`;
             poolUsableLabel.textContent = `Usable capacity (with ${pool.copies} copies)`;
             poolUsable.textContent = `${formatLimit(pool.usableTB)} TB`;
             poolVolumes.textContent = pool.cappedAtLimit ? '64 max' : String(pool.volumesNeeded);
+            if (!pool.cappedAtLimit && selectedValue('provisioning') === 'fixed') {
+                poolVolumeSizingLabel.textContent = 'Equal volume size';
+                poolVolumeSizingValue.textContent = `${formatLimit(pool.equalVolumeTB)} TB each`;
+            } else if (!pool.cappedAtLimit) {
+                poolVolumeSizingLabel.textContent = 'Thin volume sizing';
+                poolVolumeSizingValue.textContent = `Grows dynamically, up to ${formatLimit(volumeCalculation.exactTB)} TB per volume`;
+            }
             poolCappedNote.hidden = !pool.cappedAtLimit;
             poolCappedNote.textContent = pool.cappedAtLimit
                 ? '64 maximum-size volumes cannot cover the whole pool.'
@@ -952,7 +978,7 @@
             setRadio('thinExtentMiB', '1024');
             setRadio('tiering', 'single');
             drivesPerNode.value = '8';
-            diskSize.value = '3.2';
+            diskSize.value = '6.4';
             customDiskSize.value = '';
             cacheDrives.value = '2';
             cacheDiskSize.value = '3.2';
@@ -1005,10 +1031,12 @@
                 pool = {
                     state: 'ok',
                     capacity: poolCapacity.textContent,
+                    reservedLabel: poolReservedLabel.textContent,
                     reserved: poolReserved.textContent,
                     available: poolAvailable.textContent,
                     usable: poolUsable.textContent,
-                    volumes: poolVolumes.textContent
+                    volumes: poolVolumes.textContent,
+                    volumeSizing: `${poolVolumeSizingLabel.textContent}: ${poolVolumeSizingValue.textContent}`
                 };
             }
 

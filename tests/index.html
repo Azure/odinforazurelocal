@@ -263,6 +263,15 @@
             })(),
             (function() {
                 const result = volumeCalculator.validateConfiguration({
+                    platform: 'azureLocal', nodes: 2, copies: 3,
+                    provisioning: 'thin', thinExtentMiB: 1024
+                });
+                const expected = '3 copies of data requires at least 3 machines, (increase the Machine count).';
+                return assert(!result.valid && result.errors.includes(expected),
+                    'three-copy validation explains how to meet the machine minimum', expected, result.errors.join(' '));
+            })(),
+            (function() {
+                const result = volumeCalculator.validateConfiguration({
                     platform: 'azureLocal', nodes: 9, copies: 4,
                     provisioning: 'fixed', thinExtentMiB: 1024
                 });
@@ -282,9 +291,9 @@
                     copies: 3,
                     drivesPerNode: 12, driveSizeTB: 3.2
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - (140.8 / 3)) < 1e-9 && result.volumesNeeded === 4,
-                    'single-tier pool reports copy-adjusted usable capacity and at least one volume per machine',
-                    '153.6 / 12.8 / 46.93 / 4', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.volumesNeeded}`);
+                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - (140.8 / 3)) < 1e-9 && result.volumesNeeded === 7 && Math.abs(result.equalVolumeTB - ((140.8 / 3) / 7)) < 1e-9,
+                    'single-tier pool reports copy-adjusted usable capacity and capacity-driven volume count',
+                    '153.6 / 12.8 / 46.93 / 7 / 6.70', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.volumesNeeded} / ${result.equalVolumeTB}`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
@@ -293,9 +302,9 @@
                     tiering: true, cacheDrivesPerNode: 2, cacheDiskSizeTB: 3.2,
                     capacityDrivesPerNode: 12, capacityDiskSizeTB: 6.4
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.volumesNeeded === 5,
+                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.volumesNeeded === 15,
                     'tiered pool excludes cache from capacity and reserves capacity disks',
-                    '307.2 / 25.6 cache / 6.4 / 5', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.volumesNeeded}`);
+                    '307.2 / 25.6 cache / 6.4 / 15', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.volumesNeeded}`);
             })(),
             (function() {
                 const twoCopy = volumeCalculator.calculatePoolConsumption({
@@ -334,8 +343,30 @@
                     copies: 3,
                     drivesPerNode: 24, driveSizeTB: 3.2
                 });
-                return assert(result.valid && result.cappedAtLimit && result.volumesNeeded === 64,
-                    'pool volume count stops at the 64-volume cluster limit', '64 maximum', result.volumesNeeded);
+                return assert(result.valid && result.cappedAtLimit && result.volumesNeeded === 64 && result.equalVolumeTB === null,
+                    'pool volume count stops at the 64-volume cluster limit without an equal-size recommendation', '64 maximum / no size', `${result.volumesNeeded} / ${result.equalVolumeTB}`);
+            })(),
+            (function() {
+                const report = volumeCalculator.buildExportReport({
+                    generatedAt: '2026-08-05 12:00',
+                    config: {
+                        platformLabel: 'Azure Local', nodes: 4, copies: 3,
+                        provisioningLabel: 'Fixed', thinExtentLabel: null,
+                        tiering: false, single: { drives: 8, sizeTB: 6.4 }
+                    },
+                    results: {
+                        valid: true, headline: '< 20.8 TB', summary: '3 copies | Fixed provisioned',
+                        derivation: []
+                    },
+                    pool: {
+                        state: 'ok', capacity: '204.8 TB', reserved: '25.6 TB',
+                        reservedLabel: 'Reserved for rebuild (4 x drives)',
+                        available: '179.2 TB', usable: '59.7 TB', volumes: '9',
+                        volumeSizing: 'Equal volume size: 6.6 TB each'
+                    }
+                });
+                return assert(report.includes('Equal volume size: 6.6 TB each'),
+                    'S2D export includes provisioning-aware volume sizing', 'equal volume size in report', report);
             })()
         ]);
 

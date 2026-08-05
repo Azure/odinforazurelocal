@@ -399,6 +399,10 @@ select {
     font-size: 0.85rem;
 }
 
+.s2d-tip-label {
+    color: var(--warning);
+}
+
 .s2d-result-detail a,
 .s2d-footer a {
     color: var(--accent-blue);
@@ -494,6 +498,19 @@ select {
     color: var(--accent-blue);
     font-size: 3rem;
     line-height: 1;
+}
+
+.s2d-volume-sizing {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin: 12px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.s2d-volume-sizing span {
+    text-align: right;
 }
 
 .s2d-derivation {

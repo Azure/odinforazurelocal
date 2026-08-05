@@ -31,7 +31,7 @@
                 <h1 class="header-title"><span>Storage Spaces Direct (S2D)</span><span>Calculator for Azure Local</span></h1>
                 <div class="header-logo-wrapper" data-odin-branding data-base="../"></div>
             </div>
-            <p class="header-description">This planning tool helps determine the maximum supported volume size and the number of volumes needed based on storage pool utilization and resiliency for hyperconverged deployments of Azure Local and Windows Server.</p>
+            <p class="header-description">This planning tool helps determine the maximum supported individual volume size and the number of volumes needed based on storage pool utilization and resiliency for hyperconverged deployments of Azure Local and Windows Server.</p>
             <div id="page-statistics" data-stats-bar></div>
         </header>
 
@@ -74,7 +74,7 @@
                 </fieldset>
 
                 <fieldset>
-                    <legend>Provisioning</legend>
+                    <legend>Volume provisioning mode</legend>
                     <div class="s2d-segmented">
                         <label><input type="radio" name="provisioning" value="thin" checked><span>Thin <small id="thin-extent-label">1 GiB extents</small></span></label>
                         <label><input type="radio" name="provisioning" value="fixed"><span>Fixed <small>1 GiB extents</small></span></label>
@@ -106,7 +106,7 @@
                         🔗 Share S2D Calc as URL
                     </button>
                 </div>
-                <p class="s2d-result-label" id="result-heading">Maximum supported volume size</p>
+                <p class="s2d-result-label" id="result-heading">Maximum supported individual volume size</p>
                 <div id="result" class="s2d-result-value">&lt; 20.8 TB</div>
                 <p id="result-announcement" class="s2d-sr-only" aria-live="polite" aria-atomic="true"></p>
                 <p id="result-summary" class="s2d-result-summary">3 copies | Thin provisioned | 4 machines | 1 GiB extents</p>
@@ -118,6 +118,8 @@
                     Four-copy resiliency has specific cluster topology requirements.
                     <a id="four-copy-note-link" href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-requirements" target="_blank" rel="noopener noreferrer">View topology requirements</a>
                 </p>
+                <br id="three-copy-recommendation-break" aria-hidden="true" hidden>
+                <p id="three-copy-recommendation" class="s2d-result-detail" hidden><strong class="s2d-tip-label">Tip:</strong> When using 3+ machines, having three copies of data is recommended for increased resiliency and performance.</p>
                 <p id="effective-node-note" class="s2d-result-detail" hidden></p>
                 <div id="validation-message" class="s2d-alert" role="alert" hidden></div>
             </section>
@@ -146,7 +148,7 @@
 
                     <div id="single-controls" class="s2d-fields-grid">
                         <label class="s2d-field"><span>Drives per machine</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="8" inputmode="numeric"></label>
-                        <label class="s2d-field"><span>Disk size</span><select id="disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
+                        <label class="s2d-field"><span>Disk size</span><select id="disk-size"><option value="3.2">3.2 TB</option><option value="6.4" selected>6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="custom-disk-size-field" hidden><span>Custom disk size (TB)</span><input id="custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
                     </div>
 
@@ -162,16 +164,17 @@
 
                 <div class="s2d-pool-result" id="pool-results">
                     <dl class="s2d-metrics">
-                        <div><dt>Total pool capacity</dt><dd id="pool-capacity">102.4 TB</dd></div>
-                        <div id="pool-reserved-line"><dt>Reserved for rebuild</dt><dd id="pool-reserved">12.8 TB</dd></div>
-                        <div id="pool-available-line"><dt>Available pool capacity</dt><dd id="pool-available">89.6 TB</dd></div>
-                        <div id="pool-usable-line"><dt id="pool-usable-label">Usable capacity (with 3 copies)</dt><dd id="pool-usable">29.8 TB</dd></div>
+                        <div><dt>Total pool capacity</dt><dd id="pool-capacity">204.8 TB</dd></div>
+                        <div id="pool-reserved-line"><dt id="pool-reserved-label">Reserved for rebuild (4 x drives)</dt><dd id="pool-reserved">25.6 TB</dd></div>
+                        <div id="pool-available-line"><dt>Available pool capacity</dt><dd id="pool-available">179.2 TB</dd></div>
+                        <div id="pool-usable-line"><dt id="pool-usable-label">Usable capacity (with 3 copies)</dt><dd id="pool-usable">59.7 TB</dd></div>
                     </dl>
-                    <p id="pool-formula" class="s2d-formula-line">4 servers x 8 drives x 3.2 TB = 102.4 TB</p>
+                    <p id="pool-formula" class="s2d-formula-line">4 servers x 8 drives x 6.4 TB = 204.8 TB</p>
                     <div class="s2d-volume-count" id="pool-volumes-block">
                         <span id="pool-volumes-label">Volumes to create</span>
-                        <strong id="pool-volumes">4</strong>
+                        <strong id="pool-volumes">9</strong>
                     </div>
+                    <p id="pool-volume-sizing" class="s2d-volume-sizing"><strong id="pool-volume-sizing-label">Thin volume sizing</strong><span id="pool-volume-sizing-value">Grows dynamically, up to 20.8 TB per volume</span></p>
                     <p id="pool-capped-note" class="s2d-result-detail" hidden></p>
                     <div id="pool-cap-note" class="s2d-alert" role="alert" hidden></div>
                     <p id="pool-cap-note-link" class="s2d-result-detail" hidden><a href="https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements#maximum-capacity" target="_blank" rel="noopener noreferrer">Learn about the 4 PB pool limit</a></p>
@@ -205,19 +208,21 @@
             </div>
             <div class="s2d-table-scroll" tabindex="0" aria-label="Reference examples; scroll horizontally if needed">
                 <table>
-                    <thead><tr><th scope="col">Provisioning</th><th scope="col">Extent</th><th scope="col">Machines</th><th scope="col">Copies</th><th scope="col">Space limit</th></tr></thead>
+                    <thead><tr><th scope="col">Provisioning</th><th scope="col">Extent</th><th scope="col">Machines</th><th scope="col">Copies</th><th scope="col">Maximum supported individual volume size</th></tr></thead>
                     <tbody>
                         <tr data-example="thin-1-2"><td>Thin</td><td>1 GiB</td><td>1</td><td>2</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-2-2"><td>Thin</td><td>1 GiB</td><td>2</td><td>2</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="thin-4-3"><td>Thin</td><td>1 GiB</td><td>4</td><td>3</td><td>&lt; 20.8 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="thin-6-3"><td>Thin</td><td>1 GiB</td><td>6</td><td>3</td><td>&lt; 31.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="thin-8-3"><td>Thin</td><td>1 GiB</td><td>8</td><td>3</td><td>&lt; 42.1 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="thin-4-4"><td>Thin</td><td>1 GiB</td><td>4</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
+                        <tr data-example="fixed-2-2"><td>Fixed</td><td>1 GiB</td><td>2</td><td>2</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-4-3"><td>Fixed</td><td>1 GiB</td><td>4</td><td>3</td><td>&lt; 20.8 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-6-3"><td>Fixed</td><td>1 GiB</td><td>6</td><td>3</td><td>&lt; 31.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-8-3"><td>Fixed</td><td>1 GiB</td><td>8</td><td>3</td><td>&lt; 42.1 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-4-4"><td>Fixed</td><td>1 GiB</td><td>4</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-6-4"><td>Fixed</td><td>1 GiB</td><td>6</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-8-4"><td>Fixed</td><td>1 GiB</td><td>8</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
-                        <tr data-example="thin-4-4"><td>Thin</td><td>1 GiB</td><td>4</td><td>4</td><td>&lt; 15.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                         <tr data-example="fixed-16-2"><td>Fixed</td><td>1 GiB</td><td>16</td><td>2</td><td>&lt; 63.5 TB <span class="s2d-selected" hidden>Selected</span></td></tr>
                     </tbody>
                 </table>
