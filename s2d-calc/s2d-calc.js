@@ -303,6 +303,43 @@
         return lines.join('\n');
     }
 
+    const S2D_ONBOARDING_KEY = 'odin_s2d_onboarding_v0_23_01';
+    const S2D_STATE_KEY = 'odin_s2d_calc_state';
+    const S2D_STATE_VERSION = 1;
+    const MAX_SHARED_CONFIG_CHARS = 12000;
+
+    function isValidSharedState(payload) {
+        if (!payload || payload.version !== S2D_STATE_VERSION || !payload.data || typeof payload.data !== 'object') return false;
+        const requiredFields = [
+            'platform', 'nodes', 'copies', 'provisioning', 'thinExtentMiB', 'tiering',
+            'drivesPerNode', 'diskSize', 'customDiskSize', 'cacheDrives', 'cacheDiskSize',
+            'cacheCustomDiskSize', 'capacityDrives', 'capacityDiskSize', 'capacityCustomDiskSize'
+        ];
+        if (!requiredFields.every(field => typeof payload.data[field] === 'string')) return false;
+        if (!['azureLocal', 'windowsServer'].includes(payload.data.platform)) return false;
+        if (!['2', '3', '4'].includes(payload.data.copies)) return false;
+        if (!['thin', 'fixed'].includes(payload.data.provisioning)) return false;
+        if (!['256', '1024'].includes(payload.data.thinExtentMiB)) return false;
+        if (!['single', 'tiered'].includes(payload.data.tiering)) return false;
+        const nodes = Number(payload.data.nodes);
+        return Number.isInteger(nodes) && nodes >= 1 && nodes <= 16;
+    }
+
+    function encodeSharedConfiguration(payload) {
+        if (!isValidSharedState(payload)) throw new TypeError('Invalid S2D Calc share payload.');
+        return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    }
+
+    function decodeSharedConfiguration(configParam) {
+        if (typeof configParam !== 'string' || !configParam || configParam.length > MAX_SHARED_CONFIG_CHARS) return null;
+        try {
+            const payload = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(configParam)))));
+            return isValidSharedState(payload) ? payload : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
     function createCalculationTelemetryGate() {
         let hasTrackedCalculation = false;
         return function(valid) {
@@ -319,12 +356,10 @@
         formatLimit,
         calculatePoolConsumption,
         buildExportReport,
-        createCalculationTelemetryGate
+        createCalculationTelemetryGate,
+        encodeSharedConfiguration,
+        decodeSharedConfiguration
     });
-
-    const S2D_ONBOARDING_KEY = 'odin_s2d_onboarding_v0_23_01';
-    const S2D_STATE_KEY = 'odin_s2d_calc_state';
-    const S2D_STATE_VERSION = 1;
     const s2dOnboardingSteps = [
         {
             icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
@@ -467,6 +502,7 @@
         const poolValidationMessage = document.getElementById('pool-validation-message');
         const exportButton = document.getElementById('export-report');
         const resetButton = document.getElementById('reset-config');
+        const shareButton = document.getElementById('share-url');
         let telemetryTimer = null;
         const claimCalculationTelemetry = createCalculationTelemetryGate();
 
@@ -701,8 +737,8 @@
             try { localStorage.removeItem(S2D_STATE_KEY); } catch (_) { /* localStorage blocked */ }
         }
 
-        function saveState() {
-            const data = {
+        function getStateData() {
+            return {
                 platform: selectedValue('platform'),
                 nodes: nodeNumber.value,
                 copies: selectedValue('copies'),
@@ -719,6 +755,10 @@
                 capacityDiskSize: capacityDiskSize.value,
                 capacityCustomDiskSize: capacityCustomDiskSize.value
             };
+        }
+
+        function saveState() {
+            const data = getStateData();
             try {
                 localStorage.setItem(S2D_STATE_KEY, JSON.stringify({
                     version: S2D_STATE_VERSION,
@@ -747,6 +787,82 @@
             capacityCustomDiskSize.value = data.capacityCustomDiskSize;
             nodeRange.value = nodeNumber.value;
             renderAll();
+        }
+
+        async function shareConfiguration() {
+            const shareName = await globalThis.showTextInputDialog({
+                title: 'Share S2D Calc configuration',
+                message: 'Add an optional name to help recipients identify this configuration. The generated URL will be copied to your clipboard.',
+                confirmLabel: 'Copy share URL',
+                cancelLabel: 'Cancel',
+                input: {
+                    label: 'Configuration name (optional)',
+                    maxLength: 100,
+                    hint: 'The configuration remains in the URL and is not uploaded to a server.'
+                }
+            });
+            if (shareName === null) return;
+
+            const payload = { version: S2D_STATE_VERSION, data: getStateData() };
+            if (shareName.trim()) payload.name = shareName.trim().substring(0, 100);
+            const encoded = encodeSharedConfiguration(payload);
+            const url = `${globalThis.location.origin}${globalThis.location.pathname}?config=${encodeURIComponent(encoded)}`;
+            if (url.length > 8000) {
+                showToast('Configuration is too large to share via URL.', 'error', 6000);
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('Shareable S2D Calc URL copied to clipboard!', 'success');
+            } catch (_) {
+                await globalThis.showCopyDialog({
+                    title: 'Copy share URL',
+                    message: 'Clipboard access was unavailable. Copy the selected URL below.',
+                    label: 'Share URL',
+                    value: url
+                });
+            }
+        }
+
+        function showSharedConfigurationBanner(name) {
+            dismissResumeBanner();
+            const banner = document.createElement('div');
+            banner.id = 's2d-resume-banner';
+            banner.className = 's2d-resume-banner';
+            banner.setAttribute('role', 'status');
+            const copy = document.createElement('div');
+            copy.className = 's2d-resume-copy';
+            const heading = document.createElement('strong');
+            heading.textContent = name ? `Shared S2D Calc loaded: “${name}”` : 'Shared S2D Calc configuration loaded';
+            const detail = document.createElement('span');
+            detail.textContent = 'Review the loaded settings before using or sharing the results.';
+            const actions = document.createElement('div');
+            actions.className = 's2d-resume-actions';
+            const close = document.createElement('button');
+            close.type = 'button';
+            close.className = 's2d-resume-button s2d-resume-secondary';
+            close.textContent = 'OK';
+            close.addEventListener('click', dismissResumeBanner);
+            copy.append(heading, detail);
+            actions.appendChild(close);
+            banner.append(copy, actions);
+            document.body.appendChild(banner);
+        }
+
+        function loadConfigurationFromUrl() {
+            const configParam = new URLSearchParams(globalThis.location.search).get('config');
+            const payload = decodeSharedConfiguration(configParam);
+            if (!payload) return false;
+            try {
+                applySavedState(payload);
+                globalThis.history.replaceState(null, '', globalThis.location.pathname);
+                const name = typeof payload.name === 'string' ? payload.name.trim().substring(0, 100) : '';
+                showSharedConfigurationBanner(name);
+                return true;
+            } catch (error) {
+                console.warn('Failed to load S2D Calc configuration from URL:', error);
+                return false;
+            }
         }
 
         function dismissResumeBanner() {
@@ -812,13 +928,13 @@
             setRadio('provisioning', 'thin');
             setRadio('thinExtentMiB', '1024');
             setRadio('tiering', 'single');
-            drivesPerNode.value = '12';
+            drivesPerNode.value = '8';
             diskSize.value = '3.2';
             customDiskSize.value = '';
             cacheDrives.value = '2';
             cacheDiskSize.value = '3.2';
             cacheCustomDiskSize.value = '';
-            capacityDrives.value = '12';
+            capacityDrives.value = '4';
             capacityDiskSize.value = '6.4';
             capacityCustomDiskSize.value = '';
             clearSavedState();
@@ -941,9 +1057,12 @@
         });
         exportButton.addEventListener('click', downloadReport);
         resetButton.addEventListener('click', resetConfiguration);
+        shareButton.addEventListener('click', shareConfiguration);
         renderAll();
-        const saved = getSavedState();
-        if (saved) showResumeBanner(saved);
+        if (!loadConfigurationFromUrl()) {
+            const saved = getSavedState();
+            if (saved) showResumeBanner(saved);
+        }
     }
 
     let currentTheme = 'dark';

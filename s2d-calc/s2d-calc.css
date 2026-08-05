@@ -698,7 +698,13 @@ select {
 
     .s2d-result {
         justify-content: flex-start;
-        padding-top: 64px;
+    }
+
+    .s2d-result-actions {
+        position: static;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-bottom: 24px;
     }
 
     .s2d-derivation li,

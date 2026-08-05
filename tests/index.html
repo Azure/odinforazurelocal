@@ -332,6 +332,28 @@
             })()
         ]);
 
+        testSuite('S2D share URL configuration', 's2d-calc.js', [
+            (function() {
+                const payload = {
+                    version: 1,
+                    name: 'Lab – West',
+                    data: {
+                        platform: 'azureLocal', nodes: '6', copies: '3', provisioning: 'thin',
+                        thinExtentMiB: '1024', tiering: 'tiered', drivesPerNode: '8', diskSize: '3.2',
+                        customDiskSize: '', cacheDrives: '3', cacheDiskSize: '3.2', cacheCustomDiskSize: '',
+                        capacityDrives: '6', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
+                    }
+                };
+                const decoded = volumeCalculator.decodeSharedConfiguration(volumeCalculator.encodeSharedConfiguration(payload));
+                return assert(decoded && decoded.name === payload.name && decoded.data.capacityDrives === '6',
+                    'named S2D share configuration round trips Unicode and inputs',
+                    'Lab – West / 6', decoded ? `${decoded.name} / ${decoded.data.capacityDrives}` : 'null');
+            })(),
+            assert(volumeCalculator.decodeSharedConfiguration('not-valid-base64') === null,
+                'malformed S2D share configuration is rejected', null,
+                volumeCalculator.decodeSharedConfiguration('not-valid-base64'))
+        ]);
+
         testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [
             assert(typeof globalThis.showS2dOnboarding === 'function',
                 'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding)

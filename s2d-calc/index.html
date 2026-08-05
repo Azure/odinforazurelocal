@@ -102,6 +102,9 @@
                         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
                         Reset
                     </button>
+                    <button type="button" class="s2d-button" id="share-url">
+                        🔗 Share S2D Calc as URL
+                    </button>
                 </div>
                 <p class="s2d-result-label" id="result-heading">Maximum supported volume size</p>
                 <div id="result" class="s2d-result-value">&lt; 20.8 TB</div>
@@ -142,7 +145,7 @@
                     </fieldset>
 
                     <div id="single-controls" class="s2d-fields-grid">
-                        <label class="s2d-field"><span>Drives per machine</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Drives per machine</span><input id="drives-per-node" type="number" min="2" max="24" step="1" value="8" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Disk size</span><select id="disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="custom-disk-size-field" hidden><span>Custom disk size (TB)</span><input id="custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
                     </div>
@@ -151,7 +154,7 @@
                         <label class="s2d-field"><span>Cache drives per machine</span><input id="cache-drives-per-node" type="number" min="2" max="24" step="1" value="2" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Cache disk size</span><select id="cache-disk-size"><option value="3.2" selected>3.2 TB</option><option value="6.4">6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="cache-custom-disk-size-field" hidden><span>Custom cache disk size (TB)</span><input id="cache-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
-                        <label class="s2d-field"><span>Capacity drives per machine</span><input id="capacity-drives-per-node" type="number" min="2" max="24" step="1" value="12" inputmode="numeric"></label>
+                        <label class="s2d-field"><span>Capacity drives per machine</span><input id="capacity-drives-per-node" type="number" min="2" max="24" step="1" value="4" inputmode="numeric"></label>
                         <label class="s2d-field"><span>Capacity disk size</span><select id="capacity-disk-size"><option value="3.2">3.2 TB</option><option value="6.4" selected>6.4 TB</option><option value="12.4">12.4 TB</option><option value="custom">Custom</option></select></label>
                         <label class="s2d-field s2d-field-wide" id="capacity-custom-disk-size-field" hidden><span>Custom capacity disk size (TB)</span><input id="capacity-custom-disk-size" type="number" min="0.1" max="100" step="0.1" inputmode="decimal"></label>
                     </div>
@@ -230,6 +233,7 @@
     <script src="../js/changelog.js"></script>
     <script src="../js/header-branding.js"></script>
     <script src="../js/footer.js"></script>
+    <script src="../js/notifications.js"></script>
     <script src="s2d-calc.js"></script>
 </body>
 </html>
