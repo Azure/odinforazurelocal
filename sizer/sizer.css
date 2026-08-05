@@ -226,6 +226,23 @@ header {
     white-space: nowrap;
 }
 
+@media (max-width: 1050px) {
+    .header-title-wrapper {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .header-logo-wrapper {
+        position: static;
+        order: -1;
+        margin-bottom: 0.25rem;
+    }
+
+    .header-logo-wrapper img {
+        max-height: 96px;
+    }
+}
+
 header h1,
 header .header-title {
     font-size: 2.5rem;

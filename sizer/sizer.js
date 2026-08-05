@@ -8703,7 +8703,7 @@ function buildGroupedWorkloads(rows, storageKey) {
 function azureMigrateMiBToGB(mib) {
     const value = Number(mib);
     if (!Number.isSafeInteger(value) || value <= 0) return 0;
-    return Math.max(1, Math.round(value / 1024));
+    return Math.max(1, Math.ceil(value / 1024));
 }
 
 function azureMigrateBytesToGB(bytes) {

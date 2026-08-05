@@ -11503,6 +11503,8 @@
             var results = [];
             results.push(assert(azureMigrateMiBToGB(8192) === 8,
                 'Allocated memory converts from MiB to GB', 8, azureMigrateMiBToGB(8192)));
+            results.push(assert(azureMigrateMiBToGB(8193) === 9,
+                'Allocated memory conversion rounds up to avoid under-sizing', 9, azureMigrateMiBToGB(8193)));
             results.push(assert(azureMigrateBytesToGB((10 * 1024 * 1024 * 1024) + 1) === 11,
                 'Disk bytes round up to avoid undersizing', 11, azureMigrateBytesToGB((10 * 1024 * 1024 * 1024) + 1)));
 
