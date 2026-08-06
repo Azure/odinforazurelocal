@@ -39,6 +39,8 @@
         maximumDrivesPerNode: 24,
         minimumCustomDiskSizeTB: 0.1,
         maximumCustomDiskSizeTB: 100,
+        azureLocalInfrastructureVolumeGB: 256,
+        azureLocalClusterPerformanceHistoryGB: 20,
         minimumNodes: Object.freeze({
             2: 1,
             3: 3,
@@ -199,6 +201,11 @@
             if (!isDriveCountInRange(normalized.capacityDrivesPerNode)) {
                 errors.push('Capacity drives per machine must be a whole number from 2 through 24.');
             }
+            if (isDriveCountInRange(normalized.cacheDrivesPerNode) &&
+                isDriveCountInRange(normalized.capacityDrivesPerNode) &&
+                normalized.cacheDrivesPerNode > normalized.capacityDrivesPerNode) {
+                errors.push('Cache drives per machine cannot exceed capacity drives per machine.');
+            }
             if (!isDiskSizeInRange(normalized.cacheDiskSizeTB)) {
                 errors.push('Cache disk size must be a number from 0.1 to 100 TB.');
             }
@@ -237,9 +244,14 @@
         const reservationDiskSizeTB = tiering ? normalized.capacityDiskSizeTB : normalized.driveSizeTB;
         const reservedTB = reservedDrives * reservationDiskSizeTB;
         const availableTB = Math.max(rawPoolTB - reservedTB, 0);
-        const usableTB = availableTB / copies;
-        const exactVolumes = availableTB / maxVolumeTB;
-        const requiredVolumes = Math.ceil(exactVolumes - 1e-9);
+        const platform = normalized.platform || CONSTANTS.defaultPlatform;
+        const infrastructureReservedTB = platform === 'azureLocal'
+            ? (CONSTANTS.azureLocalInfrastructureVolumeGB + CONSTANTS.azureLocalClusterPerformanceHistoryGB) / 1000
+            : 0;
+        const usableBeforeInfrastructureTB = availableTB / copies;
+        const usableTB = Math.max(usableBeforeInfrastructureTB - infrastructureReservedTB, 0);
+        const exactVolumes = usableTB / maxVolumeTB;
+        const requiredVolumes = usableTB > 0 ? Math.max(1, Math.floor(exactVolumes + 1e-9)) : 0;
         const volumesNeeded = Math.min(requiredVolumes, CONSTANTS.maxVolumesPerCluster);
         const equalVolumeTB = requiredVolumes > CONSTANTS.maxVolumesPerCluster || volumesNeeded === 0
             ? null
@@ -256,6 +268,9 @@
             reservationDiskSizeTB,
             reservedTB,
             availableTB,
+            platform,
+            infrastructureReservedTB,
+            usableBeforeInfrastructureTB,
             usableTB,
             copies,
             exactVolumes,
@@ -311,6 +326,7 @@
             lines.push(`  ${pool.reservedLabel}: ${pool.reserved}`);
             lines.push(`  Available pool capacity: ${pool.available}`);
             lines.push(`  Usable capacity (${config.copies} copies): ${pool.usable}`);
+            if (pool.infrastructureNote) lines.push(`  ${pool.infrastructureNote}`);
             lines.push(`  Volumes to create:   ${pool.volumes}`);
             lines.push(`  ${pool.volumeSizing}`);
         } else {
@@ -534,6 +550,7 @@
         const poolAvailable = document.getElementById('pool-available');
         const poolUsable = document.getElementById('pool-usable');
         const poolUsableLabel = document.getElementById('pool-usable-label');
+        const poolInfrastructureNote = document.getElementById('pool-infrastructure-note');
         const poolFormula = document.getElementById('pool-formula');
         const poolVolumes = document.getElementById('pool-volumes');
         const poolVolumesBlock = document.getElementById('pool-volumes-block');
@@ -706,6 +723,7 @@
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
+                poolInfrastructureNote.hidden = true;
                 poolVolumesBlock.hidden = true;
                 poolVolumeSizing.hidden = true;
                 showPoolMessage(poolPlaceholder, 'Enter a valid volume configuration to calculate pool consumption.');
@@ -717,6 +735,7 @@
                     servers: volumeCalculation.selectedNodes,
                     maxVolumeTB: volumeCalculation.exactTB,
                     copies: getConfiguration().copies,
+                    platform: getConfiguration().platform,
                     tiering: true,
                     cacheDrivesPerNode: Number(cacheDrives.value),
                     cacheDiskSizeTB: readSize(cacheDiskSize, cacheCustomDiskSize),
@@ -727,6 +746,7 @@
                     servers: volumeCalculation.selectedNodes,
                     maxVolumeTB: volumeCalculation.exactTB,
                     copies: getConfiguration().copies,
+                    platform: getConfiguration().platform,
                     drivesPerNode: Number(drivesPerNode.value),
                     driveSizeTB: readSize(diskSize, customDiskSize)
                 };
@@ -736,6 +756,7 @@
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
+                poolInfrastructureNote.hidden = true;
                 poolVolumesBlock.hidden = true;
                 poolVolumeSizing.hidden = true;
                 showPoolMessage(poolValidationMessage, pool.errors.join(' '));
@@ -746,8 +767,8 @@
             const serverLabel = input.servers === 1 ? '1 server' : `${input.servers} servers`;
             poolCapacity.textContent = capacityLabel;
             poolFormula.textContent = tiering
-                ? `${serverLabel} x ${input.capacityDrivesPerNode} capacity drives x ${input.capacityDiskSizeTB} TB = ${capacityLabel}; cache drives do not add usable capacity`
-                : `${serverLabel} x ${input.drivesPerNode} drives x ${input.driveSizeTB} TB = ${capacityLabel}`;
+                ? `${serverLabel} x ${input.capacityDrivesPerNode} capacity drives (each) x ${input.capacityDiskSizeTB} TB = ${capacityLabel}; cache drives do not add usable capacity`
+                : `${serverLabel} x ${input.drivesPerNode} drives (each) x ${input.driveSizeTB} TB = ${capacityLabel}`;
 
             poolValidationMessage.hidden = true;
             poolPlaceholder.hidden = true;
@@ -755,6 +776,7 @@
                 poolReservedLine.hidden = true;
                 poolAvailableLine.hidden = true;
                 poolUsableLine.hidden = true;
+                poolInfrastructureNote.hidden = true;
                 poolVolumesBlock.hidden = true;
                 poolVolumeSizing.hidden = true;
                 poolCappedNote.hidden = true;
@@ -775,6 +797,7 @@
             poolAvailable.textContent = `${formatLimit(pool.availableTB)} TB`;
             poolUsableLabel.textContent = `Usable capacity (with ${pool.copies} copies)`;
             poolUsable.textContent = `${formatLimit(pool.usableTB)} TB`;
+            poolInfrastructureNote.hidden = pool.infrastructureReservedTB === 0;
             poolVolumes.textContent = pool.cappedAtLimit ? '64 max' : String(pool.volumesNeeded);
             if (!pool.cappedAtLimit && selectedValue('provisioning') === 'fixed') {
                 poolVolumeSizingLabel.textContent = 'Equal volume size';
@@ -1061,6 +1084,7 @@
                     reserved: poolReserved.textContent,
                     available: poolAvailable.textContent,
                     usable: poolUsable.textContent,
+                    infrastructureNote: poolInfrastructureNote.hidden ? '' : poolInfrastructureNote.textContent,
                     volumes: poolVolumes.textContent,
                     volumeSizing: `${poolVolumeSizingLabel.textContent}: ${poolVolumeSizingValue.innerText.replace(/\s+/g, ' ')}`
                 };

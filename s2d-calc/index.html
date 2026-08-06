@@ -170,7 +170,8 @@
                         <div id="pool-available-line"><dt>Available pool capacity</dt><dd id="pool-available">179.2 TB</dd></div>
                         <div id="pool-usable-line"><dt id="pool-usable-label">Usable capacity (with 3 copies)</dt><dd id="pool-usable">59.7 TB</dd></div>
                     </dl>
-                    <p id="pool-formula" class="s2d-formula-line">4 servers x 8 drives x 6.4 TB = 204.8 TB</p>
+                    <p id="pool-infrastructure-note" class="s2d-result-detail" hidden>Azure Local automatically reserves 256 GB for Infrastructure_1 and 20 GB for ClusterPerformanceHistory from usable capacity.</p>
+                    <p id="pool-formula" class="s2d-formula-line">4 servers x 8 drives (each) x 6.4 TB = 204.8 TB</p>
                     <div class="s2d-volume-count" id="pool-volumes-block">
                         <span id="pool-volumes-label">Volumes to create</span>
                         <strong id="pool-volumes">9</strong>
@@ -190,7 +191,7 @@
                 <span class="s2d-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
                 </span>
-                <div><h2 id="derivation-heading">How the result is calculated</h2><p>Follow the record limit through to the usable volume size.</p></div>
+                <div><h2 id="derivation-heading">How the result is calculated</h2><p>Understand how each volume's metadata database size and maximum record-count limit influence its usable capacity, based on the size of each record (extent).</p></div>
             </div>
             <ol class="s2d-derivation">
                 <li><span>01</span><div><h3>Record capacity</h3><p>4 MiB / 64 bytes / 2 = <strong>32,768 records</strong></p></div></li>

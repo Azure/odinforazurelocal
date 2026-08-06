@@ -288,31 +288,42 @@
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 20.8333333333,
-                    copies: 3,
+                    copies: 3, platform: 'azureLocal',
                     drivesPerNode: 12, driveSizeTB: 3.2
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - (140.8 / 3)) < 1e-9 && result.volumesNeeded === 7 && Math.abs(result.equalVolumeTB - ((140.8 / 3) / 7)) < 1e-9,
-                    'single-tier pool reports copy-adjusted usable capacity and capacity-driven volume count',
-                    '153.6 / 12.8 / 46.93 / 7 / 6.70', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.volumesNeeded} / ${result.equalVolumeTB}`);
+                const expectedUsableTB = (140.8 / 3) - 0.276;
+                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - expectedUsableTB) < 1e-9 && result.infrastructureReservedTB === 0.276 && result.volumesNeeded === 2 && Math.abs(result.equalVolumeTB - (expectedUsableTB / 2)) < 1e-9,
+                    'Azure Local deducts platform volumes from usable capacity and floors its usable-based volume count',
+                    '153.6 / 12.8 / 46.66 / 0.276 / 2 / 23.33', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.infrastructureReservedTB} / ${result.volumesNeeded} / ${result.equalVolumeTB}`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
                     servers: 4, maxVolumeTB: 20,
-                    copies: 3,
+                    copies: 3, platform: 'windowsServer',
                     tiering: true, cacheDrivesPerNode: 2, cacheDiskSizeTB: 3.2,
                     capacityDrivesPerNode: 12, capacityDiskSizeTB: 6.4
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.volumesNeeded === 15,
-                    'tiered pool excludes cache from capacity and reserves capacity disks',
-                    '307.2 / 25.6 cache / 6.4 / 15', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.volumesNeeded}`);
+                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.infrastructureReservedTB === 0 && result.volumesNeeded === 4,
+                    'Windows Server tiered pools exclude cache, reserve capacity disks, and use usable capacity for volume count',
+                    '307.2 / 25.6 cache / 6.4 / 0 platform / 4', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.infrastructureReservedTB} platform / ${result.volumesNeeded}`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20,
+                    copies: 3, platform: 'azureLocal',
+                    tiering: true, cacheDrivesPerNode: 5, cacheDiskSizeTB: 3.2,
+                    capacityDrivesPerNode: 4, capacityDiskSizeTB: 6.4
+                });
+                return assert(!result.valid && /cannot exceed capacity drives/.test(result.errors.join(' ')),
+                    'tiered pools reject more cache drives than capacity drives', 'validation error', result.errors.join(' '));
             })(),
             (function() {
                 const twoCopy = volumeCalculator.calculatePoolConsumption({
-                    servers: 4, maxVolumeTB: 20, copies: 2,
+                    servers: 4, maxVolumeTB: 20, copies: 2, platform: 'windowsServer',
                     drivesPerNode: 8, driveSizeTB: 3.2
                 });
                 const fourCopy = volumeCalculator.calculatePoolConsumption({
-                    servers: 4, maxVolumeTB: 20, copies: 4,
+                    servers: 4, maxVolumeTB: 20, copies: 4, platform: 'windowsServer',
                     drivesPerNode: 8, driveSizeTB: 3.2
                 });
                 return assert(twoCopy.valid && fourCopy.valid && Math.abs(twoCopy.usableTB - 44.8) < 1e-9 && Math.abs(fourCopy.usableTB - 22.4) < 1e-9,
@@ -362,11 +373,12 @@
                         state: 'ok', capacity: '204.8 TB', reserved: '25.6 TB',
                         reservedLabel: 'Reserved for rebuild (4 x drives)',
                         available: '179.2 TB', usable: '59.7 TB', volumes: '9',
+                        infrastructureNote: 'Azure Local automatically reserves 256 GB for Infrastructure_1 and 20 GB for ClusterPerformanceHistory from usable capacity.',
                         volumeSizing: 'Equal volume size: 6.6 TB each'
                     }
                 });
-                return assert(report.includes('Equal volume size: 6.6 TB each'),
-                    'S2D export includes provisioning-aware volume sizing', 'equal volume size in report', report);
+                return assert(report.includes('Equal volume size: 6.6 TB each') && report.includes('256 GB for Infrastructure_1'),
+                    'S2D export includes volume sizing and the Azure Local platform reservation', 'volume size and platform reservation in report', report);
             })()
         ]);
 
