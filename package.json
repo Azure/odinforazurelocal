@@ -9,7 +9,7 @@
     "lint:html": "html-validate \"**/*.html\"",
     "test": "node scripts/run-tests.js"
   },
-  "// security-update": "Current floors supersede older versions mentioned below: ip-address >=10.3.1 and postcss >=8.5.25. fast-uri 4.1.2 and brace-expansion 1.1.18/5.0.9 are unavailable from the configured feed, so exact dev-only advisories are temporarily package-scoped in scripts/check-npm-audit.js.",
+  "// security-update": "Current floors supersede older versions mentioned below: ip-address >=10.3.1, fast-uri >=4.1.2, and postcss >=8.5.25. Only brace-expansion 1.1.18/5.0.9 remains unavailable from the configured feed, so its exact dev-only advisories are temporarily package-scoped in scripts/check-npm-audit.js.",
   "devDependencies": {
     "@playwright/test": "^1.62.0",
     "eslint": "^8.57.1",
@@ -22,7 +22,7 @@
   "overrides": {
     "basic-ftp": ">=5.3.1",
     "ip-address": ">=10.3.1",
-    "fast-uri": ">=4.1.1",
+    "fast-uri": ">=4.1.2",
     "brace-expansion@>=1.0.0 <2.0.0": "1.1.16",
     "brace-expansion@>=5.0.0 <6.0.0": "5.0.7",
     "postcss": ">=8.5.25",
