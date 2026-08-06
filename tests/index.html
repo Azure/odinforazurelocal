@@ -292,9 +292,19 @@
                     drivesPerNode: 12, driveSizeTB: 3.2
                 });
                 const expectedUsableTB = (140.8 / 3) - 0.276;
-                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - expectedUsableTB) < 1e-9 && result.infrastructureReservedTB === 0.276 && result.volumesNeeded === 2 && Math.abs(result.equalVolumeTB - (expectedUsableTB / 2)) < 1e-9,
-                    'Azure Local deducts platform volumes from usable capacity and floors its usable-based volume count',
-                    '153.6 / 12.8 / 46.66 / 0.276 / 2 / 23.33', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.infrastructureReservedTB} / ${result.volumesNeeded} / ${result.equalVolumeTB}`);
+                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - expectedUsableTB) < 1e-9 && result.infrastructureReservedTB === 0.276 && result.capacityRequiredVolumes === 3 && result.volumesNeeded === 4 && result.equalVolumeTB <= result.maxVolumeTB,
+                    'Azure Local uses the higher of capacity-required volumes and machine count',
+                    '153.6 / 12.8 / 46.66 / 0.276 / 3 required / 4 created / <= 20.83 each', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.infrastructureReservedTB} / ${result.capacityRequiredVolumes} required / ${result.volumesNeeded} created / ${result.equalVolumeTB} each`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20,
+                    copies: 4, platform: 'windowsServer',
+                    drivesPerNode: 2, driveSizeTB: 3.2
+                });
+                return assert(result.valid && result.capacityRequiredVolumes === 1 && result.volumesNeeded === 4 && result.equalVolumeTB <= result.maxVolumeTB,
+                    'low usable capacity still creates at least one volume per machine',
+                    '1 capacity-required / 4 created / <= 20 TB each', `${result.capacityRequiredVolumes} capacity-required / ${result.volumesNeeded} created / ${result.equalVolumeTB} TB each`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({
@@ -303,9 +313,9 @@
                     tiering: true, cacheDrivesPerNode: 2, cacheDiskSizeTB: 3.2,
                     capacityDrivesPerNode: 12, capacityDiskSizeTB: 6.4
                 });
-                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.infrastructureReservedTB === 0 && result.volumesNeeded === 4,
+                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.infrastructureReservedTB === 0 && result.volumesNeeded === 5,
                     'Windows Server tiered pools exclude cache, reserve capacity disks, and use usable capacity for volume count',
-                    '307.2 / 25.6 cache / 6.4 / 0 platform / 4', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.infrastructureReservedTB} platform / ${result.volumesNeeded}`);
+                    '307.2 / 25.6 cache / 6.4 / 0 platform / 5', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.infrastructureReservedTB} platform / ${result.volumesNeeded}`);
             })(),
             (function() {
                 const result = volumeCalculator.calculatePoolConsumption({

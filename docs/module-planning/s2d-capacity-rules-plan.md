@@ -11,8 +11,9 @@ and tiered layouts allow more cache drives than capacity drives.
 - Deduct 256 GB for `Infrastructure_1` and 20 GB for
   `ClusterPerformanceHistory` from copy-adjusted usable capacity for Azure Local
   only.
-- Derive the displayed volume count from usable capacity and the maximum
-  supported individual volume size, rounding down as requested.
+- Round usable capacity divided by the maximum supported individual volume size
+  up so no volume exceeds that limit, then use the higher of that count or the
+  machine count.
 - Reject tiered layouts where cache drives per machine exceed capacity drives
   per machine.
 - Explain the automatic Azure Local reservation in the result and export.

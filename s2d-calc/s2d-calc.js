@@ -251,7 +251,8 @@
         const usableBeforeInfrastructureTB = availableTB / copies;
         const usableTB = Math.max(usableBeforeInfrastructureTB - infrastructureReservedTB, 0);
         const exactVolumes = usableTB / maxVolumeTB;
-        const requiredVolumes = usableTB > 0 ? Math.max(1, Math.floor(exactVolumes + 1e-9)) : 0;
+        const capacityRequiredVolumes = usableTB > 0 ? Math.ceil(exactVolumes - 1e-9) : 0;
+        const requiredVolumes = usableTB > 0 ? Math.max(capacityRequiredVolumes, servers) : 0;
         const volumesNeeded = Math.min(requiredVolumes, CONSTANTS.maxVolumesPerCluster);
         const equalVolumeTB = requiredVolumes > CONSTANTS.maxVolumesPerCluster || volumesNeeded === 0
             ? null
@@ -274,7 +275,7 @@
             usableTB,
             copies,
             exactVolumes,
-            capacityRequiredVolumes: requiredVolumes,
+            capacityRequiredVolumes,
             volumesNeeded,
             equalVolumeTB,
             cappedAtLimit: requiredVolumes > CONSTANTS.maxVolumesPerCluster,
