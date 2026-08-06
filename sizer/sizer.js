@@ -8802,7 +8802,7 @@ function transformAzureMigratePayload(payload, options) {
                     inputMode: 'per-vm',
                     vcpus: band.vcpus,
                     memory: band.memory,
-                    storage: Math.max(1, Math.round(band.storageTotal / band.count)),
+                    storage: Math.max(1, Math.ceil(band.storageTotal / band.count)),
                     count: band.count
                 };
             });

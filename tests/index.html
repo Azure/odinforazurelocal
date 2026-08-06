@@ -11533,6 +11533,14 @@
             results.push(assert(appBand && appBand.count === 2 && appBand.storage === 150,
                 'Matching machines group with average provisioned storage', '2/150', appBand && (appBand.count + '/' + appBand.storage)));
 
+            var fractionalAverage = azureMigrateFixture();
+            fractionalAverage.AddOrUpdate.Servers = fractionalAverage.AddOrUpdate.Servers.slice(0, 2);
+            fractionalAverage.AddOrUpdate.Servers[1].DiskDetails[0].MaxSizeInBytes = String(101 * 1024 * 1024 * 1024);
+            var conservativeGroup = transformAzureMigratePayload(fractionalAverage, { mode: 'grouped', storageSource: 'provisioned' });
+            results.push(assert(conservativeGroup.workloads[0].storage === 101,
+                'Grouped storage rounds fractional averages up to avoid undersizing', 101,
+                conservativeGroup.workloads[0].storage));
+
             var used = transformAzureMigratePayload(azureMigrateFixture(), { mode: 'per-machine', storageSource: 'used' });
             results.push(assert(used.workloads.length === 3 && used.workloads[0].name === 'synthetic-app-01',
                 'Per-machine mode explicitly retains synthetic machine labels', true,
