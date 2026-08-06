@@ -1,3 +1,8 @@
+---
+name: pptx-export
+description: 'Use when changing, debugging, or validating the Configuration Report PowerPoint export in report/pptx-export.js. Covers browser-side, from-scratch OOXML package generation, report integration, slide content and layout, media, relationships, and PPTX validation.'
+---
+
 # Configuration Report PowerPoint Export
 
 Use this guidance when changing the Configuration Report PowerPoint export in `report/pptx-export.js` or its report-page integration.
