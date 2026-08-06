@@ -187,7 +187,7 @@
           "required": ["type", "modelClass", "replicas", "engine"]
         },
         {
-          "title": "Edge RAG workload",
+          "title": "Agentic Retrieval workload",
           "properties": {
             "type": { "const": "edgerag" },
             "computeMode": { "type": "string", "enum": ["gpu", "cpu"], "description": "'gpu' deploys 4 GPU VMs (forces gpuMode 'dda'); 'cpu' deploys 4 CPU-only VMs." },

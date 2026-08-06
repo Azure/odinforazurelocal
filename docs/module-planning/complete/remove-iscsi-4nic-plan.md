@@ -1,6 +1,6 @@
 # Remove iSCSI SAN (4-NIC) disaggregated storage option
 
-Status: **implemented — awaiting local validation** before commit to `Release`. Targeting release build 2607 / v0.22.70.
+Status: **implemented, validated, and shipped** in release build 2607 / v0.22.70.
 
 ## Current state
 The Disaggregated Designer offers three external-SAN storage types on **DA1**:

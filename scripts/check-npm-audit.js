@@ -2,8 +2,11 @@
 
 const { spawnSync } = require('child_process');
 
-const allowedAdvisories = new Set([
-    'https://github.com/advisories/GHSA-mh99-v99m-4gvg'
+// Temporary dev-only exceptions where the configured npm feed has no patched
+// release. Keep these package-scoped and remove them when fixes are available.
+const allowedAdvisories = new Map([
+    ['https://github.com/advisories/GHSA-mh99-v99m-4gvg', new Set(['brace-expansion'])],
+    ['https://github.com/advisories/GHSA-rgw5-rvv9-x895', new Set(['brace-expansion'])]
 ]);
 const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
 const args = process.platform === 'win32'
@@ -40,7 +43,8 @@ for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities 
             title: finding.title,
             url: finding.url
         };
-        if (allowedAdvisories.has(finding.url)) {
+        const allowedPackages = allowedAdvisories.get(finding.url);
+        if (allowedPackages && allowedPackages.has(packageName)) {
             allowedFindings.push(advisory);
         } else {
             blockingAdvisories.push(advisory);

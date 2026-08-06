@@ -3,3 +3,5 @@
 # Linux CI checkout (LF) and a Windows checkout with core.autocrlf=true (CRLF).
 # Issue #230 — SheetJS integrity pin in scripts/run-tests.js.
 vendor/xlsx-0.20.3.min.js -text
+vendor/jszip-3.10.1.min.js -text
+report/vendor/pptxgen.bundle.js -text

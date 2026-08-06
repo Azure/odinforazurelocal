@@ -226,6 +226,23 @@ header {
     white-space: nowrap;
 }
 
+@media (max-width: 1050px) {
+    .header-title-wrapper {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .header-logo-wrapper {
+        position: static;
+        order: -1;
+        margin-bottom: 0.25rem;
+    }
+
+    .header-logo-wrapper img {
+        max-height: 96px;
+    }
+}
+
 header h1,
 header .header-title {
     font-size: 2.5rem;
@@ -267,15 +284,25 @@ header .header-description {
 }
 
 .stats-container {
-    display: grid;
-    grid-template-columns: repeat(3, max-content);
-    justify-content: center;
-    gap: 8px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 10px 20px;
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.3);
     border-radius: 8px;
     font-size: 13px;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: center;
+    gap: 24px;
+}
+
+.stats-row:last-child {
+    grid-template-columns: repeat(4, max-content);
 }
 
 .stat-item {
@@ -583,6 +610,22 @@ header .header-description {
     margin-bottom: 24px;
 }
 
+.storage-calculator-link {
+    margin: -6px 0 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.storage-calculator-link a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.storage-calculator-link a:hover,
+.storage-calculator-link a:focus {
+    text-decoration: underline;
+}
+
 .section-header-row {
     display: flex;
     justify-content: space-between;
@@ -601,6 +644,38 @@ header .header-description {
 .section-header-row .btn-sm {
     padding: 4px 12px;
     font-size: 12px;
+}
+
+.workload-scenarios-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: flex-start;
+    column-gap: 16px;
+}
+
+.workload-scenarios-heading {
+    min-width: 0;
+}
+
+.workload-scenarios-heading .section-desc {
+    margin-bottom: 0;
+}
+
+.workload-scenarios-header .section-header-actions {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+}
+
+.workload-scenarios-header .btn-sm {
+    justify-content: center;
+    min-height: 30px;
+}
+
+@media (max-width: 600px) {
+    .workload-scenarios-header {
+        grid-template-columns: 1fr;
+        row-gap: 12px;
+    }
 }
 
 .panel-section h2 {
@@ -1913,9 +1988,14 @@ header .header-description {
     }
 
     .stats-container {
+        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 16px;
         padding: 10px 16px;
+    }
+
+    .stats-row {
+        display: contents;
     }
     
     .workload-types {
@@ -2087,6 +2167,20 @@ header .header-description {
     min-height: 44px;
 }
 
+.import-tab-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.import-tab-list .onboarding-btn {
+    min-width: 0;
+    padding: 10px 8px;
+}
+
 .onboarding-btn-primary {
     background: var(--accent-blue);
     border: none;
@@ -2122,6 +2216,9 @@ header .header-description {
     }
     .onboarding-features {
         grid-template-columns: 1fr;
+    }
+    .import-tab-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

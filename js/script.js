@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.22.71';
+const WIZARD_VERSION = globalThis.ODIN_VERSION;
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 const MAX_DESIGNER_IMPORT_FILE_BYTES = 5 * 1024 * 1024;

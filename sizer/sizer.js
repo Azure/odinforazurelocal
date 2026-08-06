@@ -19,6 +19,13 @@ const MAX_CLUSTER_IMPORT_TEXT_CHARS = 500;
 const MAX_CLUSTER_IMPORT_SOCKETS = 8;
 const MAX_CLUSTER_IMPORT_CORES = 384;
 const MAX_CLUSTER_IMPORT_MEMORY_GB = 4096;
+const MAX_AZURE_MIGRATE_ZIP_BYTES = 50 * 1024 * 1024;
+const MAX_AZURE_MIGRATE_ENTRY_BYTES = 25 * 1024 * 1024;
+const MAX_AZURE_MIGRATE_ZIP_ENTRIES = 1000;
+const AZURE_MIGRATE_MACHINE_PATH = 'server/machinestatic.json';
+const MAX_AZURE_MIGRATE_VCPUS = 10000;
+const MAX_AZURE_MIGRATE_MEMORY_GB = 65536;
+const MAX_AZURE_MIGRATE_STORAGE_GB = 640000;
 
 // Initialize and track page view for analytics
 if (typeof initializeAnalytics === 'function') {
@@ -225,7 +232,7 @@ const AKS_GPU_VM_SIZES = {
 // Workload types that run on AKS Arc node pools. These inherit AKS Arc's
 // supported-GPU constraints — they can only attach GPUs that AKS Arc itself
 // supports (i.e. GPUs that appear as keys in AKS_GPU_VM_SIZES). Foundry Local,
-// Edge RAG and Video Indexer all run on AKS Arc clusters; their DDA GPU model
+// Agentic Retrieval and Video Indexer all run on AKS Arc clusters; their DDA GPU model
 // list must therefore match AKS Arc, not the full Azure Local VM GPU list.
 const AKS_HOSTED_WORKLOAD_TYPES = new Set(['aks', 'foundry', 'edgerag', 'videoindexer']);
 
@@ -618,8 +625,8 @@ function getGpuLabel(gpuType) {
 // Build GPU requirement fields HTML for workload modals
 // workloadType: 'vm', 'aks', 'avd', 'foundry', 'edgerag', or 'videoindexer'
 function getGpuRequirementFields(workloadType) {
-    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local, Edge
-    // RAG, and Video Indexer all run on top of AKS Arc, so none of those
+    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local,
+    // Agentic Retrieval, and Video Indexer all run on top of AKS Arc, so none of those
     // four offer GPU-P.
     const supportGpuP = workloadType !== 'aks' && workloadType !== 'foundry' && workloadType !== 'edgerag' && workloadType !== 'videoindexer';
     const gpuPOption = supportGpuP
@@ -629,7 +636,7 @@ function getGpuRequirementFields(workloadType) {
         ? (workloadType === 'foundry'
             ? '<span class="hint">Note: Foundry Local runs on AKS Arc, which does not support GPU-P at this time.</span>'
             : workloadType === 'edgerag'
-                ? '<span class="hint">Note: Edge RAG runs on AKS Arc, which does not support GPU-P at this time.</span>'
+                ? '<span class="hint">Note: Agentic Retrieval runs on AKS Arc, which does not support GPU-P at this time.</span>'
                 : workloadType === 'videoindexer'
                     ? '<span class="hint">Note: Video Indexer runs on AKS Arc, which does not support GPU-P at this time.</span>'
                     : '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>')
@@ -659,7 +666,7 @@ function getGpuRequirementFields(workloadType) {
     } else if (workloadType === 'foundry') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
     } else if (workloadType === 'edgerag') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Edge RAG runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Agentic Retrieval runs on AKS Arc)</a></div>';
     } else if (workloadType === 'videoindexer') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
@@ -677,7 +684,7 @@ function getGpuRequirementFields(workloadType) {
         : workloadType === 'foundry'
             ? 'Number of physical GPUs assigned via DDA to each Foundry Local model replica.'
             : workloadType === 'edgerag'
-                ? `Number of physical GPUs assigned via DDA to each of the ${EDGERAG_WORKER_NODES} Edge RAG worker nodes (typically 1 per worker = ${EDGERAG_WORKER_NODES} total).`
+                ? `Number of physical GPUs assigned via DDA to each of the ${EDGERAG_WORKER_NODES} Agentic Retrieval worker nodes (typically 1 per worker = ${EDGERAG_WORKER_NODES} total).`
                 : workloadType === 'videoindexer'
                     ? 'Number of physical GPUs assigned via DDA to each Video Indexer worker node. Optional — Video Indexer’s default models are CPU-only; add a GPU only if you bring your own GPU-bound model.'
                     : 'Number of physical GPUs assigned via DDA to each VM.';
@@ -774,7 +781,7 @@ function toggleWorkloadGpuFields() {
 
 // Populate DDA GPU model dropdown. Filters by workload type:
 //   - VM / AVD: any GPU with supportsAzureLocalVMs === true.
-//   - Foundry / Edge RAG / Video Indexer: AKS-hosted workloads, so the list
+//   - Foundry / Agentic Retrieval / Video Indexer: AKS-hosted workloads, so the list
 //     is further restricted to GPUs that AKS Arc itself supports (those that
 //     have published AKS GPU VM SKUs in AKS_GPU_VM_SIZES). AKS itself doesn't
 //     use this dropdown — it has the dedicated `wl-gpu-aks-vm-size` selector.
@@ -865,7 +872,7 @@ function workloadTypeDisplayName(t) {
     switch (t) {
         case 'aks': return 'AKS Arc';
         case 'foundry': return 'Foundry Local';
-        case 'edgerag': return 'Edge RAG';
+        case 'edgerag': return 'Agentic Retrieval';
         case 'videoindexer': return 'Video Indexer';
         case 'vm': return 'VM';
         case 'avd': return 'AVD';
@@ -1252,13 +1259,12 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     }
     const maxRawStoragePerNodeGB = maxDiskCount * diskSizeGB;
 
-    // Total raw storage needed = (usable + Infrastructure_1 volume) * resiliency multiplier
-    // Infrastructure_1 volume: 256 GB usable, reserved by Storage Spaces Direct
-    const infraVolumeRawGB = 256 * resiliencyMultiplier;
+    // Platform volumes are usable capacity and therefore consume raw storage based on resiliency.
+    const platformVolumesRawGB = AZURE_LOCAL_PLATFORM_VOLUMES_GB * resiliencyMultiplier;
     // S2D repair reservation: reserve min(nodeCount, 4) capacity disks of raw pool space
     // Use a conservative estimate based on the current disk size for node recommendation
     const s2dRepairRawGB = getS2dRepairReservedGB(1, diskSizeGB); // assume at least 1 node for recommendation
-    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
+    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + platformVolumesRawGB + s2dRepairRawGB;
 
     // Minimum working nodes for each resource dimension
     // Add per-cluster ARB overhead to total demand before dividing by per-node capacity
@@ -1576,7 +1582,7 @@ const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per nod
 const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
 
 // GPU multi-node clusters: minimum cores-per-node for AUTO sizing.
-// Rationale: GPU workloads (Foundry Local model serving, Edge RAG vLLM workers,
+// Rationale: GPU workloads (Foundry Local model serving, Agentic Retrieval workers,
 // AI Video Indexer transcoding/inference) are CPU-heavy on the host side for
 // data preprocessing, scheduling, and feeding the GPU. An 8-core node will
 // bottleneck the GPU. 24 cores/node is a reasonable AUTO floor that still
@@ -1586,6 +1592,9 @@ const GPU_MIN_CORES_PER_NODE = 24;
 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
+const INFRASTRUCTURE_VOLUME_GB = 256;
+const CLUSTER_PERFORMANCE_HISTORY_VOLUME_GB = 20;
+const AZURE_LOCAL_PLATFORM_VOLUMES_GB = INFRASTRUCTURE_VOLUME_GB + CLUSTER_PERFORMANCE_HISTORY_VOLUME_GB;
 
 // ── Physical host (root partition) compute overhead — Issue #232 ──
 // Per-node memory and CPU reserved for the Azure Local management OS / Hyper-V
@@ -2312,9 +2321,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // --- Auto-scale disk count (capacity disks) ---
-    // Infrastructure_1 volume: 256 GB usable, consumes raw storage based on resiliency
-    const infraVolumeUsableGB = 256;
-    const infraVolumeRawGB = infraVolumeUsableGB * resiliencyMultiplier;
+    // Azure Local platform volumes consume raw storage based on resiliency.
+    const platformVolumesRawGB = AZURE_LOCAL_PLATFORM_VOLUMES_GB * resiliencyMultiplier;
 
     // Determine which disk count / size controls to use
     const isTiered = hwConfig.diskConfig && hwConfig.diskConfig.isTiered;
@@ -2325,8 +2333,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // S2D repair reservation: min(nodeCount, 4) capacity disks of raw pool space reserved for repair jobs
     const diskSizeTBForRepair = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
     const s2dRepairRawGB = getS2dRepairReservedGB(nodeCount, diskSizeTBForRepair * 1024);
-    // Total raw storage needed across all nodes = (usable + Infrastructure_1) * resiliency multiplier + S2D repair
-    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
+    // Total raw storage needed across all nodes includes platform volumes and S2D repair capacity.
+    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + platformVolumesRawGB + s2dRepairRawGB;
     // Raw storage each node must provide
     const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
@@ -3248,7 +3256,7 @@ const WORKLOAD_DEFAULTS = {
         engine: 'onnx-genai' // onnx-genai (CPU or GPU) or vllm (GPU only)
     },
     edgerag: {
-        name: 'Edge RAG',
+        name: 'Agentic Retrieval',
         computeMode: 'gpu', // gpu (recommended) or cpu
         corpusGB: 100        // total document corpus size in GB (drives vector DB / embedding storage)
     },
@@ -3376,13 +3384,13 @@ const FOUNDRY_OS_DISK_GB = 200;
 const FOUNDRY_OPERATOR_VCPU = 2;
 const FOUNDRY_OPERATOR_MEM_GB = 4;
 
-// Edge RAG fixed sizing constants. Edge RAG (Azure Arc-enabled Kubernetes
+// Agentic Retrieval fixed sizing constants. Agentic Retrieval (Azure Arc-enabled Kubernetes
 // extension, Preview) runs on a 3-node AKS Arc control plane plus a fixed
 // 4-VM worker node pool. Per Microsoft's published minimum hardware
-// requirements (https://learn.microsoft.com/azure/azure-arc/edge-rag/requirements):
+// requirements (https://learn.microsoft.com/azure/azure-arc/agents-tools-foundry-local/requirements):
 //   GPU mode: 4 GPU-enabled VMs (NC8_A2 or NC8_A16 — 8 vCPU / ~28-32 GB) with 1 GPU each
 //   CPU mode: 4 CPU VMs at minimum 8 vCPU / 32 GB each (D8s_v3)
-// Plus an Edge RAG operator overhead and a vector-database storage allowance
+// Plus an Agentic Retrieval operator overhead and a vector-database storage allowance
 // driven by the user-supplied document corpus size (typical RAG embedding
 // overhead is ~1.5x the source corpus once chunked, embedded and indexed).
 const EDGERAG_CP_NODES = 3;
@@ -3687,6 +3695,8 @@ function enforceAldoMinimums() {
 function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
+    const calculatorLink = document.getElementById('storage-calculator-link');
+    if (calculatorLink) calculatorLink.hidden = clusterType === 'disaggregated';
     if (!storageSelect) return; // Guard for test harness
     if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated') {
         // Rack-aware, single-node, ALDO management, and disaggregated require all-flash (or external SAN)
@@ -3953,7 +3963,7 @@ function showAddWorkloadModal(type) {
             body.innerHTML = getFoundryModalContent();
             break;
         case 'edgerag':
-            title.textContent = 'Add Edge RAG';
+            title.textContent = 'Add Agentic Retrieval';
             body.innerHTML = getEdgeRagModalContent();
             break;
         case 'videoindexer':
@@ -4249,6 +4259,7 @@ function getFoundryModalContent() {
             <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCDA</span><a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/azure-local/ai-workloads-overview" target="_blank" style="color: var(--link-color);">AI workloads on Azure Local (overview)</a></div>
             <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCE2</span><a href="https://aka.ms/build26blog" target="_blank" style="color: var(--link-color);">Build 2026: Foundry Local on Azure Local announcement</a></div>
             <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83E\uDDE0</span><a href="https://aka.ms/FoundryLoca_Techcommunity_Build_blog" target="_blank" style="color: var(--link-color);">Multi-node inference, vLLM &amp; expanded model catalog</a></div>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDE80</span><a href="https://techcommunity.microsoft.com/blog/azurearcblog/your-first-model-deployment-on-foundry-local-on-azure-local-from-catalog-to-infe/4520640" target="_blank" style="color: var(--link-color);">Foundry Local on Azure Local: from model catalog to inferencing in 10 minutes</a></div>
             <div><span style="margin-right: 4px;">\uD83E\uDD16</span><a href="https://aka.ms/AgentsAndToolsBuildBlog2026" target="_blank" style="color: var(--link-color);">Agentic Retrieval, Knowledge &amp; Chat UI in Foundry Local</a></div>
         </div>
         <div class="form-group">
@@ -4380,22 +4391,22 @@ function onFoundryEngineChange() {
     }
 }
 
-// Get Edge RAG modal content
+// Get Agentic Retrieval modal content
 function getEdgeRagModalContent() {
     const defaults = WORKLOAD_DEFAULTS.edgerag;
     return `
         <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
-            <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Edge RAG Preview, enabled by Azure Arc, packages a turnkey Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) on AKS Arc.
+            <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Agentic Retrieval Preview, enabled by Azure Arc, packages a turnkey Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) on AKS Arc.
         </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
             <span style="margin-right: 4px;">\uD83D\uDCD6</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview?context=/azure/azure-sovereign-clouds/context/context" target="_blank" style="color: var(--link-color);">What is Edge RAG?</a>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/overview" target="_blank" style="color: var(--link-color);">Agentic Retrieval and Agents and Tools with Foundry Local overview</a>
             <span style="margin: 0 6px;">|</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements" target="_blank" style="color: var(--link-color);">Edge RAG requirements</a>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/requirements" target="_blank" style="color: var(--link-color);">Requirements for Agentic Retrieval in Foundry Local</a>
         </div>
         <div class="form-group">
             <label>Workload Name</label>
-            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Edge RAG">
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Agentic Retrieval">
         </div>
         <div class="form-group">
             <label>Compute Mode
@@ -4415,7 +4426,7 @@ function getEdgeRagModalContent() {
             <span class="hint">Vector DB storage \u2248 ${EDGERAG_VECTOR_DB_MULTIPLIER} \u00d7 corpus size (chunks + embeddings + index).</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane (${EDGERAG_CP_VCPU_PER_NODE} vCPU / ${EDGERAG_CP_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each), ${EDGERAG_WORKER_NODES} \u00d7 worker VMs at ${EDGERAG_WORKER_VCPU_PER_NODE} vCPU / ${EDGERAG_WORKER_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each, vector DB storage, and ${EDGERAG_OPERATOR_VCPU} vCPU / ${EDGERAG_OPERATOR_MEM_GB} GB Edge RAG operator overhead.
+            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane (${EDGERAG_CP_VCPU_PER_NODE} vCPU / ${EDGERAG_CP_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each), ${EDGERAG_WORKER_NODES} \u00d7 worker VMs at ${EDGERAG_WORKER_VCPU_PER_NODE} vCPU / ${EDGERAG_WORKER_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each, vector DB storage, and ${EDGERAG_OPERATOR_VCPU} vCPU / ${EDGERAG_OPERATOR_MEM_GB} GB Agentic Retrieval operator overhead.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
@@ -4424,7 +4435,7 @@ function getEdgeRagModalContent() {
     `;
 }
 
-// Update Edge RAG compute mode hint and force GPU mode on / off when switched
+// Update Agentic Retrieval compute mode hint and force GPU mode on / off when switched
 function updateEdgeRagComputeMode() {
     const modeEl = document.getElementById('edgerag-compute-mode');
     if (!modeEl) return;
@@ -4732,7 +4743,7 @@ function readWorkloadGpuFields() {
 //     forgot to pick one. Without this guard the worker-node sizing math
 //     downstream would silently use the default vCPU/memory values from the
 //     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
-//   - Foundry Local / Edge RAG / Video Indexer all run on AKS Arc node pools,
+//   - Foundry Local / Agentic Retrieval / Video Indexer all run on AKS Arc node pools,
 //     so when they use `gpuMode === 'dda'` the selected GPU model must be one
 //     that AKS Arc supports (i.e. has at least one entry in AKS_GPU_VM_SIZES).
 //     This catches the case where the GPU dropdown was filtered to zero items
@@ -4755,7 +4766,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                 'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
         };
     }
-    // Foundry / Edge RAG / Video Indexer all run on AKS Arc — their DDA GPU
+    // Foundry / Agentic Retrieval / Video Indexer all run on AKS Arc — their DDA GPU
     // must be one that AKS Arc supports.
     if (workload.type !== 'aks' && isAksHostedWorkloadType(workload.type) &&
         workload.gpuMode === 'dda' && workload.gpuDdaModel) {
@@ -5008,7 +5019,7 @@ function editWorkload(id) {
             onFoundryEngineChange();
             break;
         case 'edgerag':
-            title.textContent = 'Edit Edge RAG';
+            title.textContent = 'Edit Agentic Retrieval';
             body.innerHTML = getEdgeRagModalContent();
             document.getElementById('workload-name').value = w.name;
             document.getElementById('edgerag-compute-mode').value = w.computeMode || 'gpu';
@@ -5206,7 +5217,7 @@ function getWorkloadIcon(type) {
         case 'foundry':
             return '<img src="../images/foundry-icon.png" alt="Foundry Local" width="20" height="20" style="vertical-align: middle;">';
         case 'edgerag':
-            return '<img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="20" height="20" style="vertical-align: middle;">';
+            return '<img src="../images/edge-rag-icon.svg" alt="Agentic Retrieval" width="20" height="20" style="vertical-align: middle;">';
         case 'videoindexer':
             return '<img src="../images/video-indexer-icon.svg" alt="Video Indexer" width="20" height="20" style="vertical-align: middle;">';
         case 'ghel':
@@ -5223,7 +5234,7 @@ function getWorkloadTypeName(type) {
         case 'aks': return 'AKS Arc';
         case 'avd': return 'AVD';
         case 'foundry': return 'Foundry Local';
-        case 'edgerag': return 'Edge RAG';
+        case 'edgerag': return 'Agentic Retrieval';
         case 'videoindexer': return 'AI Video Indexer';
         case 'ghel': return 'GitHub Enterprise Local';
         default: return '';
@@ -5394,7 +5405,7 @@ function calculateWorkloadRequirements(w) {
             break;
         }
         case 'edgerag': {
-            // Edge RAG runs on a 3-node AKS Arc control plane plus a fixed
+            // Agentic Retrieval runs on a 3-node AKS Arc control plane plus a fixed
             // 4-VM worker pool. Per Microsoft's published minimum requirements:
             //   GPU mode: 4 \u00d7 NC8_A2/NC8_A16 (8 vCPU / 32 GB / 1 GPU)
             //   CPU mode: 4 \u00d7 D8s_v3-equivalent (8 vCPU / 32 GB)
@@ -5470,7 +5481,7 @@ function calculateWorkloadRequirements(w) {
                 gpus = ddaCount * (w.replicas || 1);
                 break;
             case 'edgerag':
-                // Edge RAG GPU mode: ddaCount GPUs per worker × 4 worker nodes
+                // Agentic Retrieval GPU mode: ddaCount GPUs per worker × 4 worker nodes
                 // (CPU mode never reaches this branch because gpuMode='none')
                 gpus = ddaCount * EDGERAG_WORKER_NODES;
                 break;
@@ -5699,9 +5710,9 @@ function calculateRequirements(options) {
                     const availVcpus = Math.max(physCores - hostReservedCoresLoop, 0) * effNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
                     const hostOverheadMemoryGBLoop = getHostMemoryReservedGB(hwConfig, clusterType);
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes - ARB_MEMORY_OVERHEAD_GB;
-                    // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
+                    // Subtract Azure Local platform volumes and S2D repair reservation from available storage.
                     const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepairTB / resiliencyMultiplier, 0);
+                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - s2dRepairTB / resiliencyMultiplier, 0);
 
                     const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
@@ -5797,7 +5808,7 @@ function calculateRequirements(options) {
                     const hostOverhead3 = getHostMemoryReservedGB(hwConfig, clusterType);
                     const availMem3 = Math.max(memPerNode3 - hostOverhead3, 0) * effNodes3 - ARB_MEMORY_OVERHEAD_GB;
                     const s2dRepair3TB = getS2dRepairReservedGB(nodeCount, rawGBPerNode3 > 0 ? (rawGBPerNode3 / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                    const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepair3TB / resiliencyMultiplier, 0);
+                    const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - s2dRepair3TB / resiliencyMultiplier, 0);
                     const cpuPct3 = availVcpus3 > 0 ? Math.round((totalVcpus / availVcpus3) * 100) : 0;
                     const memPct3 = availMem3 > 0 ? Math.round((totalMemory / availMem3) * 100) : 0;
                     // Disaggregated uses external SAN — internal storage never drives node count.
@@ -6111,7 +6122,7 @@ function calculateRequirements(options) {
                             const dHostOverhead = getHostMemoryReservedGB(hwConfig, clusterType);
                             const dAvailMem = Math.max(dMemPerNode - dHostOverhead, 0) * dEffNodes - ARB_MEMORY_OVERHEAD_GB;
                             const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                            const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);
+                            const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - dS2dRepairTB / resiliencyMultiplier, 0);
 
                             const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
                             const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
@@ -6202,8 +6213,8 @@ function calculateRequirements(options) {
 
         // Determine if disaggregated for storage display logic
         const isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
-        // SAN overhead: Infrastructure_1 (256 GB) + PerformanceHistory (20 GB), once per instance
-        const sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
+        // SAN overhead: Infrastructure_1 plus Cluster Performance History, once per instance.
+        const sanInfraOverheadForDisplay = AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1000;
         const sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
 
         // Update total requirement cards
@@ -6326,13 +6337,13 @@ function calculateRequirements(options) {
         const totalAvailableVcpus = Math.max(physicalCoresPerNode - hostReservedCores, 0) * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
         const hostOverheadGB = getHostMemoryReservedGB(hwConfig, clusterType); // Azure Local host OS + management overhead per node (S2D-aware + ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
-        // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
-        const infraVolumeUsableTB = 0.25; // 256 GB
+        // Azure Local platform volumes are deducted from usable S2D capacity.
+        const platformVolumesUsableTB = AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024;
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
 
-        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
+        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - platformVolumesUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -7042,11 +7053,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`vCPU calculations use ${vcpuRatio}:1 vCPU to pCPU overcommit ratio`);
         }
 
-        // Infrastructure_1 volume + ARB appliance note
+        // Azure Local platform volumes + ARB appliance note
         if (clusterType === 'disaggregated') {
-            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the PerformanceHistory volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         } else {
-            notes.push('Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Infrastructure overhead: 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total) have been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         }
 
         // S2D Resiliency Repair note (skip for disaggregated — no S2D)
@@ -7658,7 +7669,7 @@ function exportSizerWord() {
             case 'aks':          typeLabel = 'AKS Cluster'; break;
             case 'avd':          typeLabel = 'Azure Virtual Desktop'; break;
             case 'foundry':      typeLabel = 'Foundry Local'; break;
-            case 'edgerag':      typeLabel = 'Edge RAG'; break;
+            case 'edgerag':      typeLabel = 'Agentic Retrieval'; break;
             case 'videoindexer': typeLabel = 'AI Video Indexer'; break;
             case 'ghel':         typeLabel = 'GitHub Enterprise Local'; break;
             default:             typeLabel = w.type || 'Workload'; break;
@@ -8338,7 +8349,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                 } else if (w.type === 'edgerag') {
                     const edgeragReqs = calculateWorkloadRequirements(w);
                     const edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
-                    rows.push(['Workload', 'Edge RAG', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                    rows.push(['Workload', 'Agentic Retrieval', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'videoindexer') {
                     const viReqs = calculateWorkloadRequirements(w);
                     const isMin = w.configuration === 'minimum';
@@ -8686,6 +8697,131 @@ function buildGroupedWorkloads(rows, storageKey) {
     });
 }
 
+// ============================================================================
+// Azure Migrate collector import (issue #274) — pure transform helpers
+// ============================================================================
+
+function azureMigrateMiBToGB(mib) {
+    const value = Number(mib);
+    if (!Number.isSafeInteger(value) || value <= 0) return 0;
+    return Math.max(1, Math.ceil(value / 1024));
+}
+
+function azureMigrateBytesToGB(bytes) {
+    const value = Number(bytes);
+    if (!Number.isSafeInteger(value) || value <= 0) return 0;
+    return Math.max(1, Math.ceil(value / (1024 * 1024 * 1024)));
+}
+
+function azureMigrateDiskBytes(machine, storageSource) {
+    const disks = Array.isArray(machine && machine.DiskDetails) ? machine.DiskDetails : [];
+    return disks.reduce(function(total, disk) {
+        if (!disk || typeof disk !== 'object') return total;
+        const rawValue = storageSource === 'used'
+            ? (disk.UsedSpaceInBytesV2 || disk.UsedSpaceInBytes)
+            : disk.MaxSizeInBytes;
+        const value = Number(rawValue);
+        if (rawValue == null || rawValue === '') return total;
+        if (!Number.isSafeInteger(value) || value < 0 || !Number.isSafeInteger(total + value)) return NaN;
+        return total + value;
+    }, 0);
+}
+
+function emptyAzureMigrateTotals() {
+    return { machineCount: 0, skippedCount: 0, vcpus: 0, memoryGB: 0, storageGB: 0 };
+}
+
+// Converts only configuration capacity from server/machinestatic.json. Grouped
+// mode deliberately never reads machine.Name; per-machine mode is explicit.
+function transformAzureMigratePayload(payload, options) {
+    options = options || {};
+    const mode = options.mode === 'per-machine' ? 'per-machine' : 'grouped';
+    const storageSource = options.storageSource === 'used' ? 'used' : 'provisioned';
+    const warnings = [];
+    const emptyResult = function() {
+        return { workloads: [], totals: emptyAzureMigrateTotals(), warnings: warnings };
+    };
+
+    if (!payload || !payload.AddOrUpdate || !Array.isArray(payload.AddOrUpdate.Servers)) {
+        warnings.push('missing-machines');
+        return emptyResult();
+    }
+    if (payload.AddOrUpdate.Servers.length > MAX_IMPORTED_WORKLOADS) {
+        warnings.push('too-many-machines');
+        return emptyResult();
+    }
+
+    const machines = [];
+    let skippedCount = 0;
+    payload.AddOrUpdate.Servers.forEach(function(machine) {
+        const vcpus = Number(machine && machine.NumberOfProcessorCore);
+        const memoryGB = azureMigrateMiBToGB(machine && machine.AllocatedMemoryInMB);
+        const storageGB = azureMigrateBytesToGB(azureMigrateDiskBytes(machine, storageSource));
+        if (!Number.isInteger(vcpus) || vcpus < 1 || vcpus > MAX_AZURE_MIGRATE_VCPUS
+            || memoryGB < 1 || memoryGB > MAX_AZURE_MIGRATE_MEMORY_GB
+            || storageGB < 1 || storageGB > MAX_AZURE_MIGRATE_STORAGE_GB) {
+            skippedCount += 1;
+            return;
+        }
+        const normalized = { vcpus: vcpus, memory: memoryGB, storage: storageGB };
+        if (mode === 'per-machine') {
+            normalized.name = String(machine.Name == null ? '' : machine.Name).substring(0, MAX_WORKLOAD_NAME_CHARS);
+        }
+        machines.push(normalized);
+    });
+    if (skippedCount > 0) warnings.push('invalid-machines');
+
+    const workloads = mode === 'per-machine'
+        ? machines.map(function(machine) {
+            return {
+                type: 'vm',
+                name: machine.name || 'Imported workload',
+                inputMode: 'per-vm',
+                vcpus: machine.vcpus,
+                memory: machine.memory,
+                storage: machine.storage,
+                count: 1
+            };
+        })
+        : (function() {
+            const bands = {};
+            const order = [];
+            machines.forEach(function(machine) {
+                const key = machine.vcpus + '|' + machine.memory;
+                if (!bands[key]) {
+                    bands[key] = { vcpus: machine.vcpus, memory: machine.memory, count: 0, storageTotal: 0 };
+                    order.push(key);
+                }
+                bands[key].count += 1;
+                bands[key].storageTotal += machine.storage;
+            });
+            return order.map(function(key) {
+                const band = bands[key];
+                return {
+                    type: 'vm',
+                    name: band.vcpus + ' vCPU / ' + band.memory + ' GB \u00d7' + band.count,
+                    inputMode: 'per-vm',
+                    vcpus: band.vcpus,
+                    memory: band.memory,
+                    storage: Math.max(1, Math.ceil(band.storageTotal / band.count)),
+                    count: band.count
+                };
+            });
+        })();
+
+    return {
+        workloads: workloads,
+        totals: {
+            machineCount: machines.length,
+            skippedCount: skippedCount,
+            vcpus: machines.reduce(function(total, machine) { return total + machine.vcpus; }, 0),
+            memoryGB: machines.reduce(function(total, machine) { return total + machine.memory; }, 0),
+            storageGB: machines.reduce(function(total, machine) { return total + machine.storage; }, 0)
+        },
+        warnings: warnings
+    };
+}
+
 // --- Cluster name sanitiser + validator (shared with the ARM field) ---------
 // Windows failover cluster / NetBIOS rules: 1–15 chars, letters/numbers/hyphen,
 // not all-numeric, no leading/trailing hyphen.
@@ -8750,6 +8886,8 @@ function showImportModal(initialTab) {
 function closeImportModal() { // eslint-disable-line no-unused-vars
     const overlay = document.getElementById('import-modal-overlay');
     if (overlay) overlay.style.display = 'none';
+    resetAzureMigrateImport();
+    resetRVToolsImport();
 }
 
 function showHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
@@ -8766,14 +8904,16 @@ function switchImportTab(tab) { // eslint-disable-line no-unused-vars
     const panels = {
         sizer: document.getElementById('import-panel-sizer'),
         cluster: document.getElementById('import-panel-cluster'),
+        'azure-migrate': document.getElementById('import-panel-azure-migrate'),
         rvtools: document.getElementById('import-panel-rvtools')
     };
     const tabs = {
         sizer: document.getElementById('import-tab-sizer'),
         cluster: document.getElementById('import-tab-cluster'),
+        'azure-migrate': document.getElementById('import-tab-azure-migrate'),
         rvtools: document.getElementById('import-tab-rvtools')
     };
-    if (tab !== 'sizer' && tab !== 'cluster' && tab !== 'rvtools') tab = 'sizer';
+    if (tab !== 'sizer' && tab !== 'cluster' && tab !== 'azure-migrate' && tab !== 'rvtools') tab = 'sizer';
     Object.keys(panels).forEach(function(key) {
         if (panels[key]) panels[key].style.display = (key === tab) ? '' : 'none';
         if (tabs[key]) {
@@ -8784,6 +8924,7 @@ function switchImportTab(tab) { // eslint-disable-line no-unused-vars
     // Lazy-load the ~930 KB SheetJS blob only when the RVTools tab is first
     // activated — users of the other two tabs never download it.
     if (tab === 'rvtools') ensureSheetJSLoaded();
+    if (tab === 'azure-migrate') ensureJSZipLoaded();
 }
 
 // Inject the vendored SheetJS <script> at most once per page load. Returns a
@@ -8804,6 +8945,31 @@ function ensureSheetJSLoaded() {
         document.head.appendChild(s);
     });
     return _sheetJSPromise;
+}
+
+let _jsZipPromise = null;
+function ensureJSZipLoaded() {
+    if (typeof window.JSZip !== 'undefined') return Promise.resolve();
+    if (_jsZipPromise) return _jsZipPromise;
+    _jsZipPromise = new Promise(function(resolve, reject) {
+        const script = document.createElement('script');
+        script.src = '../vendor/jszip-3.10.1.min.js';
+        script.async = true;
+        script.onload = function() {
+            if (typeof window.JSZip !== 'undefined') {
+                resolve();
+                return;
+            }
+            _jsZipPromise = null;
+            reject(new Error('The ZIP reader loaded but did not initialize (vendor/jszip-3.10.1.min.js).'));
+        };
+        script.onerror = function() {
+            _jsZipPromise = null;
+            reject(new Error('Failed to load the ZIP reader (vendor/jszip-3.10.1.min.js).'));
+        };
+        document.head.appendChild(script);
+    });
+    return _jsZipPromise;
 }
 
 function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
@@ -9472,6 +9638,240 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
 function closePostImportOverlay() { // eslint-disable-line no-unused-vars
     const overlay = document.getElementById('post-import-overlay');
     if (overlay) overlay.style.display = 'none';
+}
+
+// ============================================================================
+// Azure Migrate collector import — UI handlers (issue #274)
+// ============================================================================
+
+var _azureMigratePayload = null; // eslint-disable-line no-var
+var _azureMigrateImportGeneration = 0; // eslint-disable-line no-var
+
+function triggerAzureMigrateFilePicker() { // eslint-disable-line no-unused-vars
+    const input = document.getElementById('azure-migrate-file');
+    if (input) {
+        input.value = '';
+        input.click();
+    }
+}
+
+function resetAzureMigrateImport() {
+    _azureMigrateImportGeneration += 1;
+    _azureMigratePayload = null;
+    const input = document.getElementById('azure-migrate-file');
+    if (input) input.value = '';
+    const preview = document.getElementById('azure-migrate-preview');
+    if (preview) { preview.innerHTML = ''; preview.style.display = 'none'; }
+    const applyBtn = document.getElementById('azure-migrate-apply-btn');
+    if (applyBtn) applyBtn.style.display = 'none';
+    const status = document.getElementById('azure-migrate-status');
+    if (status) { status.textContent = ''; status.style.display = 'none'; }
+    const error = document.getElementById('azure-migrate-error');
+    if (error) { error.textContent = ''; error.style.display = 'none'; }
+}
+
+function _assertCurrentAzureMigrateImport(generation) {
+    if (generation !== _azureMigrateImportGeneration) {
+        const error = new Error('A newer Azure Migrate import has started.');
+        error.staleAzureMigrateImport = true;
+        throw error;
+    }
+}
+
+function _showAzureMigrateError(message) {
+    const error = document.getElementById('azure-migrate-error');
+    if (error) { error.textContent = message; error.style.display = ''; }
+    const status = document.getElementById('azure-migrate-status');
+    if (status) status.style.display = 'none';
+}
+
+function getAzureMigrateTransformError(result) {
+    if (result.warnings.indexOf('missing-machines') !== -1) {
+        return 'The machine inventory does not contain an AddOrUpdate.Servers collection.';
+    }
+    if (result.warnings.indexOf('too-many-machines') !== -1) {
+        return 'The machine inventory exceeds the maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines.';
+    }
+    if (!result.workloads.length) {
+        return 'No workloads with complete processor, memory, and disk capacity were found.';
+    }
+    return '';
+}
+
+// Inspect the central directory before decompression. This rejects encrypted,
+// duplicate, traversal-like, ZIP64-sized, and oversized target entries.
+function inspectAzureMigrateZip(buffer) {
+    const view = new DataView(buffer);
+    const decoder = new TextDecoder('utf-8');
+    const eocdStart = Math.max(0, view.byteLength - 65557);
+    let eocdOffset = -1;
+    for (let offset = view.byteLength - 22; offset >= eocdStart; offset--) {
+        if (view.getUint32(offset, true) === 0x06054b50) {
+            eocdOffset = offset;
+            break;
+        }
+    }
+    if (eocdOffset < 0) throw new Error('The selected file is not a readable ZIP archive.');
+
+    const entryCount = view.getUint16(eocdOffset + 10, true);
+    const directorySize = view.getUint32(eocdOffset + 12, true);
+    const directoryOffset = view.getUint32(eocdOffset + 16, true);
+    if (entryCount === 0xffff || directorySize === 0xffffffff || directoryOffset === 0xffffffff) {
+        throw new Error('ZIP64 archives are not supported.');
+    }
+    if (entryCount > MAX_AZURE_MIGRATE_ZIP_ENTRIES) throw new Error('The ZIP contains too many entries.');
+    if (directoryOffset + directorySize > eocdOffset) throw new Error('The ZIP central directory is malformed.');
+
+    let cursor = directoryOffset;
+    let targetCount = 0;
+    let targetSize = 0;
+    for (let entryIndex = 0; entryIndex < entryCount; entryIndex++) {
+        if (cursor + 46 > view.byteLength || view.getUint32(cursor, true) !== 0x02014b50) {
+            throw new Error('The ZIP central directory is malformed.');
+        }
+        const flags = view.getUint16(cursor + 8, true);
+        const expandedSize = view.getUint32(cursor + 24, true);
+        const nameLength = view.getUint16(cursor + 28, true);
+        const extraLength = view.getUint16(cursor + 30, true);
+        const commentLength = view.getUint16(cursor + 32, true);
+        const nextEntry = cursor + 46 + nameLength + extraLength + commentLength;
+        if (nextEntry > view.byteLength) throw new Error('The ZIP central directory is malformed.');
+        if ((flags & 1) !== 0) throw new Error('Encrypted ZIP files are not supported.');
+        if (expandedSize === 0xffffffff) throw new Error('ZIP64 entries are not supported.');
+        const path = decoder.decode(new Uint8Array(buffer, cursor + 46, nameLength)).replace(/\\/g, '/');
+        if (path.charAt(0) === '/' || path.split('/').indexOf('..') !== -1) {
+            throw new Error('The ZIP contains an unsafe entry path.');
+        }
+        if (path.toLowerCase() === AZURE_MIGRATE_MACHINE_PATH) {
+            targetCount += 1;
+            targetSize = expandedSize;
+        }
+        cursor = nextEntry;
+    }
+    if (targetCount !== 1) {
+        throw new Error(targetCount === 0
+            ? 'The ZIP does not contain server/machinestatic.json.'
+            : 'The ZIP contains duplicate machine inventory entries.');
+    }
+    if (targetSize > MAX_AZURE_MIGRATE_ENTRY_BYTES) throw new Error('The machine inventory is too large to import.');
+    return { entryCount: entryCount, targetSize: targetSize };
+}
+
+function readAzureMigrateOptions() {
+    const mode = document.querySelector('input[name="azure-migrate-mode"]:checked');
+    const storage = document.querySelector('input[name="azure-migrate-storage"]:checked');
+    return {
+        mode: mode ? mode.value : 'grouped',
+        storageSource: storage ? storage.value : 'provisioned'
+    };
+}
+
+function refreshAzureMigratePreview() { // eslint-disable-line no-unused-vars
+    if (!_azureMigratePayload) return;
+    renderAzureMigratePreview(transformAzureMigratePayload(_azureMigratePayload, readAzureMigrateOptions()), true);
+}
+
+function renderAzureMigratePreview(result, keepOptions) {
+    const preview = document.getElementById('azure-migrate-preview');
+    if (!preview) return;
+    const options = keepOptions ? readAzureMigrateOptions() : { mode: 'grouped', storageSource: 'provisioned' };
+    const totals = result.totals;
+    let html = '<div class="rvtools-totals">Found <strong>' + totals.machineCount + '</strong> discovered workload'
+        + (totals.machineCount !== 1 ? 's' : '') + ' — <strong>' + totals.vcpus + '</strong> vCPU, '
+        + rvtoolsFormatCapacity(totals.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(totals.storageGB) + ' storage.'
+        + '<br>Current options will create <strong>' + result.workloads.length + '</strong> VM workload entr'
+        + (result.workloads.length === 1 ? 'y' : 'ies') + '.';
+    if (totals.skippedCount) {
+        html += '<br><span style="color: var(--warning);">Skipped ' + totals.skippedCount + ' record(s) with incomplete capacity data.</span>';
+    }
+    html += '</div><div class="rvtools-options">'
+        + '<fieldset><legend>Workload entries</legend>'
+        + '<label><input type="radio" name="azure-migrate-mode" value="grouped"' + (options.mode === 'grouped' ? ' checked' : '') + ' onchange="refreshAzureMigratePreview()"> Group matching machines <span style="color: var(--text-secondary);">(default; no source names in workloads)</span></label>'
+        + '<label><input type="radio" name="azure-migrate-mode" value="per-machine"' + (options.mode === 'per-machine' ? ' checked' : '') + ' onchange="refreshAzureMigratePreview()"> One workload per machine <span style="color: var(--text-secondary);">(uses machine names)</span></label>'
+        + '</fieldset><fieldset><legend>Storage figure</legend>'
+        + '<label><input type="radio" name="azure-migrate-storage" value="provisioned"' + (options.storageSource === 'provisioned' ? ' checked' : '') + ' onchange="refreshAzureMigratePreview()"> Provisioned <span style="color: var(--text-secondary);">(default)</span></label>'
+        + '<label><input type="radio" name="azure-migrate-storage" value="used"' + (options.storageSource === 'used' ? ' checked' : '') + ' onchange="refreshAzureMigratePreview()"> Used</label>'
+        + '</fieldset></div>';
+    preview.innerHTML = html;
+    preview.style.display = '';
+    const applyBtn = document.getElementById('azure-migrate-apply-btn');
+    if (applyBtn) applyBtn.style.display = result.workloads.length ? '' : 'none';
+}
+
+function handleAzureMigrateFile(event) { // eslint-disable-line no-unused-vars
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    resetAzureMigrateImport();
+    const importGeneration = _azureMigrateImportGeneration;
+    if (!/\.zip$/i.test(file.name)) {
+        _showAzureMigrateError('Select the original Azure-Migrate-Discovery-*.zip collector export.');
+        return;
+    }
+    if (file.size > MAX_AZURE_MIGRATE_ZIP_BYTES) {
+        _showAzureMigrateError('The selected ZIP is too large. The maximum supported size is 50 MB.');
+        return;
+    }
+    const status = document.getElementById('azure-migrate-status');
+    if (status) { status.textContent = 'Reading collector export…'; status.style.display = ''; }
+    Promise.all([file.arrayBuffer(), ensureJSZipLoaded()]).then(function(values) {
+        _assertCurrentAzureMigrateImport(importGeneration);
+        const buffer = values[0];
+        inspectAzureMigrateZip(buffer);
+        return window.JSZip.loadAsync(buffer, { createFolders: false, checkCRC32: true });
+    }).then(function(zip) {
+        _assertCurrentAzureMigrateImport(importGeneration);
+        const matches = Object.keys(zip.files).filter(function(path) {
+            return path.replace(/\\/g, '/').toLowerCase() === AZURE_MIGRATE_MACHINE_PATH;
+        });
+        if (matches.length !== 1 || zip.files[matches[0]].dir) {
+            throw new Error('The machine inventory entry is missing or invalid.');
+        }
+        return zip.files[matches[0]].async('string');
+    }).then(function(json) {
+        _assertCurrentAzureMigrateImport(importGeneration);
+        if (json.length > MAX_AZURE_MIGRATE_ENTRY_BYTES) throw new Error('The machine inventory is too large to import.');
+        const payload = JSON.parse(json);
+        const result = transformAzureMigratePayload(payload, { mode: 'grouped', storageSource: 'provisioned' });
+        const transformError = getAzureMigrateTransformError(result);
+        if (transformError) throw new Error(transformError);
+        _azureMigratePayload = payload;
+        if (status) status.style.display = 'none';
+        renderAzureMigratePreview(result, false);
+    }).catch(function(error) {
+        if (error.staleAzureMigrateImport) return;
+        console.error('Azure Migrate import failed:', error.message);
+        _azureMigratePayload = null;
+        _showAzureMigrateError(error instanceof SyntaxError
+            ? 'The machine inventory contains malformed JSON.'
+            : error.message || 'Could not read the Azure Migrate collector export.');
+    });
+}
+
+function applyAzureMigrateImport() { // eslint-disable-line no-unused-vars
+    if (!_azureMigratePayload) return;
+    const result = transformAzureMigratePayload(_azureMigratePayload, readAzureMigrateOptions());
+    if (!result.workloads.length) {
+        _showAzureMigrateError('No discovered workloads can be imported with the current options.');
+        return;
+    }
+    if (workloads.length + result.workloads.length > MAX_IMPORTED_WORKLOADS) {
+        _showAzureMigrateError('This import would exceed the maximum of ' + MAX_IMPORTED_WORKLOADS + ' workload entries. Use grouped mode or remove existing workloads.');
+        return;
+    }
+    result.workloads.forEach(function(workload) {
+        workload.id = ++workloadIdCounter;
+        workloads.push(workload);
+    });
+    const growth = document.getElementById('future-growth');
+    if (growth && (growth.value === '0' || growth.value === '')) growth.value = '10';
+    const importedMachines = result.totals.machineCount;
+    const workloadEntries = result.workloads.length;
+    closeImportModal();
+    renderWorkloads();
+    calculateRequirements();
+    if (typeof trackFormCompletion === 'function') trackFormCompletion('sizerCalculation');
+    showToast('Imported ' + importedMachines + ' discovered workload' + (importedMachines !== 1 ? 's' : '')
+        + ' as ' + workloadEntries + ' VM workload' + (workloadEntries !== 1 ? 's' : ''), 'success');
 }
 
 // ============================================================================
@@ -10313,7 +10713,8 @@ function resetScenario() {
         onClusterNameInput();
     }
 
-    // Clear any lingering RVTools import preview/state.
+    // Clear any lingering inventory import preview/state.
+    resetAzureMigrateImport();
     resetRVToolsImport();
 }
 

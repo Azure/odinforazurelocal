@@ -6,6 +6,8 @@ Playwright-based scripted browser demos for generating short walkthrough videos 
 
 - **Playwright** (Apache 2.0, Microsoft) — headed browser automation + native video recording (`.webm`)
 - **`demos/sizer-walkthrough.spec.js`** — scripted end-to-end walkthrough of the Sizer
+- **`demos/odin-full-walkthrough.spec.js`** — full Designer-to-report product walkthrough
+- **`demos/generate-disagg-fc-deck.spec.js`** — generates and checks a disaggregated fully converged PowerPoint deck
 - **`playwright.config.js`** — 1080p viewport, video always on, slowed-down actions for readability
 
 Output videos land in `tools/output/` (git-ignored).
@@ -41,6 +43,18 @@ In a second terminal, run the demo:
 npm run demo:sizer
 ```
 
+For the full product walkthrough, run:
+
+```powershell
+npm run demo:full
+```
+
+To exercise PowerPoint deck generation directly, run:
+
+```powershell
+npx playwright test --config=tools/playwright.config.js demos/generate-disagg-fc-deck.spec.js
+```
+
 The recording is written to `tools/output/<spec-name>/video.webm`.
 
 ## Convert WebM → MP4 for LinkedIn
@@ -52,6 +66,12 @@ npm run demo:convert
 ```
 
 This produces `tools/output/sizer-walkthrough.mp4` (H.264, AAC audio-less, yuv420p — the profile LinkedIn prefers).
+
+To produce the mobile conversion of the full walkthrough, run:
+
+```powershell
+npm run demo:full:mobile
+```
 
 ### LinkedIn video specs (reference)
 - Format: MP4 (H.264 + AAC)

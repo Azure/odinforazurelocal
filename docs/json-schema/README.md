@@ -25,8 +25,8 @@ Stable URLs (suitable for a `$schema` reference):
 
 ```jsonc
 {
-  "version": "0.22.61",            // metadata only — the producing app version; NOT validated
-  "exportedAt": "2026-06-02T10:00:00.000Z",
+  "version": "0.23.01",            // metadata only — the producing app version; NOT validated
+  "exportedAt": "2026-08-05T10:00:00.000Z",
   "state": {
     "scenario": "connected",        // connected | disconnected | rackscale | m365local
     "architecture": "hyperconverged",
@@ -122,7 +122,7 @@ autocomplete:
 ```jsonc
 {
   "$schema": "https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json",
-  "version": "0.22.61",
+  "version": "0.23.01",
   "state": { /* … */ }
 }
 ```

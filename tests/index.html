@@ -111,6 +111,7 @@
     <div id="test-results"></div>
 
     <!-- Modular JavaScript files (load before main script.js) -->
+    <script src="../js/version.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/analytics.js"></script>
@@ -119,11 +120,13 @@
     <script src="../js/validation.js"></script>
     <script src="../js/dns.js"></script>
     <script src="../js/changelog.js"></script>
+    <script src="../js/header-branding.js"></script>
     <script src="../js/disaggregated.js"></script>
     <script src="../js/script.js"></script>
     <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
     <script>window.__SIZER_TEST_MODE__ = true;</script>
     <script src="../sizer/sizer.js"></script>
+    <script src="../s2d-calc/s2d-calc.js"></script>
     <!-- Switch Config modules (load in dependency order) -->
     <script src="../switch-config/models.js"></script>
     <script src="../switch-config/builder.js"></script>
@@ -211,6 +214,267 @@
             document.getElementById('fail-count').textContent = failCount;
             document.getElementById('total-count').textContent = totalCount;
         }
+
+        // ========================================================================
+        // S2D CALC TESTS
+        // ========================================================================
+        sectionHeader('💾 s2d-calc/s2d-calc.js - Volume and Pool Calculations');
+
+        testSuite('S2D maximum volume calculation', 's2d-calc.js', [
+            (function() {
+                const result = volumeCalculator.calculateLimit({
+                    platform: 'azureLocal', nodes: 4, copies: 3,
+                    provisioning: 'thin', thinExtentMiB: 1024
+                });
+                return assert(result.valid && Math.abs(result.exactTB - 20.8333333333) < 0.0001,
+                    '4-node three-copy reference result is 20.83 TB', '20.83 TB', result.exactTB);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculateLimit({
+                    platform: 'azureLocal', nodes: 4, copies: 3,
+                    provisioning: 'thin', thinExtentMiB: 256
+                });
+                return assert(result.valid && Math.abs(result.exactTB - 4.8333333333) < 0.0001,
+                    '256 MiB thin extents reduce the reference result to 4.83 TB', '4.83 TB', result.exactTB);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculateLimit({
+                    platform: 'azureLocal', nodes: 1, copies: 2,
+                    provisioning: 'fixed', thinExtentMiB: 1024
+                });
+                return assert(result.valid && result.effectiveNodes === 2 && result.exactTB === 15.5,
+                    'single-machine two-copy calculation uses two effective machines', '2 machines / 15.5 TB', `${result.effectiveNodes} machines / ${result.exactTB} TB`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculateLimit({
+                    platform: 'azureLocal', nodes: 16, copies: 2,
+                    provisioning: 'fixed', thinExtentMiB: 1024
+                });
+                return assert(result.valid && result.capped && result.exactTB === 63.5,
+                    'volume result applies the 64 TB cap and overhead', '63.5 TB', result.exactTB);
+            })(),
+            (function() {
+                const result = volumeCalculator.validateConfiguration({
+                    platform: 'azureLocal', nodes: 5, copies: 4,
+                    provisioning: 'thin', thinExtentMiB: 1024
+                });
+                return assert(!result.valid && /even machine count/.test(result.errors.join(' ')),
+                    'four-copy Azure Local rejects odd machine counts', 'validation error', result.errors.join(' '));
+            })(),
+            (function() {
+                const result = volumeCalculator.validateConfiguration({
+                    platform: 'azureLocal', nodes: 2, copies: 3,
+                    provisioning: 'thin', thinExtentMiB: 1024
+                });
+                const expected = '3 copies of data require at least 3 machines (increase the machine count).';
+                return assert(!result.valid && result.errors.includes(expected),
+                    'three-copy validation explains how to meet the machine minimum', expected, result.errors.join(' '));
+            })(),
+            (function() {
+                const result = volumeCalculator.validateConfiguration({
+                    platform: 'azureLocal', nodes: 9, copies: 4,
+                    provisioning: 'fixed', thinExtentMiB: 1024
+                });
+                return assert(!result.valid && /at most 8 machines/.test(result.errors.join(' ')),
+                    'four-copy Azure Local enforces its eight-machine maximum', 'validation error', result.errors.join(' '));
+            })(),
+            (function() {
+                return assert(volumeCalculator.formatLimit(20.899) === '20.8',
+                    'display formatting floors rather than rounds limits', '20.8', volumeCalculator.formatLimit(20.899));
+            })(),
+            (function() {
+                const actual = volumeCalculator.formatThinVolumeLimit(20.8333333333);
+                return assert(actual === 'but cannot exceed 20.8 TB each',
+                    'thin provisioning guidance includes the current maximum individual volume size', 'but cannot exceed 20.8 TB each', actual);
+            })()
+        ]);
+
+        testSuite('S2D pool consumption calculation', 's2d-calc.js', [
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20.8333333333,
+                    copies: 3, platform: 'azureLocal',
+                    drivesPerNode: 12, driveSizeTB: 3.2
+                });
+                const expectedUsableTB = (140.8 / 3) - 0.276;
+                return assert(result.valid && Math.abs(result.rawPoolTB - 153.6) < 1e-9 && result.reservedTB === 12.8 && Math.abs(result.usableTB - expectedUsableTB) < 1e-9 && result.infrastructureReservedTB === 0.276 && result.capacityRequiredVolumes === 3 && result.volumesNeeded === 4 && result.equalVolumeTB <= result.maxVolumeTB,
+                    'Azure Local uses the higher of capacity-required volumes and machine count',
+                    '153.6 / 12.8 / 46.66 / 0.276 / 3 required / 4 created / <= 20.83 each', `${result.rawPoolTB} / ${result.reservedTB} / ${result.usableTB} / ${result.infrastructureReservedTB} / ${result.capacityRequiredVolumes} required / ${result.volumesNeeded} created / ${result.equalVolumeTB} each`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20,
+                    copies: 4, platform: 'windowsServer',
+                    drivesPerNode: 2, driveSizeTB: 3.2
+                });
+                return assert(result.valid && result.capacityRequiredVolumes === 1 && result.volumesNeeded === 4 && result.equalVolumeTB <= result.maxVolumeTB,
+                    'low usable capacity still creates at least one volume per machine',
+                    '1 capacity-required / 4 created / <= 20 TB each', `${result.capacityRequiredVolumes} capacity-required / ${result.volumesNeeded} created / ${result.equalVolumeTB} TB each`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20,
+                    copies: 3, platform: 'windowsServer',
+                    tiering: true, cacheDrivesPerNode: 2, cacheDiskSizeTB: 3.2,
+                    capacityDrivesPerNode: 12, capacityDiskSizeTB: 6.4
+                });
+                return assert(result.valid && Math.abs(result.rawPoolTB - 307.2) < 1e-9 && Math.abs(result.cacheTB - 25.6) < 1e-9 && result.reservationDiskSizeTB === 6.4 && result.infrastructureReservedTB === 0 && result.volumesNeeded === 5,
+                    'Windows Server tiered pools exclude cache, reserve capacity disks, and use usable capacity for volume count',
+                    '307.2 / 25.6 cache / 6.4 / 0 platform / 5', `${result.rawPoolTB} / ${result.cacheTB} cache / ${result.reservationDiskSizeTB} / ${result.infrastructureReservedTB} platform / ${result.volumesNeeded}`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20,
+                    copies: 3, platform: 'azureLocal',
+                    tiering: true, cacheDrivesPerNode: 5, cacheDiskSizeTB: 3.2,
+                    capacityDrivesPerNode: 4, capacityDiskSizeTB: 6.4
+                });
+                return assert(!result.valid && /cannot exceed capacity drives/.test(result.errors.join(' ')),
+                    'tiered pools reject more cache drives than capacity drives', 'validation error', result.errors.join(' '));
+            })(),
+            (function() {
+                const twoCopy = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20, copies: 2, platform: 'windowsServer',
+                    drivesPerNode: 8, driveSizeTB: 3.2
+                });
+                const fourCopy = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 20, copies: 4, platform: 'windowsServer',
+                    drivesPerNode: 8, driveSizeTB: 3.2
+                });
+                return assert(twoCopy.valid && fourCopy.valid && Math.abs(twoCopy.usableTB - 44.8) < 1e-9 && Math.abs(fourCopy.usableTB - 22.4) < 1e-9,
+                    'usable capacity applies 50% two-copy and 25% four-copy efficiency',
+                    '44.8 / 22.4', `${twoCopy.usableTB} / ${fourCopy.usableTB}`);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 16, maxVolumeTB: 20,
+                    copies: 3,
+                    drivesPerNode: 24, driveSizeTB: 12.4
+                });
+                return assert(result.valid && result.poolCapped && result.rawPoolTB > 4000,
+                    'pool calculation identifies capacity above 4 PB', 'pool capped', result.poolCapped);
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 10,
+                    copies: 3,
+                    drivesPerNode: 1, driveSizeTB: 3.2
+                });
+                return assert(!result.valid && /2 through 24/.test(result.errors.join(' ')),
+                    'pool calculation rejects unsupported drive counts', 'validation error', result.errors.join(' '));
+            })(),
+            (function() {
+                const result = volumeCalculator.calculatePoolConsumption({
+                    servers: 4, maxVolumeTB: 1,
+                    copies: 3,
+                    drivesPerNode: 24, driveSizeTB: 3.2
+                });
+                return assert(result.valid && result.cappedAtLimit && result.volumesNeeded === 64 && result.equalVolumeTB === null,
+                    'pool volume count stops at the 64-volume cluster limit without an equal-size recommendation', '64 maximum / no size', `${result.volumesNeeded} / ${result.equalVolumeTB}`);
+            })(),
+            (function() {
+                const report = volumeCalculator.buildExportReport({
+                    generatedAt: '2026-08-05 12:00',
+                    config: {
+                        platformLabel: 'Azure Local', nodes: 4, copies: 3,
+                        provisioningLabel: 'Fixed', thinExtentLabel: null,
+                        tiering: false, single: { drives: 8, sizeTB: 6.4 }
+                    },
+                    results: {
+                        valid: true, headline: '< 20.8 TB', summary: '3 copies | Fixed provisioned',
+                        derivation: []
+                    },
+                    pool: {
+                        state: 'ok', capacity: '204.8 TB', reserved: '25.6 TB',
+                        reservedLabel: 'Reserved for rebuild (4 x drives)',
+                        available: '179.2 TB', usable: '59.7 TB', volumes: '9',
+                        infrastructureNote: 'Azure Local automatically reserves 256 GB for Infrastructure_1 and 20 GB for ClusterPerformanceHistory from usable capacity.',
+                        volumeSizing: 'Equal volume size: 6.6 TB each'
+                    }
+                });
+                return assert(report.includes('Equal volume size: 6.6 TB each') && report.includes('256 GB for Infrastructure_1'),
+                    'S2D export includes volume sizing and the Azure Local platform reservation', 'volume size and platform reservation in report', report);
+            })()
+        ]);
+
+        testSuite('S2D calculation telemetry', 's2d-calc.js', [
+            (function() {
+                const claimTelemetry = volumeCalculator.createCalculationTelemetryGate();
+                const invalidClaim = claimTelemetry(false);
+                const firstValidClaim = claimTelemetry(true);
+                const repeatedValidClaim = claimTelemetry(true);
+                return assert(!invalidClaim && firstValidClaim && !repeatedValidClaim,
+                    'tracks only the first valid user calculation per page load',
+                    'false / true / false',
+                    `${invalidClaim} / ${firstValidClaim} / ${repeatedValidClaim}`);
+            })()
+        ]);
+
+        testSuite('S2D share URL configuration', 's2d-calc.js', [
+            (function() {
+                const payload = {
+                    version: 1,
+                    name: 'Lab – West',
+                    data: {
+                        platform: 'azureLocal', nodes: '6', copies: '3', provisioning: 'thin',
+                        thinExtentMiB: '1024', tiering: 'tiered', drivesPerNode: '8', diskSize: '3.2',
+                        customDiskSize: '', cacheDrives: '3', cacheDiskSize: '3.2', cacheCustomDiskSize: '',
+                        capacityDrives: '6', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
+                    }
+                };
+                const decoded = volumeCalculator.decodeSharedConfiguration(volumeCalculator.encodeSharedConfiguration(payload));
+                return assert(decoded && decoded.name === payload.name && decoded.data.capacityDrives === '6',
+                    'named S2D share configuration round trips Unicode and inputs',
+                    'Lab – West / 6', decoded ? `${decoded.name} / ${decoded.data.capacityDrives}` : 'null');
+            })(),
+            assert(volumeCalculator.decodeSharedConfiguration('not-valid-base64') === null,
+                'malformed S2D share configuration is rejected', null,
+                volumeCalculator.decodeSharedConfiguration('not-valid-base64')),
+            (function() {
+                const payload = {
+                    version: 1,
+                    data: {
+                        platform: 'azureLocal', nodes: '4', copies: '3', provisioning: 'thin',
+                        thinExtentMiB: '1024', tiering: 'single', drivesPerNode: '999', diskSize: '6.4',
+                        customDiskSize: '', cacheDrives: '2', cacheDiskSize: '3.2', cacheCustomDiskSize: '',
+                        capacityDrives: '4', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
+                    }
+                };
+                const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+                const decoded = volumeCalculator.decodeSharedConfiguration(encoded);
+                return assert(decoded === null,
+                    'out-of-range S2D share values are rejected before state is applied', null, decoded);
+            })()
+        ]);
+
+        testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [
+            assert(typeof globalThis.showS2dOnboarding === 'function',
+                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding)
+        ]);
+
+        testSuite('Shared release branding', 'header-branding.js', [
+            (function() {
+                const host = document.createElement('div');
+                host.innerHTML = '<div data-odin-branding data-base="../"></div><div data-odin-branding data-base="https://example.com/"></div><div data-odin-branding data-base="//example.com/"></div>';
+                renderOdinBranding(host);
+                const brandings = host.querySelectorAll('[data-odin-branding]');
+                const branding = brandings[0];
+                const logo = branding.querySelector('img');
+                const button = branding.querySelector('button');
+                return assert(
+                    globalThis.ODIN_VERSION === '0.23.01'
+                        && WIZARD_VERSION === globalThis.ODIN_VERSION
+                        && logo.getAttribute('src') === '../images/odin-logo.png'
+                        && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
+                        && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
+                        && host.querySelectorAll('#odin-logo').length === 1
+                        && branding.textContent.includes('Version 0.23.01')
+                        && button.textContent === "What's New",
+                    'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
+                    '0.23.01 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
+            })()
+        ]);
 
         // ========================================================================
         // JS/NOTIFICATIONS.JS TESTS - SHARED INTERACTIONS
@@ -4002,14 +4266,14 @@
             })()
         ]);
 
-        testSuite('calculateWorkloadRequirements() - Edge RAG', 'sizer.js', [
+        testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
             (() => {
                 // GPU mode, 100 GB corpus
                 // CP: 3 × 4 = 12, workers: 4 × 8 = 32, operator: 2 → 46 vCPU
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46, 'Edge RAG GPU 100 GB corpus: 46 vCPUs', 46, r.vcpus);
+                return assert(r.vcpus === 46, 'Agentic Retrieval GPU 100 GB corpus: 46 vCPUs', 46, r.vcpus);
             })(),
             (() => {
                 // GPU mode, 100 GB corpus
@@ -4017,7 +4281,7 @@
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 156, 'Edge RAG GPU 100 GB corpus: 156 GB memory', 156, r.memory);
+                return assert(r.memory === 156, 'Agentic Retrieval GPU 100 GB corpus: 156 GB memory', 156, r.memory);
             })(),
             (() => {
                 // GPU mode, 100 GB corpus
@@ -4025,7 +4289,7 @@
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.storage === 1550, 'Edge RAG GPU 100 GB corpus: 1550 GB storage', 1550, r.storage);
+                return assert(r.storage === 1550, 'Agentic Retrieval GPU 100 GB corpus: 1550 GB storage', 1550, r.storage);
             })(),
             (() => {
                 // CPU mode produces same compute footprint, no GPUs
@@ -4033,14 +4297,14 @@
                 const r = calculateWorkloadRequirements(w);
                 // CP storage 600 + workers OS 800 + vector DB ceil(50*1.5)=75 → 1475 GB
                 return assert(r.storage === 1475 && r.gpus === 0,
-                    'Edge RAG CPU 50 GB corpus: 1475 GB / 0 GPUs', '1475/0', r.storage + '/' + r.gpus);
+                    'Agentic Retrieval CPU 50 GB corpus: 1475 GB / 0 GPUs', '1475/0', r.storage + '/' + r.gpus);
             })(),
             (() => {
                 // GPU count: 1 GPU per worker × 4 workers = 4 GPUs
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.gpus === 4, 'Edge RAG GPU mode: 4 GPUs total (1 per worker × 4)', 4, r.gpus);
+                return assert(r.gpus === 4, 'Agentic Retrieval GPU mode: 4 GPUs total (1 per worker × 4)', 4, r.gpus);
             })(),
             (() => {
                 // Larger corpus scales storage linearly
@@ -4048,7 +4312,7 @@
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
                 // 600 + 800 + ceil(1000*1.5)=1500 → 2900 GB
-                return assert(r.storage === 2900, 'Edge RAG 1000 GB corpus: 2900 GB storage', 2900, r.storage);
+                return assert(r.storage === 2900, 'Agentic Retrieval 1000 GB corpus: 2900 GB storage', 2900, r.storage);
             })()
         ]);
 
@@ -4161,6 +4425,17 @@
                 const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
                 const hasFields = 'recommended' in r && 'computeNodes' in r && 'memoryNodes' in r && 'storageNodes' in r && 'bottleneck' in r;
                 return assert(hasFields, 'Returns recommended, computeNodes, memoryNodes, storageNodes, bottleneck', true, hasFields);
+            })(),
+            (() => {
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 1, sizeGB: 100, type: 'SSD' } }
+                };
+                const result = getRecommendedNodeCount(10, 10, 2110, hw, 3, '3way');
+                return assert(AZURE_LOCAL_PLATFORM_VOLUMES_GB === 276 && result.storageNodes === 4,
+                    'node recommendation includes both Azure Local platform volumes',
+                    '276 GB / 4 storage nodes', `${AZURE_LOCAL_PLATFORM_VOLUMES_GB} GB / ${result.storageNodes} storage nodes`);
             })()
         ]);
 
@@ -4403,6 +4678,40 @@
                 updateStorageForClusterType();
                 const disabled = document.getElementById('storage-config').disabled;
                 return assert(disabled === false, 'Standard cluster: storage dropdown enabled', false, disabled);
+            })(),
+            (() => {
+                const calculatorLink = document.createElement('p');
+                calculatorLink.id = 'storage-calculator-link';
+                document.body.appendChild(calculatorLink);
+
+                const clusterTypeSelect = document.getElementById('cluster-type');
+                ['aldo-mgmt', 'disaggregated'].forEach(type => {
+                    if (!clusterTypeSelect.querySelector(`option[value="${type}"]`)) {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.text = type;
+                        clusterTypeSelect.appendChild(option);
+                    }
+                });
+                const hyperconvergedTypes = ['standard', 'single', 'rack-aware', 'aldo-mgmt'];
+                const shownForHyperconverged = hyperconvergedTypes.every(type => {
+                    clusterTypeSelect.value = type;
+                    updateStorageForClusterType();
+                    return calculatorLink.hidden === false;
+                });
+
+                clusterTypeSelect.value = 'disaggregated';
+                updateStorageForClusterType();
+                const hiddenForDisaggregated = calculatorLink.hidden === true;
+
+                calculatorLink.remove();
+                clusterTypeSelect.value = 'standard';
+                updateStorageForClusterType();
+
+                return assert(shownForHyperconverged && hiddenForDisaggregated,
+                    'S2D Calculator link is shown only for Hyperconverged deployments',
+                    'shown for all Hyperconverged types, hidden for disaggregated',
+                    `hyperconverged=${shownForHyperconverged}, disaggregated=${hiddenForDisaggregated}`);
             })()
         ]);
 
@@ -4819,7 +5128,7 @@
         ]);
 
         // --- AKS-hosted workloads must inherit AKS Arc's supported-GPU list ---
-        // Foundry Local, Edge RAG and Video Indexer all run on AKS Arc node
+        // Foundry Local, Agentic Retrieval and Video Indexer all run on AKS Arc node
         // pools, so when they use DDA the selected GPU model must be one that
         // AKS Arc supports (i.e. in AKS_GPU_VM_SIZES). Without this guard a
         // user could pick A100 / A40 / H100 for a Foundry workload — none of
@@ -4883,7 +5192,7 @@
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1 });
                 return assert(err === null,
-                    'Edge RAG + DDA + L4 → no error', null, err);
+                    'Agentic Retrieval + DDA + L4 → no error', null, err);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'videoindexer', gpuMode: 'dda', gpuDdaModel: 't4', gpuDdaCount: 1 });
@@ -11202,6 +11511,188 @@
         })());
 
         // ========================================================================
+        // Azure Migrate Collector Import (Issue #274)
+        // ========================================================================
+        sectionHeader('Azure Migrate Collector Import (Issue #274)');
+
+        function azureMigrateFixture() {
+            var gib = 1024 * 1024 * 1024;
+            return {
+                AddOrUpdate: {
+                    Servers: [
+                        { Name: 'synthetic-app-01', NumberOfProcessorCore: 4, AllocatedMemoryInMB: 8192,
+                            DiskDetails: [{ MaxSizeInBytes: String(100 * gib), UsedSpaceInBytesV2: String(40 * gib) }] },
+                        { Name: 'synthetic-app-02', NumberOfProcessorCore: 4, AllocatedMemoryInMB: 8192,
+                            DiskDetails: [{ MaxSizeInBytes: String(200 * gib), UsedSpaceInBytes: String(60 * gib) }] },
+                        { Name: 'synthetic-db-01', NumberOfProcessorCore: 8, AllocatedMemoryInMB: 32768,
+                            DiskDetails: [{ MaxSizeInBytes: String(500 * gib), UsedSpaceInBytesV2: String(250 * gib) }] }
+                    ]
+                },
+                Delete: { Servers: [] },
+                UpdateType: 'OnDemand'
+            };
+        }
+
+        function syntheticZipDirectory(entries) {
+            var encoder = new TextEncoder();
+            var encoded = entries.map(function(entry) {
+                return { bytes: encoder.encode(entry.path), flags: entry.flags || 0, size: entry.size || 1 };
+            });
+            var directorySize = encoded.reduce(function(total, entry) { return total + 46 + entry.bytes.length; }, 0);
+            var buffer = new ArrayBuffer(directorySize + 22);
+            var view = new DataView(buffer);
+            var cursor = 0;
+            encoded.forEach(function(entry) {
+                view.setUint32(cursor, 0x02014b50, true);
+                view.setUint16(cursor + 8, entry.flags, true);
+                view.setUint32(cursor + 20, 1, true);
+                view.setUint32(cursor + 24, entry.size, true);
+                view.setUint16(cursor + 28, entry.bytes.length, true);
+                new Uint8Array(buffer, cursor + 46, entry.bytes.length).set(entry.bytes);
+                cursor += 46 + entry.bytes.length;
+            });
+            view.setUint32(cursor, 0x06054b50, true);
+            view.setUint16(cursor + 8, encoded.length, true);
+            view.setUint16(cursor + 10, encoded.length, true);
+            view.setUint32(cursor + 12, directorySize, true);
+            view.setUint32(cursor + 16, 0, true);
+            return buffer;
+        }
+
+        function captureAzureMigrateZipError(entries) {
+            try {
+                inspectAzureMigrateZip(syntheticZipDirectory(entries));
+                return '';
+            } catch (error) {
+                return error.message;
+            }
+        }
+
+        testSuite('Azure Migrate: configuration transform and privacy', 'sizer.js', (() => {
+            var results = [];
+            results.push(assert(azureMigrateMiBToGB(8192) === 8,
+                'Allocated memory converts from MiB to GB', 8, azureMigrateMiBToGB(8192)));
+            results.push(assert(azureMigrateMiBToGB(8193) === 9,
+                'Allocated memory conversion rounds up to avoid under-sizing', 9, azureMigrateMiBToGB(8193)));
+            results.push(assert(azureMigrateBytesToGB((10 * 1024 * 1024 * 1024) + 1) === 11,
+                'Disk bytes round up to avoid undersizing', 11, azureMigrateBytesToGB((10 * 1024 * 1024 * 1024) + 1)));
+
+            var grouped = transformAzureMigratePayload(azureMigrateFixture(), { mode: 'grouped', storageSource: 'provisioned' });
+            results.push(assert(grouped.workloads.length === 2 && grouped.totals.machineCount === 3,
+                'Grouped import creates two size bands from three machines', '2/3', grouped.workloads.length + '/' + grouped.totals.machineCount));
+            var groupedNames = grouped.workloads.map(function(w) { return w.name; }).join('|');
+            results.push(assert(!/synthetic-app|synthetic-db/.test(groupedNames),
+                'Grouped workload names do not retain machine names', false, /synthetic-app|synthetic-db/.test(groupedNames)));
+            var appBand = grouped.workloads.filter(function(w) { return w.vcpus === 4 && w.memory === 8; })[0];
+            results.push(assert(appBand && appBand.count === 2 && appBand.storage === 150,
+                'Matching machines group with average provisioned storage', '2/150', appBand && (appBand.count + '/' + appBand.storage)));
+
+            var fractionalAverage = azureMigrateFixture();
+            fractionalAverage.AddOrUpdate.Servers = fractionalAverage.AddOrUpdate.Servers.slice(0, 2);
+            fractionalAverage.AddOrUpdate.Servers[1].DiskDetails[0].MaxSizeInBytes = String(101 * 1024 * 1024 * 1024);
+            var conservativeGroup = transformAzureMigratePayload(fractionalAverage, { mode: 'grouped', storageSource: 'provisioned' });
+            results.push(assert(conservativeGroup.workloads[0].storage === 101,
+                'Grouped storage rounds fractional averages up to avoid undersizing', 101,
+                conservativeGroup.workloads[0].storage));
+
+            var used = transformAzureMigratePayload(azureMigrateFixture(), { mode: 'per-machine', storageSource: 'used' });
+            results.push(assert(used.workloads.length === 3 && used.workloads[0].name === 'synthetic-app-01',
+                'Per-machine mode explicitly retains synthetic machine labels', true,
+                used.workloads.length === 3 && used.workloads[0].name === 'synthetic-app-01'));
+            results.push(assert(used.totals.storageGB === 350,
+                'Used storage prefers V2 and falls back to UsedSpaceInBytes', 350, used.totals.storageGB));
+
+            var invalidPayload = azureMigrateFixture();
+            invalidPayload.AddOrUpdate.Servers.push({ Name: 'synthetic-invalid', NumberOfProcessorCore: 0,
+                AllocatedMemoryInMB: 0, DiskDetails: [] });
+            var invalid = transformAzureMigratePayload(invalidPayload, { mode: 'grouped' });
+            results.push(assert(invalid.totals.skippedCount === 1 && invalid.warnings.indexOf('invalid-machines') !== -1,
+                'Invalid capacity records are skipped with an explicit warning', true,
+                invalid.totals.skippedCount === 1 && invalid.warnings.indexOf('invalid-machines') !== -1));
+
+            var payloadWithTombstone = azureMigrateFixture();
+            payloadWithTombstone.Delete.Servers.push({ ID: 'synthetic-deleted-id' });
+            var withTombstone = transformAzureMigratePayload(payloadWithTombstone, { mode: 'grouped' });
+            results.push(assert(withTombstone.totals.machineCount === 3 && withTombstone.workloads.length === 2,
+                'Deletion tombstones are ignored rather than treated as workloads', '3/2',
+                withTombstone.totals.machineCount + '/' + withTombstone.workloads.length));
+
+            var missing = transformAzureMigratePayload({}, { mode: 'grouped' });
+            results.push(assert(missing.warnings.indexOf('missing-machines') !== -1,
+                'Missing machine collection returns a clear warning', true,
+                missing.warnings.indexOf('missing-machines') !== -1));
+
+            var tooManyMachines = { AddOrUpdate: { Servers: new Array(MAX_IMPORTED_WORKLOADS + 1) } };
+            var rejectedMachineCount = transformAzureMigratePayload(tooManyMachines, { mode: 'grouped' });
+            var machineCountError = getAzureMigrateTransformError(rejectedMachineCount);
+            results.push(assert(machineCountError.indexOf('maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines') !== -1,
+                'Over-limit machine inventories return the specific machine-count error', true,
+                machineCountError.indexOf('maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines') !== -1));
+
+            var overLimitMemory = azureMigrateFixture();
+            overLimitMemory.AddOrUpdate.Servers = [{ NumberOfProcessorCore: 4,
+                AllocatedMemoryInMB: (MAX_AZURE_MIGRATE_MEMORY_GB + 1) * 1024,
+                DiskDetails: [{ MaxSizeInBytes: String(100 * 1024 * 1024 * 1024) }] }];
+            var rejectedMemory = transformAzureMigratePayload(overLimitMemory, { mode: 'grouped' });
+            results.push(assert(rejectedMemory.workloads.length === 0 && rejectedMemory.totals.skippedCount === 1,
+                'Rejects memory above the VM workload limit', true,
+                rejectedMemory.workloads.length === 0 && rejectedMemory.totals.skippedCount === 1));
+
+            var unsafeStorage = azureMigrateFixture();
+            unsafeStorage.AddOrUpdate.Servers = [{ NumberOfProcessorCore: 4, AllocatedMemoryInMB: 8192,
+                DiskDetails: [{ MaxSizeInBytes: String(Number.MAX_VALUE) }] }];
+            var rejectedStorage = transformAzureMigratePayload(unsafeStorage, { mode: 'grouped' });
+            results.push(assert(rejectedStorage.workloads.length === 0 && rejectedStorage.totals.storageGB === 0,
+                'Rejects non-safe storage values before aggregation', true,
+                rejectedStorage.workloads.length === 0 && rejectedStorage.totals.storageGB === 0));
+
+            var staleGeneration = _azureMigrateImportGeneration;
+            resetAzureMigrateImport();
+            var staleRejected = false;
+            try { _assertCurrentAzureMigrateImport(staleGeneration); } catch (error) { staleRejected = error.staleAzureMigrateImport === true; }
+            results.push(assert(staleRejected,
+                'Reset invalidates an older asynchronous import generation', true, staleRejected));
+            return results;
+        })());
+
+        testSuite('Azure Migrate: ZIP boundary validation', 'sizer.js', (() => {
+            var results = [];
+            var valid = inspectAzureMigrateZip(syntheticZipDirectory([
+                { path: 'server/machinestatic.json', size: 123 },
+                { path: 'metadata.json', size: 10 }
+            ]));
+            results.push(assert(valid.entryCount === 2 && valid.targetSize === 123,
+                'Accepts one exact machine inventory entry', '2/123', valid.entryCount + '/' + valid.targetSize));
+
+            var duplicate = captureAzureMigrateZipError([
+                { path: 'server/machinestatic.json' },
+                { path: 'SERVER/MACHINESTATIC.JSON' }
+            ]);
+            results.push(assert(duplicate.indexOf('duplicate') !== -1,
+                'Rejects duplicate target entries case-insensitively', true, duplicate.indexOf('duplicate') !== -1));
+
+            var encrypted = captureAzureMigrateZipError([
+                { path: 'server/machinestatic.json', flags: 1 }
+            ]);
+            results.push(assert(encrypted.indexOf('Encrypted') !== -1,
+                'Rejects encrypted ZIP entries', true, encrypted.indexOf('Encrypted') !== -1));
+
+            var traversal = captureAzureMigrateZipError([
+                { path: '../server/machinestatic.json' },
+                { path: 'server/machinestatic.json' }
+            ]);
+            results.push(assert(traversal.indexOf('unsafe entry path') !== -1,
+                'Rejects traversal-like ZIP paths', true, traversal.indexOf('unsafe entry path') !== -1));
+
+            var oversized = captureAzureMigrateZipError([
+                { path: 'server/machinestatic.json', size: MAX_AZURE_MIGRATE_ENTRY_BYTES + 1 }
+            ]);
+            results.push(assert(oversized.indexOf('too large') !== -1,
+                'Rejects oversized expanded machine inventory', true, oversized.indexOf('too large') !== -1));
+            return results;
+        })());
+
+        // ========================================================================
         // RVTools Excel Import (Issue #230)
         // ========================================================================
         sectionHeader('RVTools Excel Import (Issue #230)');
@@ -11671,12 +12162,12 @@
             return results;
         })());
 
-        // Group K — resetRVToolsImport clears lingering preview/state
-        testSuite('RVTools: resetRVToolsImport clears preview & state (Group K)', 'sizer.js', (() => {
+        // Group K — closing the import modal clears lingering RVTools preview/state
+        testSuite('RVTools: closeImportModal clears preview & state (Group K)', 'sizer.js', (() => {
             var results = [];
 
             // Stub the import DOM and simulate a held workbook + visible preview.
-            var ids = ['rvtools-preview', 'rvtools-status', 'rvtools-error'];
+            var ids = ['import-modal-overlay', 'rvtools-preview', 'rvtools-status', 'rvtools-error'];
             ids.forEach(function (id) {
                 var el = document.createElement('div');
                 el.id = id;
@@ -11698,24 +12189,24 @@
             window._rvtoolsSheets = { vInfo: [{ VM: 'x' }] };
             window._rvtoolsAutoClusterName = 'Cluster003';
 
-            resetRVToolsImport();
+            closeImportModal();
 
             // 38. preview emptied and hidden
             results.push(assert(preview.innerHTML === '' && preview.style.display === 'none',
-                'resetRVToolsImport → preview cleared and hidden', true,
+                'closeImportModal → RVTools preview cleared and hidden', true,
                 preview.innerHTML === '' && preview.style.display === 'none'));
 
             // 39. apply button hidden
             results.push(assert(applyBtn.style.display === 'none',
-                'resetRVToolsImport → apply button hidden', 'none', applyBtn.style.display));
+                'closeImportModal → RVTools apply button hidden', 'none', applyBtn.style.display));
 
             // 40. held workbook discarded
             results.push(assert(window._rvtoolsSheets === null,
-                'resetRVToolsImport → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
+                'closeImportModal → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
 
             // 41. auto-populated cluster-name tracking cleared
             results.push(assert(window._rvtoolsAutoClusterName === '',
-                'resetRVToolsImport → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
+                'closeImportModal → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
 
             // Clean up stub DOM.
             ids.forEach(function (id) {

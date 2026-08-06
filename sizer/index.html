@@ -33,12 +33,7 @@
         <header>
             <div class="header-title-wrapper">
                 <h1 class="header-title">ODIN Sizer for Azure Local</h1>
-                <div class="header-logo-wrapper">
-                    <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
-                    <div class="header-version">
-                        Version 0.22.71 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
-                    </div>
-                </div>
+                <div class="header-logo-wrapper" data-odin-branding data-base="../"></div>
             </div>
             <p class="header-description">Calculate instance hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
 
@@ -53,16 +48,22 @@
             <div class="config-panel">
                 <!-- Workload Scenario - FIRST -->
                 <div class="panel-section">
-                    <div class="section-header-row">
-                        <h2>
-                            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            </svg>
-                            Workload Scenarios
-                        </h2>
+                    <div class="section-header-row workload-scenarios-header">
+                        <div class="workload-scenarios-heading">
+                            <h2>
+                                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                </svg>
+                                Workload Scenarios
+                            </h2>
+                            <p class="section-desc">Add workloads to calculate your <a href="https://learn.microsoft.com/azure/azure-local/overview" target="_blank" style="color: var(--accent-blue); text-decoration: none;">Azure Local</a> instance requirements.</p>
+                        </div>
                         <div class="section-header-actions">
                             <button class="btn btn-secondary btn-sm" onclick="importSizerJSON()" title="Import configuration from a JSON file">
                                 📂 Import
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openImportModal('azure-migrate')" title="Import discovered workloads from an Azure Migrate collector export">
+                                ☁️ Azure Migrate
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="openImportModal('rvtools')" title="Import your VMware inventory from an RVTools Excel export">
                                 📊 RVTools
@@ -77,7 +78,6 @@
                     </div>
                     <!-- Hidden file input for JSON import -->
                     <input type="file" id="sizer-import-file" accept=".json" style="display: none;" onchange="handleSizerFileImport(event)">
-                    <p class="section-desc">Add workloads to calculate your <a href="https://learn.microsoft.com/azure/azure-local/overview" target="_blank" style="color: var(--accent-blue); text-decoration: none;">Azure Local</a> instance requirements.</p>
                 </div>
 
                 <!-- Workload Type Selector -->
@@ -107,12 +107,12 @@
                         </span>
                         <span>Foundry Local</span>
                     </button>
-                    <button class="workload-type-btn" data-workload-type="edgerag" onclick="showAddWorkloadModal('edgerag')" data-tooltip="Edge RAG (Preview), enabled by Azure Arc — Retrieval Augmented Generation. A turnkey GenAI pipeline that grounds LLM answers in your private document corpus (ingest, embed, vector search, chat). Sized by document corpus size.">
+                    <button class="workload-type-btn" data-workload-type="edgerag" onclick="showAddWorkloadModal('edgerag')" data-tooltip="Agentic Retrieval (Preview), enabled by Azure Arc — Retrieval Augmented Generation. A turnkey GenAI pipeline that grounds LLM answers in your private document corpus (ingest, embed, vector search, chat). Sized by document corpus size.">
                         <span class="workload-preview-badge">Preview</span>
                         <span class="workload-icon edgerag">
-                            <img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="28" height="28">
+                            <img src="../images/edge-rag-icon.svg" alt="Agentic Retrieval" width="28" height="28">
                         </span>
-                        <span>Edge RAG</span>
+                        <span>Agentic Retrieval</span>
                     </button>
                     <button class="workload-type-btn" data-workload-type="videoindexer" onclick="showAddWorkloadModal('videoindexer')" data-tooltip="Azure AI Video Indexer enabled by Arc (Preview) — extracts insights from video and audio (transcripts, OCR, faces, objects, topics, sentiment) using AI models running on AKS Arc. Sized by Microsoft's published Minimum / Recommended cluster-wide tiers. Gated subscription registration required.">
                         <span class="workload-preview-badge">Preview</span>
@@ -143,7 +143,7 @@
                                 <span>&#9096; AKS Arc</span>
                                 <span>&#128421; AVD</span>
                                 <span>&#129504; Foundry Local</span>
-                                <span>&#128270; Edge RAG</span>
+                                <span>&#128270; Agentic Retrieval</span>
                                 <span>&#127916; AI Video Indexer</span>
                                 <span>&#128187; GitHub Enterprise Local</span>
                             </div>
@@ -384,6 +384,9 @@
 
                     <!-- Storage Configuration -->
                     <h3 class="hw-subsection-title">Storage Configuration</h3>
+                    <p class="storage-calculator-link" id="storage-calculator-link">
+                        Tip: Unsure? Use the <a href="../s2d-calc/">S2D Calculator tool</a>.
+                    </p>
                     <div class="config-row">
                         <label for="storage-config">Storage Configuration</label>
                         <select id="storage-config" onchange="onStorageConfigChange()">
@@ -910,6 +913,9 @@
                     <button class="btn btn-secondary" onclick="importSizerJSON()" title="Import configuration from a JSON file">
                         📂 Import JSON
                     </button>
+                    <button class="btn btn-secondary" onclick="openImportModal('azure-migrate')" title="Import discovered workloads from an Azure Migrate collector export">
+                        ☁️ Azure Migrate
+                    </button>
                     <button class="btn btn-secondary" onclick="openImportModal('rvtools')" title="Import your VMware inventory from an RVTools Excel export">
                         📊 RVTools
                     </button>
@@ -998,11 +1004,7 @@
             </div>
         </section>
 
-        <footer class="sizer-footer" style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
-            🔒 Privacy: Your inputs, configurations and template data stay in your browser &mdash; nothing you type or import is transmitted externally.<br>
-            Anonymous usage counters (page views and feature use, integer-only, no IP or identifier) are incremented to display the aggregate stats in the header.<br>
-        You can opt out via the toggle in the navigation bar (or by enabling browser Do Not Track / Global Privacy Control). <a href="https://github.com/Azure/odinforazurelocal/blob/main/js/analytics.js" target="_blank" rel="noopener noreferrer" style="color:#88c0ff;">See analytics source</a>.
-        </footer>
+        <footer class="sizer-footer" data-odin-footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;"></footer>
     </main>
 
     <!-- Add Workload Modal -->
@@ -1089,10 +1091,11 @@
             </div>
 
             <!-- Tab Buttons -->
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
-                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 0 0 auto;">📤 Sizer Configuration</button>
-                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 0 0 auto;">☁️ Azure Local Instance</button>
-                <button id="import-tab-rvtools" onclick="switchImportTab('rvtools')" class="onboarding-btn onboarding-btn-secondary" style="flex: 0 0 auto;">📊 RVTools</button>
+            <div class="import-tab-list">
+                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary">📤 Sizer Configuration</button>
+                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary">☁️ Azure Local Instance</button>
+                <button id="import-tab-azure-migrate" onclick="switchImportTab('azure-migrate')" class="onboarding-btn onboarding-btn-secondary">☁️ Azure Migrate</button>
+                <button id="import-tab-rvtools" onclick="switchImportTab('rvtools')" class="onboarding-btn onboarding-btn-secondary">📊 RVTools</button>
             </div>
 
             <!-- Tab 1: Sizer Config Import -->
@@ -1135,7 +1138,34 @@
                 </div>
             </div>
 
-            <!-- Tab 3: RVTools Excel Import (issue #230) -->
+            <!-- Tab 3: Azure Migrate Collector Import (issue #274) -->
+            <div id="import-panel-azure-migrate" style="display: none;">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">☁️</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import discovered workloads from Azure Migrate</strong>
+                            Select the original <code>Azure-Migrate-Discovery-*.zip</code> file produced by the collector. Use the collector's default <strong>full collection</strong> option; standalone incremental exports do not contain the complete estate. ODIN reads machine processor, allocated memory, and disk capacity to create Sizer VM workloads. Performance-based sizing data is not used.
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px; margin-bottom: 12px;">
+                    <span>🔒</span>
+                    <span><strong>Privacy:</strong> Processing is performed entirely in your browser. ODIN reads only <code>server/machinestatic.json</code> from the ZIP and ignores logs, credentials, network addresses, operating-system details, application inventory, and identifiers. Machine names are used only if you choose <em>one workload per machine</em>. No data is transmitted to any external service.</span>
+                </div>
+                <div style="text-align: center;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="triggerAzureMigrateFilePicker()">Select Azure Migrate ZIP</button>
+                    <input type="file" id="azure-migrate-file" accept=".zip,application/zip" style="display: none;" onchange="handleAzureMigrateFile(event)" aria-label="Azure Migrate collector ZIP file">
+                </div>
+                <div id="azure-migrate-status" style="display: none; margin-top: 12px; text-align: center; font-size: 12px; color: var(--text-secondary);"></div>
+                <div id="azure-migrate-error" style="display: none; margin-top: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
+                <div id="azure-migrate-preview" style="display: none; margin-top: 12px;"></div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <button id="azure-migrate-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyAzureMigrateImport()" style="display: none;">Add VM Workloads</button>
+                </div>
+            </div>
+
+            <!-- Tab 4: RVTools Excel Import (issue #230) -->
             <div id="import-panel-rvtools" style="display: none;">
                 <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
                     <div class="onboarding-feature">
@@ -1289,11 +1319,14 @@
         </div>
     </div>
 
+    <script src="../js/version.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/stats-bar.js"></script>
     <script src="../js/changelog.js"></script>
+    <script src="../js/header-branding.js"></script>
+    <script src="../js/footer.js"></script>
     <!-- Three.js (MIT) for 3D Rack Visualization -->
     <script src="../vendor/three-0.128.0.min.js"></script>
     <script src="../vendor/three-OrbitControls-0.128.0.js"></script>

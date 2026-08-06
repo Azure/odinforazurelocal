@@ -5,8 +5,8 @@
  *   <div id="page-statistics" data-stats-bar></div>
  *   <script src="js/stats-bar.js"></script>
  *
- * Renders a six-tile counter strip (Visitors / Sizes Calculated / Designs Generated /
- * ARM Deployments / ToR Switch Configs / ToR Switch QoS Audits). The counters are
+ * Renders a seven-tile counter strip (Visitors / Sizes Calculated / Designs Generated /
+ * ARM Deployments / ToR Switch Configs / ToR Switch QoS Audits / S2D Calcs). The counters are
  * populated by analytics.js -> fetchAndDisplayStats() reading from Firebase Realtime
  * Database. Layout / responsive behaviour comes from .stats-container in css/style.css
  * (and the duplicate copy in sizer/sizer.css for the Sizer page).
@@ -55,17 +55,24 @@
             id: 'stat-qos-audits',
             label: 'ToR Switch QoS Audits:',
             svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>'
+        },
+        {
+            id: 'stat-s2d-calcs',
+            label: 'S2D Calcs:',
+            svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>'
         }
     ];
 
     let html = '<div class="stats-container">';
     for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
+        if (i === 0 || i === 3) html += '<div class="stats-row">';
         html += '<div class="stat-item">'
             + t.svg
             + '<span class="stat-label">' + t.label + '</span>'
             + '<span id="' + t.id + '" class="stat-value">' + STAT_PLACEHOLDER + '</span>'
             + '</div>';
+        if (i === 2 || i === tiles.length - 1) html += '</div>';
     }
     html += '</div>';
 
