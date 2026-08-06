@@ -14,6 +14,7 @@
         const hosts = scope.querySelectorAll('[data-odin-branding]');
         hosts.forEach(host => {
             let base = (host.getAttribute('data-base') || '').replace(/[^a-zA-Z0-9\-._~/:]/g, '');
+            if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(base) || base.startsWith('//')) base = '';
             if (base && base.charAt(base.length - 1) !== '/') base += '/';
 
             const logo = document.createElement('img');

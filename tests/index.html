@@ -455,20 +455,23 @@
         testSuite('Shared release branding', 'header-branding.js', [
             (function() {
                 const host = document.createElement('div');
-                host.innerHTML = '<div data-odin-branding data-base="../"></div>';
+                host.innerHTML = '<div data-odin-branding data-base="../"></div><div data-odin-branding data-base="https://example.com/"></div><div data-odin-branding data-base="//example.com/"></div>';
                 renderOdinBranding(host);
-                const branding = host.querySelector('[data-odin-branding]');
+                const brandings = host.querySelectorAll('[data-odin-branding]');
+                const branding = brandings[0];
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
                     globalThis.ODIN_VERSION === '0.23.01'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
+                        && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
+                        && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && branding.textContent.includes('Version 0.23.01')
                         && button.textContent === "What's New",
-                    'shared branding renders the release, nested logo path, and changelog control',
-                    '0.23.01 / ../images/odin-logo.png / What\'s New',
-                    `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${button.textContent}`);
+                    'shared branding renders relative assets and rejects external base URLs',
+                    '0.23.01 / ../images/odin-logo.png / two local fallbacks / What\'s New',
+                    `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${button.textContent}`);
             })()
         ]);
 

@@ -7057,7 +7057,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (clusterType === 'disaggregated') {
             notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         } else {
-            notes.push('Infrastructure overhead: 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Infrastructure overhead: 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total) have been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         }
 
         // S2D Resiliency Repair note (skip for disaggregated — no S2D)
