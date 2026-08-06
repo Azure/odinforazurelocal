@@ -10,6 +10,50 @@
 
     const STORAGE_KEY = 'odinDesignerToSwitchConfig';
     let designerState = null;
+    let currentTheme = 'dark';
+
+    try {
+        currentTheme = localStorage.getItem('odin-theme') || 'dark';
+    } catch (_) {
+        currentTheme = 'dark';
+    }
+
+    function applyPageTheme() {
+        const root = document.documentElement;
+        const themeButton = document.getElementById('theme-toggle');
+        const logo = document.getElementById('odin-logo') || document.querySelector('.odin-tab-logo img');
+        const light = currentTheme === 'light';
+        root.style.setProperty('--bg-dark', light ? '#f5f5f5' : '#000000');
+        root.style.setProperty('--card-bg', light ? '#ffffff' : '#111111');
+        root.style.setProperty('--card-bg-transparent', light ? 'rgba(255, 255, 255, 0.95)' : 'rgba(17, 17, 17, 0.95)');
+        root.style.setProperty('--text-primary', light ? '#000000' : '#ffffff');
+        root.style.setProperty('--text-secondary', light ? '#6b7280' : '#a1a1aa');
+        root.style.setProperty('--glass-border', light ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)');
+        root.style.setProperty('--subtle-bg', light ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', light ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)');
+        root.style.setProperty('--nav-bg', light
+            ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)'
+            : 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', light ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)');
+        root.style.setProperty('--nav-active-bg', light ? 'rgba(0, 120, 212, 0.12)' : 'rgba(0, 120, 212, 0.15)');
+        root.style.setProperty('--disclaimer-bg', light ? 'rgba(255, 193, 7, 0.25)' : 'rgba(255, 193, 7, 0.15)');
+        root.style.setProperty('--disclaimer-border', light ? 'rgba(255, 193, 7, 0.5)' : 'rgba(255, 193, 7, 0.4)');
+        document.body.style.background = light ? '#f5f5f5' : '#000000';
+        if (themeButton) themeButton.textContent = light ? '☀️' : '🌙';
+        if (logo) logo.src = light ? '../images/odin-logo-white-background.png' : '../images/odin-logo.png';
+    }
+
+    globalThis.toggleTheme = function() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyPageTheme();
+        try {
+            localStorage.setItem('odin-theme', currentTheme);
+        } catch (_) {
+            // Theme still applies for this page when browser storage is unavailable.
+        }
+    };
+
+    applyPageTheme();
 
     // Initialize analytics + record page view (mirrors index.html / sizer.js bootstrap).
     if (typeof initializeAnalytics === 'function') {

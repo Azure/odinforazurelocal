@@ -4642,22 +4642,34 @@
                 calculatorLink.id = 'storage-calculator-link';
                 document.body.appendChild(calculatorLink);
 
-                document.getElementById('cluster-type').value = 'standard';
-                updateStorageForClusterType();
-                const shownForHyperconverged = calculatorLink.hidden === false;
+                const clusterTypeSelect = document.getElementById('cluster-type');
+                ['aldo-mgmt', 'disaggregated'].forEach(type => {
+                    if (!clusterTypeSelect.querySelector(`option[value="${type}"]`)) {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.text = type;
+                        clusterTypeSelect.appendChild(option);
+                    }
+                });
+                const hyperconvergedTypes = ['standard', 'single', 'rack-aware', 'aldo-mgmt'];
+                const shownForHyperconverged = hyperconvergedTypes.every(type => {
+                    clusterTypeSelect.value = type;
+                    updateStorageForClusterType();
+                    return calculatorLink.hidden === false;
+                });
 
-                document.getElementById('cluster-type').value = 'disaggregated';
+                clusterTypeSelect.value = 'disaggregated';
                 updateStorageForClusterType();
                 const hiddenForDisaggregated = calculatorLink.hidden === true;
 
                 calculatorLink.remove();
-                document.getElementById('cluster-type').value = 'standard';
+                clusterTypeSelect.value = 'standard';
                 updateStorageForClusterType();
 
                 return assert(shownForHyperconverged && hiddenForDisaggregated,
                     'S2D Calculator link is shown only for Hyperconverged deployments',
-                    'shown for standard, hidden for disaggregated',
-                    `standard=${shownForHyperconverged}, disaggregated=${hiddenForDisaggregated}`);
+                    'shown for all Hyperconverged types, hidden for disaggregated',
+                    `hyperconverged=${shownForHyperconverged}, disaggregated=${hiddenForDisaggregated}`);
             })()
         ]);
 

@@ -3695,7 +3695,7 @@ function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     const calculatorLink = document.getElementById('storage-calculator-link');
-    if (calculatorLink) calculatorLink.hidden = clusterType !== 'standard';
+    if (calculatorLink) calculatorLink.hidden = clusterType === 'disaggregated';
     if (!storageSelect) return; // Guard for test harness
     if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated') {
         // Rack-aware, single-node, ALDO management, and disaggregated require all-flash (or external SAN)
