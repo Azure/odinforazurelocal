@@ -4416,6 +4416,17 @@
                 const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
                 const hasFields = 'recommended' in r && 'computeNodes' in r && 'memoryNodes' in r && 'storageNodes' in r && 'bottleneck' in r;
                 return assert(hasFields, 'Returns recommended, computeNodes, memoryNodes, storageNodes, bottleneck', true, hasFields);
+            })(),
+            (() => {
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 1, sizeGB: 100, type: 'SSD' } }
+                };
+                const result = getRecommendedNodeCount(10, 10, 2110, hw, 3, '3way');
+                return assert(AZURE_LOCAL_PLATFORM_VOLUMES_GB === 276 && result.storageNodes === 4,
+                    'node recommendation includes both Azure Local platform volumes',
+                    '276 GB / 4 storage nodes', `${AZURE_LOCAL_PLATFORM_VOLUMES_GB} GB / ${result.storageNodes} storage nodes`);
             })()
         ]);
 

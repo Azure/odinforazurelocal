@@ -11,6 +11,8 @@ and tiered layouts allow more cache drives than capacity drives.
 - Deduct 256 GB for `Infrastructure_1` and 20 GB for
   `ClusterPerformanceHistory` from copy-adjusted usable capacity for Azure Local
   only.
+- Apply the same 276 GB platform-volume requirement throughout Sizer: deduct it
+  from hyperconverged S2D usable capacity and add it to disaggregated SAN demand.
 - Round usable capacity divided by the maximum supported individual volume size
   up so no volume exceeds that limit, then use the higher of that count or the
   machine count.
@@ -22,6 +24,7 @@ and tiered layouts allow more cache drives than capacity drives.
 
 - `s2d-calc/s2d-calc.js`
 - `s2d-calc/index.html`
+- `sizer/sizer.js`
 - `tests/index.html`
 - `CHANGELOG.md`
 

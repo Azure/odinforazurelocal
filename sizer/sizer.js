@@ -1259,13 +1259,12 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     }
     const maxRawStoragePerNodeGB = maxDiskCount * diskSizeGB;
 
-    // Total raw storage needed = (usable + Infrastructure_1 volume) * resiliency multiplier
-    // Infrastructure_1 volume: 256 GB usable, reserved by Storage Spaces Direct
-    const infraVolumeRawGB = 256 * resiliencyMultiplier;
+    // Platform volumes are usable capacity and therefore consume raw storage based on resiliency.
+    const platformVolumesRawGB = AZURE_LOCAL_PLATFORM_VOLUMES_GB * resiliencyMultiplier;
     // S2D repair reservation: reserve min(nodeCount, 4) capacity disks of raw pool space
     // Use a conservative estimate based on the current disk size for node recommendation
     const s2dRepairRawGB = getS2dRepairReservedGB(1, diskSizeGB); // assume at least 1 node for recommendation
-    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
+    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + platformVolumesRawGB + s2dRepairRawGB;
 
     // Minimum working nodes for each resource dimension
     // Add per-cluster ARB overhead to total demand before dividing by per-node capacity
@@ -1593,6 +1592,9 @@ const GPU_MIN_CORES_PER_NODE = 24;
 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
+const INFRASTRUCTURE_VOLUME_GB = 256;
+const CLUSTER_PERFORMANCE_HISTORY_VOLUME_GB = 20;
+const AZURE_LOCAL_PLATFORM_VOLUMES_GB = INFRASTRUCTURE_VOLUME_GB + CLUSTER_PERFORMANCE_HISTORY_VOLUME_GB;
 
 // ── Physical host (root partition) compute overhead — Issue #232 ──
 // Per-node memory and CPU reserved for the Azure Local management OS / Hyper-V
@@ -2319,9 +2321,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // --- Auto-scale disk count (capacity disks) ---
-    // Infrastructure_1 volume: 256 GB usable, consumes raw storage based on resiliency
-    const infraVolumeUsableGB = 256;
-    const infraVolumeRawGB = infraVolumeUsableGB * resiliencyMultiplier;
+    // Azure Local platform volumes consume raw storage based on resiliency.
+    const platformVolumesRawGB = AZURE_LOCAL_PLATFORM_VOLUMES_GB * resiliencyMultiplier;
 
     // Determine which disk count / size controls to use
     const isTiered = hwConfig.diskConfig && hwConfig.diskConfig.isTiered;
@@ -2332,8 +2333,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // S2D repair reservation: min(nodeCount, 4) capacity disks of raw pool space reserved for repair jobs
     const diskSizeTBForRepair = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
     const s2dRepairRawGB = getS2dRepairReservedGB(nodeCount, diskSizeTBForRepair * 1024);
-    // Total raw storage needed across all nodes = (usable + Infrastructure_1) * resiliency multiplier + S2D repair
-    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
+    // Total raw storage needed across all nodes includes platform volumes and S2D repair capacity.
+    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + platformVolumesRawGB + s2dRepairRawGB;
     // Raw storage each node must provide
     const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
@@ -5709,9 +5710,9 @@ function calculateRequirements(options) {
                     const availVcpus = Math.max(physCores - hostReservedCoresLoop, 0) * effNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
                     const hostOverheadMemoryGBLoop = getHostMemoryReservedGB(hwConfig, clusterType);
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes - ARB_MEMORY_OVERHEAD_GB;
-                    // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
+                    // Subtract Azure Local platform volumes and S2D repair reservation from available storage.
                     const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepairTB / resiliencyMultiplier, 0);
+                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - s2dRepairTB / resiliencyMultiplier, 0);
 
                     const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
@@ -5807,7 +5808,7 @@ function calculateRequirements(options) {
                     const hostOverhead3 = getHostMemoryReservedGB(hwConfig, clusterType);
                     const availMem3 = Math.max(memPerNode3 - hostOverhead3, 0) * effNodes3 - ARB_MEMORY_OVERHEAD_GB;
                     const s2dRepair3TB = getS2dRepairReservedGB(nodeCount, rawGBPerNode3 > 0 ? (rawGBPerNode3 / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                    const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepair3TB / resiliencyMultiplier, 0);
+                    const availStorage3 = Math.max((rawTBPerNode3 * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - s2dRepair3TB / resiliencyMultiplier, 0);
                     const cpuPct3 = availVcpus3 > 0 ? Math.round((totalVcpus / availVcpus3) * 100) : 0;
                     const memPct3 = availMem3 > 0 ? Math.round((totalMemory / availMem3) * 100) : 0;
                     // Disaggregated uses external SAN — internal storage never drives node count.
@@ -6121,7 +6122,7 @@ function calculateRequirements(options) {
                             const dHostOverhead = getHostMemoryReservedGB(hwConfig, clusterType);
                             const dAvailMem = Math.max(dMemPerNode - dHostOverhead, 0) * dEffNodes - ARB_MEMORY_OVERHEAD_GB;
                             const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
-                            const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);
+                            const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024 - dS2dRepairTB / resiliencyMultiplier, 0);
 
                             const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
                             const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
@@ -6212,8 +6213,8 @@ function calculateRequirements(options) {
 
         // Determine if disaggregated for storage display logic
         const isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
-        // SAN overhead: Infrastructure_1 (256 GB) + PerformanceHistory (20 GB), once per instance
-        const sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
+        // SAN overhead: Infrastructure_1 plus Cluster Performance History, once per instance.
+        const sanInfraOverheadForDisplay = AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1000;
         const sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
 
         // Update total requirement cards
@@ -6336,13 +6337,13 @@ function calculateRequirements(options) {
         const totalAvailableVcpus = Math.max(physicalCoresPerNode - hostReservedCores, 0) * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
         const hostOverheadGB = getHostMemoryReservedGB(hwConfig, clusterType); // Azure Local host OS + management overhead per node (S2D-aware + ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
-        // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
-        const infraVolumeUsableTB = 0.25; // 256 GB
+        // Azure Local platform volumes are deducted from usable S2D capacity.
+        const platformVolumesUsableTB = AZURE_LOCAL_PLATFORM_VOLUMES_GB / 1024;
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
 
-        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
+        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - platformVolumesUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -7052,11 +7053,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`vCPU calculations use ${vcpuRatio}:1 vCPU to pCPU overcommit ratio`);
         }
 
-        // Infrastructure_1 volume + ARB appliance note
+        // Azure Local platform volumes + ARB appliance note
         if (clusterType === 'disaggregated') {
-            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the PerformanceHistory volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         } else {
-            notes.push('Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Infrastructure overhead: 256 GB for the Infrastructure_1 volume and 20 GB for the Cluster Performance History volume (276 GB total) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         }
 
         // S2D Resiliency Repair note (skip for disaggregated — no S2D)
