@@ -11560,6 +11560,13 @@
                 'Missing machine collection returns a clear warning', true,
                 missing.warnings.indexOf('missing-machines') !== -1));
 
+            var tooManyMachines = { AddOrUpdate: { Servers: new Array(MAX_IMPORTED_WORKLOADS + 1) } };
+            var rejectedMachineCount = transformAzureMigratePayload(tooManyMachines, { mode: 'grouped' });
+            var machineCountError = getAzureMigrateTransformError(rejectedMachineCount);
+            results.push(assert(machineCountError.indexOf('maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines') !== -1,
+                'Over-limit machine inventories return the specific machine-count error', true,
+                machineCountError.indexOf('maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines') !== -1));
+
             var overLimitMemory = azureMigrateFixture();
             overLimitMemory.AddOrUpdate.Servers = [{ NumberOfProcessorCore: 4,
                 AllocatedMemoryInMB: (MAX_AZURE_MIGRATE_MEMORY_GB + 1) * 1024,
@@ -12093,12 +12100,12 @@
             return results;
         })());
 
-        // Group K — resetRVToolsImport clears lingering preview/state
-        testSuite('RVTools: resetRVToolsImport clears preview & state (Group K)', 'sizer.js', (() => {
+        // Group K — closing the import modal clears lingering RVTools preview/state
+        testSuite('RVTools: closeImportModal clears preview & state (Group K)', 'sizer.js', (() => {
             var results = [];
 
             // Stub the import DOM and simulate a held workbook + visible preview.
-            var ids = ['rvtools-preview', 'rvtools-status', 'rvtools-error'];
+            var ids = ['import-modal-overlay', 'rvtools-preview', 'rvtools-status', 'rvtools-error'];
             ids.forEach(function (id) {
                 var el = document.createElement('div');
                 el.id = id;
@@ -12120,24 +12127,24 @@
             window._rvtoolsSheets = { vInfo: [{ VM: 'x' }] };
             window._rvtoolsAutoClusterName = 'Cluster003';
 
-            resetRVToolsImport();
+            closeImportModal();
 
             // 38. preview emptied and hidden
             results.push(assert(preview.innerHTML === '' && preview.style.display === 'none',
-                'resetRVToolsImport → preview cleared and hidden', true,
+                'closeImportModal → RVTools preview cleared and hidden', true,
                 preview.innerHTML === '' && preview.style.display === 'none'));
 
             // 39. apply button hidden
             results.push(assert(applyBtn.style.display === 'none',
-                'resetRVToolsImport → apply button hidden', 'none', applyBtn.style.display));
+                'closeImportModal → RVTools apply button hidden', 'none', applyBtn.style.display));
 
             // 40. held workbook discarded
             results.push(assert(window._rvtoolsSheets === null,
-                'resetRVToolsImport → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
+                'closeImportModal → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
 
             // 41. auto-populated cluster-name tracking cleared
             results.push(assert(window._rvtoolsAutoClusterName === '',
-                'resetRVToolsImport → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
+                'closeImportModal → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
 
             // Clean up stub DOM.
             ids.forEach(function (id) {

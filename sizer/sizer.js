@@ -8886,6 +8886,7 @@ function closeImportModal() { // eslint-disable-line no-unused-vars
     const overlay = document.getElementById('import-modal-overlay');
     if (overlay) overlay.style.display = 'none';
     resetAzureMigrateImport();
+    resetRVToolsImport();
 }
 
 function showHardwareWeightingInfo() { // eslint-disable-line no-unused-vars
@@ -9676,6 +9677,19 @@ function _showAzureMigrateError(message) {
     if (status) status.style.display = 'none';
 }
 
+function getAzureMigrateTransformError(result) {
+    if (result.warnings.indexOf('missing-machines') !== -1) {
+        return 'The machine inventory does not contain an AddOrUpdate.Servers collection.';
+    }
+    if (result.warnings.indexOf('too-many-machines') !== -1) {
+        return 'The machine inventory exceeds the maximum of ' + MAX_IMPORTED_WORKLOADS + ' machines.';
+    }
+    if (!result.workloads.length) {
+        return 'No workloads with complete processor, memory, and disk capacity were found.';
+    }
+    return '';
+}
+
 // Inspect the central directory before decompression. This rejects encrypted,
 // duplicate, traversal-like, ZIP64-sized, and oversized target entries.
 function inspectAzureMigrateZip(buffer) {
@@ -9810,12 +9824,8 @@ function handleAzureMigrateFile(event) { // eslint-disable-line no-unused-vars
         if (json.length > MAX_AZURE_MIGRATE_ENTRY_BYTES) throw new Error('The machine inventory is too large to import.');
         const payload = JSON.parse(json);
         const result = transformAzureMigratePayload(payload, { mode: 'grouped', storageSource: 'provisioned' });
-        if (result.warnings.indexOf('missing-machines') !== -1) {
-            throw new Error('The machine inventory does not contain an AddOrUpdate.Servers collection.');
-        }
-        if (!result.workloads.length) {
-            throw new Error('No workloads with complete processor, memory, and disk capacity were found.');
-        }
+        const transformError = getAzureMigrateTransformError(result);
+        if (transformError) throw new Error(transformError);
         _azureMigratePayload = payload;
         if (status) status.style.display = 'none';
         renderAzureMigratePreview(result, false);
