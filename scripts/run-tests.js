@@ -9,10 +9,140 @@ const crypto = require('crypto');
 
 const hasJunitFlag = process.argv.includes('--junit');
 const hasNunitFlag = process.argv.includes('--nunit');
+const releaseHistoryOnly = process.argv.includes('--check-release-history');
 // When neither flag is passed, both reports are written by default. When a flag
 // is passed, only that format is written.
 const writeNunit = hasNunitFlag || (!hasJunitFlag && !hasNunitFlag);
 const writeJunit = hasJunitFlag || (!hasJunitFlag && !hasNunitFlag);
+
+// ---------------------------------------------------------------------------
+// Release-history guard.
+// The root README is the concise current-product guide: it must contain only
+// the latest release's What's New summary. Exact historical release summaries
+// live in docs/version-history/README.md, while CHANGELOG.md remains the full
+// canonical change record (including early patch releases that the history
+// document intentionally rolls up into series-level summaries).
+// ---------------------------------------------------------------------------
+function validateReleaseHistory(currentVersion, readme, history, changelog) {
+    const readmeReleaseHeadings = [...readme.matchAll(/^#{3,6}\s+.*?\b(\d+\.\d+\.\d+)\b.*$/gm)]
+        .map(match => match[1]);
+    const historyReleaseHeadings = [...history.matchAll(/^####\s+(\d+\.\d+\.\d+)\b.*$/gm)]
+        .map(match => match[1]);
+    const changelogVersions = [...changelog.matchAll(/^##\s+\[(\d+\.\d+\.\d+)\]/gm)]
+        .map(match => match[1]);
+    const duplicateHistoryVersions = [...new Set(historyReleaseHeadings.filter((version, index, versions) => versions.indexOf(version) !== index))];
+    const previousVersion = changelogVersions.find(version => version !== currentVersion);
+    const errors = [];
+
+    if (readmeReleaseHeadings.length !== 1 || readmeReleaseHeadings[0] !== currentVersion) {
+        errors.push(`README.md must contain exactly one release-summary heading for ${currentVersion}; found ${readmeReleaseHeadings.length ? readmeReleaseHeadings.join(', ') : '(none)'}`);
+    }
+    if (historyReleaseHeadings.includes(currentVersion)) {
+        errors.push(`current release ${currentVersion} must remain only in README.md until the next release`);
+    }
+    if (!previousVersion || !historyReleaseHeadings.includes(previousVersion)) {
+        errors.push(`previous release ${previousVersion || '(not found)'} must be archived in docs/version-history/README.md`);
+    }
+    if (duplicateHistoryVersions.length > 0) {
+        errors.push(`duplicate exact-version headings in history: ${duplicateHistoryVersions.join(', ')}`);
+    }
+    if (!readme.includes('(docs/version-history/README.md)')) {
+        errors.push('README.md does not link to docs/version-history/README.md');
+    }
+
+    return { errors, previousVersion };
+}
+
+function testReleaseHistoryGuard() {
+    const valid = {
+        currentVersion: '1.2.0',
+        readme: '## What\'s New\n\n### Version 1.2.0 - Latest Release\n\n[Version History](docs/version-history/README.md)\n',
+        history: '# Version History\n\n#### 1.1.0 - Previous release\n',
+        changelog: '# Changelog\n\n## [1.2.0] - 2026-08-06\n\n## [1.1.0] - 2026-07-01\n'
+    };
+    const cases = [
+        { name: 'valid rollover', data: valid, expectedError: null },
+        { name: 'older release left in README', data: { ...valid, readme: valid.readme + '\n#### 1.1.0 - Old release\n' }, expectedError: 'exactly one release-summary heading' },
+        { name: 'current release archived too early', data: { ...valid, history: valid.history + '\n#### 1.2.0 - Current release\n' }, expectedError: 'must remain only in README.md' },
+        { name: 'previous release not archived', data: { ...valid, history: '# Version History\n' }, expectedError: 'previous release 1.1.0 must be archived' },
+        { name: 'duplicate historical release', data: { ...valid, history: valid.history + '\n#### 1.1.0 - Duplicate\n' }, expectedError: 'duplicate exact-version headings' },
+        { name: 'history link missing', data: { ...valid, readme: valid.readme.replace('(docs/version-history/README.md)', '(CHANGELOG.md)') }, expectedError: 'does not link to docs/version-history/README.md' }
+    ];
+    const failures = cases.filter(testCase => {
+        const result = validateReleaseHistory(testCase.data.currentVersion, testCase.data.readme, testCase.data.history, testCase.data.changelog);
+        return testCase.expectedError === null
+            ? result.errors.length !== 0
+            : !result.errors.some(error => error.includes(testCase.expectedError));
+    });
+    failures.forEach(testCase => console.error(`❌ Release-history guard self-test failed: ${testCase.name}`));
+    if (failures.length === 0) console.log(`✅ Release-history guard self-tests OK: ${cases.length}/${cases.length}`);
+    return failures.length === 0;
+}
+
+function checkReleaseHistory() {
+    const versionSource = fs.readFileSync(path.resolve(process.cwd(), 'js', 'version.js'), 'utf8');
+    const readme = fs.readFileSync(path.resolve(process.cwd(), 'README.md'), 'utf8');
+    const history = fs.readFileSync(path.resolve(process.cwd(), 'docs', 'version-history', 'README.md'), 'utf8');
+    const changelog = fs.readFileSync(path.resolve(process.cwd(), 'CHANGELOG.md'), 'utf8');
+    const versionMatch = versionSource.match(/ODIN_VERSION\s*=\s*['"](\d+\.\d+\.\d+)['"]/);
+    if (!versionMatch) {
+        console.error('❌ Release history: could not read ODIN_VERSION from js/version.js');
+        return false;
+    }
+    const currentVersion = versionMatch[1];
+    const result = validateReleaseHistory(currentVersion, readme, history, changelog);
+    result.errors.forEach(error => console.error(`❌ Release history: ${error}`));
+    if (result.errors.length === 0) {
+        console.log(`✅ Release history OK: README has only ${currentVersion}; previous release ${result.previousVersion} is archived`);
+    }
+    return result.errors.length === 0;
+}
+
+function validateRepositoryMap(documentation, actualEntries) {
+    const block = documentation.match(/<!-- repository-map:start -->([\s\S]*?)<!-- repository-map:end -->/);
+    if (!block) return ['repository-map markers are missing'];
+    const mappedEntries = [...block[1].matchAll(/^- `([^`]+)`/gm)].map(match => match[1].replace(/\/$/, ''));
+    const duplicateEntries = [...new Set(mappedEntries.filter((entry, index, entries) => entries.indexOf(entry) !== index))];
+    const missingEntries = actualEntries.filter(entry => !mappedEntries.includes(entry));
+    const staleEntries = mappedEntries.filter(entry => !actualEntries.includes(entry));
+    const errors = [];
+    if (duplicateEntries.length > 0) errors.push(`duplicate repository-map entries: ${duplicateEntries.join(', ')}`);
+    if (missingEntries.length > 0) errors.push(`top-level entries missing from repository map: ${missingEntries.join(', ')}`);
+    if (staleEntries.length > 0) errors.push(`repository-map entries not found on disk: ${staleEntries.join(', ')}`);
+    return errors;
+}
+
+function testRepositoryMapGuard() {
+    const valid = '<!-- repository-map:start -->\n- `alpha/` - area\n- `README.md` - guide\n<!-- repository-map:end -->';
+    const cases = [
+        { name: 'valid map', documentation: valid, entries: ['alpha', 'README.md'], expectedError: null },
+        { name: 'missing entry', documentation: valid, entries: ['alpha', 'beta', 'README.md'], expectedError: 'missing from repository map' },
+        { name: 'stale entry', documentation: valid, entries: ['alpha'], expectedError: 'not found on disk' },
+        { name: 'missing markers', documentation: '- `alpha/`', entries: ['alpha'], expectedError: 'markers are missing' }
+    ];
+    const failures = cases.filter(testCase => {
+        const errors = validateRepositoryMap(testCase.documentation, testCase.entries);
+        return testCase.expectedError === null
+            ? errors.length !== 0
+            : !errors.some(error => error.includes(testCase.expectedError));
+    });
+    failures.forEach(testCase => console.error(`❌ Repository-map guard self-test failed: ${testCase.name}`));
+    if (failures.length === 0) console.log(`✅ Repository-map guard self-tests OK: ${cases.length}/${cases.length}`);
+    return failures.length === 0;
+}
+
+function checkRepositoryMap() {
+    const documentation = fs.readFileSync(path.resolve(process.cwd(), 'CONTRIBUTING.md'), 'utf8');
+    const ignoredEntries = new Set(['.git', '.vscode', 'node_modules', 'test-results']);
+    const actualEntries = fs.readdirSync(process.cwd(), { withFileTypes: true })
+        .map(entry => entry.name)
+        .filter(entry => !ignoredEntries.has(entry))
+        .sort();
+    const errors = validateRepositoryMap(documentation, actualEntries);
+    errors.forEach(error => console.error(`❌ Repository map: ${error}`));
+    if (errors.length === 0) console.log(`✅ Repository map OK: ${actualEntries.length} top-level entries documented`);
+    return errors.length === 0;
+}
 
 // ---------------------------------------------------------------------------
 // Vendored-blob integrity pins (inventory import parsers).
@@ -564,6 +694,19 @@ function generateJUnitXML(results, passed, failed, total) {
 
 (async () => {
     try {
+        if (!testReleaseHistoryGuard() || !testRepositoryMapGuard()) {
+            process.exit(1);
+        }
+        if (!checkReleaseHistory()) {
+            console.error('\n❌ Release history check failed — keep only the current release summary in README.md and move the previous release to docs/version-history/README.md.');
+            process.exit(1);
+        }
+        if (!checkRepositoryMap()) {
+            console.error('\n❌ Repository map check failed — update the marked Repository Map in CONTRIBUTING.md to match the top-level structure.');
+            process.exit(1);
+        }
+        if (releaseHistoryOnly) return;
+
         // Fail fast on any vendored-blob integrity mismatch before spending
         // time launching the browser (issue #230 — SheetJS SHA-256 pin).
         if (!checkVendorIntegrity()) {

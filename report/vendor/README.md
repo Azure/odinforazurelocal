@@ -25,5 +25,6 @@ This canonical LF hash is also enforced by `node scripts/run-tests.js`, so a
 corrupted or replaced bundle fails CI consistently on Windows and Linux.
 
 To upgrade: replace the file from the upstream `dist/` of the new tag, update the
-version + SHA-256 above, and re-test the report → Download PowerPoint flow in
-both Light and Dark themes before committing.
+version + SHA-256 above, run `node scripts/smoke-test-pptx.js`, and re-test the
+report → Download PowerPoint flow with representative HCI and disaggregated
+designs before committing.

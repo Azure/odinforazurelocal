@@ -62,7 +62,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Meaningful S2D counter</strong> &mdash; the anonymous S2D total increments only for the first valid user-driven calculation per page load, rather than for every setting explored.</li>
                         <li><strong>Agentic Retrieval guidance</strong> &mdash; the former Edge RAG label and knowledge links now point to canonical Microsoft Learn guidance while retaining the compatible <code>edgerag</code> payload type.</li>
                         <li><strong>Shared release branding and privacy footer</strong> &mdash; Designer, Sizer, ToR Switch, and S2D Calc use one application release value and shared logo/version/What's New markup, preventing page-version drift.</li>
-                        <li>All <strong>1,487 / 1,487</strong> browser tests pass, including schema-drift, vendor-integrity, shared-branding, Azure Migrate, and S2D telemetry checks.</li>
+                        <li>All <strong>1,497 / 1,497</strong> browser tests pass, including schema-drift, vendor-integrity, shared-branding, Azure Migrate, and S2D telemetry checks.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

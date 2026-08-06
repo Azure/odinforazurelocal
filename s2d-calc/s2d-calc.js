@@ -102,7 +102,7 @@
 
         const minimum = CONSTANTS.minimumNodes[copies];
         if (minimum && validNodeRange && nodes < minimum) {
-            errors.push(`${copies} copies of data requires at least ${minimum} machines, (increase the Machine count).`);
+            errors.push(`${copies} copies of data require at least ${minimum} machines (increase the machine count).`);
         }
 
         const maximum = platformConfig ? platformConfig.maximumNodes[copies] : undefined;

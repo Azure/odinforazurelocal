@@ -5,13 +5,13 @@
 - Do not use MCP tools or other git integrations, such as Kraken
 - Do not use pwsh commands for PowerShell 7, as they may not work in all environments
 - Use `git status` to check the status of your repository before making any commits
-- When updating the version number, ensure that it is updated in all relevant files, such as the `README.md`, `CHANGELOG.md`, and the index.html and What's New section in the java script code.
+- When updating the application release version, update `js/version.js` (`ODIN_VERSION`), `README.md`, `CHANGELOG.md`, and the current release entry in `js/changelog.js`. Shared page headers derive their visible version from `js/version.js`.
 - When making updates use the Release Branch and create a pull request to merge it into the main branch. Do not commit directly to the main branch.
 - **STRICT branching rule (no exceptions without explicit user approval)**: There are exactly **two long-lived branches** in this repo — `main` and `Release`. ALL work goes onto `Release`, and `Release → main` is the ONLY PR pattern. Do **NOT** create feature branches, fix branches, `feat/*`, `fix/*`, `ci/*`, `chore/*`, etc. — not even for "small isolated changes". If you find yourself typing `git checkout -b`, **stop** and use `Release` instead. The only acceptable reasons to create a third branch are: (a) the user explicitly asks for one by name, or (b) you need to recover from a botched `Release` state (and even then, ask first). Multiple in-flight PRs against `main` are a sign you've already broken this rule — consolidate onto `Release` as one PR.
 - When creating a pull request, ensure that it includes a clear description of the changes made and the reason for the changes. This will help reviewers understand the context of the changes and provide feedback more effectively.
 - Before starting new work, always pull the latest changes from the main branch into Release Branch to ensure that you are working with the most up-to-date codebase, fast-forward merge. This will help prevent merge conflicts and ensure that your changes are based on the latest version of the code.
 - **If `Release` has diverged from `main`** (e.g. another PR landed on `main` while your work was in flight), bring `Release` back in sync by **merging `main` into `Release`** (`git merge origin/main` from `Release`, then push). Do NOT rebase `Release` and do NOT force-push it — it's a shared long-lived branch.
-- When adding new release notes to the top of the readme, for each new release, ensure that we move the existing / old versions to only exist in the appendix of the readme, and only the latest version is at the top of the readme. This will help keep the readme organized and make it easier for users to find the latest release notes.
+- Keep only the latest release's What's New summary in `README.md`. On each version bump, move the previous summary to `docs/version-history/README.md`; `node scripts/run-tests.js --check-release-history` enforces this rollover.
 - PRs should be merged manually by the author, after all checks have passed and any necessary approvals have been obtained. Do not use auto-merge features, as they may merge PRs before they are ready or without proper review.
 
 ## Planning Notes (`docs/module-planning/`)
@@ -56,7 +56,7 @@
 - No abstractions, helpers, or configurability for single-use code.
 - If your changes make imports, variables, or functions unused, remove them. Don't remove pre-existing dead code without asking first, but if you add new dead code, remove it.
 - Before implementing, state assumptions. If multiple approaches exist, present the tradeoffs — don't pick silently.
-- After making all changes and committing, verify the code by running `node scripts/run-tests.js` to confirm all 958+ tests pass, and that the new code is covered by tests. If you add new functionality, add tests for it.
+- After making changes, run `node scripts/run-tests.js` and confirm the complete suite passes. If you add new functionality, add focused regression coverage.
 - If you need to make a breaking change, that would impact users, first raise it in the prompt to discuss it.
 - Consider this website is used on mobile devices, so ensure that any changes to the UI are responsive and work well on smaller screens.
 - When changes are made to the Designer, or Sizer, ensure that the interactions between them are fully considered and tested, to prevent any unintended consequences or bugs, for example, if you make a change to the Designer, ensure that it does not break any existing functionality in the Sizer, and vice versa.
@@ -72,7 +72,7 @@ CI (`.github/workflows/test.yml`) runs ESLint on all browser-facing JS (`js/`, `
 ```powershell
 npx eslint "js/*.js" "arm/*.js" "report/*.js" "sizer/*.js" "switch-config/**/*.js" "docs/outbound-connectivity/*.js"
 npx html-validate "**/*.html"        # must pass — run after any .html edit
-node scripts/run-tests.js            # must show 958/958 passed
+node scripts/run-tests.js            # must show the complete suite passing
 ```
 - Zero **errors** are allowed; warnings are tolerated (legacy `var`, indentation, etc.). Don't introduce new warnings in new code — use `let`/`const`, follow existing indentation.
 - Do not disable lint rules inline (`// eslint-disable-line`) without a comment explaining why.
@@ -81,14 +81,14 @@ node scripts/run-tests.js            # must show 958/958 passed
 
 ## CHANGELOG & Version Discipline
 - Every user-visible change gets an entry in `CHANGELOG.md` under the **current unreleased version heading** at the top of the file (create a new `## Version X.Y.Z` section if one doesn't exist for the in-progress release).
-- When a version ships, the latest version stays at the top of `README.md`'s release-notes section; **older versions move to "Appendix A — Version History"** at the bottom of `README.md` (do not leave multiple active release-notes sections in the top half of the README).
-- Version numbers must be bumped consistently in all of: `README.md` (header + appendix anchor), `CHANGELOG.md`, `index.html` (visible version string + "What's New" JS block), and `sizer/index.html` (visible version string). Also keep the in-code version constants in step: `WIZARD_VERSION` in `js/script.js` (stamped into Designer JSON exports + report footer) and `SIZER_VERSION` in `sizer/sizer.js` (note: `SIZER_VERSION` is the Sizer *payload-format* integer, bumped only when the export shape changes — not on every release).
+- When a version ships, the latest version stays in `README.md`'s What's New section; the previous summary moves to `docs/version-history/README.md`. Do not duplicate the current release in the history file.
+- The application release version is sourced from `ODIN_VERSION` in `js/version.js` and must match `README.md`, `CHANGELOG.md`, and `js/changelog.js`. `SIZER_VERSION` in `sizer/sizer.js` is an independent payload-format integer and is bumped only when the Sizer export shape changes.
 - Commit messages: imperative mood, ≤72 char summary line, reference PR/issue numbers where relevant (e.g. `Fix storage-tier validation (#201)`).
 
 ## JSON Schemas (`docs/json-schema/`) — keep in sync with Sizer / Designer changes
 The repo ships two public JSON Schemas that describe the export/import payloads:
 - [`docs/json-schema/odin-sizer.schema.json`](../docs/json-schema/odin-sizer.schema.json) — Sizer "Export JSON" payload. Source of truth: `getSizerState()` in `sizer/sizer.js`, per-workload shapes from `addWorkload()` / the `WORKLOAD_DEFAULTS` block.
-- [`docs/json-schema/odin-design.schema.json`](../docs/json-schema/odin-design.schema.json) — Designer "Export JSON" envelope + `state`. Source of truth: the Designer export path in `js/script.js` (stamped with `WIZARD_VERSION`).
+- [`docs/json-schema/odin-design.schema.json`](../docs/json-schema/odin-design.schema.json) — Designer "Export JSON" envelope + `state`. Source of truth: the Designer export path in `js/script.js` (stamped with `ODIN_VERSION` from `js/version.js`).
 
 These are linked from the README and are the only public contract for third parties (and our own importers) consuming ODIN JSON. **CI guards STRUCTURAL drift** — `scripts/run-tests.js` fails the build if a top-level field on `getInitialWizardState()` / `getSizerState()` is missing from (or extra in) the matching schema, or if a new workload type is added to `WORKLOAD_DEFAULTS` without being added to the Sizer schema's `type` enum. **Value-level drift is NOT CI-enforced** — new enum values on existing fields, new per-workload fields, or envelope-shape changes will silently slip through until a downstream consumer breaks. Keep those in sync manually.
 
@@ -97,7 +97,7 @@ These are linked from the README and are the only public contract for third part
 - Adds/removes/renames a field on an existing workload, on `sizerState`, or on the Designer `state` object.
 - Adds a new value to any existing `enum` (e.g. a new `clusterType`, `gpuType`, `cpuManufacturer`, `storageConfig`, `resiliency`, AVD `profile`, Foundry `engine`/`modelClass`, etc.).
 - Changes the accepted shape of an envelope (wrapped vs bare, new top-level metadata keys, new required fields).
-- Bumps `SIZER_VERSION` in `sizer/sizer.js` or `WIZARD_VERSION` in `js/script.js` — update the matching `version` field description in the schema and note the reason in the same place the in-code constant is commented.
+- Bumps `SIZER_VERSION` in `sizer/sizer.js` or changes the Designer export-version source (`ODIN_VERSION` in `js/version.js`) — update the matching `version` field description in the schema and document the reason.
 
 **Schema-version bumps are decoupled from release version.** The schema `$id` URL and structure don't need a release bump — but if you make a breaking change to the schema shape (rename/remove a required field), call it out in the CHANGELOG entry so external consumers see it.
 

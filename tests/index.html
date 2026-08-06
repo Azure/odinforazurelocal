@@ -266,7 +266,7 @@
                     platform: 'azureLocal', nodes: 2, copies: 3,
                     provisioning: 'thin', thinExtentMiB: 1024
                 });
-                const expected = '3 copies of data requires at least 3 machines, (increase the Machine count).';
+                const expected = '3 copies of data require at least 3 machines (increase the machine count).';
                 return assert(!result.valid && result.errors.includes(expected),
                     'three-copy validation explains how to meet the machine minimum', expected, result.errors.join(' '));
             })(),

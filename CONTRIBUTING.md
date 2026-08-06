@@ -10,7 +10,7 @@ or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any addi
 
 ## How to Contribute
 
-We welcome feedback and suggestions through GitHub Issues. To ensure maintainability and quality, **code contributions via pull requests are not accepted at this time** - the repository has forking disabled.
+We welcome feedback and suggestions through GitHub Issues. To ensure maintainability and quality, **code contributions via pull requests are not accepted at this time** because repository forking is disabled.
 
 ### Reporting Bugs
 
@@ -48,99 +48,44 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 - No external frameworks - runs entirely client-side
 - localStorage API for state persistence
 
-## Development
+## Repository Reference
 
-This section is for documentation purposes only, not for contributing code changes. If you encounter an issue, have feedback or would like a new feature, please see [How to Contribute](#how-to-contribute).
-### File Structure
+This map is provided to help issue reporters identify the affected product area. It is not an invitation or workflow for external code contributions.
 
-```
-odinforazurelocal/
-├── index.html              # Main wizard interface
-├── README.md               # Documentation
-├── CHANGELOG.md            # Version history
-├── CONTRIBUTING.md         # Contribution guidelines
-├── LICENSE                 # License file
-├── SECURITY.md             # Security policy
-├── package.json            # Project metadata and scripts
-├── arm/
-│   ├── arm.html            # ARM parameters viewer
-│   └── arm.js              # ARM parameters generation
-├── css/
-│   └── style.css           # UI styling
-├── docs/
-│   ├── archive/            # Archived documentation
-│   │   ├── EXPORT_FORMATS.md
-│   │   ├── FRAMEWORK_MIGRATION.md
-│   │   └── IMPLEMENTATION_SUMMARY.md
-│   └── outbound-connectivity/
-│       ├── index.html      # Outbound connectivity guide
-│       ├── script.js       # Connectivity guide logic
-│       ├── styles.css      # Connectivity guide styling
-│       └── images/         # Connectivity diagrams (SVG)
-├── images/
-│   ├── odin-logo.png       # ODIN logo
-│   └── odin-logo-white-background.png
-├── js/
-│   ├── script.js           # Core logic and state management
-│   ├── analytics.js        # Firebase analytics integration
-│   ├── dns.js              # DNS validation functions
-│   ├── formatting.js       # Output formatting utilities
-│   ├── nav.js              # Navigation functions
-│   ├── notifications.js    # Toast notification system
-│   ├── theme.js            # Theme toggle handling
-│   ├── utils.js            # Shared utility functions
-│   └── validation.js       # Input validation functions
-├── report/
-│   ├── report.html         # Configuration report template
-│   └── report.js           # Report generation logic
-├── sizer/
-│   ├── index.html          # Hardware sizer tool
-│   ├── sizer.css           # Sizer styling
-│   └── sizer.js            # Sizer logic
-├── tests/
-│   ├── index.html          # Unit test suite
-│   └── serve.ps1           # Local test server
-└── scripts/
-    └── run-tests.js        # CI test runner
-```
+### Repository Map
 
-### Technology Stack
-- **HTML5** - Structure and semantic markup
-- **CSS3** - Styling with custom properties and animations
-- **Vanilla JavaScript** - No frameworks, pure ES6+
-- **localStorage API** - Client-side state persistence
-
-### Key Functions
-
-| Function | File | Purpose |
-|----------|------|---------|
-| `saveStateToLocalStorage()` | `script.js` | Auto-saves wizard state |
-| `exportConfiguration()` | `script.js` | Exports config as JSON |
-| `importConfiguration()` | `script.js` | Imports config from JSON |
-| `generateReport()` | `script.js` | Opens design document report in new tab |
-| `generateArmParameters()` | `script.js` | Generates ARM template parameters JSON |
-| `exportToPDF()` | `script.js` | Exports config as printable PDF |
-| `getReportReadiness()` | `script.js` | Checks if all required fields are populated |
-| `updateSummary()` | `script.js` | Renders live summary panel from wizard state |
-| `updateUI()` | `script.js` | Master UI refresh — shows/hides steps based on state |
-| `selectOption()` | `script.js` | Core wizard selection handler for option cards |
-| `resetAll()` | `script.js` | Clears all state and resets the wizard |
-| `showCidrCalculator()` | `script.js` | CIDR subnet calculator |
-| `showHelp()` | `script.js` | Contextual help system |
-| `showTemplates()` | `script.js` | Pre-built deployment templates |
-| `renderDiagram()` | `script.js` | Renders Mermaid network topology diagram |
-| `showOnboarding()` | `script.js` | Guided onboarding walkthrough |
-| `validateFieldRealtime()` | `validation.js` | Real-time input validation |
-
-### Adding Features
-
-To extend the wizard:
-
-1. **Add new step**: Update `index.html` with new section
-2. **Add state property**: Update `state` object in `script.js`
-3. **Update validation**: Add validation in `getReportReadiness()`
-4. **Update summary**: Add summary rendering in `updateSummary()`
-5. **Update exports**: Include in ARM/report generation
+<!-- repository-map:start -->
+- `.github/` - repository automation, issue templates, and maintainer guidance
+- `arm/` - ARM parameters viewer and export logic
+- `css/` - shared application styles
+- `docs/` - published guides, schemas, reference architectures, and internal planning records
+- `images/` - shared images and generated architecture assets
+- `js/` - Designer logic and shared browser scripts
+- `report/` - configuration report and PowerPoint generation
+- `s2d-calc/` - Storage Spaces Direct calculator
+- `scripts/` - test, validation, and asset-generation scripts
+- `sizer/` - workload-based hardware Sizer
+- `switch-config/` - switch configuration generator and QoS validator
+- `tests/` - browser test suite, fixtures, and local static server
+- `tools/` - local Playwright demo-recording tooling
+- `vendor/` - vendored browser libraries
+- `_config.yml` - GitHub Pages publication exclusions
+- `.eslintignore` - ESLint exclusions
+- `.eslintrc.json` - browser JavaScript lint configuration
+- `.gitattributes` - repository line-ending and file attributes
+- `.gitignore` - local/generated file exclusions
+- `.htmlvalidate.json` - HTML validation configuration
+- `.htmlvalidateignore` - HTML validation exclusions
+- `.stylelintrc.json` - CSS lint configuration
+- `CHANGELOG.md` - canonical detailed change record
+- `CONTRIBUTING.md` - issue and feedback guidance
+- `index.html` - main Designer and Knowledge interface
+- `LICENSE` - project license
+- `package.json` - development tooling and security overrides
+- `package-lock.json` - reproducible development dependency lockfile
+- `README.md` - current product and usage guide
+- `SECURITY.md` - security reporting policy
+<!-- repository-map:end -->
 
 ---
 

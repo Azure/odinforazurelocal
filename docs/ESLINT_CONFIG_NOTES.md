@@ -1,7 +1,7 @@
 # ESLint Configuration Notes
 
 JSON does not support comments, so this file documents intentional choices
-in [`.eslintrc.json`](.eslintrc.json).
+in [`.eslintrc.json`](../.eslintrc.json).
 
 ## `no-empty: ["error", { "allowEmptyCatch": true }]`
 

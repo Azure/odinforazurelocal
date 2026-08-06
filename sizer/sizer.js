@@ -8954,7 +8954,14 @@ function ensureJSZipLoaded() {
         const script = document.createElement('script');
         script.src = '../vendor/jszip-3.10.1.min.js';
         script.async = true;
-        script.onload = function() { resolve(); };
+        script.onload = function() {
+            if (typeof window.JSZip !== 'undefined') {
+                resolve();
+                return;
+            }
+            _jsZipPromise = null;
+            reject(new Error('The ZIP reader loaded but did not initialize (vendor/jszip-3.10.1.min.js).'));
+        };
         script.onerror = function() {
             _jsZipPromise = null;
             reject(new Error('Failed to load the ZIP reader (vendor/jszip-3.10.1.min.js).'));
@@ -9858,7 +9865,6 @@ function applyAzureMigrateImport() { // eslint-disable-line no-unused-vars
     if (growth && (growth.value === '0' || growth.value === '')) growth.value = '10';
     const importedMachines = result.totals.machineCount;
     const workloadEntries = result.workloads.length;
-    resetAzureMigrateImport();
     closeImportModal();
     renderWorkloads();
     calculateRequirements();
