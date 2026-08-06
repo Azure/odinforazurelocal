@@ -172,6 +172,10 @@
         return Number.isInteger(floored) ? String(floored) : floored.toFixed(1);
     }
 
+    function formatThinVolumeLimit(maxVolumeTB) {
+        return `but cannot exceed ${formatLimit(maxVolumeTB)} TB each`;
+    }
+
     function calculatePoolConsumption(input) {
         const normalized = input && typeof input === 'object' ? input : {};
         const servers = normalized.servers;
@@ -409,6 +413,7 @@
         validateConfiguration,
         calculateLimit,
         formatLimit,
+        formatThinVolumeLimit,
         calculatePoolConsumption,
         buildExportReport,
         createCalculationTelemetryGate,
@@ -808,7 +813,9 @@
                 poolVolumeSizingValue.replaceChildren(
                     'Thin volumes use pool capacity',
                     document.createElement('br'),
-                    'dynamically, as data is written'
+                    'dynamically, as data is written,',
+                    document.createElement('br'),
+                    formatThinVolumeLimit(pool.maxVolumeTB)
                 );
             }
             poolCappedNote.hidden = !pool.cappedAtLimit;

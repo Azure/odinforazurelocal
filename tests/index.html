@@ -281,6 +281,11 @@
             (function() {
                 return assert(volumeCalculator.formatLimit(20.899) === '20.8',
                     'display formatting floors rather than rounds limits', '20.8', volumeCalculator.formatLimit(20.899));
+            })(),
+            (function() {
+                const actual = volumeCalculator.formatThinVolumeLimit(20.8333333333);
+                return assert(actual === 'but cannot exceed 20.8 TB each',
+                    'thin provisioning guidance includes the current maximum individual volume size', 'but cannot exceed 20.8 TB each', actual);
             })()
         ]);
 
