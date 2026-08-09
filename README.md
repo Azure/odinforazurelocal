@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.01 - Available here: https://aka.ms/ODIN
+## Version 0.23.02 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,17 +49,18 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.01 - Latest Release
+### Version 0.23.02 - Latest Release
 
-> **New storage planning and discovered-estate import workflows.** This release adds a browser-only Storage Spaces Direct calculator, Azure Migrate collector ZIP import in Sizer, refreshed Agentic Retrieval guidance, and a shared application release header.
+> **Agentic Retrieval sizing now follows the current Foundry Local requirements.** This release separates CPU and embedding-GPU pools, models Combined, Knowledge, and Agentic deployment modes, and includes explicit external or local language-model endpoint capacity.
 
 **What's new**
-- **Azure Migrate collector import** — import an original `Azure-Migrate-Discovery-*.zip` in Sizer and convert discovered processor, memory, and disk capacity into privacy-preserving grouped VM workloads or one workload per machine. Processing stays in the browser and validates archive paths, encryption, duplicates, size, and JSON structure.
-- **Storage Spaces Direct calculator** — plan maximum supported volume size and storage-pool consumption for Azure Local and Windows Server using thin/fixed provisioning, resiliency, single-tier or tiered disks, formula derivation, reference examples, text-report export, and the same physical-machine terminology used by Designer and Sizer. Pool reporting separates physical available pool capacity from customer-usable capacity after the selected data copies and excludes cache drives from tiered capacity. The volume count rounds usable capacity divided by the individual-volume limit up, then uses the higher of that result or the machine count; this ensures equal Fixed volumes remain within the supported maximum while low-capacity configurations still create at least one volume per machine. Azure Local automatically deducts the required 256 GB `Infrastructure_1` and 20 GB `ClusterPerformanceHistory` volumes from usable capacity; Windows Server does not. Sizer applies the same 276 GB requirement throughout node and disk sizing, deducting it from hyperconverged S2D usable capacity or adding it to disaggregated SAN demand. Tiered layouts require at least as many capacity drives as cache drives. Fixed provisioning shows an equal logical size per volume, while Thin provisioning explains that pool capacity is consumed as data is written and displays the current maximum supported individual volume size. Pool planning defaults to 8 single-tier drives with 6.4 TB disks or a 2-cache/4-capacity tiered layout with 6.4 TB capacity disks per machine, preserving a 1:2 cache-to-capacity ratio. Named configuration URLs can be copied and loaded without uploading inputs to a server. A first-visit walkthrough can be replayed from Help, maximum-volume and volume-count results use the shared blue accent, and locally saved user changes offer Resume or Start Fresh on the next visit.
-- **Meaningful S2D usage counting** — the anonymous **S2D Calcs** total increments only for the first valid user-driven calculation per page load, rather than for every setting explored.
-- **Agentic Retrieval guidance** — the former Edge RAG label is updated throughout Sizer with canonical Microsoft Learn overview and requirements links; the persisted `edgerag` payload type remains compatible.
-- **Shared release branding and privacy disclosure** — Designer, Sizer, ToR Switch, and S2D Calc now use one application release value and shared logo/version/What's New markup, preventing page-version drift. Shared footers explain local data handling and anonymous counters consistently.
-- **Validation** — all **1,501 / 1,501** browser tests pass, with release-history, schema-drift, and vendored-library integrity checks included.
+- **Documented deployment topology** — all modes include three D8s_v3-equivalent CPU workers; Combined and Knowledge add two A2/A16 embedding GPU workers, while Agentic-only does not allocate embedding GPUs.
+- **Explicit LLM endpoint sizing** — choose an external OpenAI-compatible endpoint, Foundry Local minimum, or Foundry Local production. Local GPT-OSS-20B choices add the documented dedicated CPU, memory, storage, GPU, and VRAM baseline.
+- **GPU validation** — Agentic Retrieval is restricted to the documented A2/A16 families, and local model profiles reject insufficient VRAM.
+- **Compatible payload update** — `SIZER_VERSION` is now 3 with `deploymentMode` and `llmEndpoint`; older `computeMode` exports still import as Combined with an external endpoint.
+- **Reports and schemas aligned** — Sizer cards, JSON Schema, Markdown/HTML reports, and PowerPoint output use the Agentic Retrieval name and current topology.
+- **Dependency audit restored** — patched `js-yaml` and `brace-expansion` versions are enforced. The unavailable nanoid fix remains visible through one narrowly scoped temporary audit exception.
+- **Validation** — all **1,503 / 1,503** browser tests pass, including the new deployment-mode, endpoint, GPU, and legacy-import cases.
 
 ---
 
@@ -384,7 +385,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.01<br>
+**Version**: 0.23.02<br>
 **Last Updated**: August 2026<br>
 **Compatibility**: Azure Local 2506+
 

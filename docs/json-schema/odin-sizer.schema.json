@@ -19,7 +19,7 @@
             "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
             "version": {
               "type": ["integer", "string"],
-              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 2), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 1 → 2 in v0.22.62 when GitHub Enterprise Local (GHEL) became a first-class workload type."
+              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 3), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 2 → 3 in v0.23.02 when Agentic Retrieval gained deploymentMode and llmEndpoint fields."
             },
             "exportedAt": { "type": "string", "format": "date-time" },
             "url": { "type": "string", "description": "The Sizer page URL at export time." }
@@ -190,10 +190,11 @@
           "title": "Agentic Retrieval workload",
           "properties": {
             "type": { "const": "edgerag" },
-            "computeMode": { "type": "string", "enum": ["gpu", "cpu"], "description": "'gpu' deploys 4 GPU VMs (forces gpuMode 'dda'); 'cpu' deploys 4 CPU-only VMs." },
+            "deploymentMode": { "type": "string", "enum": ["combined", "knowledge", "agentic"], "description": "Combined and Knowledge deploy two A2/A16 embedding GPU workers; Agentic does not deploy embedding workers." },
+            "llmEndpoint": { "type": "string", "enum": ["external", "foundry-minimum", "foundry-production"], "description": "External adds no local model host; Foundry Local choices add the documented GPT-OSS-20B minimum or production host capacity." },
             "corpusGB": { "type": "integer", "minimum": 1, "description": "Document corpus size in GB; drives vector-DB storage estimate." }
           },
-          "required": ["type", "computeMode", "corpusGB"]
+          "required": ["type", "deploymentMode", "llmEndpoint", "corpusGB"]
         },
         {
           "title": "AI Video Indexer workload",

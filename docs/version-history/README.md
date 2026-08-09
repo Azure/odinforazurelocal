@@ -4,6 +4,18 @@ This document contains historical ODIN release summaries. For the complete chang
 
 Return to the [ODIN README](../../README.md).
 
+### Version 0.23.x Series (August 2026)
+
+#### 0.23.01 - Storage planning and discovered-estate import workflows
+
+> Added a browser-only Storage Spaces Direct calculator, Azure Migrate collector ZIP import in Sizer, refreshed Agentic Retrieval guidance, and shared application release branding.
+
+- **Azure Migrate collector import** converts discovered processor, memory, and disk capacity into grouped or per-machine VM workloads entirely in the browser with bounded archive validation.
+- **Storage Spaces Direct calculator** models volume limits, storage-pool consumption, resiliency, thin/fixed provisioning, single-tier and tiered disks, platform-volume deductions, report export, and named shareable URLs.
+- **Agentic Retrieval guidance** replaced the former Edge RAG label in Sizer and linked the canonical Microsoft Learn overview and requirements pages while retaining the `edgerag` payload type.
+- **Shared release branding and privacy disclosure** aligned Designer, Sizer, ToR Switch, and S2D Calc on one release value and common header/footer behavior.
+- All **1,501 / 1,501** browser tests passed.
+
 ### Version 0.22.x Series (June-July 2026)
 
 #### 0.22.71 - Browser-side import and export security hardening
