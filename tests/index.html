@@ -462,16 +462,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.01'
+                    globalThis.ODIN_VERSION === '0.23.02'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.01')
+                        && branding.textContent.includes('Version 0.23.02')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.01 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.02 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -4268,51 +4268,59 @@
 
         testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
             (() => {
-                // GPU mode, 100 GB corpus
-                // CP: 3 × 4 = 12, workers: 4 × 8 = 32, operator: 2 → 46 vCPU
-                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16 + operator 2
+                const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46, 'Agentic Retrieval GPU 100 GB corpus: 46 vCPUs', 46, r.vcpus);
+                return assert(r.vcpus === 70, 'Combined + production LLM: 70 vCPUs', 70, r.vcpus);
             })(),
             (() => {
-                // GPU mode, 100 GB corpus
-                // CP mem: 3 × 8 = 24, workers: 4 × 32 = 128, operator: 4 → 156 GB
-                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64 + operator 4
+                const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 156, 'Agentic Retrieval GPU 100 GB corpus: 156 GB memory', 156, r.memory);
+                return assert(r.memory === 220, 'Combined + production LLM: 220 GB memory', 220, r.memory);
             })(),
             (() => {
-                // GPU mode, 100 GB corpus
-                // Storage: CP 3×200=600, workers 4×200=800, vector DB 100×1.5=150 → 1550 GB
-                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                // CP 600 + five worker OS disks 1000 + LLM 100 + vector DB 150
+                const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.storage === 1550, 'Agentic Retrieval GPU 100 GB corpus: 1550 GB storage', 1550, r.storage);
+                return assert(r.storage === 1850, 'Combined + production LLM: 1850 GB storage', 1850, r.storage);
             })(),
             (() => {
-                // CPU mode produces same compute footprint, no GPUs
-                const w = { type: 'edgerag', computeMode: 'cpu', corpusGB: 50, gpuMode: 'none' };
+                const w = { type: 'edgerag', deploymentMode: 'agentic', llmEndpoint: 'external',
+                            corpusGB: 50, gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                // CP storage 600 + workers OS 800 + vector DB ceil(50*1.5)=75 → 1475 GB
-                return assert(r.storage === 1475 && r.gpus === 0,
-                    'Agentic Retrieval CPU 50 GB corpus: 1475 GB / 0 GPUs', '1475/0', r.storage + '/' + r.gpus);
+                return assert(r.vcpus === 38 && r.memory === 124 && r.storage === 1275 && r.gpus === 0,
+                    'Agentic only + external LLM: 38/124/1275/0', '38/124/1275/0',
+                    r.vcpus + '/' + r.memory + '/' + r.storage + '/' + r.gpus);
             })(),
             (() => {
-                // GPU count: 1 GPU per worker × 4 workers = 4 GPUs
-                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const w = { type: 'edgerag', deploymentMode: 'knowledge', llmEndpoint: 'foundry-minimum',
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.gpus === 4, 'Agentic Retrieval GPU mode: 4 GPUs total (1 per worker × 4)', 4, r.gpus);
+                return assert(r.gpus === 3, 'Knowledge + local LLM: 2 embedding GPUs + 1 LLM GPU', 3, r.gpus);
             })(),
             (() => {
-                // Larger corpus scales storage linearly
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 1000,
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                            gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                // 600 + 800 + ceil(1000*1.5)=1500 → 2900 GB
-                return assert(r.storage === 2900, 'Agentic Retrieval 1000 GB corpus: 2900 GB storage', 2900, r.storage);
+                return assert(w.deploymentMode === 'combined' && w.llmEndpoint === 'external' && r.storage === 3100,
+                    'Legacy payload maps to Combined + external LLM', 'combined/external/3100',
+                    w.deploymentMode + '/' + w.llmEndpoint + '/' + r.storage);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4' });
+                return assert(err === null,
+                    'Agentic Retrieval accepts AKS-supported L4 embedding GPUs', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
+                    llmEndpoint: 'foundry-production', gpuMode: 'dda', gpuDdaModel: 'a2' });
+                return assert(err && err.code === 'edgerag-llm-insufficient-vram',
+                    'Production local LLM blocks A2 VRAM', 'edgerag-llm-insufficient-vram', err && err.code);
             })()
         ]);
 
@@ -5190,9 +5198,17 @@
                     'Foundry + DDA + L40S → no error (L40S has AKS VM SKUs)', null, err);
             })(),
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'edgerag', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1 });
+                const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1 });
                 return assert(err === null,
-                    'Agentic Retrieval + DDA + L4 → no error', null, err);
+                    'Agentic Retrieval + DDA + L4 → no error (L4 has AKS VM SKUs)', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 1 });
+                return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
+                    'Agentic Retrieval + DDA + A100 → blocks (A100 has no AKS VM SKUs)',
+                    'aks-hosted-dda-unsupported-gpu', err && err.code);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'videoindexer', gpuMode: 'dda', gpuDdaModel: 't4', gpuDdaCount: 1 });

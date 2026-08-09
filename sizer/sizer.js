@@ -7,7 +7,7 @@ const SIZER_STATE_KEY = 'odinSizerState';
 const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 // Bumped 1 → 2 in v0.22.62: GitHub Enterprise Local (GHEL) became a
 // first-class workload type (tier + HA fields added to the export shape).
-const SIZER_VERSION = 2;
+const SIZER_VERSION = 3;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
@@ -684,7 +684,7 @@ function getGpuRequirementFields(workloadType) {
         : workloadType === 'foundry'
             ? 'Number of physical GPUs assigned via DDA to each Foundry Local model replica.'
             : workloadType === 'edgerag'
-                ? `Number of physical GPUs assigned via DDA to each of the ${EDGERAG_WORKER_NODES} Agentic Retrieval worker nodes (typically 1 per worker = ${EDGERAG_WORKER_NODES} total).`
+                ? 'One physical GPU per Agentic Retrieval GPU host. The Sizer derives embedding and LLM host counts from the selected configuration.'
                 : workloadType === 'videoindexer'
                     ? 'Number of physical GPUs assigned via DDA to each Video Indexer worker node. Optional — Video Indexer’s default models are CPU-only; add a GPU only if you bring your own GPU-bound model.'
                     : 'Number of physical GPUs assigned via DDA to each VM.';
@@ -2859,7 +2859,7 @@ function checkForDesignerImport() {
         if (savedSizer && savedSizer.data) {
             const sd = savedSizer.data;
             if (sd.workloads && sd.workloads.length > 0) {
-                workloads = sd.workloads;
+                workloads = sd.workloads.map(normalizeEdgeRagWorkload);
                 workloadIdCounter = sd.workloadIdCounter || workloads.length;
                 restoredCount = workloads.length;
                 renderWorkloads();
@@ -3063,7 +3063,7 @@ function resumeSizerState() {
     }
 
     // Restore workloads
-    workloads = d.workloads || [];
+    workloads = (d.workloads || []).map(normalizeEdgeRagWorkload);
     workloadIdCounter = d.workloadIdCounter || 0;
     // Spine count is always 2 (legacy saves may have had other values)
 
@@ -3257,8 +3257,9 @@ const WORKLOAD_DEFAULTS = {
     },
     edgerag: {
         name: 'Agentic Retrieval',
-        computeMode: 'gpu', // gpu (recommended) or cpu
-        corpusGB: 100        // total document corpus size in GB (drives vector DB / embedding storage)
+        deploymentMode: 'combined',
+        llmEndpoint: 'foundry-production',
+        corpusGB: 100 // total document corpus size in GB (drives vector DB / embedding storage)
     },
     videoindexer: {
         name: 'AI Video Indexer',
@@ -3385,11 +3386,13 @@ const FOUNDRY_OPERATOR_VCPU = 2;
 const FOUNDRY_OPERATOR_MEM_GB = 4;
 
 // Agentic Retrieval fixed sizing constants. Agentic Retrieval (Azure Arc-enabled Kubernetes
-// extension, Preview) runs on a 3-node AKS Arc control plane plus a fixed
-// 4-VM worker node pool. Per Microsoft's published minimum hardware
+// extension, Preview) runs on a 3-node AKS Arc control plane plus separate
+// CPU and embedding-GPU node pools. Per Microsoft's published minimum hardware
 // requirements (https://learn.microsoft.com/azure/azure-arc/agents-tools-foundry-local/requirements):
-//   GPU mode: 4 GPU-enabled VMs (NC8_A2 or NC8_A16 — 8 vCPU / ~28-32 GB) with 1 GPU each
-//   CPU mode: 4 CPU VMs at minimum 8 vCPU / 32 GB each (D8s_v3)
+//   All modes: 3+ CPU VMs at minimum 8 vCPU / 32 GB each (D8s_v3)
+//   Combined / Knowledge: 2 GPU VMs, one per embedding model (NC8_A2 or NC8_A16 recommended)
+//   Agentic only: no embedding GPU VMs
+//   GPT-OSS-20B via Foundry Local: a separate minimum or production model host
 // Plus an Agentic Retrieval operator overhead and a vector-database storage allowance
 // driven by the user-supplied document corpus size (typical RAG embedding
 // overhead is ~1.5x the source corpus once chunked, embedded and indexed).
@@ -3397,13 +3400,37 @@ const EDGERAG_CP_NODES = 3;
 const EDGERAG_CP_VCPU_PER_NODE = 4;
 const EDGERAG_CP_MEM_PER_NODE = 8;
 const EDGERAG_OS_DISK_GB = 200;
-const EDGERAG_WORKER_NODES = 4;
-const EDGERAG_WORKER_VCPU_PER_NODE = 8;
-const EDGERAG_WORKER_MEM_PER_NODE = 32;
-const EDGERAG_WORKER_GPU_PER_NODE = 1; // GPU mode only — DDA, 1 GPU per worker (4 total)
+const EDGERAG_CPU_WORKER_NODES = 3;
+const EDGERAG_CPU_WORKER_VCPU = 8;
+const EDGERAG_CPU_WORKER_MEM_GB = 32;
+const EDGERAG_EMBEDDING_GPU_NODES = 2;
+const EDGERAG_GPU_WORKER_VCPU = 8;
+const EDGERAG_GPU_WORKER_MEM_GB = 16;
 const EDGERAG_OPERATOR_VCPU = 2;
 const EDGERAG_OPERATOR_MEM_GB = 4;
 const EDGERAG_VECTOR_DB_MULTIPLIER = 1.5; // total storage = corpusGB * 1.5 (chunks + embeddings + index)
+const EDGERAG_LLM_PROFILES = {
+    external: { label: 'External / Microsoft Foundry endpoint', vcpus: 0, memory: 0, storage: 0, gpus: 0, minVramGB: 0 },
+    'foundry-minimum': { label: 'Foundry Local minimum', vcpus: 8, memory: 32, storage: 50, gpus: 1, minVramGB: 24 },
+    'foundry-production': { label: 'Foundry Local production', vcpus: 16, memory: 64, storage: 100, gpus: 1, minVramGB: 48 }
+};
+
+function normalizeEdgeRagWorkload(w) {
+    if (!w || w.type !== 'edgerag') return w;
+    if (!['combined', 'knowledge', 'agentic'].includes(w.deploymentMode)) {
+        w.deploymentMode = 'combined';
+    }
+    if (!EDGERAG_LLM_PROFILES[w.llmEndpoint]) {
+        // Legacy computeMode exports never included LLM endpoint capacity.
+        w.llmEndpoint = w.computeMode ? 'external' : WORKLOAD_DEFAULTS.edgerag.llmEndpoint;
+    }
+    delete w.computeMode;
+    return w;
+}
+
+function edgeRagNeedsEmbeddingGpus(w) {
+    return normalizeEdgeRagWorkload(w).deploymentMode !== 'agentic';
+}
 
 // Video Indexer enabled by Arc fixed sizing constants. Video Indexer (Azure
 // Arc-enabled Kubernetes extension, Preview) runs on a 3-node AKS Arc control
@@ -3965,6 +3992,7 @@ function showAddWorkloadModal(type) {
         case 'edgerag':
             title.textContent = 'Add Agentic Retrieval';
             body.innerHTML = getEdgeRagModalContent();
+            updateEdgeRagConfiguration();
             break;
         case 'videoindexer':
             title.textContent = 'Add Video Indexer enabled by Arc';
@@ -4399,24 +4427,34 @@ function getEdgeRagModalContent() {
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Agentic Retrieval Preview, enabled by Azure Arc, packages a turnkey Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) on AKS Arc.
         </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
-            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/overview" target="_blank" style="color: var(--link-color);">Agentic Retrieval and Agents and Tools with Foundry Local overview</a>
-            <span style="margin: 0 6px;">|</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/requirements" target="_blank" style="color: var(--link-color);">Requirements for Agentic Retrieval in Foundry Local</a>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCD6</span><a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/overview" target="_blank" style="color: var(--link-color);">Agentic Retrieval and Agents and Tools with Foundry Local overview</a></div>
+            <div><span style="margin-right: 4px;">\uD83D\uDCDA</span><a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/requirements" target="_blank" style="color: var(--link-color);">Requirements for Agentic Retrieval in Foundry Local</a></div>
         </div>
         <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Agentic Retrieval">
         </div>
         <div class="form-group">
-            <label>Compute Mode
-                <span class="info-icon" title="GPU mode (recommended) deploys 4 GPU-enabled VMs (NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU each). CPU mode deploys 4 CPU-only VMs (8 vCPU / 32 GB each); CPU mode supports smaller files (≤5 MB) and slower retrieval.">ⓘ</span>
+            <label>Deployment Mode
+                <span class="info-icon" title="Combined includes knowledge retrieval and agents. Knowledge only omits the agentic layer. Agentic only uses an existing knowledge source and does not deploy embedding GPU workers.">ⓘ</span>
             </label>
-            <select id="edgerag-compute-mode" onchange="updateEdgeRagComputeMode()">
-                <option value="gpu" selected>GPU mode (recommended) &mdash; 4 \u00d7 GPU-enabled VMs</option>
-                <option value="cpu">CPU mode &mdash; 4 \u00d7 CPU-only VMs (≤ 5 MB per file)</option>
+            <select id="edgerag-deployment-mode" onchange="updateEdgeRagConfiguration()">
+                <option value="combined" selected>Combined &mdash; knowledge + agentic</option>
+                <option value="knowledge">Knowledge only</option>
+                <option value="agentic">Agentic only</option>
             </select>
-            <span class="hint" id="edgerag-mode-desc">GPU mode: 4 \u00d7 NC8_A2 / NC8_A16 worker VMs (8 vCPU, 32 GB, 1 GPU each). Larger documents (≤ 30 MB), faster ingestion and retrieval.</span>
+            <span class="hint" id="edgerag-mode-desc">Combined: 3 CPU workers plus 2 embedding GPU workers.</span>
+        </div>
+        <div class="form-group">
+            <label>Language Model Endpoint
+                <span class="info-icon" title="Agentic Retrieval does not bundle an LLM. Select an external endpoint, or include a dedicated GPT-OSS-20B Foundry Local host.">ⓘ</span>
+            </label>
+            <select id="edgerag-llm-endpoint" onchange="updateEdgeRagConfiguration()">
+                <option value="external">External / Microsoft Foundry endpoint</option>
+                <option value="foundry-minimum">Foundry Local minimum &mdash; 8 vCPU / 32 GB / 50 GB / 1 GPU ≥ 24 GB</option>
+                <option value="foundry-production" selected>Foundry Local production &mdash; 16 vCPU / 64 GB / 100 GB / 1 GPU ≥ 48 GB</option>
+            </select>
+            <span class="hint" id="edgerag-llm-desc">Adds a dedicated production GPT-OSS-20B model host.</span>
         </div>
         <div class="form-group">
             <label>Document Corpus Size (GB)
@@ -4426,7 +4464,7 @@ function getEdgeRagModalContent() {
             <span class="hint">Vector DB storage \u2248 ${EDGERAG_VECTOR_DB_MULTIPLIER} \u00d7 corpus size (chunks + embeddings + index).</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane (${EDGERAG_CP_VCPU_PER_NODE} vCPU / ${EDGERAG_CP_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each), ${EDGERAG_WORKER_NODES} \u00d7 worker VMs at ${EDGERAG_WORKER_VCPU_PER_NODE} vCPU / ${EDGERAG_WORKER_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each, vector DB storage, and ${EDGERAG_OPERATOR_VCPU} vCPU / ${EDGERAG_OPERATOR_MEM_GB} GB Agentic Retrieval operator overhead.
+            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane, ${EDGERAG_CPU_WORKER_NODES} CPU workers, mode-dependent embedding GPU workers, selected LLM endpoint capacity, vector DB storage, and operator overhead.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
@@ -4435,29 +4473,39 @@ function getEdgeRagModalContent() {
     `;
 }
 
-// Update Agentic Retrieval compute mode hint and force GPU mode on / off when switched
-function updateEdgeRagComputeMode() {
-    const modeEl = document.getElementById('edgerag-compute-mode');
+// Update Agentic Retrieval hints and enforce the documented GPU topology.
+function updateEdgeRagConfiguration() {
+    const modeEl = document.getElementById('edgerag-deployment-mode');
     if (!modeEl) return;
+    const llmEl = document.getElementById('edgerag-llm-endpoint');
     const descEl = document.getElementById('edgerag-mode-desc');
+    const llmDescEl = document.getElementById('edgerag-llm-desc');
     const gpuModeEl = document.getElementById('wl-gpu-mode');
-    if (modeEl.value === 'gpu') {
-        if (descEl) descEl.textContent = 'GPU mode: 4 \u00d7 NC8_A2 / NC8_A16 worker VMs (8 vCPU, 32 GB, 1 GPU each). Larger documents (\u2264 30 MB), faster ingestion and retrieval.';
+    const needsGpu = modeEl.value !== 'agentic' || (llmEl && llmEl.value !== 'external');
+    if (descEl) {
+        descEl.textContent = modeEl.value === 'combined'
+            ? 'Combined: 3 D8s_v3 CPU workers plus 2 embedding GPU workers. NC8_A2 / NC8_A16 are recommended.'
+            : modeEl.value === 'knowledge'
+                ? 'Knowledge only: 3 D8s_v3 CPU workers plus 2 embedding GPU workers. NC8_A2 / NC8_A16 are recommended.'
+                : 'Agentic only: 3 D8s_v3 CPU workers and no embedding GPU workers.';
+    }
+    if (llmDescEl && llmEl) {
+        llmDescEl.textContent = llmEl.value === 'external'
+            ? 'Uses an existing OpenAI-compatible endpoint; no local model-host capacity is added.'
+            : llmEl.value === 'foundry-minimum'
+                ? 'Adds a dedicated minimum GPT-OSS-20B model host with at least 24 GB VRAM.'
+                : 'Adds a dedicated production GPT-OSS-20B model host with at least 48 GB VRAM.';
+    }
+    if (needsGpu) {
         if (gpuModeEl) {
-            if (gpuModeEl.value === 'none') {
-                gpuModeEl.value = 'dda';
-                toggleWorkloadGpuFields();
-            }
+            gpuModeEl.value = 'dda';
+            toggleWorkloadGpuFields();
             const noneOpt = gpuModeEl.querySelector('option[value="none"]');
             if (noneOpt) noneOpt.disabled = true;
-            // Default to 1 GPU per worker (4 total) if user hasn't customised
             const gpuCountEl = document.getElementById('wl-gpu-dda-count');
-            if (gpuCountEl && (!gpuCountEl.value || gpuCountEl.value === '0')) {
-                gpuCountEl.value = EDGERAG_WORKER_GPU_PER_NODE;
-            }
+            if (gpuCountEl) gpuCountEl.value = '1';
         }
     } else {
-        if (descEl) descEl.textContent = 'CPU mode: 4 \u00d7 D8s_v3-equivalent worker VMs (8 vCPU, 32 GB each). Smaller documents only (\u2264 5 MB), slower ingestion and retrieval.';
         if (gpuModeEl) {
             const noneOpt = gpuModeEl.querySelector('option[value="none"]');
             if (noneOpt) noneOpt.disabled = false;
@@ -4757,6 +4805,21 @@ function readWorkloadGpuFields() {
 //     to pick L40S would otherwise slip past the UI).
 function validateWorkloadBeforeSave(workload, otherWorkloads) {
     if (!workload || typeof workload !== 'object') return null;
+    if (workload.type === 'edgerag') {
+        normalizeEdgeRagWorkload(workload);
+        const llm = EDGERAG_LLM_PROFILES[workload.llmEndpoint];
+        const needsGpu = edgeRagNeedsEmbeddingGpus(workload) || llm.gpus > 0;
+        if (needsGpu && workload.gpuMode !== 'dda') {
+            return { code: 'edgerag-gpu-required', message: 'This Agentic Retrieval configuration requires dedicated GPU capacity.' };
+        }
+        const selectedGpu = GPU_MODELS[workload.gpuDdaModel];
+        if (llm.gpus > 0 && (!selectedGpu || selectedGpu.vramGB < llm.minVramGB)) {
+            return {
+                code: 'edgerag-llm-insufficient-vram',
+                message: llm.label + ' requires an NVIDIA GPU with at least ' + llm.minVramGB + ' GB VRAM.'
+            };
+        }
+    }
     if (workload.type === 'aks' && workload.gpuMode === 'dda' && !workload.aksGpuVmSize) {
         return {
             code: 'aks-dda-missing-vm-size',
@@ -4853,7 +4916,8 @@ function addWorkload() {
             }
             break;
         case 'edgerag':
-            workload.computeMode = document.getElementById('edgerag-compute-mode').value || 'gpu';
+            workload.deploymentMode = document.getElementById('edgerag-deployment-mode').value || 'combined';
+            workload.llmEndpoint = document.getElementById('edgerag-llm-endpoint').value || 'foundry-production';
             workload.corpusGB = parseInt(document.getElementById('edgerag-corpus-gb').value) || 100;
             break;
         case 'videoindexer':
@@ -5021,11 +5085,12 @@ function editWorkload(id) {
         case 'edgerag':
             title.textContent = 'Edit Agentic Retrieval';
             body.innerHTML = getEdgeRagModalContent();
+            normalizeEdgeRagWorkload(w);
             document.getElementById('workload-name').value = w.name;
-            document.getElementById('edgerag-compute-mode').value = w.computeMode || 'gpu';
+            document.getElementById('edgerag-deployment-mode').value = w.deploymentMode;
+            document.getElementById('edgerag-llm-endpoint').value = w.llmEndpoint;
             document.getElementById('edgerag-corpus-gb').value = w.corpusGB || 100;
-            // Apply GPU/CPU mode constraint after restoring compute mode
-            updateEdgeRagComputeMode();
+            updateEdgeRagConfiguration();
             break;
         case 'videoindexer':
             title.textContent = 'Edit Video Indexer enabled by Arc';
@@ -5283,9 +5348,11 @@ function getWorkloadDetails(w) {
             break;
         }
         case 'edgerag': {
-            const modeLabel = w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
+            normalizeEdgeRagWorkload(w);
+            const modeLabel = w.deploymentMode === 'combined' ? 'Combined'
+                : w.deploymentMode === 'knowledge' ? 'Knowledge only' : 'Agentic only';
             const corpus = w.corpusGB || 100;
-            detail = `${EDGERAG_WORKER_NODES} worker VMs \u2022 ${modeLabel} \u2022 ${corpus} GB corpus`;
+            detail = `${modeLabel} \u2022 ${EDGERAG_LLM_PROFILES[w.llmEndpoint].label} \u2022 ${corpus} GB corpus`;
             break;
         }
         case 'videoindexer': {
@@ -5405,22 +5472,24 @@ function calculateWorkloadRequirements(w) {
             break;
         }
         case 'edgerag': {
-            // Agentic Retrieval runs on a 3-node AKS Arc control plane plus a fixed
-            // 4-VM worker pool. Per Microsoft's published minimum requirements:
-            //   GPU mode: 4 \u00d7 NC8_A2/NC8_A16 (8 vCPU / 32 GB / 1 GPU)
-            //   CPU mode: 4 \u00d7 D8s_v3-equivalent (8 vCPU / 32 GB)
+            normalizeEdgeRagWorkload(w);
+            // Agentic Retrieval uses separate CPU and embedding-GPU pools.
             // Vector DB storage is estimated as corpus \u00d7 EDGERAG_VECTOR_DB_MULTIPLIER.
             const cpVcpus = EDGERAG_CP_NODES * EDGERAG_CP_VCPU_PER_NODE;
             const cpMemory = EDGERAG_CP_NODES * EDGERAG_CP_MEM_PER_NODE;
             const cpStorage = EDGERAG_CP_NODES * EDGERAG_OS_DISK_GB;
-            const workerVcpus = EDGERAG_WORKER_NODES * EDGERAG_WORKER_VCPU_PER_NODE;
-            const workerMemory = EDGERAG_WORKER_NODES * EDGERAG_WORKER_MEM_PER_NODE;
-            const workerStorageOs = EDGERAG_WORKER_NODES * EDGERAG_OS_DISK_GB;
+            const cpuVcpus = EDGERAG_CPU_WORKER_NODES * EDGERAG_CPU_WORKER_VCPU;
+            const cpuMemory = EDGERAG_CPU_WORKER_NODES * EDGERAG_CPU_WORKER_MEM_GB;
+            const embeddingNodes = edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0;
+            const gpuVcpus = embeddingNodes * EDGERAG_GPU_WORKER_VCPU;
+            const gpuMemory = embeddingNodes * EDGERAG_GPU_WORKER_MEM_GB;
+            const llm = EDGERAG_LLM_PROFILES[w.llmEndpoint];
+            const workerStorageOs = (EDGERAG_CPU_WORKER_NODES + embeddingNodes) * EDGERAG_OS_DISK_GB;
             const corpusGB = w.corpusGB || 100;
             const vectorDbStorage = Math.ceil(corpusGB * EDGERAG_VECTOR_DB_MULTIPLIER);
-            vcpus = cpVcpus + workerVcpus + EDGERAG_OPERATOR_VCPU;
-            memory = cpMemory + workerMemory + EDGERAG_OPERATOR_MEM_GB;
-            storage = cpStorage + workerStorageOs + vectorDbStorage;
+            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus + EDGERAG_OPERATOR_VCPU;
+            memory = cpMemory + cpuMemory + gpuMemory + llm.memory + EDGERAG_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorageOs + llm.storage + vectorDbStorage;
             break;
         }
         case 'videoindexer': {
@@ -5481,9 +5550,9 @@ function calculateWorkloadRequirements(w) {
                 gpus = ddaCount * (w.replicas || 1);
                 break;
             case 'edgerag':
-                // Agentic Retrieval GPU mode: ddaCount GPUs per worker × 4 worker nodes
-                // (CPU mode never reaches this branch because gpuMode='none')
-                gpus = ddaCount * EDGERAG_WORKER_NODES;
+                normalizeEdgeRagWorkload(w);
+                gpus = (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
+                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
                 break;
             case 'videoindexer':
                 // Video Indexer GPU is optional (BYO model). ddaCount GPUs per
@@ -8182,7 +8251,9 @@ function selectRegionAndConfigure(region, cloud) {
                     }
                     break;
                 case 'edgerag':
-                    entry.computeMode = w.computeMode;
+                    normalizeEdgeRagWorkload(w);
+                    entry.deploymentMode = w.deploymentMode;
+                    entry.llmEndpoint = w.llmEndpoint;
                     entry.corpusGB = w.corpusGB;
                     break;
                 case 'videoindexer':
@@ -8348,7 +8419,8 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'edgerag') {
                     const edgeragReqs = calculateWorkloadRequirements(w);
-                    const edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
+                    normalizeEdgeRagWorkload(w);
+                    const edgeragDetail = w.deploymentMode + ' \u00b7 ' + EDGERAG_LLM_PROFILES[w.llmEndpoint].label + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
                     rows.push(['Workload', 'Agentic Retrieval', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'videoindexer') {
                     const viReqs = calculateWorkloadRequirements(w);
@@ -10402,7 +10474,7 @@ function applyImportedSizerState(d) {
                 w.name = String(w.name == null ? '' : w.name).substring(0, MAX_WORKLOAD_NAME_CHARS);
                 const importedId = Number(w.id);
                 w.id = Number.isSafeInteger(importedId) && importedId >= 0 ? importedId : index + 1;
-                return w;
+                return normalizeEdgeRagWorkload(w);
             });
             if (d.workloads.length !== originalCount) {
                 console.warn('Import: dropped ' + (originalCount - d.workloads.length) +
@@ -10533,7 +10605,7 @@ function applyImportedSizerState(d) {
     }
 
     // Restore workloads
-    workloads = d.workloads || [];
+    workloads = (d.workloads || []).map(normalizeEdgeRagWorkload);
     workloadIdCounter = d.workloadIdCounter || 0;
     // Spine count is always 2 (legacy saves may have had other values)
 

@@ -1546,7 +1546,7 @@
             return null;
         }
 
-        const typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Edge RAG', videoindexer: 'AI Video Indexer' };
+        const typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Agentic Retrieval', videoindexer: 'AI Video Indexer' };
         const avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
         const foundryClassLabels = { small: 'Small SLM', medium: 'Medium SLM', large: 'Large LLM', custom: 'Custom' };
 
@@ -1602,8 +1602,9 @@
                     headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
                 }
             } else if (wl.type === 'edgerag') {
-                const emode = wl.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
-                headline = '4 worker VMs \u00b7 ' + emode + ' \u00b7 ' + (wl.corpusGB || 0) + ' GB corpus';
+                const mode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
+                const endpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry production' : 'External LLM';
+                headline = mode + ' \u00b7 3 CPU workers \u00b7 ' + (wl.deploymentMode === 'agentic' ? '0' : '2') + ' embedding GPU workers \u00b7 ' + endpoint + ' \u00b7 ' + (wl.corpusGB || 0) + ' GB corpus';
             } else if (wl.type === 'videoindexer') {
                 const viIsMin = wl.configuration === 'minimum';
                 const viWorkers = viIsMin ? 1 : 2;

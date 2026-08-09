@@ -1214,7 +1214,7 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
             const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
@@ -1256,8 +1256,12 @@
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
                     }
                 } else if (wl.type === 'edgerag') {
-                    md.push('| Compute Mode | ' + (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)') + ' |');
-                    md.push('| Worker VMs | 4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ') |');
+                    const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
+                    const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
+                    md.push('| Deployment Mode | ' + deploymentMode + ' |');
+                    md.push('| CPU Workers | 3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each) |');
+                    md.push('| Embedding GPU Workers | ' + (wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16') + ' |');
+                    md.push('| Language Model Endpoint | ' + llmEndpoint + ' |');
                     md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMin = wl.configuration === 'minimum';
@@ -1322,7 +1326,7 @@
         // AKS Arc Network Requirements — always shown in the report.
         // Even Designer-only users (no Sizer workloads) may add AKS Arc to
         // their cluster later, so the port table + docs link is always
-        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // useful. The native AKS Arc workload, Foundry Local, Agentic Retrieval, and
         // AI Video Indexer all run on AKS Arc and inherit these requirements.
         {
             md.push('## AKS Arc Network Requirements');
@@ -8212,7 +8216,7 @@
         // Sizer Workloads (individual workload details from Sizer)
         let sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
             const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -8254,8 +8258,12 @@
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
                     }
                 } else if (wl.type === 'edgerag') {
-                    sizerWorkloadsRows += row('Compute Mode', (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)'));
-                    sizerWorkloadsRows += row('Worker VMs', '4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ')');
+                    const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
+                    const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
+                    sizerWorkloadsRows += row('Deployment Mode', deploymentMode);
+                    sizerWorkloadsRows += row('CPU Workers', '3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each)');
+                    sizerWorkloadsRows += row('Embedding GPU Workers', wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16');
+                    sizerWorkloadsRows += row('Language Model Endpoint', llmEndpoint);
                     sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMinH = wl.configuration === 'minimum';
@@ -8271,7 +8279,7 @@
         // AKS Arc Network Requirements — always shown in the report.
         // Even Designer-only users (no Sizer workloads) may add AKS Arc to
         // their cluster later, so the port table + docs link is always
-        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // useful. The native AKS Arc workload, Foundry Local, Agentic Retrieval, and
         // AI Video Indexer all run on AKS Arc and inherit these requirements.
         let aksNetworkRows = '';
         {
