@@ -4313,8 +4313,8 @@
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
                     llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4' });
-                return assert(err && err.code === 'edgerag-unsupported-gpu',
-                    'Agentic Retrieval blocks non-A2/A16 embedding GPUs', 'edgerag-unsupported-gpu', err && err.code);
+                return assert(err === null,
+                    'Agentic Retrieval accepts AKS-supported L4 embedding GPUs', null, err);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
@@ -5200,9 +5200,15 @@
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
                     llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1 });
-                return assert(err && err.code === 'edgerag-unsupported-gpu',
-                    'Agentic Retrieval + DDA + L4 → blocks (A2/A16 only)',
-                    'edgerag-unsupported-gpu', err && err.code);
+                return assert(err === null,
+                    'Agentic Retrieval + DDA + L4 → no error (L4 has AKS VM SKUs)', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 1 });
+                return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
+                    'Agentic Retrieval + DDA + A100 → blocks (A100 has no AKS VM SKUs)',
+                    'aks-hosted-dda-unsupported-gpu', err && err.code);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'videoindexer', gpuMode: 'dda', gpuDdaModel: 't4', gpuDdaCount: 1 });

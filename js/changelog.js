@@ -57,12 +57,12 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <div style="font-size: 13px; color: var(--text-secondary);">August 9, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Agentic Retrieval sizing now follows the current Foundry Local deployment requirements, with explicit deployment modes and language-model endpoint capacity.</p>
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
-                        <li><strong>Current worker topology</strong> &mdash; all modes include three CPU workers; Combined and Knowledge add two A2/A16 embedding GPU workers, while Agentic-only does not.</li>
+                        <li><strong>Current worker topology</strong> &mdash; all modes include three CPU workers; Combined and Knowledge add two embedding GPU workers, while Agentic-only does not.</li>
                         <li><strong>Language-model endpoint sizing</strong> &mdash; choose an external endpoint or include the documented Foundry Local minimum or production GPT-OSS-20B host capacity.</li>
-                        <li><strong>GPU validation</strong> &mdash; Agentic Retrieval accepts A2/A16 only and validates the local model host VRAM baseline.</li>
+                        <li><strong>GPU validation</strong> &mdash; Agentic Retrieval accepts the full AKS Arc DDA GPU list, identifies NC8_A2 and NC8_A16 as recommended sizes, and validates the local model-host VRAM baseline.</li>
                         <li><strong>Compatible exports</strong> &mdash; Sizer payload version 3 adds deployment and endpoint fields; older Agentic Retrieval exports continue to import.</li>
                         <li><strong>Dependency security updates</strong> &mdash; available js-yaml and brace-expansion fixes are enforced, restoring the scheduled policy-aware audit.</li>
-                        <li>All <strong>1,503 / 1,503</strong> browser tests pass.</li>
+                        <li>All <strong>1,504 / 1,504</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

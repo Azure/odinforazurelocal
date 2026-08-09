@@ -20,8 +20,8 @@ previously unavailable are now present in the configured package feed.
 - Replace the UI's compute-mode choice with deployment modes: `combined`,
   `knowledge`, and `agentic`.
 - Model three CPU workers at 8 vCPU / 32 GB each for all modes.
-- Add two A2/A16 embedding GPU workers for Combined and Knowledge modes;
-  Agentic mode has no embedding GPU workers.
+- Add two embedding GPU workers for Combined and Knowledge modes; Agentic mode
+  has no embedding GPU workers. NC8_A2 and NC8_A16 are recommended sizes.
 - Add an explicit language-model endpoint choice: external, Foundry Local
   minimum, or Foundry Local production. Local choices add the documented
   dedicated model-host CPU, RAM, storage, and GPU capacity.
@@ -29,7 +29,8 @@ previously unavailable are now present in the configured package feed.
   external endpoint. This preserves their prior omission of LLM capacity.
 - Keep the 1.5x corpus storage multiplier clearly identified as an ODIN
   estimate rather than a Microsoft hardware requirement.
-- Restrict Agentic Retrieval embedding GPU selection to A2 and A16.
+- Allow the full AKS Arc DDA GPU list (T4, A2, A16, L4, L40, L40S, and RTX Pro
+  6000), while retaining NC8_A2 and NC8_A16 as recommended presets.
 - Update report output, JSON Schema, tests, release documentation, and version
   surfaces together.
 - Raise dependency floors where fixes are available and keep only a narrowly

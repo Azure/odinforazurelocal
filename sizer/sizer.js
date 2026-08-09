@@ -798,7 +798,6 @@ function populateDdaModels() {
     for (const [key, model] of Object.entries(GPU_MODELS)) {
         if (!model.supportsAzureLocalVMs) continue;
         if (restrictToAks && !aksSupportedKeys.has(key)) continue;
-        if (currentModalType === 'edgerag' && key !== 'a2' && key !== 'a16') continue;
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/machine)`;
@@ -3391,7 +3390,7 @@ const FOUNDRY_OPERATOR_MEM_GB = 4;
 // CPU and embedding-GPU node pools. Per Microsoft's published minimum hardware
 // requirements (https://learn.microsoft.com/azure/azure-arc/agents-tools-foundry-local/requirements):
 //   All modes: 3+ CPU VMs at minimum 8 vCPU / 32 GB each (D8s_v3)
-//   Combined / Knowledge: 2 GPU VMs (NC8_A2 or NC8_A16), one per embedding model
+//   Combined / Knowledge: 2 GPU VMs, one per embedding model (NC8_A2 or NC8_A16 recommended)
 //   Agentic only: no embedding GPU VMs
 //   GPT-OSS-20B via Foundry Local: a separate minimum or production model host
 // Plus an Agentic Retrieval operator overhead and a vector-database storage allowance
@@ -4485,17 +4484,17 @@ function updateEdgeRagConfiguration() {
     const needsGpu = modeEl.value !== 'agentic' || (llmEl && llmEl.value !== 'external');
     if (descEl) {
         descEl.textContent = modeEl.value === 'combined'
-            ? 'Combined: 3 D8s_v3 CPU workers plus 2 NC8_A2 / NC8_A16 embedding GPU workers.'
+            ? 'Combined: 3 D8s_v3 CPU workers plus 2 embedding GPU workers. NC8_A2 / NC8_A16 are recommended.'
             : modeEl.value === 'knowledge'
-                ? 'Knowledge only: 3 D8s_v3 CPU workers plus 2 NC8_A2 / NC8_A16 embedding GPU workers.'
+                ? 'Knowledge only: 3 D8s_v3 CPU workers plus 2 embedding GPU workers. NC8_A2 / NC8_A16 are recommended.'
                 : 'Agentic only: 3 D8s_v3 CPU workers and no embedding GPU workers.';
     }
     if (llmDescEl && llmEl) {
         llmDescEl.textContent = llmEl.value === 'external'
             ? 'Uses an existing OpenAI-compatible endpoint; no local model-host capacity is added.'
             : llmEl.value === 'foundry-minimum'
-                ? 'Adds a dedicated minimum GPT-OSS-20B model host. A16 is required to meet the VRAM baseline.'
-                : 'Adds a dedicated production GPT-OSS-20B model host. A16 is required to meet the VRAM baseline.';
+                ? 'Adds a dedicated minimum GPT-OSS-20B model host with at least 24 GB VRAM.'
+                : 'Adds a dedicated production GPT-OSS-20B model host with at least 48 GB VRAM.';
     }
     if (needsGpu) {
         if (gpuModeEl) {
@@ -4812,9 +4811,6 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
         const needsGpu = edgeRagNeedsEmbeddingGpus(workload) || llm.gpus > 0;
         if (needsGpu && workload.gpuMode !== 'dda') {
             return { code: 'edgerag-gpu-required', message: 'This Agentic Retrieval configuration requires dedicated GPU capacity.' };
-        }
-        if (needsGpu && !['a2', 'a16'].includes(workload.gpuDdaModel)) {
-            return { code: 'edgerag-unsupported-gpu', message: 'Agentic Retrieval supports NVIDIA A2 or A16 GPUs only.' };
         }
         const selectedGpu = GPU_MODELS[workload.gpuDdaModel];
         if (llm.gpus > 0 && (!selectedGpu || selectedGpu.vramGB < llm.minVramGB)) {

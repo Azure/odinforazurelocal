@@ -54,13 +54,13 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 > **Agentic Retrieval sizing now follows the current Foundry Local requirements.** This release separates CPU and embedding-GPU pools, models Combined, Knowledge, and Agentic deployment modes, and includes explicit external or local language-model endpoint capacity.
 
 **What's new**
-- **Documented deployment topology** — all modes include three D8s_v3-equivalent CPU workers; Combined and Knowledge add two A2/A16 embedding GPU workers, while Agentic-only does not allocate embedding GPUs.
+- **Documented deployment topology** — all modes include three D8s_v3-equivalent CPU workers; Combined and Knowledge add two embedding GPU workers, while Agentic-only does not allocate embedding GPUs.
 - **Explicit LLM endpoint sizing** — choose an external OpenAI-compatible endpoint, Foundry Local minimum, or Foundry Local production. Local GPT-OSS-20B choices add the documented dedicated CPU, memory, storage, GPU, and VRAM baseline.
-- **GPU validation** — Agentic Retrieval is restricted to the documented A2/A16 families, and local model profiles reject insufficient VRAM.
+- **GPU validation** — Agentic Retrieval offers the full AKS Arc DDA list (T4, A2, A16, L4, L40, L40S, and RTX Pro 6000), identifies NC8_A2 and NC8_A16 as recommended sizes, and rejects insufficient local model-host VRAM.
 - **Compatible payload update** — `SIZER_VERSION` is now 3 with `deploymentMode` and `llmEndpoint`; older `computeMode` exports still import as Combined with an external endpoint.
 - **Reports and schemas aligned** — Sizer cards, JSON Schema, Markdown/HTML reports, and PowerPoint output use the Agentic Retrieval name and current topology.
 - **Dependency audit restored** — patched `js-yaml` and `brace-expansion` versions are enforced. The unavailable nanoid fix remains visible through one narrowly scoped temporary audit exception.
-- **Validation** — all **1,503 / 1,503** browser tests pass, including the new deployment-mode, endpoint, GPU, and legacy-import cases.
+- **Validation** — all **1,504 / 1,504** browser tests pass, including the new deployment-mode, endpoint, GPU, and legacy-import cases.
 
 ---
 

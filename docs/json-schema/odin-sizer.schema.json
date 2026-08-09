@@ -190,7 +190,7 @@
           "title": "Agentic Retrieval workload",
           "properties": {
             "type": { "const": "edgerag" },
-            "deploymentMode": { "type": "string", "enum": ["combined", "knowledge", "agentic"], "description": "Combined and Knowledge deploy two A2/A16 embedding GPU workers; Agentic does not deploy embedding workers." },
+            "deploymentMode": { "type": "string", "enum": ["combined", "knowledge", "agentic"], "description": "Combined and Knowledge deploy two AKS Arc-supported embedding GPU workers (NC8_A2 or NC8_A16 recommended); Agentic does not deploy embedding workers." },
             "llmEndpoint": { "type": "string", "enum": ["external", "foundry-minimum", "foundry-production"], "description": "External adds no local model host; Foundry Local choices add the documented GPT-OSS-20B minimum or production host capacity." },
             "corpusGB": { "type": "integer", "minimum": 1, "description": "Document corpus size in GB; drives vector-DB storage estimate." }
           },
