@@ -4428,10 +4428,8 @@ function getEdgeRagModalContent() {
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Agentic Retrieval Preview, enabled by Azure Arc, packages a turnkey Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) on AKS Arc.
         </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
-            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/overview" target="_blank" style="color: var(--link-color);">Agentic Retrieval and Agents and Tools with Foundry Local overview</a>
-            <span style="margin: 0 6px;">|</span>
-            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/requirements" target="_blank" style="color: var(--link-color);">Requirements for Agentic Retrieval in Foundry Local</a>
+            <div style="margin-bottom: 4px;"><span style="margin-right: 4px;">\uD83D\uDCD6</span><a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/overview" target="_blank" style="color: var(--link-color);">Agentic Retrieval and Agents and Tools with Foundry Local overview</a></div>
+            <div><span style="margin-right: 4px;">\uD83D\uDCDA</span><a href="https://learn.microsoft.com/en-us/azure/azure-arc/agents-tools-foundry-local/requirements" target="_blank" style="color: var(--link-color);">Requirements for Agentic Retrieval in Foundry Local</a></div>
         </div>
         <div class="form-group">
             <label>Workload Name</label>
