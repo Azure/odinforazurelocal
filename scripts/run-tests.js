@@ -2,7 +2,6 @@
  * Run ODIN unit tests using Puppeteer and generate NUnit XML report
  * Usage: node scripts/run-tests.js [--nunit | --junit]
  */
-const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -731,8 +730,9 @@ function generateJUnitXML(results, passed, failed, total) {
         }
 
         console.log('Launching browser...');
+        const puppeteer = await import('puppeteer');
         const browser = await puppeteer.launch({
-            headless: 'new',
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
         
