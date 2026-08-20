@@ -13,7 +13,6 @@
  * common regression classes (missing template, broken section handler,
  * vendored library version drift) without parsing the OOXML.
  */
-const puppeteer = require('puppeteer');
 const path = require('path');
 
 // Minimum payload that exercises the cover, all sections, and the closing slide.
@@ -49,8 +48,9 @@ const SEED_PAYLOAD = {
     let browser;
     try {
         console.log('PPTX smoke test: launching browser…');
+        const puppeteer = await import('puppeteer');
         browser = await puppeteer.launch({
-            headless: 'new',
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--allow-file-access-from-files']
         });
 

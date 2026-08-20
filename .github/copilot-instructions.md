@@ -35,6 +35,7 @@
 - **js-yaml**: NEVER allow `js-yaml` to regress below version **4.3.1**. Earlier 4.x releases have quadratic-complexity denial-of-service advisories. Pulled in transitively through ESLint and Puppeteer tooling; maintain the `">=4.3.1 <5.0.0"` override.
 - **nanoid**: GHSA-2v37-7h3g-55p8 is temporarily allowed only for package `nanoid` because patched 3.3.17 is not yet available through the configured feed. Remove the package-scoped exception in `scripts/check-npm-audit.js` as soon as the fixed release becomes available.
 - **postcss**: NEVER allow `postcss` to regress below version **8.5.25**. Earlier releases permit source-map path traversal or disclosure. Pulled in transitively through Stylelint; maintain the `">=8.5.25"` override.
+- **puppeteer**: NEVER allow `puppeteer` to regress below version **25.6.0**. Older releases pull in `extract-zip` 2.0.1, which permits unvalidated symlink path traversal while extracting browser archives (GHSA-jmr9-qjv8-65gv / CVE-2026-56876). Puppeteer 25 is ESM-only and requires Node.js 22.12.0 or newer; keep the dynamic imports in the CommonJS test scripts and the matching `engines.node` floor in `package.json`.
 
 ## GitHub Pages Publication (`_config.yml`)
 - The live site at `https://azure.github.io/odinforazurelocal/` is built by GitHub Pages using Jekyll. The root `_config.yml` file controls which folders/files are **excluded** from publication (currently: `tools/`, `scripts/`, `tests/`, `test-results/`, `docs/archive/`, `node_modules/`, `package*.json`, lint configs, `CONTRIBUTING.md`).
