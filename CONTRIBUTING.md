@@ -76,6 +76,7 @@ This map is provided to help issue reporters identify the affected product area.
 - `.gitignore` - local/generated file exclusions
 - `.htmlvalidate.json` - HTML validation configuration
 - `.htmlvalidateignore` - HTML validation exclusions
+- `.npmrc` - npm lockfile registry URL policy
 - `.stylelintrc.json` - CSS lint configuration
 - `CHANGELOG.md` - canonical detailed change record
 - `CONTRIBUTING.md` - issue and feedback guidance
