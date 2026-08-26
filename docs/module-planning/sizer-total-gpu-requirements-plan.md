@@ -26,6 +26,8 @@
   topologies.
 - Enforce one cluster-wide GPU-P partition size and add contextual Learn links
   for hardware preparation, DDA, GPU-P, and AKS GPU sizing.
+- Show configured physical GPU capacity even when no workload consumes GPUs,
+  reporting zero used against the N-1 effective machine inventory.
 - Preserve historical changelog and completed-plan references as release
   history rather than rewriting them.
 

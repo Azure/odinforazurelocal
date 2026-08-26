@@ -5694,6 +5694,23 @@ function calculateWorkloadRequirements(w) {
     return { vcpus, memory, storage, gpus };
 }
 
+function getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, totalGpus) {
+    const configuredPerNode = Math.max(Number(gpuCountPerNode) || 0, 0);
+    const physicalNodes = Math.max(Number(nodeCount) || 0, 0);
+    const availableNodes = Math.max(Number(effectiveNodes) || 0, 0);
+    const used = Math.max(Number(totalGpus) || 0, 0);
+    const total = configuredPerNode * availableNodes;
+    const cappedUsed = Math.min(used, configuredPerNode * physicalNodes);
+    const percent = total > 0 ? Math.min(100, Math.round((cappedUsed / total) * 100)) : 0;
+
+    return {
+        visible: configuredPerNode > 0,
+        percent: percent,
+        used: used,
+        total: total
+    };
+}
+
 // Calculate all requirements
 function calculateRequirements(options) {
     if (isCalculating) return;
@@ -6565,17 +6582,13 @@ function calculateRequirements(options) {
         // --- GPU Capacity Bar ---
         const gpuCountPerNode = hwConfig.gpuCount || 0;
         const gpuCapacitySection = document.getElementById('gpu-capacity-section');
-        let gpuPercent = 0;
-        if (gpuCountPerNode > 0 && totalGpus > 0) {
-            // Available GPUs use N-1 effective nodes (resiliency — must be able to drain a node)
-            const totalAvailableGpus = gpuCountPerNode * effectiveNodes;
-            // Cap totalGpus at physical limit (growth factor cannot exceed physical hardware)
-            const cappedGpus = Math.min(totalGpus, gpuCountPerNode * nodeCount);
-            gpuPercent = Math.min(100, Math.round((cappedGpus / totalAvailableGpus) * 100)) || 0;
+        const gpuCapacity = getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, totalGpus);
+        const gpuPercent = gpuCapacity.percent;
+        if (gpuCapacity.visible) {
             document.getElementById('gpu-percent').textContent = gpuPercent + '%';
             document.getElementById('gpu-fill').style.width = gpuPercent + '%';
-            document.getElementById('gpu-used').textContent = totalGpus % 1 === 0 ? totalGpus : totalGpus.toFixed(1);
-            document.getElementById('gpu-total').textContent = totalAvailableGpus;
+            document.getElementById('gpu-used').textContent = gpuCapacity.used % 1 === 0 ? gpuCapacity.used : gpuCapacity.used.toFixed(1);
+            document.getElementById('gpu-total').textContent = gpuCapacity.total;
             document.getElementById('gpu-fill').classList.toggle('over-threshold', gpuPercent >= 90);
             if (gpuCapacitySection) gpuCapacitySection.style.display = '';
         } else {

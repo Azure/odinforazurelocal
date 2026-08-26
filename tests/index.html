@@ -3531,6 +3531,33 @@
             assert(formatDiskSize(2048) === '2.0 TB', 'Format 2048 GB = 2.0 TB', '2.0 TB', formatDiskSize(2048))
         ]);
 
+        testSuite('getGpuCapacityMetrics()', 'sizer.js', [
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(2, 4, 3, 0)
+                    : null;
+                return assert(metrics && metrics.visible && metrics.percent === 0 && metrics.used === 0 && metrics.total === 6,
+                    'Configured GPUs with no workloads remain visible as 0 / N−1 capacity',
+                    '{visible:true,percent:0,used:0,total:6}', JSON.stringify(metrics));
+            })(),
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(0, 4, 3, 0)
+                    : null;
+                return assert(metrics && !metrics.visible && metrics.total === 0,
+                    'No configured physical GPUs keeps GPU capacity hidden',
+                    '{visible:false,total:0}', JSON.stringify(metrics));
+            })(),
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(2, 4, 3, 4)
+                    : null;
+                return assert(metrics && metrics.visible && metrics.percent === 67 && metrics.used === 4 && metrics.total === 6,
+                    'Workload GPU demand still uses N−1 effective capacity',
+                    '{visible:true,percent:67,used:4,total:6}', JSON.stringify(metrics));
+            })()
+        ]);
+
         // --- getDisaggMaxNodesPerRack() ---
         // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
         testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [
