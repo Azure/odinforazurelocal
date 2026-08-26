@@ -125,7 +125,7 @@ const CPU_GENERATIONS = {
             name: 'AMD 5th Gen EPYC™ (Turin)',
             minCores: 8,
             maxCores: 128,
-            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 128],
+            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 84, 128],
             defaultCores: 32,
             architecture: 'Zen 5',
             socket: 'SP5 (LGA 6096)',

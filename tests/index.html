@@ -7238,6 +7238,21 @@
             })()
         ]);
 
+        testSuite('CPU_GENERATIONS: AMD 5th Gen EPYC catalog options', 'sizer.js', [
+            (() => {
+                const turin = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th');
+                return assert(turin.coreOptions.includes(84),
+                    'Standard AMD Turin includes the catalog-listed 84-core option', true,
+                    turin.coreOptions.includes(84));
+            })(),
+            (() => {
+                const turinDense = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th-c');
+                return assert(!turinDense.coreOptions.includes(84),
+                    'AMD Turin Dense remains limited to its 96-core minimum and above', false,
+                    turinDense.coreOptions.includes(84));
+            })()
+        ]);
+
         // --- Power estimate core scaling logic ---
         testSuite('Power estimate core scaling (40% base + 60% proportional)', 'sizer.js', [
             (() => {

@@ -43,6 +43,9 @@ support table documents its workload and assignment mode.
 - The Sizer's standard 5th Gen EPYC (Turin) list omits 84 cores. Turin Dense
   starts at 96 cores, so 84 belongs only to the standard Turin generation if
   validated.
+- Decision: add 84 cores to standard 5th Gen EPYC (Turin) in the current
+  release, based on the published HPE catalog configuration. Keep Turin Dense
+  unchanged at its 96-core minimum.
 - No new CPU generation appeared. All other catalog core counts remain covered
   by existing Sizer generation options.
 
@@ -89,8 +92,8 @@ support table documents its workload and assignment mode.
      display text.
 2. Add documentation-gated GPU review metadata so catalog-only models remain
    visible to maintainers without becoming selectable Sizer options.
-3. Validate the 84-core Turin SKU against public HPE/AMD specifications, then
-   add 84 only to `epyc-5th` if confirmed.
+3. Add the catalog-listed 84-core option only to standard `epyc-5th`; retain
+  the 96-core minimum for `epyc-5th-c`.
 4. Reassess hardware ceilings against current Azure Local requirements:
    - decide whether 6 TB and 8 TB memory options should be available only for
      disaggregated designs;
@@ -118,8 +121,6 @@ Adding dropdown values alone does not require a payload-version bump.
   and/or AKS support be documented later?
 - Does the DataON configuration impose a one-GPU-per-machine limit needed to
   remain below the documented 192 GB GPU-memory ceiling?
-- Is the HPE 84-core entry a selectable 5th Gen EPYC SKU or catalog metadata
-  representing enabled cores from a larger processor?
 - Should memory choices above 4 TB be restricted to disaggregated deployments,
   even when an OEM hyperconverged catalog record advertises the hardware?
 - Should the Sizer model SMT explicitly, or conservatively cap physical cores
