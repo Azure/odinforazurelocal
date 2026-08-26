@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.02 - Available here: https://aka.ms/ODIN
+## Version 0.23.03 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,18 +49,16 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.02 - Latest Release
+### Version 0.23.03 - Latest Release
 
-> **Agentic Retrieval sizing now follows the current Foundry Local requirements.** This release separates CPU and embedding-GPU pools, models Combined, Knowledge, and Agentic deployment modes, and includes explicit external or local language-model endpoint capacity.
+> **Sizer now supports model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and removes NVIDIA H100 from active sizing choices.**
 
 **What's new**
-- **Documented deployment topology** — all modes include three D8s_v3-equivalent CPU workers; Combined and Knowledge add two embedding GPU workers, while Agentic-only does not allocate embedding GPUs.
-- **Explicit LLM endpoint sizing** — choose an external OpenAI-compatible endpoint, Foundry Local minimum, or Foundry Local production. Local GPT-OSS-20B choices add the documented dedicated CPU, memory, storage, GPU, and VRAM baseline.
-- **GPU validation** — Agentic Retrieval offers the full AKS Arc DDA list (T4, A2, A16, L4, L40, L40S, and RTX Pro 6000), identifies NC8_A2 and NC8_A16 as recommended sizes, and rejects insufficient local model-host VRAM.
-- **Compatible payload update** — `SIZER_VERSION` is now 3 with `deploymentMode` and `llmEndpoint`; older `computeMode` exports still import as Combined with an external endpoint.
-- **Reports and schemas aligned** — Sizer cards, JSON Schema, Markdown/HTML reports, and PowerPoint output use the Agentic Retrieval name and current topology.
-- **Dependency audit restored** — patched `js-yaml` and `brace-expansion` versions are enforced. The unavailable nanoid fix remains visible through one narrowly scoped temporary audit exception.
-- **Validation** — all **1,504 / 1,504** browser tests pass, including the new deployment-mode, endpoint, GPU, and legacy-import cases.
+- **Model-dependent total GPU sizing** — Total VM mode accepts up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2 across all 64 machines.
+- **Per-machine limits preserved** — Per-VM and other workload modes retain each model's supported GPUs-per-machine limit, and switching models clamps oversized values immediately.
+- **Instance-wide validation** — combined same-model workloads cannot exceed the selected GPU model's Azure Local instance capacity; mixed models continue to produce the dedicated homogeneous-GPU conflict.
+- **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
+- **Validation** — all **1,508 / 1,508** browser tests pass, including model-dependent limits, aggregate capacity, model switching, H100 removal, and schema drift.
 
 ---
 
@@ -385,7 +383,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.02<br>
+**Version**: 0.23.03<br>
 **Last Updated**: August 2026<br>
 **Compatibility**: Azure Local 2506+
 

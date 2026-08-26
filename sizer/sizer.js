@@ -9,6 +9,7 @@ const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 // first-class workload type (tier + HA fields added to the export shape).
 const SIZER_VERSION = 3;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
+const MAX_AZURE_LOCAL_MACHINES = 64;
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SHARED_CONFIG_CHARS = 12000;
@@ -180,8 +181,7 @@ const GPU_MODELS = {
     l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
     l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
+    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
 
 // AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
@@ -242,7 +242,7 @@ function isAksHostedWorkloadType(workloadType) {
 
 // Returns the set of GPU keys that AKS Arc supports (i.e. that have at least
 // one published AKS GPU VM SKU). Currently: t4, a2, a16, l4, l40, l40s,
-// rtxpro6000. NOT included: a40, a100, h100.
+// rtxpro6000. NOT included: a40, a100.
 function getAksSupportedGpuKeys() {
     return new Set(Object.keys(AKS_GPU_VM_SIZES));
 }
@@ -716,10 +716,7 @@ function getGpuRequirementFields(workloadType) {
                 <label id="wl-gpu-dda-label">${ddaLabel}
                     <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
                 </label>
-                <select id="wl-gpu-dda-count">
-                    <option value="1" selected>1</option>
-                    <option value="2">2</option>
-                </select>
+                <input type="number" id="wl-gpu-dda-count" value="1" min="1" max="2" step="1">
             </div>
         </div>
         ${aksGpuVmSizeField}
@@ -848,7 +845,7 @@ function populateDdaModels() {
         modelSelect.title = 'GPU model is locked \u2014 all machines must use the same GPU model (homogeneous configuration).';
     } else if (lockedType) {
         // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
-        // workload locked the cluster to H100 but this is an AKS-hosted modal that
+        // workload locked the cluster to A100 but this is an AKS-hosted modal that
         // filters to AKS-supported GPUs only. Disable the dropdown and clear any
         // stale selection so the user cannot save a heterogeneous-GPU config.
         // validateWorkloadBeforeSave() also backstops this via the cross-workload
@@ -881,24 +878,26 @@ function workloadTypeDisplayName(t) {
     }
 }
 
-// Populate DDA GPU count dropdown based on selected model's maxPerNode
-function populateDdaCountOptions() {
-    const countSelect = document.getElementById('wl-gpu-dda-count');
-    const modelSelect = document.getElementById('wl-gpu-dda-model');
-    if (!countSelect) return;
-    const gpuType = modelSelect ? modelSelect.value : 'a2';
+function getDdaGpuCountLimit(workloadType, inputMode, gpuType) {
     const gpuModel = GPU_MODELS[gpuType];
     const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
-    const currentValue = parseInt(countSelect.value) || 1;
-    countSelect.innerHTML = '';
-    for (let i = 1; i <= maxPerNode; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i;
-        countSelect.appendChild(opt);
-    }
-    // Restore previous selection if still valid
-    countSelect.value = currentValue <= maxPerNode ? currentValue : 1;
+    return workloadType === 'vm' && inputMode === 'total'
+        ? maxPerNode * MAX_AZURE_LOCAL_MACHINES
+        : maxPerNode;
+}
+
+// Update the DDA GPU count input based on workload mode and selected model.
+function populateDdaCountOptions() {
+    const countInput = document.getElementById('wl-gpu-dda-count');
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!countInput) return;
+    const gpuType = modelSelect ? modelSelect.value : 'a2';
+    const inputModeEl = document.getElementById('vm-input-mode');
+    const inputMode = inputModeEl ? inputModeEl.value : null;
+    const limit = getDdaGpuCountLimit(currentModalType, inputMode, gpuType);
+    const currentValue = parseInt(countInput.value, 10) || 1;
+    countInput.max = String(limit);
+    countInput.value = String(Math.min(currentValue, limit));
 }
 
 // Handle DDA model selection \u2014 update hardware GPU type and count options
@@ -1030,7 +1029,7 @@ function populateAksGpuVmSizes() {
     if (infoEl) {
         if (lockedType && optionsAdded === 0) {
             // The cluster's GPU type is locked by another workload to a model
-            // that has NO published AKS Arc VM SKUs (e.g. A100, A40, H100).
+            // that has NO published AKS Arc VM SKUs (e.g. A100 or A40).
             // Warn the user *before* they try to save — addWorkload() will
             // also block save via validateWorkloadBeforeSave() as a backstop.
             const lockedModel = GPU_MODELS[lockedType];
@@ -4096,6 +4095,7 @@ function toggleVMInputMode() {
         storageHint.textContent = 'Total disk capacity including OS';
         if (gpuDdaLabel) gpuDdaLabel.innerHTML = 'GPUs per VM/Unit <span class="info-icon" title="Number of physical GPUs assigned via DDA to each VM or workload unit.">ⓘ</span>';
     }
+    populateDdaCountOptions();
 }
 
 // Get AKS modal content
@@ -4787,7 +4787,7 @@ function readWorkloadGpuFields() {
 //   - AKS Arc workloads with `gpuMode === 'dda'` MUST have an `aksGpuVmSize`
 //     selected. The "GPU VM Size" dropdown can legitimately end up empty when
 //     another workload has locked the cluster's GPU type to a model that has
-//     no AKS Arc VM SKUs (e.g. A100, A40, H100), or when the user simply
+//     no AKS Arc VM SKUs (e.g. A100 or A40), or when the user simply
 //     forgot to pick one. Without this guard the worker-node sizing math
 //     downstream would silently use the default vCPU/memory values from the
 //     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
@@ -4801,7 +4801,7 @@ function readWorkloadGpuFields() {
 //     that same model. If the new workload's effective GPU type differs from
 //     any *other* GPU-using workload's type, save is blocked. Backstops the
 //     UI dropdown lock for the case where the AKS-supported filter removed
-//     the locked GPU from the dropdown (e.g. VM with H100 + Foundry trying
+//     the locked GPU from the dropdown (e.g. VM with A100 + Foundry trying
 //     to pick L40S would otherwise slip past the UI).
 function validateWorkloadBeforeSave(workload, otherWorkloads) {
     if (!workload || typeof workload !== 'object') return null;
@@ -4826,7 +4826,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             message:
                 'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
                 'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
-                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100 or A40) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
         };
     }
     // Foundry / Agentic Retrieval / Video Indexer all run on AKS Arc — their DDA GPU
@@ -4846,6 +4846,34 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                     'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
                     'Either select a different GPU model, or set this workload\'s GPU Mode to None.'
             };
+        }
+    }
+    if (workload.gpuMode === 'dda') {
+        const gpuType = getWorkloadGpuType(workload);
+        const gpuModel = gpuType ? GPU_MODELS[gpuType] : null;
+        if (gpuType && !gpuModel) {
+            return {
+                code: 'unsupported-gpu-model',
+                message: 'The selected GPU model is no longer supported by the Sizer. Select a currently supported GPU model.'
+            };
+        }
+        if (gpuModel) {
+            const instanceLimit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_MACHINES;
+            const candidateGpus = calculateWorkloadGpuRequirement(workload);
+            const otherGpus = Array.isArray(otherWorkloads)
+                ? otherWorkloads.reduce(function(total, otherWorkload) {
+                    return getWorkloadGpuType(otherWorkload) === gpuType
+                        ? total + calculateWorkloadGpuRequirement(otherWorkload)
+                        : total;
+                }, 0)
+                : 0;
+            if (candidateGpus + otherGpus > instanceLimit) {
+                return {
+                    code: 'gpu-count-exceeds-instance-limit',
+                    message: 'GPU demand exceeds the Azure Local instance maximum for ' + gpuModel.name +
+                        ': ' + instanceLimit + ' GPUs across 64 machines (' + gpuModel.maxPerNode + ' per machine).'
+                };
+            }
         }
     }
     // Cross-workload homogeneous-GPU rule. Compare this workload's effective
@@ -5389,6 +5417,42 @@ function getWorkloadDetails(w) {
 }
 
 // Calculate workload requirements
+function calculateWorkloadGpuRequirement(w) {
+    if (!w || typeof w !== 'object') return 0;
+    if (w.gpuMode === 'dda') {
+        const ddaCount = w.gpuDdaCount || 1;
+        switch (w.type) {
+            case 'vm':
+                return ddaCount * (w.count || 1);
+            case 'aks':
+                return ddaCount * (w.workerNodes || 0) * (w.clusterCount || 0);
+            case 'avd':
+                return ddaCount * (w.sessionType === 'single'
+                    ? (w.userCount || 0)
+                    : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100)));
+            case 'foundry':
+                return ddaCount * (w.replicas || 1);
+            case 'edgerag':
+                normalizeEdgeRagWorkload(w);
+                return (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
+                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
+            case 'videoindexer':
+                return ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
+        }
+    } else if (w.gpuMode === 'gpu-p') {
+        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
+        const fraction = partProfile ? partProfile.fraction : 1;
+        if (w.type === 'vm') return fraction * (w.count || 1);
+        if (w.type === 'avd') {
+            const concurrentUsers = w.sessionType === 'single'
+                ? (w.userCount || 0)
+                : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100));
+            return fraction * concurrentUsers;
+        }
+    }
+    return 0;
+}
+
 function calculateWorkloadRequirements(w) {
     let vcpus = 0, memory = 0, storage = 0;
 
@@ -5527,55 +5591,7 @@ function calculateWorkloadRequirements(w) {
         }
     }
 
-    // Calculate GPU requirements
-    let gpus = 0; // In units of whole physical GPUs
-    if (w.gpuMode === 'dda') {
-        const ddaCount = w.gpuDdaCount || 1;
-        switch (w.type) {
-            case 'vm':
-                gpus = ddaCount * w.count;
-                break;
-            case 'aks':
-                // DDA GPUs per worker node × worker nodes × clusters
-                gpus = ddaCount * w.workerNodes * w.clusterCount;
-                break;
-            case 'avd':
-                // DDA GPUs per session host (approximation: concurrent users, 1 GPU per session host)
-                gpus = ddaCount * (w.sessionType === 'single'
-                    ? w.userCount
-                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100)));
-                break;
-            case 'foundry':
-                // DDA GPUs per replica × replicas (one model pod per worker node)
-                gpus = ddaCount * (w.replicas || 1);
-                break;
-            case 'edgerag':
-                normalizeEdgeRagWorkload(w);
-                gpus = (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
-                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
-                break;
-            case 'videoindexer':
-                // Video Indexer GPU is optional (BYO model). ddaCount GPUs per
-                // worker × worker nodes (1 minimum, 2 recommended).
-                gpus = ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
-                break;
-        }
-    } else if (w.gpuMode === 'gpu-p') {
-        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
-        const fraction = partProfile ? partProfile.fraction : 1;
-        switch (w.type) {
-            case 'vm':
-                gpus = fraction * w.count;
-                break;
-            case 'avd': {
-                const concUsers = w.sessionType === 'single'
-                    ? w.userCount
-                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100));
-                gpus = fraction * concUsers;
-                break;
-            }
-        }
-    }
+    const gpus = calculateWorkloadGpuRequirement(w);
 
     return { vcpus, memory, storage, gpus };
 }

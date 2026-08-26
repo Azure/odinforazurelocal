@@ -462,16 +462,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.02'
+                    globalThis.ODIN_VERSION === '0.23.03'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.02')
+                        && branding.textContent.includes('Version 0.23.03')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.02 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.03 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -5018,8 +5018,8 @@
             assert(GPU_MODELS.l40s !== undefined, 'L40S model defined', true, GPU_MODELS.l40s !== undefined),
             assert(GPU_MODELS.t4 !== undefined, 'T4 model defined', true, GPU_MODELS.t4 !== undefined),
             assert(GPU_MODELS.rtxpro6000 !== undefined, 'RTX Pro 6000 model defined', true, GPU_MODELS.rtxpro6000 !== undefined),
-            assert(GPU_MODELS.h100 !== undefined, 'H100 model defined', true, GPU_MODELS.h100 !== undefined),
-            assert(Object.keys(GPU_MODELS).length === 10, 'GPU_MODELS has exactly 10 models', 10, Object.keys(GPU_MODELS).length),
+            assert(GPU_MODELS.h100 === undefined, 'H100 model removed', undefined, GPU_MODELS.h100),
+            assert(Object.keys(GPU_MODELS).length === 9, 'GPU_MODELS has exactly 9 models', 9, Object.keys(GPU_MODELS).length),
             assert(GPU_MODELS.a2.vramGB === 16, 'A2: 16 GB VRAM', 16, GPU_MODELS.a2.vramGB),
             assert(GPU_MODELS.a2.tdpW === 60, 'A2: 60W TDP', 60, GPU_MODELS.a2.tdpW),
             assert(GPU_MODELS.a16.vramGB === 64, 'A16: 64 GB VRAM', 64, GPU_MODELS.a16.vramGB),
@@ -5038,12 +5038,9 @@
             assert(GPU_MODELS.t4.tdpW === 70, 'T4: 70W TDP', 70, GPU_MODELS.t4.tdpW),
             assert(GPU_MODELS.rtxpro6000.vramGB === 48, 'RTX Pro 6000: 48 GB VRAM', 48, GPU_MODELS.rtxpro6000.vramGB),
             assert(GPU_MODELS.rtxpro6000.tdpW === 600, 'RTX Pro 6000: 600W TDP', 600, GPU_MODELS.rtxpro6000.tdpW),
-            assert(GPU_MODELS.h100.vramGB === 80, 'H100: 80 GB VRAM', 80, GPU_MODELS.h100.vramGB),
-            assert(GPU_MODELS.h100.tdpW === 700, 'H100: 700W TDP', 700, GPU_MODELS.h100.tdpW),
             // maxPerNode checks
             assert(GPU_MODELS.l40s.maxPerNode === 4, 'L40S: max 4 per node', 4, GPU_MODELS.l40s.maxPerNode),
             assert(GPU_MODELS.l4.maxPerNode === 4, 'L4: max 4 per node', 4, GPU_MODELS.l4.maxPerNode),
-            assert(GPU_MODELS.h100.maxPerNode === 2, 'H100: max 2 per node', 2, GPU_MODELS.h100.maxPerNode),
             assert(GPU_MODELS.rtxpro6000.maxPerNode === 2, 'RTX Pro 6000: max 2 per node', 2, GPU_MODELS.rtxpro6000.maxPerNode),
             assert(GPU_MODELS.a16.maxPerNode === 2, 'A16: max 2 per node', 2, GPU_MODELS.a16.maxPerNode),
             assert(GPU_MODELS.a40.maxPerNode === 2, 'A40: max 2 per node', 2, GPU_MODELS.a40.maxPerNode),
@@ -5065,9 +5062,62 @@
                 Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0))
         ]);
 
+        testSuite('DDA GPU count limits', 'sizer.js', [
+            assert(typeof getDdaGpuCountLimit === 'function',
+                'getDdaGpuCountLimit is defined', 'function', typeof getDdaGpuCountLimit),
+            assert(getDdaGpuCountLimit('vm', 'total', 'l40s') === 256,
+                'Total VM + L40S allows 64 machines × 4 GPUs', 256,
+                getDdaGpuCountLimit('vm', 'total', 'l40s')),
+            assert(getDdaGpuCountLimit('vm', 'total', 'a2') === 128,
+                'Total VM + A2 allows 64 machines × 2 GPUs', 128,
+                getDdaGpuCountLimit('vm', 'total', 'a2')),
+            assert(getDdaGpuCountLimit('vm', 'per-vm', 'l40s') === 4,
+                'Per-VM + L40S remains capped at 4 GPUs per machine', 4,
+                getDdaGpuCountLimit('vm', 'per-vm', 'l40s')),
+            assert(getDdaGpuCountLimit('avd', null, 'l40s') === 4,
+                'Non-VM workloads remain capped per machine', 4,
+                getDdaGpuCountLimit('avd', null, 'l40s')),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 256
+                }, []);
+                return assert(err === null, '256 total L40S GPUs is valid', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 257
+                }, []);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    '257 total L40S GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 129
+                }, []);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    '129 total A2 GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+            })(),
+            (() => {
+                const others = [{
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 200
+                }];
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 57
+                }, others);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    'Combined workload demand above 256 GPUs is rejected',
+                    'gpu-count-exceeds-instance-limit', err && err.code);
+            })()
+        ]);
+
         // --- Pre-save workload validation: AKS DDA must have a GPU VM size ---
         // Regression guard: previously, if a user added a non-AKS workload with
-        // GPU model = A100 (or A40, H100) and then tried to add an AKS cluster
+        // GPU model = A100 (or A40) and then tried to add an AKS cluster
         // with GPU Mode = DDA, the "GPU VM Size" dropdown was empty (no AKS
         // VM SKUs exist for those models) and the workload could still be
         // saved — leaving the cluster mis-sized. validateWorkloadBeforeSave()
@@ -5139,7 +5189,7 @@
         // Foundry Local, Agentic Retrieval and Video Indexer all run on AKS Arc node
         // pools, so when they use DDA the selected GPU model must be one that
         // AKS Arc supports (i.e. in AKS_GPU_VM_SIZES). Without this guard a
-        // user could pick A100 / A40 / H100 for a Foundry workload — none of
+        // user could pick A100 / A40 for a Foundry workload — neither of
         // which AKS Arc can attach as a DDA worker pool today.
         testSuite('AKS-hosted workload DDA must use AKS-supported GPU', 'sizer.js', [
             assert(typeof isAksHostedWorkloadType === 'function',
@@ -5168,9 +5218,9 @@
             })(),
             (() => {
                 const keys = getAksSupportedGpuKeys();
-                return assert(!keys.has('a100') && !keys.has('a40') && !keys.has('h100'),
-                    'AKS-supported set excludes a100, a40, h100 (no AKS VM SKUs published)',
-                    true, !keys.has('a100') && !keys.has('a40') && !keys.has('h100'));
+                return assert(!keys.has('a100') && !keys.has('a40'),
+                    'AKS-supported set excludes a100 and a40 (no AKS VM SKUs published)',
+                    true, !keys.has('a100') && !keys.has('a40'));
             })(),
             // Validator: Foundry + DDA + A100 → block
             (() => {
@@ -5183,12 +5233,6 @@
                 const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 1 });
                 return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
                     'Foundry + DDA + A40 → blocks (A40 has no AKS VM SKUs)',
-                    'aks-hosted-dda-unsupported-gpu', err && err.code);
-            })(),
-            (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'h100', gpuDdaCount: 1 });
-                return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
-                    'Foundry + DDA + H100 → blocks (H100 has no AKS VM SKUs)',
                     'aks-hosted-dda-unsupported-gpu', err && err.code);
             })(),
             // Validator: Foundry + DDA + AKS-supported GPU → OK
@@ -5221,11 +5265,6 @@
                 return assert(err === null,
                     'VM + DDA + A100 → no error (VM workloads run as Azure Local VMs, not AKS)', null, err);
             })(),
-            (() => {
-                const err = validateWorkloadBeforeSave({ type: 'avd', gpuMode: 'dda', gpuDdaModel: 'h100' });
-                return assert(err === null,
-                    'AVD + DDA + H100 → no error (AVD workloads run as Azure Local VMs, not AKS)', null, err);
-            })(),
             // Validator should NOT trip when gpuDdaModel is missing (separate
             // problem — the DDA dropdown defaults to one of the filtered set
             // in the UI, so this path is mostly defensive).
@@ -5255,9 +5294,9 @@
             assert(getWorkloadGpuType({}) === null, 'empty object → null', null, getWorkloadGpuType({})),
             assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'none' }) === null,
                 "gpuMode 'none' → null", null, getWorkloadGpuType({ type: 'vm', gpuMode: 'none' })),
-            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }) === 'h100',
-                "VM DDA H100 → 'h100'", 'h100',
-                getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' })),
+            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }) === 'a100',
+                "VM DDA A100 → 'a100'", 'a100',
+                getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' })),
             assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' }) === 'a16',
                 "VM GPU-P A16 → 'a16'", 'a16',
                 getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' })),
@@ -5279,8 +5318,8 @@
         ]);
 
         // --- validateWorkloadBeforeSave: cross-workload homogeneous-GPU rule ---
-        // Real-world bug: user adds Azure Local VM with H100 (DDA), then opens
-        // Add Foundry Local. The AKS-hosted GPU filter removes H100 from the
+        // Real-world bug: user adds Azure Local VM with A100 (DDA), then opens
+        // Add Foundry Local. The AKS-hosted GPU filter removes A100 from the
         // dropdown, so the lock-fallback in populateDdaModels did NOT engage
         // and the user could freely pick L40S — saving a heterogeneous-GPU
         // config that's physically impossible in a real cluster. This rule
@@ -5301,22 +5340,22 @@
                 return assert(err === null,
                     'otherWorkloads omitted → no conflict (1-arg back-compat)', null, err);
             })(),
-            // The exact reported scenario: VM with H100, then Foundry with L40S → block
+            // VM with A100, then Foundry with L40S → block
             (() => {
-                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'a100' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'VM H100 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
+                    'VM A100 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
-            // Symmetric: Foundry L40S first, then VM H100 → block
+            // Symmetric: Foundry L40S first, then VM A100 → block
             (() => {
                 const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }, others);
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'Foundry L40S + VM H100 → blocks with gpu-conflicts-with-locked-type',
+                    'Foundry L40S + VM A100 → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
             // Same GPU on both → OK (homogeneous)
@@ -5371,7 +5410,7 @@
             })(),
             // New workload has no GPU → no conflict
             (() => {
-                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'none' }, others);
                 return assert(err === null,
@@ -5390,12 +5429,12 @@
             })(),
             // Error message should name both workloads' GPUs.
             (() => {
-                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'a100' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
-                return assert(err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1,
-                    'Error message names both GPU models (H100 and L40S)',
-                    true, err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1);
+                return assert(err && err.message.indexOf('A100') !== -1 && err.message.indexOf('L40S') !== -1,
+                    'Error message names both GPU models (A100 and L40S)',
+                    true, err && err.message.indexOf('A100') !== -1 && err.message.indexOf('L40S') !== -1);
             })()
         ]);
 

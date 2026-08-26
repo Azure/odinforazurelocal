@@ -6,6 +6,17 @@ Return to the [ODIN README](../../README.md).
 
 ### Version 0.23.x Series (August 2026)
 
+#### 0.23.02 - Agentic Retrieval sizing and dependency audit fixes
+
+> Agentic Retrieval sizing follows the current Foundry Local requirements with explicit deployment modes and language-model endpoint capacity.
+
+- **Documented deployment topology** includes three D8s_v3-equivalent CPU workers in every mode, with two embedding GPU workers for Combined and Knowledge modes.
+- **Explicit LLM endpoint sizing** supports an external endpoint or Foundry Local minimum and production GPT-OSS-20B host capacity.
+- **GPU validation** offers the full AKS Arc DDA list, recommended NC8_A2 and NC8_A16 sizes, and local model-host VRAM checks.
+- **Compatible payload update** introduced Sizer payload version 3 while retaining legacy `computeMode` import compatibility.
+- **Dependency audit fixes** enforce available `js-yaml` and `brace-expansion` security updates.
+- All **1,504 / 1,504** browser tests passed.
+
 #### 0.23.01 - Storage planning and discovered-estate import workflows
 
 > Added a browser-only Storage Spaces Direct calculator, Azure Migrate collector ZIP import in Sizer, refreshed Agentic Retrieval guidance, and shared application release branding.

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.03] - 2026-08-26
+
+Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and removes NVIDIA H100 from active sizing choices.
+
+### Changed
+
+- **Total VM GPU requirements expanded** (`sizer/`, `tests/index.html`) — Total VM mode uses a numeric DDA GPU input whose maximum follows the selected model's supported GPUs per machine: up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2. Per-VM and non-total workload inputs retain their model-specific per-machine limits, and changing models immediately clamps an oversized value.
+- **Instance-wide GPU validation added** (`sizer/sizer.js`, `tests/index.html`) — save-time validation rejects same-model workload demand above the 64-machine instance ceiling while preserving the existing homogeneous-GPU conflict for mixed-model configurations.
+- **NVIDIA H100 removed from Sizer** (`sizer/index.html`, `sizer/sizer.js`, `docs/json-schema/odin-sizer.schema.json`) — H100 is no longer offered for hardware, DDA, or GPU-P selection and is removed from the current public Sizer schema enum. Historical release records remain unchanged.
+- **Validation** — all **1,508 / 1,508** browser tests pass, including model-dependent total limits, aggregate capacity, model switching, H100 removal, schema drift, and existing workload sizing coverage.
+
+---
+
 ## [0.23.02] - 2026-08-09
 
 Agentic Retrieval sizing is aligned with the current Microsoft Foundry Local requirements, and newly available dependency fixes restore the scheduled security-audit workflow.

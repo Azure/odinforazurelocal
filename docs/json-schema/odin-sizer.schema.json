@@ -73,7 +73,7 @@
         "gpuCount": { "type": ["string", "integer", "null"], "description": "Physical GPUs per node (0–4)." },
         "gpuType": {
           "type": ["string", "null"],
-          "enum": ["t4", "a2", "a16", "a40", "a100", "l4", "l40", "l40s", "rtxpro6000", "h100", null]
+          "enum": ["t4", "a2", "a16", "a40", "a100", "l4", "l40", "l40s", "rtxpro6000", null]
         },
         "vcpuRatio": { "type": ["string", "integer", "null"], "enum": ["1", "2", "3", "4", "5", "6", 1, 2, 3, 4, 5, 6, null], "description": "vCPU:pCPU overcommit ratio." },
         "vcpuRatioUserSet": { "type": "boolean" },
