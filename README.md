@@ -60,7 +60,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
 - **Learn-aligned GPU support** — Arc VM DDA offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed, and the same support applies to hyperconverged and disaggregated deployments.
 - **Right-sized GPU inventory** — automatically managed GPUs per machine are reconciled after machine scaling to preserve N−1 headroom without retaining unnecessary devices.
-- **Minimum-fit procurement guidance** — the first Sizing Note displays a bold "Advisory - minimum-fit hardware" heading when configurations below 40 physical cores or 512 GB memory per machine are minimum-fit results rather than new-hardware procurement baselines.
+- **Minimum-fit procurement guidance** — the first Sizing Note displays an amber "Advisory" label within the bold "Advisory - minimum-fit hardware" heading when configurations below 40 physical cores or 512 GB memory per machine are minimum-fit results rather than new-hardware procurement baselines.
 - **Sizing Notes in design documents** — Sizer recommendations now flow into Designer and appear in both HTML and PowerPoint cluster design documents.
 - **AMD Turin catalog coverage** — standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.
 - **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
