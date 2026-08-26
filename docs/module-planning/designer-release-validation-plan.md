@@ -30,8 +30,27 @@
 
 ## Open questions
 
-- None. Skills provide repeatable exploratory release validation; focused
-  automated regressions remain required for every defect they expose.
+- The wizard's legacy option cards and node chips are pointer-operable generic
+  elements rather than native buttons. A future accessibility pass should make
+  the shared card/chip interaction keyboard-operable without changing selection
+  behavior across the full wizard.
+
+## Validation findings
+
+- Fixed completed disaggregated reports using HCI-only Scale, Storage, Ports,
+  and Intent fields. HTML validation, Decisions & Rationale, Markdown, and Word
+  content now use the authoritative SAN topology and adapter configuration.
+- Fixed the Example Configuration Templates overlay so it is a named modal,
+  exposes template choices as buttons, traps focus, closes with Escape, labels
+  its close control, and restores focus to the trigger.
+- Confirmed Connected HCI, Connected disaggregated, disconnected management,
+  disconnected workload, Connected rack-aware, Multi-Rack stop-flow, and
+  Microsoft 365 Local stop-flow behavior through rendered controls.
+- Confirmed HCI/disaggregated inverse transitions clear incompatible state,
+  rack-aware and disaggregated reports have zero validation warnings, and the
+  Sizer handoff applies once without overwriting later Designer edits.
+- Confirmed the modified dialog at 375 x 667 and 768 x 1024 in both themes with
+  no horizontal overflow.
 
 ## Implementation order
 

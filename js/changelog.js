@@ -73,6 +73,8 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>GPU instance totals</strong> &mdash; Sizer-originated reports show the full NVIDIA model per node and total physical GPU count across the instance.</li>
                         <li><strong>ToR configuration planning link</strong> &mdash; Host Networking reports and the Physical Network Configuration PowerPoint slide link to the portable ToR Switch Configuration Generator &amp; Validator for example Cisco and Dell configurations.</li>
                         <li><strong>Infrastructure IP Pool auto-ending</strong> &mdash; entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address.</li>
+                        <li><strong>Accurate SAN design reports</strong> &mdash; completed disaggregated designs validate and explain their rack topology, storage type, ports, and adapter configuration without HCI-only false warnings across HTML, Markdown, and Word output.</li>
+                        <li><strong>Accessible template selection</strong> &mdash; Designer&rsquo;s Example Configuration Templates picker is a named keyboard-operable modal with Escape handling, focus containment, and focus restoration.</li>
                         <li><strong>AMD Turin catalog coverage</strong> &mdash; standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.</li>
                         <li><strong>GPU-P and guidance</strong> &mdash; cluster-wide partition consistency is enforced, and GPU controls link to the relevant Microsoft Learn pages.</li>
                         <li><strong><a href="https://github.com/Azure/odinforazurelocal/issues/284" target="_blank" rel="noopener" style="color: var(--link-color);">No AKS double-counting</a></strong> &mdash; specialized AI workloads visibly include their dedicated AKS Arc infrastructure; GitHub Enterprise Local is a standalone GHES appliance VM.</li>
@@ -80,7 +82,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Foundry model discovery</strong> &mdash; the Worker Profile input links to Microsoft&rsquo;s current Foundry Local model catalog for compatible OSS model exploration.</li>
                         <li><strong>GHES feature allowances</strong> &mdash; GitHub Enterprise Local defaults to one VM and can include the documented Actions and Code Security CPU/memory increments.</li>
                         <li><strong>Integrated release validation</strong> &mdash; reusable Sizer and Designer real-UI matrices now complement static tests for releases and relevant pull requests.</li>
-                        <li>All <strong>1,555 / 1,555</strong> browser tests pass.</li>
+                        <li>All <strong>1,558 / 1,558</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

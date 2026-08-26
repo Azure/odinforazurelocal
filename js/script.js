@@ -10493,6 +10493,7 @@ function showComparison(category) {
 }
 
 function showTemplates() {
+    const previousFocus = document.activeElement;
     const templates = [
         {
             name: '64-Node Disaggregated Storage Cluster',
@@ -10770,10 +10771,11 @@ function showTemplates() {
     ];
 
     const overlay = document.createElement('div');
+    overlay.id = 'templates-overlay';
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);';
 
     const templatesHtml = templates.map((template, index) => `
-        <div onclick="loadTemplate(${index})" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'; this.style.borderColor='var(--glass-border)'">
+        <button type="button" onclick="loadTemplate(${index})" style="display: block; width: 100%; padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'; this.style.borderColor='var(--glass-border)'">
             <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">${escapeHtml(template.name)}</h4>
             <p style="margin: 0; color: var(--text-secondary); font-size: 13px;">${escapeHtml(template.description)}</p>
             <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px;">
@@ -10781,14 +10783,14 @@ function showTemplates() {
                 <span style="padding: 2px 8px; background: rgba(139, 92, 246, 0.2); border-radius: 4px; color: var(--accent-purple);">${template.config.architecture === 'disaggregated' ? 'disaggregated' : (template.config.scale || 'standard')}</span>
                 <span style="padding: 2px 8px; background: rgba(16, 185, 129, 0.2); border-radius: 4px; color: var(--success);">${template.config.architecture === 'disaggregated' ? (template.config.disaggStorageType || 'external SAN') : (template.config.storage || 'S2D')}</span>
             </div>
-        </div>
+        </button>
     `).join('');
 
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
+        <div role="dialog" aria-modal="true" aria-labelledby="templates-dialog-title" style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+                <h3 id="templates-dialog-title" style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
+                <button type="button" data-action="close-templates" aria-label="Close dialog" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
 
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
@@ -10801,11 +10803,36 @@ function showTemplates() {
         </div>
     `;
 
+    const closeTemplates = () => {
+        overlay.remove();
+        if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+    };
+    overlay.querySelector('[data-action="close-templates"]').addEventListener('click', closeTemplates);
+    overlay.addEventListener('odin-close', closeTemplates);
     overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
+        if (e.target === overlay) closeTemplates();
+    });
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeTemplates();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        const focusable = Array.from(overlay.querySelectorAll('button:not([disabled])'));
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     });
 
     document.body.appendChild(overlay);
+    overlay.querySelector('[data-action="close-templates"]').focus();
 
     // Store templates globally for loadTemplate function
     window.configTemplates = templates;
@@ -11024,12 +11051,9 @@ function loadTemplate(templateIndex) {
         restoreDisaggregatedUI();
     }
 
-    // Close the modal
-    document.querySelectorAll('div').forEach(el => {
-        if (el.style.position === 'fixed' && el.style.zIndex === '10000') {
-            el.remove();
-        }
-    });
+    // Close the modal and restore focus to its trigger.
+    const templatesOverlay = document.getElementById('templates-overlay');
+    if (templatesOverlay) templatesOverlay.dispatchEvent(new Event('odin-close'));
 
     // Re-run infrastructure network validation with restored values
     if (state.infraCidr || state.infra || state.infraGateway) {

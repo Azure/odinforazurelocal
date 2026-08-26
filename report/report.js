@@ -1149,6 +1149,7 @@
 
     function buildMarkdownContent(s, diagrams) {
         const md = [];
+        const architectureSelections = getArchitectureSelections(s);
         md.push('# Azure Local Instance | Design Configuration Report');
         md.push('');
 
@@ -1167,6 +1168,7 @@
         md.push('| Setting | Value |');
         md.push('|---------|-------|');
         if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario, s) + ' |');
+        md.push('| Architecture | ' + (s.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)') + ' |');
         if (s.scenario === 'disconnected') {
             if (s.clusterRole) {
                 md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
@@ -1182,7 +1184,7 @@
             if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
             if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
         }
-        if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
+        if (architectureSelections.scaleSelected) md.push('| Scale | ' + architectureSelections.scale + ' |');
         if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
         if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
         md.push('');
@@ -1579,7 +1581,7 @@
         // Scale & Nodes
         md.push('### Scale & Nodes');
         md.push('');
-        md.push('**Scale:** ' + formatScale(s.scale));
+        md.push('**Scale:** ' + architectureSelections.scale);
         md.push('');
         md.push('**Nodes:** ' + (s.nodes || '-'));
         md.push('');
@@ -1595,9 +1597,9 @@
         // Storage & Ports
         md.push('### Storage & Ports');
         md.push('');
-        md.push('**Storage:** ' + (s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-'));
+        md.push('**Storage:** ' + architectureSelections.storage);
         md.push('');
-        md.push('**Ports per node:** ' + (s.ports || '-'));
+        md.push('**Ports per node:** ' + architectureSelections.ports);
         md.push('');
         const storageNotes = [];
         if (s.storage === 'switchless') {
@@ -1613,7 +1615,7 @@
         // Traffic Intent & Adapter Mapping
         md.push('### Traffic Intent & Adapter Mapping');
         md.push('');
-        md.push('**Intent:** ' + formatIntent(s.intent));
+        md.push('**Intent:** ' + architectureSelections.intent);
         md.push('');
         const intentNotes = [];
         if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
@@ -6978,6 +6980,8 @@
             ));
         }
 
+        const architectureSelections = getArchitectureSelections(s);
+
         // Scale + Nodes
         const scaleNotes = [];
         if (s.scale === 'low_capacity') {
@@ -6990,7 +6994,7 @@
             scaleNotes.push('Disconnected mode typically enforces Standard scale constraints for supportability and operational simplicity.');
         }
         sections.push(block('Scale & Nodes',
-            '<strong>Scale:</strong> ' + escapeHtml(formatScale(s.scale))
+            '<strong>Scale:</strong> ' + escapeHtml(architectureSelections.scale)
             + '<br><strong>Nodes:</strong> <span class="summary-value mono">' + escapeHtml(s.nodes || '-') + '</span>'
             + (scaleNotes.length ? list(scaleNotes) : '')
             + renderValidationInline(validations.byArea.ScaleNodes)
@@ -7013,11 +7017,11 @@
             storageNotes.push('With 4 ports, the wizard disables Custom intent (insufficient ports for flexible mapping in this design).');
         }
         sections.push(block('Storage & Ports',
-            '<strong>Storage:</strong> ' + escapeHtml(s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-')
+            '<strong>Storage:</strong> ' + escapeHtml(architectureSelections.storage)
             + ((s.storage === 'switchless' && parseInt(s.nodes, 10) === 3 && s.scale === 'low_capacity' && s.switchlessLinkMode)
                 ? ('<br><strong>Switchless link mode:</strong> ' + escapeHtml(String(s.switchlessLinkMode) === 'single_link' ? 'Single-Link' : 'Dual-Link'))
                 : '')
-            + '<br><strong>Ports per node:</strong> <span class="summary-value mono">' + escapeHtml(s.ports || '-') + '</span>'
+            + '<br><strong>Ports per node:</strong> <span class="summary-value mono">' + escapeHtml(architectureSelections.ports) + '</span>'
             + (storageNotes.length ? list(storageNotes) : '')
             + renderValidationInline(validations.byArea.StoragePorts)
         ));
@@ -7060,7 +7064,7 @@
             if (!s.customIntentConfirmed) intentNotes.push('Custom mapping was not confirmed in the wizard (report generation is normally gated on confirmation).');
         }
         sections.push(block('Traffic Intent & Adapter Mapping',
-            '<strong>Intent:</strong> ' + escapeHtml(formatIntent(s.intent))
+            '<strong>Intent:</strong> ' + escapeHtml(architectureSelections.intent)
             + (intentNotes.length ? list(intentNotes) : '')
             + renderValidationInline(validations.byArea.Intent)
         ));
@@ -7313,6 +7317,41 @@
         return sections.join('');
     }
 
+    function getArchitectureSelections(s) {
+        if (s.architecture === 'disaggregated') {
+            const rackCount = parseInt(s.disaggRackCount, 10);
+            const nodesPerRack = parseInt(s.disaggNodesPerRack, 10);
+            const hasTopology = !isNaN(rackCount) && rackCount > 0 && !isNaN(nodesPerRack) && nodesPerRack > 0;
+            const storageLabels = {
+                fc_san: 'FC SAN',
+                iscsi_4nic: 'iSCSI 4-NIC',
+                iscsi_6nic: 'iSCSI 6-NIC'
+            };
+
+            return {
+                scaleSelected: hasTopology,
+                scale: hasTopology ? rackCount + ' racks × ' + nodesPerRack + ' nodes per rack' : '-',
+                storageSelected: !!s.disaggStorageType,
+                storage: storageLabels[s.disaggStorageType] || '-',
+                portsSelected: !!s.disaggPortCount,
+                ports: s.disaggPortCount || '-',
+                intentSelected: !!s.disaggNicConfigConfirmed,
+                intent: s.disaggNicConfigConfirmed ? 'Disaggregated adapter configuration confirmed' : '-'
+            };
+        }
+
+        return {
+            scaleSelected: !!s.scale,
+            scale: s.scale ? formatScale(s.scale) : '-',
+            storageSelected: !!s.storage,
+            storage: s.storage ? s.storage.charAt(0).toUpperCase() + s.storage.slice(1) : '-',
+            portsSelected: !!s.ports,
+            ports: s.ports || '-',
+            intentSelected: !!s.intent,
+            intent: s.intent ? formatIntent(s.intent) : '-'
+        };
+    }
+
     function computeValidations(s) {
         const results = [];
         const byArea = {
@@ -7447,8 +7486,10 @@
             );
         }
 
+        const architectureSelections = getArchitectureSelections(s);
+
         // Scale + nodes
-        add('ScaleNodes', 'Scale selected', !!s.scale, s.scale ? ('Selected: ' + formatScale(s.scale)) : '');
+        add('ScaleNodes', 'Scale selected', architectureSelections.scaleSelected, architectureSelections.scaleSelected ? ('Selected: ' + architectureSelections.scale) : '');
         add('ScaleNodes', 'Nodes selected', !!s.nodes, s.nodes ? ('Selected: ' + s.nodes) : '');
 
         if (s.scenario === 'disconnected') {
@@ -7470,8 +7511,8 @@
         }
 
         // Storage + Ports
-        add('StoragePorts', 'Storage selected', !!s.storage, s.storage ? ('Selected: ' + s.storage) : '');
-        add('StoragePorts', 'Ports selected', !!s.ports, s.ports ? ('Selected: ' + s.ports) : '');
+        add('StoragePorts', 'Storage selected', architectureSelections.storageSelected, architectureSelections.storageSelected ? ('Selected: ' + architectureSelections.storage) : '');
+        add('StoragePorts', 'Ports selected', architectureSelections.portsSelected, architectureSelections.portsSelected ? ('Selected: ' + architectureSelections.ports) : '');
 
         // Nodes >= 5 -> switchless disabled
         const nodeVal = (s.nodes === '16+') ? 17 : parseInt(s.nodes, 10);
@@ -7503,7 +7544,7 @@
         }
 
         // Intent validations
-        add('Intent', 'Intent selected', !!s.intent, s.intent ? ('Selected: ' + formatIntent(s.intent)) : '');
+        add('Intent', 'Intent selected', architectureSelections.intentSelected, architectureSelections.intentSelected ? ('Selected: ' + architectureSelections.intent) : '');
 
         // Single node cluster intent rules (takes priority)
         if (s.nodes === '1') {

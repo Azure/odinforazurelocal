@@ -65,8 +65,9 @@ Run every branch below for a release candidate.
 | Connected | Disaggregated | SAN/Clos workflow keeps rack, machine, VLAN, subnet, NIC, and intent state aligned |
 | Disconnected | Management | Fixed three-machine management role includes the required local services path |
 | Disconnected | Workload | Valid 1-16 machine workload role remains distinct from management defaults |
-| Multi-Rack | Rack-aware | Even zone assignment and confirmation remain coherent after edit/swap/back navigation |
-| Microsoft 365 Local | Supported path | Minimum nine-machine requirement persists through navigation and output readiness |
+| Connected | Rack-aware HCI | Even zone assignment and confirmation remain coherent after edit/swap/back navigation |
+| Multi-Rack | Documentation stop-flow | Microsoft contact/documentation guidance appears and configuration outputs remain unavailable |
+| Microsoft 365 Local | Documentation stop-flow | Minimum nine-machine guidance and Microsoft documentation appear; no unsupported configuration workflow is exposed |
 
 For each path, use the visible summary and progress panel as independent checks
 against the selected controls. A summary that reports stale or impossible state

@@ -7632,13 +7632,25 @@
         // Populate window.configTemplates by calling showTemplates(), then clean up overlay
         (function() {
             showTemplates();
-            // Remove the overlay showTemplates() appended to body
-            document.querySelectorAll('div').forEach(el => {
-                if (el.style.position === 'fixed' && el.style.zIndex === '10000') {
-                    el.remove();
-                }
-            });
+            const overlay = document.getElementById('templates-overlay');
+            const dialog = overlay && overlay.querySelector('[role="dialog"]');
+            window.__templateDialogAccessibility = {
+                dialogNamed: !!dialog && dialog.getAttribute('aria-modal') === 'true'
+                    && dialog.getAttribute('aria-labelledby') === 'templates-dialog-title',
+                closeNamed: !!overlay && !!overlay.querySelector('button[aria-label="Close dialog"]'),
+                templateButtonCount: overlay ? overlay.querySelectorAll('button[onclick^="loadTemplate("]').length : 0
+            };
+            if (overlay) overlay.dispatchEvent(new Event('odin-close'));
         })();
+
+        testSuite('Template Dialog Accessibility', 'script.js', [
+            assert(window.__templateDialogAccessibility.dialogNamed,
+                'Template overlay is a named modal dialog', true, window.__templateDialogAccessibility.dialogNamed),
+            assert(window.__templateDialogAccessibility.closeNamed,
+                'Template dialog close button has an accessible name', true, window.__templateDialogAccessibility.closeNamed),
+            assert(window.__templateDialogAccessibility.templateButtonCount === 5,
+                'All template choices are keyboard-operable buttons', 5, window.__templateDialogAccessibility.templateButtonCount)
+        ]);
 
         // Test: Verify all template configs have the required fields for 100% progress
         testSuite('Template Data Completeness', 'script.js', [

@@ -659,6 +659,54 @@ function checkReportPresentationContracts() {
     return false;
 }
 
+function checkReportArchitectureSelections() {
+    const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
+    const helperMatch = reportJs.match(/function getArchitectureSelections\(s\) \{[\s\S]*?\r?\n    \}\r?\n\r?\n    function computeValidations/);
+    if (!helperMatch) {
+        console.error('❌ Report architecture selections helper could not be loaded');
+        return false;
+    }
+
+    const helperSource = helperMatch[0].replace(/\r?\n\r?\n    function computeValidations$/, '');
+    const getArchitectureSelections = new Function(
+        'formatScale',
+        'formatIntent',
+        'return (' + helperSource + ');'
+    )(value => 'Scale: ' + value, value => 'Intent: ' + value);
+
+    const disaggregated = getArchitectureSelections({
+        architecture: 'disaggregated',
+        disaggRackCount: 4,
+        disaggNodesPerRack: 16,
+        disaggStorageType: 'fc_san',
+        disaggPortCount: '4',
+        disaggNicConfigConfirmed: true
+    });
+    const hci = getArchitectureSelections({
+        architecture: 'hci',
+        scale: 'medium',
+        storage: 'switched',
+        ports: '4',
+        intent: 'mgmt_compute'
+    });
+    const disaggregatedOk = disaggregated.scaleSelected
+        && disaggregated.scale === '4 racks × 16 nodes per rack'
+        && disaggregated.storageSelected && disaggregated.storage === 'FC SAN'
+        && disaggregated.portsSelected && disaggregated.ports === '4'
+        && disaggregated.intentSelected;
+    const hciOk = hci.scaleSelected && hci.scale === 'Scale: medium'
+        && hci.storageSelected && hci.storage === 'Switched'
+        && hci.portsSelected && hci.ports === '4'
+        && hci.intentSelected && hci.intent === 'Intent: mgmt_compute';
+
+    if (disaggregatedOk && hciOk) {
+        console.log('✅ Report architecture selections OK: disaggregated and HCI fields map correctly');
+        return true;
+    }
+    console.error('❌ Report architecture selections do not map correctly');
+    return false;
+}
+
 function generateNUnitXML(results, passed, failed, total) {
     const timestamp = new Date().toISOString();
     const result = failed > 0 ? 'Failed' : 'Passed';
@@ -796,6 +844,10 @@ function generateJUnitXML(results, passed, failed, total) {
         }
         if (!checkReportPresentationContracts()) {
             console.error('\n❌ Report presentation contract check failed.');
+            process.exit(1);
+        }
+        if (!checkReportArchitectureSelections()) {
+            console.error('\n❌ Report architecture selections check failed.');
             process.exit(1);
         }
 
