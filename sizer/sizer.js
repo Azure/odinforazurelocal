@@ -7042,6 +7042,18 @@ function updateRunningCost() {
     if (hintEl) hintEl.style.display = '';
 }
 
+const SIZER_HANDOFF_MAX_NOTES = 50;
+const SIZER_HANDOFF_MAX_NOTE_LENGTH = 2000;
+
+function getSizingNotesForHandoff(notesList) {
+    const list = notesList || document.getElementById('sizing-notes');
+    if (!list) return [];
+    return Array.from(list.querySelectorAll('li'))
+        .map(item => (item.textContent || '').trim().slice(0, SIZER_HANDOFF_MAX_NOTE_LENGTH))
+        .filter(Boolean)
+        .slice(0, SIZER_HANDOFF_MAX_NOTES);
+}
+
 // Update sizing notes
 function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes) {
     const notes = [];
@@ -8354,6 +8366,7 @@ function selectRegionAndConfigure(region, cloud) {
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
             },
+            sizingNotes: getSizingNotesForHandoff(),
             // Power, heat & rack-space estimate captured from the Sizer's
             // "Estimated Power, Heat & Rack Space per Instance" panel. These
             // surface on the Designer's report and as a dedicated Power & Heat

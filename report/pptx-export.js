@@ -93,6 +93,13 @@
             customExtract: extractSizerWorkloads
         },
         {
+            // Sizer-only slide: recommendations captured at Designer handoff.
+            // Skipped for older and non-Sizer designs with no sizing notes.
+            title: 'Sizing Notes & Recommendations',
+            match: [],
+            customExtract: extractSizerSizingNotes
+        },
+        {
             // Sizer-only slide: power consumption, heat output and rack-space
             // estimate. Skipped automatically when no `sizerHardware.power`
             // data is present (i.e. the report wasn't started from the Sizer
@@ -1628,6 +1635,27 @@
         return {
             bullets: bullets,
             sources: ['Workloads (from Sizer)']
+        };
+    }
+
+    function extractSizerSizingNotes() {
+        const s = (typeof window.__odinGetReportState === 'function')
+            ? window.__odinGetReportState() : null;
+        const notes = s && s.sizerHardware && s.sizerHardware.sizingNotes;
+        if (!Array.isArray(notes)) return null;
+
+        const bullets = notes
+            .filter(function(note) { return typeof note === 'string'; })
+            .map(function(note) { return note.trim().slice(0, 2000); })
+            .filter(Boolean)
+            .slice(0, 24)
+            .map(function(note) { return { text: note, lvl: 1 }; });
+        if (bullets.length === 0) return null;
+
+        return {
+            bullets: bullets,
+            bulletSz: 900,
+            sources: ['Sizing Notes & Recommendations (from Sizer)']
         };
     }
 

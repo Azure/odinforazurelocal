@@ -149,8 +149,14 @@
         "sizerHardware": {
           "type": ["object", "null"],
           "additionalProperties": true,
-          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary, power). Only the `power` sub-object is structurally enforced by CI deep-drift right now; the rest is additionalProperties for forward compatibility. Source of truth: the `sizerHardware` block built inside `selectRegionAndConfigure()`'s `sizerPayload` in sizer/sizer.js.",
+          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary, sizing notes, power). Only the `power` sub-object is structurally enforced by CI deep-drift right now; the rest is additionalProperties for forward compatibility. Source of truth: the `sizerHardware` block built inside `selectRegionAndConfigure()`'s `sizerPayload` in sizer/sizer.js.",
           "properties": {
+            "sizingNotes": {
+              "type": ["array", "null"],
+              "maxItems": 50,
+              "description": "Bounded plain-text Sizer recommendations captured at Designer handoff and rendered in cluster design documents.",
+              "items": { "type": "string", "maxLength": 2000 }
+            },
             "power": {
               "type": ["object", "null"],
               "additionalProperties": false,

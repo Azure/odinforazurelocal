@@ -564,6 +564,15 @@ function checkRendererCoverage() {
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
             ]
+        },
+        {
+            label: 'sizerPayload.sizerHardware.sizingNotes',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            fieldNames: ['sizingNotes'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
         }
     ];
 
@@ -571,7 +580,13 @@ function checkRendererCoverage() {
     cases.forEach(c => {
         try {
             const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
-            const fieldNames = extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
+            const fieldNames = c.fieldNames || extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
+            if (c.fieldNames) {
+                const missingFromSource = fieldNames.filter(f => !new RegExp('\\b' + f + '\\s*:').test(src));
+                if (missingFromSource.length > 0) {
+                    throw new Error(`Payload field(s) missing from ${c.sourceFile}: ${missingFromSource.join(', ')}`);
+                }
+            }
             c.consumers.forEach(consumer => {
                 const consumerSrc = fs.readFileSync(path.resolve(process.cwd(), consumer.file), 'utf8');
                 const missing = fieldNames.filter(f => !new RegExp('\\b' + f + '\\b').test(consumerSrc));

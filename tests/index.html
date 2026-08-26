@@ -3585,6 +3585,34 @@
             })()
         ]);
 
+        testSuite('Sizer sizing notes handoff', 'sizer.js', [
+            (() => {
+                const list = document.createElement('ul');
+                list.innerHTML = '<li>Minimum-fit <a href="https://example.invalid">review guidance</a></li>';
+                const notes = typeof getSizingNotesForHandoff === 'function'
+                    ? getSizingNotesForHandoff(list)
+                    : null;
+                return assert(notes && notes.length === 1 && notes[0] === 'Minimum-fit review guidance',
+                    'Sizer handoff captures note text without HTML markup',
+                    '["Minimum-fit review guidance"]', JSON.stringify(notes));
+            })(),
+            (() => {
+                const list = document.createElement('ul');
+                for (let i = 0; i < 55; i++) {
+                    const item = document.createElement('li');
+                    item.textContent = 'N'.repeat(2100);
+                    list.appendChild(item);
+                }
+                const notes = typeof getSizingNotesForHandoff === 'function'
+                    ? getSizingNotesForHandoff(list)
+                    : null;
+                const bounded = notes && notes.length === 50 && notes.every(note => note.length === 2000);
+                return assert(bounded,
+                    'Sizer handoff bounds note count and individual note length',
+                    '50 notes of 2000 characters', notes ? notes.length + ' notes, max ' + Math.max(...notes.map(note => note.length)) : null);
+            })()
+        ]);
+
         // --- getDisaggMaxNodesPerRack() ---
         // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
         testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [

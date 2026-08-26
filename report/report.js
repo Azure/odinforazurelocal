@@ -8124,6 +8124,7 @@
 
         // Sizer Hardware Configuration (only present when imported from Sizer)
         let sizerHardwareRows = '';
+        let sizerSizingNotesHtml = '';
         if (s.sizerHardware) {
             const hw = s.sizerHardware;
             if (hw.cpu) {
@@ -8175,6 +8176,18 @@
                 sizerHardwareRows += row('Total vCPUs Required', String(ws.totalVcpus || 0));
                 sizerHardwareRows += row('Total Memory Required', (ws.totalMemoryGB || 0) + ' GB');
                 sizerHardwareRows += row('Total Storage Required', (ws.totalStorageTB || 0) + ' TB');
+            }
+            if (Array.isArray(hw.sizingNotes)) {
+                const sizingNotes = hw.sizingNotes
+                    .filter(function(note) { return typeof note === 'string'; })
+                    .map(function(note) { return note.trim().slice(0, 2000); })
+                    .filter(Boolean)
+                    .slice(0, 50);
+                if (sizingNotes.length > 0) {
+                    sizerSizingNotesHtml = '<ul style="margin: 0; padding-left: 1.25rem;">'
+                        + sizingNotes.map(function(note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('')
+                        + '</ul>';
+                }
             }
         }
 
@@ -8377,6 +8390,7 @@
 
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
+            + sectionWithExtra('Sizing Notes & Recommendations (from Sizer)', 'summary-section-title--infra', '', sizerSizingNotesHtml, 'sizer-sizing-notes')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')

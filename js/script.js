@@ -9558,6 +9558,15 @@ function importConfiguration() {
     }
 }
 
+function normalizeSizerSizingNotes(notes) {
+    if (!Array.isArray(notes)) return [];
+    return notes
+        .filter(note => typeof note === 'string')
+        .map(note => note.trim().slice(0, 2000))
+        .filter(Boolean)
+        .slice(0, 50);
+}
+
 // Check for and apply Sizer-to-Designer payload
 function checkForSizerImport() {
     const params = new URLSearchParams(window.location.search);
@@ -9572,7 +9581,10 @@ function checkForSizerImport() {
 
         // Store hardware details as hidden state property
         if (payload.sizerHardware) {
-            state.sizerHardware = payload.sizerHardware;
+            state.sizerHardware = Object.assign({}, payload.sizerHardware);
+            if (Object.prototype.hasOwnProperty.call(payload.sizerHardware, 'sizingNotes')) {
+                state.sizerHardware.sizingNotes = normalizeSizerSizingNotes(payload.sizerHardware.sizingNotes);
+            }
         }
 
         // Store individual workload details (transparent pass-through to Report)
