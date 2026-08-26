@@ -1588,6 +1588,26 @@ const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM 
 // specific reason to (e.g. low-throughput inference workloads).
 const GPU_MIN_CORES_PER_NODE = 24;
 
+// Advisory procurement thresholds. These do not constrain supported sizing;
+// they distinguish a mathematically sufficient minimum-fit result from a
+// typical enterprise new-hardware purchase with broader expansion headroom.
+const ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE = 40;
+const ENTERPRISE_CAVEAT_MIN_MEMORY_GB = 512;
+
+function getMinimumFitHardwareNote(hwConfig) {
+    if (!hwConfig) return null;
+    const lowDimensions = [];
+    if ((hwConfig.totalPhysicalCores || 0) < ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE) {
+        lowDimensions.push((hwConfig.totalPhysicalCores || 0) + ' physical cores');
+    }
+    if ((hwConfig.memoryGB || 0) < ENTERPRISE_CAVEAT_MIN_MEMORY_GB) {
+        lowDimensions.push((hwConfig.memoryGB || 0) + ' GB memory');
+    }
+    if (lowDimensions.length === 0) return null;
+
+    return 'Advisory - minimum-fit hardware: This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
+}
+
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
 const INFRASTRUCTURE_VOLUME_GB = 256;
@@ -5711,6 +5731,16 @@ function getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, total
     };
 }
 
+function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode) {
+    const demand = Math.max(Number(totalGpus) || 0, 0);
+    if (demand === 0) return 0;
+    const physicalNodes = Math.max(Number(nodeCount) || 1, 1);
+    const effectiveNodes = physicalNodes > 1 ? physicalNodes - 1 : 1;
+    const supportedMax = Math.max(Number(maxPerNode) || 1, 1);
+    const requiredBelowThreshold = Math.floor(demand / (effectiveNodes * 0.9)) + 1;
+    return Math.min(Math.max(requiredBelowThreshold, 1), supportedMax);
+}
+
 // Calculate all requirements
 function calculateRequirements(options) {
     if (isCalculating) return;
@@ -6399,6 +6429,22 @@ function calculateRequirements(options) {
             }
         }
 
+        // Node scaling can leave an earlier GPU-per-machine recommendation
+        // unnecessarily high. Reconcile against the final N-1 machine count
+        // while preserving the same strict-below-90% utilization policy.
+        if (totalGpus > 0 && !_gpuCountUserSet) {
+            const gpuCountEl = document.getElementById('gpu-count');
+            const gpuModel = GPU_MODELS[hwConfig.gpuType];
+            const maxPerNode = gpuModel ? gpuModel.maxPerNode : 1;
+            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode);
+            if (gpuCountEl && parseInt(gpuCountEl.value, 10) !== reconciledGpuCount) {
+                gpuCountEl.value = reconciledGpuCount;
+                markAutoScaled('gpu-count');
+                updateGpuTypeVisibility();
+                hwConfig = getHardwareConfig();
+            }
+        }
+
         // N+1: effective nodes for capacity sizing (drain one node during updates)
         const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
@@ -7018,6 +7064,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
                 notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per machine`);
             }
+        }
+
+        const minimumFitHardwareNote = getMinimumFitHardwareNote(hwConfig);
+        if (minimumFitHardwareNote) {
+            notes.push(minimumFitHardwareNote);
         }
 
         // Growth buffer note

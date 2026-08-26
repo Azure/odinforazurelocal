@@ -3558,6 +3558,33 @@
             })()
         ]);
 
+        testSuite('Enterprise minimum-fit recommendation helpers', 'sizer.js', [
+            assert(getAutoGpuCountPerNode(3, 3, 4) === 2,
+                '3 GPUs across a 3-machine N−1 design reconcile to 2 GPUs per machine', 2,
+                getAutoGpuCountPerNode(3, 3, 4)),
+            assert(getAutoGpuCountPerNode(4, 3, 4) === 3,
+                'GPU reconciliation preserves capacity below the 90% threshold', 3,
+                getAutoGpuCountPerNode(4, 3, 4)),
+            assert(getAutoGpuCountPerNode(10, 3, 4) === 4,
+                'GPU reconciliation remains capped by model support', 4,
+                getAutoGpuCountPerNode(10, 3, 4)),
+            (() => {
+                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 24, memoryGB: 128 });
+                return assert(note && note.includes('24 physical cores') && note.includes('128 GB memory'),
+                    'Low CPU and memory produce a minimum-fit procurement caveat',
+                    'note naming both dimensions', note);
+            })(),
+            assert(getMinimumFitHardwareNote({ totalPhysicalCores: 40, memoryGB: 512 }) === null,
+                '40 cores and 512 GB are outside the strict below-threshold caveat', null,
+                getMinimumFitHardwareNote({ totalPhysicalCores: 40, memoryGB: 512 })),
+            (() => {
+                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 48, memoryGB: 384 });
+                return assert(note && !note.includes('48 physical cores') && note.includes('384 GB memory'),
+                    'Either low dimension independently produces the caveat',
+                    'memory-only note', note);
+            })()
+        ]);
+
         // --- getDisaggMaxNodesPerRack() ---
         // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
         testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [
