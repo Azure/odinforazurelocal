@@ -62,12 +62,13 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Right-sized GPU inventory** — automatically managed GPUs per machine are reconciled after machine scaling to preserve N−1 headroom without retaining unnecessary devices.
 - **Minimum-fit procurement guidance** — the first Sizing Note displays an amber "Advisory" label within the bold "Advisory - minimum-fit hardware" heading when configurations below 40 physical cores or 512 GB memory per machine are minimum-fit results rather than new-hardware procurement baselines.
 - **Sizing Notes in design documents** — Sizer recommendations now flow into Designer and appear in both HTML and PowerPoint cluster design documents.
+- **Infrastructure IP Pool auto-ending** — entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address.
 - **AMD Turin catalog coverage** — standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.
 - **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
 - **[No AKS double-counting](https://github.com/Azure/odinforazurelocal/issues/284)** — Foundry Local, Agentic Retrieval, and AI Video Indexer visibly include dedicated AKS Arc infrastructure; add the generic AKS workload only for another independent cluster. GitHub Enterprise Local runs as a GHES appliance VM, not on AKS.
 - **Learn-aligned AI sizing** — Foundry Local uses published minimum/recommended worker profiles and per-deployment model-cache storage, while Agentic Retrieval and Video Indexer no longer add undocumented overhead above their published worker requirements.
 - **GHES feature-aware sizing** — GitHub Enterprise Local defaults to one appliance VM, supports optional active/passive replicas, and adds the documented CPU/memory allowances for GitHub Actions and GitHub Code Security.
-- **Validation** — all **1,532 / 1,532** browser tests pass, including exact support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, GPU-P partition consistency, model-dependent limits, final GPU reconciliation, minimum-fit guidance, Sizing Notes handoff, aggregate capacity, CPU catalog options, and schema drift.
+- **Validation** — all **1,536 / 1,536** browser tests pass, including exact support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, GPU-P partition consistency, model-dependent limits, final GPU reconciliation, minimum-fit guidance, Sizing Notes handoff, Infrastructure IP Pool calculation, aggregate capacity, CPU catalog options, and schema drift.
 
 ---
 

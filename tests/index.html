@@ -3613,6 +3613,47 @@
             })()
         ]);
 
+        testSuite('Designer infrastructure pool minimum ending IP', 'script.js', [
+            assert(getMinimumInfraPoolEnd('192.168.1.10') === '192.168.1.15',
+                'Starting IP calculates a six-address minimum pool',
+                '192.168.1.15', getMinimumInfraPoolEnd('192.168.1.10')),
+            assert(getMinimumInfraPoolEnd('10.0.0.252') === '10.0.1.1',
+                'Minimum ending IP calculation carries across octets',
+                '10.0.1.1', getMinimumInfraPoolEnd('10.0.0.252')),
+            assert(getMinimumInfraPoolEnd('255.255.255.252') === null,
+                'Minimum ending IP rejects IPv4 overflow',
+                null, getMinimumInfraPoolEnd('255.255.255.252')),
+            (() => {
+                const startInput = document.createElement('input');
+                const endInput = document.createElement('input');
+                startInput.id = 'infra-ip-start';
+                endInput.id = 'infra-ip-end';
+                document.body.appendChild(startInput);
+                document.body.appendChild(endInput);
+                const previousManualState = state.infraPoolManual;
+                try {
+                    startInput.value = '192.168.1.10';
+                    updateInfraPoolEndFromStart();
+                    const initialEnd = endInput.value;
+                    startInput.value = '192.168.1.20';
+                    updateInfraPoolEndFromStart();
+                    const recalculatedEnd = endInput.value;
+                    endInput.value = '192.168.1.40';
+                    markInfraPoolEndManual();
+                    startInput.value = '192.168.1.30';
+                    updateInfraPoolEndFromStart();
+                    return assert(initialEnd === '192.168.1.15' && recalculatedEnd === '192.168.1.25' && endInput.value === '192.168.1.40',
+                        'Auto-generated Ending IP follows Starting IP while a manual Ending IP is preserved',
+                        '192.168.1.15, 192.168.1.25, manual 192.168.1.40',
+                        initialEnd + ', ' + recalculatedEnd + ', manual ' + endInput.value);
+                } finally {
+                    startInput.remove();
+                    endInput.remove();
+                    state.infraPoolManual = previousManualState;
+                }
+            })()
+        ]);
+
         // --- getDisaggMaxNodesPerRack() ---
         // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
         testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [
