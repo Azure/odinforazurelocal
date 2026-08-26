@@ -1634,6 +1634,11 @@ header .header-description {
     color: var(--accent-blue);
 }
 
+.foundry-model-catalog-link,
+.foundry-model-catalog-link:visited {
+    color: var(--accent-blue);
+}
+
 .s2d-integration-values {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

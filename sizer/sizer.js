@@ -4465,7 +4465,7 @@ function getFoundryModalContent() {
                 <option value="custom">${FOUNDRY_WORKER_PROFILES.custom.name} &mdash; ${FOUNDRY_WORKER_PROFILES.custom.description}</option>
             </select>
             <span class="hint" id="foundry-class-desc">${profile.description}</span>
-            <span class="hint">Explore compatible OSS models in the <a href="https://aka.ms/FL_Models" target="_blank" rel="noopener noreferrer" style="color: var(--link-color);">Foundry Local model catalog</a>. Confirm that the selected model runtime requirements fit within this worker profile.</span>
+            <span class="hint">Explore compatible OSS models in the <a class="foundry-model-catalog-link" href="https://learn.microsoft.com/azure/azure-sovereign-clouds/private/foundry-local/concept-model-catalog#example-models-in-the-curated-catalog" target="_blank" rel="noopener noreferrer">Foundry Local model catalog</a>. Confirm that the selected model runtime requirements fit within this worker profile.</span>
         </div>
         <div class="form-row">
             <div class="form-group">

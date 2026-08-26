@@ -643,7 +643,7 @@ function checkReportPresentationContracts() {
         { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" },
         { label: 'Portable ToR tool report link', source: reportJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
         { label: 'Portable ToR tool PowerPoint link', source: pptxJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
-        { label: 'Foundry Local model catalog link', source: sizerJs, value: 'https://aka.ms/FL_Models' }
+        { label: 'Foundry Local model catalog link', source: sizerJs, value: 'https://learn.microsoft.com/azure/azure-sovereign-clouds/private/foundry-local/concept-model-catalog#example-models-in-the-curated-catalog' }
     ];
     const missing = required.filter(item => !item.source.includes(item.value));
     const oldLegendPresent = rackSvgJs.includes("label: 'GPU Accent'");

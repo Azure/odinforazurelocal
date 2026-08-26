@@ -87,14 +87,33 @@ const SEED_PAYLOAD = {
         const result = await page.evaluate(async () => {
             return await new Promise((resolve, reject) => {
                 const origCreateElement = document.createElement.bind(document);
+                let settled = false;
+                let timeoutId;
+
+                function complete(value) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    document.createElement = origCreateElement;
+                    resolve(value);
+                }
+
+                function fail(error) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    document.createElement = origCreateElement;
+                    reject(error);
+                }
+
                 document.createElement = function (tag) {
                     const el = origCreateElement(tag);
                     if (String(tag).toLowerCase() === 'a') {
                         const origClick = el.click.bind(el);
-                        el.click = async function () {
-                            try {
-                                const url = el.href;
-                                if (!url || !url.startsWith('blob:')) return origClick();
+                        el.click = function () {
+                            const url = el.href;
+                            if (!url || !url.startsWith('blob:')) return origClick();
+                            void (async function () {
                                 const resp = await fetch(url);
                                 const buf = await resp.arrayBuffer();
                                 const bytes = new Uint8Array(buf);
@@ -105,19 +124,29 @@ const SEED_PAYLOAD = {
                                 const relationshipNames = Object.keys(zip.files)
                                     .filter(name => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name));
                                 const relationships = await Promise.all(relationshipNames.map(name => zip.file(name).async('string')));
-                                const hasTorToolLink = relationships.some(text => text.includes('https://azure.github.io/odinforazurelocal/switch-config/'));
-                                resolve({ size: bytes.length, headHex: head, filename: el.download, hasTorToolLink });
-                            } catch (e) {
-                                reject(e);
-                            }
+                                const torToolUrl = 'https://azure.github.io/odinforazurelocal/switch-config/';
+                                const hyperlinkType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';
+                                const hasTorToolLink = relationships.some(text => {
+                                    const xml = new DOMParser().parseFromString(text, 'application/xml');
+                                    if (xml.querySelector('parsererror')) return false;
+                                    return Array.from(xml.getElementsByTagNameNS('*', 'Relationship')).some(relationship =>
+                                        relationship.getAttribute('Target') === torToolUrl
+                                        && relationship.getAttribute('Type') === hyperlinkType
+                                        && relationship.getAttribute('TargetMode') === 'External');
+                                });
+                                complete({ size: bytes.length, headHex: head, filename: el.download, hasTorToolLink });
+                            })().catch(fail);
                         };
                     }
                     return el;
                 };
 
-                window.downloadReportPptx('default');
-
-                setTimeout(() => reject(new Error('PPTX generation timed out after 30s')), 30000);
+                timeoutId = setTimeout(() => fail(new Error('PPTX generation timed out after 30s')), 30000);
+                try {
+                    window.downloadReportPptx('default');
+                } catch (error) {
+                    fail(error);
+                }
             });
         });
 
