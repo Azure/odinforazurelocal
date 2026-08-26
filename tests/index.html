@@ -5085,15 +5085,11 @@
 
         testSuite('GPU support is deployment-topology independent', 'sizer.js', [
             (() => {
-                const matrix = Object.fromEntries(Object.entries(GPU_MODELS).map(([key, model]) => [key, {
-                    supportsArcVmDda: model.supportsArcVmDda,
-                    supportsGpuP: model.supportsGpuP
-                }]));
-                const hyperconverged = JSON.stringify(matrix);
-                const disaggregated = JSON.stringify(matrix);
-                return assert(hyperconverged === disaggregated,
-                    'Hyperconverged and disaggregated deployments use the same GPU support matrix',
-                    hyperconverged, disaggregated);
+                const topologySpecificKeys = Object.values(GPU_MODELS).flatMap(model =>
+                    Object.keys(model).filter(key => /hyperconverged|disaggregated/i.test(key)));
+                return assert(topologySpecificKeys.length === 0,
+                    'GPU capabilities contain no topology-specific support flags',
+                    [], topologySpecificKeys);
             })()
         ]);
 
