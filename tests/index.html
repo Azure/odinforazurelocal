@@ -3559,6 +3559,9 @@
         ]);
 
         testSuite('Enterprise minimum-fit recommendation helpers', 'sizer.js', [
+            assert(getAutoGpuCountPerNode(0, 4, 4) === 0,
+                'Zero GPU demand reconciles automatically managed inventory back to zero', 0,
+                getAutoGpuCountPerNode(0, 4, 4)),
             assert(getAutoGpuCountPerNode(3, 3, 4) === 2,
                 '3 GPUs across a 3-machine N−1 design reconcile to 2 GPUs per machine', 2,
                 getAutoGpuCountPerNode(3, 3, 4)),
@@ -3574,14 +3577,21 @@
                     'Low CPU and memory produce a warning-colored Advisory in the bold minimum-fit heading',
                     'warning-colored Advisory and note naming both dimensions', note);
             })(),
-            assert(getMinimumFitHardwareNote({ totalPhysicalCores: 40, memoryGB: 512 }) === null,
-                '40 cores and 512 GB are outside the strict below-threshold caveat', null,
-                getMinimumFitHardwareNote({ totalPhysicalCores: 40, memoryGB: 512 })),
+            assert(getMinimumFitHardwareNote({ totalPhysicalCores: 32, memoryGB: 384 }) === null,
+                '32 cores and 384 GB are outside the strict below-threshold caveat', null,
+                getMinimumFitHardwareNote({ totalPhysicalCores: 32, memoryGB: 384 })),
             (() => {
-                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 48, memoryGB: 384 });
-                return assert(note && !note.includes('48 physical cores') && note.includes('384 GB memory'),
+                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 48, memoryGB: 256 });
+                return assert(note && !note.includes('48 physical cores') && note.includes('256 GB memory'),
                     'Either low dimension independently produces the caveat',
                     'memory-only note', note);
+            })(),
+            (() => {
+                const note = getSingleNodeAvailabilityNote();
+                return assert(note.startsWith('<strong><span class="sizing-note-advisory">Advisory</span> - single nodes provide no workload high-availability:</strong>') &&
+                    note.includes('live migration or workload failover') && note.includes('interrupt workloads'),
+                    'Single Node availability note uses the standard Advisory heading and explains workload interruption',
+                    'styled availability advisory', note);
             })()
         ]);
 
@@ -3961,6 +3971,11 @@
                 const r = shouldAutoScaleDisaggRacks(2, 70, true);
                 return assert(r.scale === true && r.racks === 3,
                     '2 racks / 70 needed / CONSERVATIVE FAILED → bump one tier to 3 (recursive recalc walks up)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 40, true, true);
+                return assert(r.scale === false,
+                    'Active rack-shrink cycle suppresses an immediate rack increase', false, r.scale);
             })()
         ]);
 
@@ -4029,6 +4044,11 @@
                     'null racks → guarded as 1 → never shrinks', false, r.shrink);
             })(),
             (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 20, true);
+                return assert(r.shrink === false,
+                    'Active rack-growth cycle suppresses an immediate rack decrease', false, r.shrink);
+            })(),
+            (() => {
                 // No oscillation: scale-up fires when rec > cur × 16; shrink only when
                 // rec ≤ (cur-1) × 16 × 0.80. Verify cur=2 / rec=32 (right at scale-up
                 // boundary) does NOT shrink — would otherwise ping-pong with scale-up.
@@ -4080,6 +4100,11 @@
                 const r = shouldDowngradeFromDisaggregated(20);
                 return assert(r.downgrade === false,
                     '20 nodes needed → NO downgrade (would not fit on HCI)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(8, true);
+                return assert(r.downgrade === false,
+                    'Active upgrade cycle suppresses an immediate Disaggregated → HCI reversal', false, r.downgrade);
             })(),
             (() => {
                 const r = shouldDowngradeFromDisaggregated('10');
@@ -4508,6 +4533,9 @@
         ]);
 
         testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
+            assert(getEdgeRagCompatibleGpuType('foundry-production') === 'a16',
+                'Production Agentic Retrieval defaults to an AKS-supported GPU with at least 48 GB VRAM',
+                'a16', getEdgeRagCompatibleGpuType('foundry-production')),
             (() => {
                 // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',

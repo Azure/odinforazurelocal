@@ -1527,7 +1527,8 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 //       without it the engine falls through to aggressive memory escalation
 //       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
 // Returns { scale: false } or { scale: true, racks: N }.
-function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
+function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed, suppressScale) {
+    if (suppressScale) return { scale: false };
     const MAX_AUTO_RACKS = 8;
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur >= MAX_AUTO_RACKS) return { scale: false };
@@ -1553,7 +1554,8 @@ function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conserva
 // shrink fire at different recommendation thresholds, so a workload sitting
 // right at e.g. 32 nodes won't ping-pong between 2 and 3 racks.
 // Returns { shrink: false } or { shrink: true, racks: N }.
-function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
+function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes, suppressShrink) {
+    if (suppressShrink) return { shrink: false };
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur <= 1) return { shrink: false };
     const rec = parseInt(recommendedNodes, 10) || 0;
@@ -1573,7 +1575,8 @@ function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
 // the boundary is consistent and oscillation-safe with shouldUpgradeToDisaggregated()
 // which fires only when disagg rec > 16.
 // Returns { downgrade: false } or { downgrade: true, recommended: N }.
-function shouldDowngradeFromDisaggregated(standardRecommendedNodes) {
+function shouldDowngradeFromDisaggregated(standardRecommendedNodes, suppressDowngrade) {
+    if (suppressDowngrade) return { downgrade: false };
     const HCI_MAX_WITH_HEADROOM = Math.floor(16 * 0.80); // 12
     const rec = parseInt(standardRecommendedNodes, 10) || 0;
     if (rec <= 0 || rec > HCI_MAX_WITH_HEADROOM) return { downgrade: false };
@@ -1736,8 +1739,12 @@ const GPU_MIN_CORES_PER_NODE = 24;
 // Advisory procurement thresholds. These do not constrain supported sizing;
 // they distinguish a mathematically sufficient minimum-fit result from a
 // typical enterprise new-hardware purchase with broader expansion headroom.
-const ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE = 40;
-const ENTERPRISE_CAVEAT_MIN_MEMORY_GB = 512;
+const ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE = 32;
+const ENTERPRISE_CAVEAT_MIN_MEMORY_GB = 384;
+
+function getSingleNodeAvailabilityNote() {
+    return '<strong><span class="sizing-note-advisory">Advisory</span> - single nodes provide no workload high-availability:</strong> A single-machine deployment has no destination for live migration or workload failover, so solution updates and host maintenance that require a restart interrupt workloads.';
+}
 
 function getMinimumFitHardwareNote(hwConfig) {
     if (!hwConfig) return null;
@@ -3623,6 +3630,15 @@ const EDGERAG_LLM_PROFILES = {
     'foundry-production': { label: 'Foundry Local production', vcpus: 16, memory: 64, storage: 100, gpus: 1, minVramGB: 48 }
 };
 
+function getEdgeRagCompatibleGpuType(llmEndpoint) {
+    const profile = EDGERAG_LLM_PROFILES[llmEndpoint];
+    const minVramGB = profile ? profile.minVramGB : 0;
+    return Object.keys(AKS_GPU_VM_SIZES).find(function(gpuType) {
+        const model = GPU_MODELS[gpuType];
+        return model && model.vramGB >= minVramGB;
+    }) || '';
+}
+
 function normalizeEdgeRagWorkload(w) {
     if (!w || w.type !== 'edgerag') return w;
     if (!['combined', 'knowledge', 'agentic'].includes(w.deploymentMode)) {
@@ -4707,6 +4723,18 @@ function updateEdgeRagConfiguration() {
             toggleWorkloadGpuFields();
             const noneOpt = gpuModeEl.querySelector('option[value="none"]');
             if (noneOpt) noneOpt.disabled = true;
+            const gpuModelEl = document.getElementById('wl-gpu-dda-model');
+            const selectedGpu = gpuModelEl ? GPU_MODELS[gpuModelEl.value] : null;
+            const llmProfile = llmEl ? EDGERAG_LLM_PROFILES[llmEl.value] : null;
+            if (gpuModelEl && !gpuModelEl.disabled && llmProfile &&
+                (!selectedGpu || selectedGpu.vramGB < llmProfile.minVramGB) &&
+                !_manualFields.has('gpu-type') && !getLockedGpuType()) {
+                const compatibleGpuType = getEdgeRagCompatibleGpuType(llmEl.value);
+                if (compatibleGpuType && gpuModelEl.querySelector(`option[value="${compatibleGpuType}"]`)) {
+                    gpuModelEl.value = compatibleGpuType;
+                    onDdaModelChange();
+                }
+            }
             const gpuCountEl = document.getElementById('wl-gpu-dda-count');
             if (gpuCountEl) gpuCountEl.value = '1';
         }
@@ -6249,7 +6277,8 @@ function calculateRequirements(options) {
                     );
                     if (ctElDown) ctElDown.value = savedCt;
                     const downgradeDecision = shouldDowngradeFromDisaggregated(
-                        standardRec ? standardRec.recommended : 0
+                        standardRec ? standardRec.recommended : 0,
+                        options && options.topologyTransition === 'upgrade'
                     );
                     if (downgradeDecision.downgrade) {
                         if (ctElDown) ctElDown.value = 'standard';
@@ -6273,7 +6302,7 @@ function calculateRequirements(options) {
                         // the post-recalc value out of the DOM so the toast shows
                         // what the user actually sees in the dropdown.
                         isCalculating = false;
-                        calculateRequirements();
+                        calculateRequirements({ topologyTransition: 'downgrade' });
                         const finalNodeEl = document.getElementById('node-count');
                         const finalNodeCount = finalNodeEl ? (parseInt(finalNodeEl.value, 10) || downgradeDecision.recommended) : downgradeDecision.recommended;
                         showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + finalNodeCount + (finalNodeCount === 1 ? ' machine' : ' machines') + ').', 'info');
@@ -6298,7 +6327,8 @@ function calculateRequirements(options) {
                     );
                     const shrinkDecision = shouldAutoShrinkDisaggRacks(
                         curRacksShrink,
-                        disaggRecShrink ? disaggRecShrink.recommended : 0
+                        disaggRecShrink ? disaggRecShrink.recommended : 0,
+                        options && options.rackTransition === 'up'
                     );
                     if (shrinkDecision.shrink) {
                         if (rackElShrink) rackElShrink.value = String(shrinkDecision.racks);
@@ -6312,7 +6342,10 @@ function calculateRequirements(options) {
                         // dropdown value is the TOTAL machine count (not per-rack),
                         // so read it directly.
                         isCalculating = false;
-                        calculateRequirements();
+                        calculateRequirements({
+                            topologyTransition: options && options.topologyTransition,
+                            rackTransition: 'down'
+                        });
                         const totalElS = document.getElementById('node-count');
                         const totalMachinesS = totalElS ? (parseInt(totalElS.value, 10) || 0) : 0;
                         const rackTextS = shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks');
@@ -6337,7 +6370,8 @@ function calculateRequirements(options) {
                     // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
                     // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
                     // the aggressive memory/ratio escalation below fix the remaining utilisation.
-                    if (clusterType === 'standard' && !_disaggAutoUpgraded) {
+                    if (clusterType === 'standard' && !_disaggAutoUpgraded
+                        && (!options || options.topologyTransition !== 'downgrade')) {
                         const disaggRec = getRecommendedNodeCount(
                             totalVcpus, totalMemory, totalStorage,
                             hwConfig, resiliencyMultiplier, resiliency, totalGpus
@@ -6371,7 +6405,7 @@ function calculateRequirements(options) {
                             // text "11 Nodes per Rack (22 total)"), so read it
                             // directly — do NOT multiply by rackCount.
                             isCalculating = false;
-                            calculateRequirements();
+                            calculateRequirements({ topologyTransition: 'upgrade' });
                             const totalEl = document.getElementById('node-count');
                             const totalMachines = totalEl ? (parseInt(totalEl.value, 10) || 0) : 0;
                             const rackText = minRacks + (minRacks === 1 ? ' rack' : ' racks');
@@ -6400,7 +6434,8 @@ function calculateRequirements(options) {
                         const rackDecision = shouldAutoScaleDisaggRacks(
                             curRacks,
                             disaggRec ? disaggRec.recommended : 0,
-                            true /* conservativeFailed */
+                            true, /* conservativeFailed */
+                            options && options.rackTransition === 'down'
                         );
                         if (rackDecision.scale) {
                             if (rackElAuto) rackElAuto.value = String(rackDecision.racks);
@@ -6419,7 +6454,10 @@ function calculateRequirements(options) {
                             // so skip the outer toast to avoid stale "scaled
                             // to N racks" messages when N changed downstream.
                             isCalculating = false;
-                            calculateRequirements();
+                            calculateRequirements({
+                                topologyTransition: options && options.topologyTransition,
+                                rackTransition: 'up'
+                            });
                             const finalRackEl = document.getElementById('disagg-rack-count');
                             const finalRacks = finalRackEl ? (parseInt(finalRackEl.value, 10) || rackDecision.racks) : rackDecision.racks;
                             if (finalRacks > rackDecision.racks) {
@@ -6555,6 +6593,27 @@ function calculateRequirements(options) {
                     hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (postAggressiveRec) {
+                    if (clusterType === 'disaggregated' && !_manualFields.has('disagg-rack-count')) {
+                        const finalRackEl = document.getElementById('disagg-rack-count');
+                        const finalRackCount = finalRackEl ? (parseInt(finalRackEl.value, 10) || 1) : 1;
+                        const finalRackDecision = shouldAutoScaleDisaggRacks(
+                            finalRackCount, postAggressiveRec.recommended, false,
+                            options && options.rackTransition === 'down'
+                        );
+                        if (finalRackDecision.scale) {
+                            if (finalRackEl) finalRackEl.value = String(finalRackDecision.racks);
+                            markAutoScaled('disagg-rack-count');
+                            updateNodeOptionsForClusterType();
+                            updateClusterInfo();
+                            _nodeCountUserSet = false;
+                            isCalculating = false;
+                            calculateRequirements({
+                                topologyTransition: options && options.topologyTransition,
+                                rackTransition: 'up'
+                            });
+                            return;
+                        }
+                    }
                     if (postAggressiveRec.recommended <= getMaxNodeCap()) postAggressiveRec.recommended = nodeCount;
                     updateNodeRecommendation(postAggressiveRec);
                 }
@@ -6587,7 +6646,7 @@ function calculateRequirements(options) {
         // Node scaling can leave an earlier GPU-per-machine recommendation
         // unnecessarily high. Reconcile against the final N-1 machine count
         // while preserving the same strict-below-90% utilization policy.
-        if (totalGpus > 0 && !_gpuCountUserSet) {
+        if (!_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
             const gpuModel = GPU_MODELS[hwConfig.gpuType];
             const maxPerNode = gpuModel ? gpuModel.maxPerNode : 1;
@@ -7218,6 +7277,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
+        if (clusterType === 'single') {
+            notes.push(getSingleNodeAvailabilityNote());
+        }
         const minimumFitHardwareNote = getMinimumFitHardwareNote(hwConfig);
         if (minimumFitHardwareNote) {
             notes.push(minimumFitHardwareNote);
@@ -11100,6 +11162,7 @@ function resetScenario() {
 
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
+    updateAldoWorkloadButtons();
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
     // Hide the disaggregated-only rows (Number of Racks, Storage Connectivity)
