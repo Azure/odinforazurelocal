@@ -1218,17 +1218,19 @@
         }
     };
 
-    initializeCalculatorPage();
-    applyPageTheme();
-    if (document.getElementById('calculator-form')) {
-        try {
-            if (!localStorage.getItem(S2D_ONBOARDING_KEY)) globalThis.showS2dOnboarding();
-        } catch (_) {
-            globalThis.showS2dOnboarding();
+    if (!globalThis.__S2D_CALCULATIONS_ONLY__) {
+        initializeCalculatorPage();
+        applyPageTheme();
+        if (document.getElementById('calculator-form')) {
+            try {
+                if (!localStorage.getItem(S2D_ONBOARDING_KEY)) globalThis.showS2dOnboarding();
+            } catch (_) {
+                globalThis.showS2dOnboarding();
+            }
         }
-    }
-    if (typeof initializeAnalytics === 'function' && initializeAnalytics()) {
-        trackPageView();
-        fetchAndDisplayStats();
+        if (typeof initializeAnalytics === 'function' && initializeAnalytics()) {
+            trackPageView();
+            fetchAndDisplayStats();
+        }
     }
 })();

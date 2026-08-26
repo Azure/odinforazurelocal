@@ -2955,3 +2955,7 @@ header .header-description {
         display: contents;
     }
 }
+
+.sizing-note-advisory {
+    color: var(--warning);
+}

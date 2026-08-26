@@ -3613,6 +3613,67 @@
             })()
         ]);
 
+        testSuite('Sizer workload GPU report metadata', 'sizer.js', [
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                return assert(details && details.mode === 'dda' && details.type === 'l40s' && details.label.includes('NVIDIA L40S'),
+                    'DDA workload metadata includes mode, stable type, and display label',
+                    'dda / l40s / NVIDIA L40S', JSON.stringify(details));
+            })(),
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'gpu-p', gpuPModel: 'a10' });
+                return assert(details && details.mode === 'gpu-p' && details.type === 'a10' && details.label.includes('NVIDIA A10'),
+                    'GPU-P workload metadata includes mode, stable type, and display label',
+                    'gpu-p / a10 / NVIDIA A10', JSON.stringify(details));
+            })(),
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'dda', aksGpuVmSize: 'Standard_NC8_A2' });
+                return assert(details && details.type === 'a2' && details.label.includes('NVIDIA A2'),
+                    'AKS GPU VM size resolves to its report GPU model',
+                    'a2 / NVIDIA A2', JSON.stringify(details));
+            })(),
+            assert(getWorkloadGpuReportDetails({ gpuMode: 'none' }) === null,
+                'CPU-only workload omits GPU report metadata', null,
+                getWorkloadGpuReportDetails({ gpuMode: 'none' }))
+        ]);
+
+        testSuite('Sizer integrated S2D calculation', 'sizer.js + s2d-calc.js', [
+            (() => {
+                const result = buildSizerS2dCalculation('single', 1, '2way', {
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3.84 * 1024 } }
+                });
+                return assert(result && result.volumeCount === 1 && result.maximumVolumeLabel === '< 15.5 TB' && result.derivation[0].includes('2 effective machines'),
+                    'Single Node uses the calculator two-effective-machine rule',
+                    '1 volume, < 15.5 TB, 2 effective machines', JSON.stringify(result));
+            })(),
+            (() => {
+                const result = buildSizerS2dCalculation('standard', 4, '3way', {
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3.84 * 1024 } }
+                });
+                return assert(result && result.volumeCount === 4 && result.maximumVolumeLabel === '< 20.8 TB' && result.tiering === 'Capacity only',
+                    'Hyperconverged capacity-only storage maps to three-copy S2D guidance',
+                    '4 volumes, < 20.8 TB, Capacity only', JSON.stringify(result));
+            })(),
+            (() => {
+                const result = buildSizerS2dCalculation('rack-aware', 4, '4way', {
+                    diskConfig: {
+                        isTiered: true,
+                        cache: { count: 2, sizeGB: 1.92 * 1024 },
+                        capacity: { count: 4, sizeGB: 6.4 * 1024 }
+                    }
+                });
+                return assert(result && result.volumeCount === 4 && result.maximumVolumeLabel === '< 15.5 TB' && result.tiering === 'Cache and Capacity' && result.derivation.some(line => line.includes('cache drives do not add usable capacity')),
+                    'Rack-aware tiered storage uses capacity disks and four-copy rules',
+                    '4 volumes, < 15.5 TB, Cache and Capacity', JSON.stringify(result));
+            })(),
+            assert(buildSizerS2dCalculation('disaggregated', 4, '3way', { diskConfig: {} }) === null,
+                'Disaggregated deployments omit integrated S2D guidance', null,
+                buildSizerS2dCalculation('disaggregated', 4, '3way', { diskConfig: {} })),
+            assert(buildSizerS2dCalculation('aldo-mgmt', 3, '3way', { diskConfig: {} }) === null,
+                'ALDO management deployments omit integrated S2D guidance', null,
+                buildSizerS2dCalculation('aldo-mgmt', 3, '3way', { diskConfig: {} }))
+        ]);
+
         testSuite('Designer infrastructure pool minimum ending IP', 'script.js', [
             assert(getMinimumInfraPoolEnd('192.168.1.10') === '192.168.1.15',
                 'Starting IP calculates a six-address minimum pool',
@@ -7977,6 +8038,10 @@
             const y4 = labelY(hciSvg, 'Node 4');
             results.push(assert(y1 !== null && y4 !== null, 'HCI SVG renders Node 1 and Node 4 labels', true, y1 !== null && y4 !== null));
             results.push(assert(y1 > y4, 'HCI SVG fills bottom-up (Node 1 below Node 4)', true, y1 > y4));
+
+            const gpuSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 2, hasGpu: true });
+            results.push(assert(gpuSvg.indexOf('GPU Enabled') !== -1, 'GPU rack legend uses customer-facing wording', 'GPU Enabled', gpuSvg.indexOf('GPU Enabled') !== -1));
+            results.push(assert(gpuSvg.indexOf('GPU Accent') === -1, 'GPU rack legend omits implementation wording', false, gpuSvg.indexOf('GPU Accent') !== -1));
 
             // (b) Custom Designer node names surface in the diagram.
             const namedSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 2, hasGpu: false, nodeNames: ['AZL-HOST-A', 'AZL-HOST-B'] });

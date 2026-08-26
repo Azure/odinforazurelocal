@@ -65,13 +65,16 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Right-sized GPU inventory</strong> &mdash; automatically managed GPUs per machine are reconciled after machine scaling to preserve N&minus;1 headroom without retaining unnecessary devices.</li>
                         <li><strong>Minimum-fit procurement guidance</strong> &mdash; the first Sizing Note displays an amber &ldquo;Advisory&rdquo; label within the bold &ldquo;Advisory - minimum-fit hardware&rdquo; heading when low-core or low-memory recommendations are minimum-fit results rather than new-hardware procurement baselines.</li>
                         <li><strong>Sizing Notes in design documents</strong> &mdash; Sizer recommendations flow into Designer and appear in both HTML and PowerPoint cluster design documents.</li>
+                        <li><strong>Design report fidelity</strong> &mdash; reports identify Designer-only or Sizer-and-Designer workflow inputs, include each workload's resolved GPU model and mode, match the Sizer's Advisory styling, use the unified design report title, and label GPU racks as &ldquo;GPU Enabled.&rdquo;</li>
+                        <li><strong>S2D guidance in design reports</strong> &mdash; Single Node, standard, and rack-aware Sizer results show the recommended volume count and maximum supported size per volume, then carry the exact calculation through Designer into every report format.</li>
+                        <li><strong>GPU instance totals</strong> &mdash; Sizer-originated reports show the full NVIDIA model per node and total physical GPU count across the instance.</li>
                         <li><strong>Infrastructure IP Pool auto-ending</strong> &mdash; entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address.</li>
                         <li><strong>AMD Turin catalog coverage</strong> &mdash; standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.</li>
                         <li><strong>GPU-P and guidance</strong> &mdash; cluster-wide partition consistency is enforced, and GPU controls link to the relevant Microsoft Learn pages.</li>
                         <li><strong><a href="https://github.com/Azure/odinforazurelocal/issues/284" target="_blank" rel="noopener" style="color: var(--link-color);">No AKS double-counting</a></strong> &mdash; specialized AI workloads visibly include their dedicated AKS Arc infrastructure; GitHub Enterprise Local is a standalone GHES appliance VM.</li>
                         <li><strong>AI sizing refresh</strong> &mdash; Foundry uses published worker profiles and per-deployment model caches; Agentic Retrieval and Video Indexer no longer add undocumented overhead.</li>
                         <li><strong>GHES feature allowances</strong> &mdash; GitHub Enterprise Local defaults to one VM and can include the documented Actions and Code Security CPU/memory increments.</li>
-                        <li>All <strong>1,536 / 1,536</strong> browser tests pass.</li>
+                        <li>All <strong>1,547 / 1,547</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

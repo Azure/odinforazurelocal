@@ -619,6 +619,16 @@ function getGpuLabel(gpuType) {
     return gpuType || 'Unknown';
 }
 
+function getWorkloadGpuReportDetails(workload) {
+    const gpuType = getWorkloadGpuType(workload);
+    if (!gpuType) return null;
+    return {
+        mode: workload.gpuMode,
+        type: gpuType,
+        label: getGpuLabel(gpuType)
+    };
+}
+
 // Build GPU requirement fields HTML for workload modals
 // workloadType: 'vm', 'aks', 'avd', 'foundry', 'edgerag', or 'videoindexer'
 function getGpuRequirementFields(workloadType) {
@@ -1157,6 +1167,92 @@ function getHardwareConfig() {
         tieringId,
         diskConfig
     };
+}
+
+function buildSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig) {
+    if (!['single', 'standard', 'rack-aware'].includes(clusterType)) return null;
+    if (!globalThis.volumeCalculator || !hwConfig || !hwConfig.diskConfig) return null;
+
+    const copies = { '2way': 2, '3way': 3, '4way': 4 }[resiliency];
+    const machines = Number(nodeCount);
+    if (!copies || !Number.isInteger(machines)) return null;
+
+    const limit = globalThis.volumeCalculator.calculateLimit({
+        platform: 'azureLocal',
+        nodes: machines,
+        copies: copies,
+        provisioning: 'thin',
+        thinExtentMiB: 1024
+    });
+    if (!limit.valid) return null;
+
+    const disks = hwConfig.diskConfig;
+    const poolInput = disks.isTiered
+        ? {
+            servers: machines, maxVolumeTB: limit.exactTB, copies: copies,
+            platform: 'azureLocal', tiering: true,
+            cacheDrivesPerNode: disks.cache.count,
+            cacheDiskSizeTB: disks.cache.sizeGB / 1024,
+            capacityDrivesPerNode: disks.capacity.count,
+            capacityDiskSizeTB: disks.capacity.sizeGB / 1024
+        }
+        : {
+            servers: machines, maxVolumeTB: limit.exactTB, copies: copies,
+            platform: 'azureLocal',
+            drivesPerNode: disks.capacity.count,
+            driveSizeTB: disks.capacity.sizeGB / 1024
+        };
+    const pool = globalThis.volumeCalculator.calculatePoolConsumption(poolInput);
+    if (!pool.valid || pool.poolCapped) return null;
+
+    const format = globalThis.volumeCalculator.formatLimit;
+    const extentLabel = limit.extentMiB === 1024 ? '1 GiB' : limit.extentMiB + ' MiB';
+    const baseFormula = copies === 4
+        ? `32,768 usable records × ${extentLabel} extents ÷ 0.5 ÷ ${copies} copies = ${format(limit.baseExactTB)} TB base limit.`
+        : `32,768 usable records × ${limit.effectiveNodes} effective machines × ${extentLabel} extents ÷ ${2 * copies} = ${format(limit.baseExactTB)} TB base limit.`;
+    const poolFormula = disks.isTiered
+        ? `${machines} machines × ${poolInput.capacityDrivesPerNode} capacity drives × ${format(poolInput.capacityDiskSizeTB)} TB = ${format(pool.rawPoolTB)} TB raw capacity; cache drives do not add usable capacity.`
+        : `${machines} machines × ${poolInput.drivesPerNode} capacity drives × ${format(poolInput.driveSizeTB)} TB = ${format(pool.rawPoolTB)} TB raw capacity.`;
+
+    return {
+        provisioning: 'Thin',
+        extentMiB: limit.extentMiB,
+        copies: copies,
+        nodeCount: machines,
+        tiering: disks.isTiered ? 'Cache and Capacity' : 'Capacity only',
+        maximumVolumeTB: limit.exactTB,
+        maximumVolumeLabel: '< ' + format(limit.exactTB) + ' TB',
+        volumeCount: pool.volumesNeeded,
+        usableCapacityTB: pool.usableTB,
+        derivation: [
+            `${machines} selected machines = ${limit.effectiveNodes} effective machines; ${copies} copies, Thin provisioning, ${extentLabel} extents.`,
+            baseFormula,
+            `${format(Math.min(limit.baseExactTB, limit.maxVolumeTB))} TB capped base - ${format(limit.volumeOverheadTB)} TB overhead = < ${format(limit.exactTB)} TB maximum supported individual volume size.`,
+            poolFormula,
+            `${format(pool.rawPoolTB)} TB raw - ${format(pool.reservedTB)} TB rebuild reserve = ${format(pool.availableTB)} TB available.`,
+            `${format(pool.availableTB)} TB ÷ ${copies} copies - ${format(pool.infrastructureReservedTB)} TB Azure Local platform reserve = ${format(pool.usableTB)} TB usable.`,
+            `Create max(ceil(${format(pool.usableTB)} TB ÷ ${format(limit.exactTB)} TB), ${machines} machines) = ${pool.volumesNeeded} volumes.`
+        ]
+    };
+}
+
+let _lastS2dCalculation = null;
+
+function updateSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig) {
+    _lastS2dCalculation = buildSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig);
+    const section = document.getElementById('s2d-integration-section');
+    if (!section) return;
+    section.style.display = _lastS2dCalculation ? '' : 'none';
+    if (!_lastS2dCalculation) return;
+
+    document.getElementById('s2d-volume-count').textContent = String(_lastS2dCalculation.volumeCount);
+    document.getElementById('s2d-max-volume-size').textContent = _lastS2dCalculation.maximumVolumeLabel;
+    const details = document.getElementById('s2d-calculation-details');
+    details.replaceChildren(..._lastS2dCalculation.derivation.map(function(line) {
+        const item = document.createElement('li');
+        item.textContent = line;
+        return item;
+    }));
 }
 
 // ============================================
@@ -6664,6 +6760,7 @@ function calculateRequirements(options) {
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);
+        updateSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig);
 
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
@@ -8367,6 +8464,7 @@ function selectRegionAndConfigure(region, cloud) {
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
             },
             sizingNotes: getSizingNotesForHandoff(),
+            s2dCalculation: _lastS2dCalculation,
             // Power, heat & rack-space estimate captured from the Sizer's
             // "Estimated Power, Heat & Rack Space per Instance" panel. These
             // surface on the Designer's report and as a dedicated Power & Heat
@@ -8393,12 +8491,16 @@ function selectRegionAndConfigure(region, cloud) {
         // Individual workload details (transparent pass-through to Report)
         sizerWorkloads: workloads.map(function(w) {
             const req = calculateWorkloadRequirements(w);
+            const workloadGpu = getWorkloadGpuReportDetails(w);
             const entry = {
                 type: w.type,
                 name: w.name,
                 totalVcpus: req.vcpus,
                 totalMemoryGB: req.memory,
-                totalStorageGB: req.storage
+                totalStorageGB: req.storage,
+                gpuMode: workloadGpu ? workloadGpu.mode : null,
+                gpuType: workloadGpu ? workloadGpu.type : null,
+                gpuLabel: workloadGpu ? workloadGpu.label : null
             };
             // Type-specific details for the report
             switch (w.type) {

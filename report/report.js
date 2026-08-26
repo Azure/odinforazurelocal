@@ -425,9 +425,43 @@
             .replace(/'/g, '&#39;');
     }
 
+    const SIZER_ADVISORY_PREFIX = 'Advisory - minimum-fit hardware:';
+
+    function renderSizerSizingNoteHtml(note) {
+        const text = String(note || '');
+        if (!text.startsWith(SIZER_ADVISORY_PREFIX)) return escapeHtml(text);
+        return '<strong><span class="sizing-note-advisory">Advisory</span>'
+            + escapeHtml(SIZER_ADVISORY_PREFIX.slice('Advisory'.length))
+            + '</strong>'
+            + escapeHtml(text.slice(SIZER_ADVISORY_PREFIX.length));
+    }
+
+    function formatSizerWorkloadGpu(workload) {
+        if (!workload || !workload.gpuType) return '';
+        const mode = workload.gpuMode === 'gpu-p' ? 'GPU-P' : workload.gpuMode === 'dda' ? 'DDA' : '';
+        return (workload.gpuLabel || workload.gpuType) + (mode ? ' (' + mode + ')' : '');
+    }
+
+    function formatHardwareGpuType(gpuType) {
+        const modelLabels = {
+            t4: 'NVIDIA T4', a2: 'NVIDIA A2', a10: 'NVIDIA A10',
+            a16: 'NVIDIA A16', a40: 'NVIDIA A40', l4: 'NVIDIA L4',
+            l40: 'NVIDIA L40', l40s: 'NVIDIA L40S', rtxpro6000: 'NVIDIA RTX Pro 6000'
+        };
+        const value = String(gpuType || '');
+        return modelLabels[value.toLowerCase()] || value || '-';
+    }
+
     /** Escape pipe, backtick, and backslash characters for markdown table cells */
     function escapeMd(val) {
         return String(val || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/`/g, '\\`');
+    }
+
+    function getReportSubtitle(state) {
+        const hasSizerData = Boolean(state && (state.sizerHardware
+            || (Array.isArray(state.sizerWorkloads) && state.sizerWorkloads.length > 0)));
+        const workflows = hasSizerData ? 'Sizer and Designer workflows' : 'Designer workflow';
+        return 'This report explains what was selected and why, based on the inputs from ODIN ' + workflows + '.';
     }
 
     /**
@@ -610,6 +644,7 @@
 
             '.summary-section { margin: 0 0 12pt 0; }',
             '.summary-section-title { font-size: 12pt; font-weight: 700; color: #111111; padding: 6pt 8pt; background: #f3f4f6; border: 1px solid #e5e7eb; border-left: 4pt solid #0b5cab; border-radius: 8px; margin: 0 0 8pt 0; }',
+            '.sizing-note-advisory { color: #b45309; }',
 
             '.word-kv-table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; }',
             '.word-kv-table td { border: 1px solid #e5e7eb; padding: 6pt 8pt; vertical-align: top; }',
@@ -1114,7 +1149,7 @@
 
     function buildMarkdownContent(s, diagrams) {
         const md = [];
-        md.push('# Azure Local Configuration Report');
+        md.push('# Azure Local Instance | Design Configuration Report');
         md.push('');
 
         // Metadata section
@@ -1169,7 +1204,8 @@
                 md.push('| Memory per Node | ' + (hw.memory.perNodeGB || '-') + ' GB |');
             }
             if (hw.gpu && hw.gpu.countPerNode > 0) {
-                md.push('| GPU per Node | ' + hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-') + ' |');
+                md.push('| GPU per Node | ' + hw.gpu.countPerNode + ' × ' + formatHardwareGpuType(hw.gpu.type) + ' |');
+                md.push('| GPUs Total per Instance | ' + ((Number(hw.nodeCount) || Number(s.nodes) || 0) * Number(hw.gpu.countPerNode)) + ' |');
             }
             if (hw.vcpuRatio) {
                 md.push('| vCPU Ratio (pCPU:vCPU) | ' + hw.vcpuRatio + ':1 |');
@@ -1210,6 +1246,26 @@
                 md.push('| Total Storage Required | ' + (ws.totalStorageTB || 0) + ' TB |');
             }
             md.push('');
+
+            if (hw.s2dCalculation) {
+                const calc = hw.s2dCalculation;
+                md.push('## S2D Calculation | Supported Maximum Volume Size');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                md.push('| Number of Volumes to Create | ' + calc.volumeCount + ' |');
+                md.push('| Maximum supported size of each volume | ' + escapeMd(calc.maximumVolumeLabel) + ' |');
+                md.push('| Provisioning | ' + escapeMd(calc.provisioning) + ' |');
+                md.push('| Data Copies | ' + calc.copies + ' |');
+                md.push('| Storage Layout | ' + escapeMd(calc.tiering) + ' |');
+                md.push('');
+                md.push('### How the result is calculated');
+                md.push('');
+                (Array.isArray(calc.derivation) ? calc.derivation : []).forEach(function(line) {
+                    md.push('- ' + escapeMd(line));
+                });
+                md.push('');
+            }
         }
 
         // Sizer Workloads (individual workload details from Sizer)
@@ -1275,6 +1331,8 @@
                     md.push('| GitHub Actions | ' + (wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
                     md.push('| GitHub Code Security | ' + (wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
                 }
+                const workloadGpu = formatSizerWorkloadGpu(wl);
+                if (workloadGpu) md.push('| GPU Type | ' + escapeMd(workloadGpu) + ' |');
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
             }
@@ -8125,6 +8183,8 @@
         // Sizer Hardware Configuration (only present when imported from Sizer)
         let sizerHardwareRows = '';
         let sizerSizingNotesHtml = '';
+        let sizerS2dRows = '';
+        let sizerS2dExtra = '';
         if (s.sizerHardware) {
             const hw = s.sizerHardware;
             if (hw.cpu) {
@@ -8137,7 +8197,8 @@
                 sizerHardwareRows += row('Memory per Node', (hw.memory.perNodeGB || '-') + ' GB');
             }
             if (hw.gpu && hw.gpu.countPerNode > 0) {
-                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-'));
+                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + formatHardwareGpuType(hw.gpu.type));
+                sizerHardwareRows += row('GPUs Total per Instance', String((Number(hw.nodeCount) || Number(s.nodes) || 0) * Number(hw.gpu.countPerNode)));
             }
             if (hw.vcpuRatio) {
                 sizerHardwareRows += row('vCPU Ratio (pCPU:vCPU)', hw.vcpuRatio + ':1');
@@ -8185,7 +8246,24 @@
                     .slice(0, 50);
                 if (sizingNotes.length > 0) {
                     sizerSizingNotesHtml = '<ul style="margin: 0; padding-left: 1.25rem;">'
-                        + sizingNotes.map(function(note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('')
+                        + sizingNotes.map(function(note) { return '<li>' + renderSizerSizingNoteHtml(note) + '</li>'; }).join('')
+                        + '</ul>';
+                }
+            }
+            if (hw.s2dCalculation) {
+                const calc = hw.s2dCalculation;
+                sizerS2dRows += row('Number of Volumes to Create', String(calc.volumeCount));
+                sizerS2dRows += row('Maximum supported size of each volume', calc.maximumVolumeLabel || '-');
+                sizerS2dRows += row('Provisioning', calc.provisioning || '-');
+                sizerS2dRows += row('Data Copies', String(calc.copies || '-'));
+                sizerS2dRows += row('Storage Layout', calc.tiering || '-');
+                const derivation = (Array.isArray(calc.derivation) ? calc.derivation : [])
+                    .filter(function(line) { return typeof line === 'string'; })
+                    .map(function(line) { return line.slice(0, 500); })
+                    .slice(0, 10);
+                if (derivation.length > 0) {
+                    sizerS2dExtra = '<h4 style="margin: 0.75rem 0 0.5rem;">How the result is calculated</h4><ul>'
+                        + derivation.map(function(line) { return '<li>' + escapeHtml(line) + '</li>'; }).join('')
                         + '</ul>';
                 }
             }
@@ -8296,6 +8374,8 @@
                     sizerWorkloadsRows += row('GitHub Actions', wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included');
                     sizerWorkloadsRows += row('GitHub Code Security', wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included');
                 }
+                const workloadGpu = formatSizerWorkloadGpu(wl);
+                if (workloadGpu) sizerWorkloadsRows += row('GPU Type', workloadGpu);
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
             }
@@ -8390,6 +8470,7 @@
 
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
+            + sectionWithExtra('S2D Calculation | Supported Maximum Volume Size', 'summary-section-title--infra', sizerS2dRows, sizerS2dExtra, 'sizer-s2d-calculation')
             + sectionWithExtra('Sizing Notes & Recommendations (from Sizer)', 'summary-section-title--infra', '', sizerSizingNotesHtml, 'sizer-sizing-notes')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
@@ -8419,6 +8500,9 @@
 
         const s = payload.state;
         CURRENT_REPORT_STATE = s;
+
+        const subtitleEl = document.getElementById('report-subtitle');
+        if (subtitleEl) subtitleEl.textContent = getReportSubtitle(s);
 
         if (metaEl) {
             metaEl.innerHTML = '<strong>Generated</strong><br>'
@@ -8694,7 +8778,7 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
 
         pdf.setFontSize(12);
         pdf.setTextColor(0, 120, 212);
-        pdf.text('ODIN — Configuration Report', margin, 10);
+        pdf.text('Azure Local Instance | Design Configuration Report', margin, 10);
         pdf.setFontSize(8);
         pdf.setTextColor(128, 128, 128);
         pdf.text('Generated: ' + new Date().toLocaleString(), margin, 15);

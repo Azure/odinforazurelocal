@@ -1624,6 +1624,53 @@ header .header-description {
     color: var(--text-secondary);
 }
 
+.s2d-integration-intro {
+    margin: -4px 0 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.s2d-integration-intro a {
+    color: var(--accent-blue);
+}
+
+.s2d-integration-values {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.s2d-integration-values > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.s2d-integration-values strong {
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+#s2d-integration-section summary {
+    cursor: pointer;
+    color: var(--accent-blue);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+@media (max-width: 600px) {
+    .s2d-integration-values {
+        grid-template-columns: 1fr;
+    }
+}
+
 .notes-section ul {
     list-style: none;
     padding: 0;

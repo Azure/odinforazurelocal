@@ -573,6 +573,24 @@ function checkRendererCoverage() {
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
             ]
+        },
+        {
+            label: 'sizerPayload.sizerHardware.s2dCalculation',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            fieldNames: ['s2dCalculation'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
+        },
+        {
+            label: 'sizerPayload.sizerWorkloads GPU metadata',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            fieldNames: ['gpuMode', 'gpuType', 'gpuLabel'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
         }
     ];
 
@@ -606,6 +624,32 @@ function checkRendererCoverage() {
         }
     });
     return allOk;
+}
+
+function checkReportPresentationContracts() {
+    const reportHtml = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.html'), 'utf8');
+    const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
+    const pptxJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'pptx-export.js'), 'utf8');
+    const rackSvgJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'rack-svg.js'), 'utf8');
+    const title = 'Azure Local Instance | Design Configuration Report';
+    const required = [
+        { label: 'HTML report title', source: reportHtml, value: title },
+        { label: 'Markdown/PDF report title', source: reportJs, value: title },
+        { label: 'PowerPoint report title', source: pptxJs, value: title },
+        { label: 'Designer-only singular workflow subtitle', source: reportJs, value: 'Designer workflow' },
+        { label: 'Sizer and Designer plural workflow subtitle', source: reportJs, value: 'Sizer and Designer workflows' },
+        { label: 'Trusted advisory prefix', source: reportJs, value: 'Advisory - minimum-fit hardware:' },
+        { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" }
+    ];
+    const missing = required.filter(item => !item.source.includes(item.value));
+    const oldLegendPresent = rackSvgJs.includes("label: 'GPU Accent'");
+    if (missing.length === 0 && !oldLegendPresent) {
+        console.log(`✅ Report presentation contracts OK: ${required.length} required strings present`);
+        return true;
+    }
+    missing.forEach(item => console.error(`❌ Report presentation contract missing: ${item.label}`));
+    if (oldLegendPresent) console.error('❌ Report presentation contract still contains the old GPU Accent legend');
+    return false;
 }
 
 function generateNUnitXML(results, passed, failed, total) {
@@ -741,6 +785,10 @@ function generateJUnitXML(results, passed, failed, total) {
         // render site" (the bug that motivated this gate).
         if (!checkRendererCoverage()) {
             console.error('\n❌ Renderer coverage check failed — wire the missing field(s) into the report/PPT, or document why they are intentionally omitted.');
+            process.exit(1);
+        }
+        if (!checkReportPresentationContracts()) {
+            console.error('\n❌ Report presentation contract check failed.');
             process.exit(1);
         }
 

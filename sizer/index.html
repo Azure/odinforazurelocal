@@ -580,6 +580,19 @@
                                 </select>
                             </div>
                         </div>
+
+                        <div id="s2d-integration-section" class="notes-section" style="display: none;">
+                            <h3>S2D Calculation | Supported Maximum Volume Size</h3>
+                            <p class="s2d-integration-intro">Thin-provisioned Azure Local estimate. <a href="../s2d-calc/" target="_blank" rel="noopener noreferrer">Open S2D Calc</a> for interactive planning and detailed assumptions.</p>
+                            <div class="s2d-integration-values">
+                                <div><span>Number of Volumes to Create</span><strong id="s2d-volume-count">—</strong></div>
+                                <div><span>Maximum supported size of each volume</span><strong id="s2d-max-volume-size">—</strong></div>
+                            </div>
+                            <details>
+                                <summary>How the result is calculated</summary>
+                                <ul id="s2d-calculation-details"></ul>
+                            </details>
+                        </div>
                     </div>
 
                     <!-- Remove Manual Overrides button (hidden by default) -->
@@ -1336,6 +1349,8 @@
     <script src="../vendor/html2canvas-1.4.1.min.js"></script>
     <script src="../vendor/jspdf-4.2.1.umd.min.js"></script>
     <script src="rack3d.js?v=20260330z9"></script>
+    <script>window.__S2D_CALCULATIONS_ONLY__ = true;</script>
+    <script src="../s2d-calc/s2d-calc.js"></script>
     <script src="sizer.js"></script>
 </body>
 </html>
