@@ -610,19 +610,19 @@ header .header-description {
     margin-bottom: 24px;
 }
 
-.storage-calculator-link {
+.section-reference-link {
     margin: -6px 0 12px;
     color: var(--text-secondary);
     font-size: 12px;
 }
 
-.storage-calculator-link a {
+.section-reference-link a {
     color: var(--accent-blue);
     text-decoration: none;
 }
 
-.storage-calculator-link a:hover,
-.storage-calculator-link a:focus {
+.section-reference-link a:hover,
+.section-reference-link a:focus {
     text-decoration: underline;
 }
 
