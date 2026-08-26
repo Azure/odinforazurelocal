@@ -8161,11 +8161,11 @@
         if (s.sdnFeatures && s.sdnFeatures.length) sdnRows += row('SDN Features', s.sdnFeatures.join(', '));
         if (s.sdnManagement) sdnRows += row('SDN Management', s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed');
 
-        function section(title, cls, rowsHtml, dataKey) {
+        function section(title, cls, rowsHtml, dataKey, titleExtraHtml) {
             if (!rowsHtml) return '';
             const dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
             return '<div class="summary-section"' + dataAttr + '>'
-                + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
+            + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + (titleExtraHtml || '') + '</div>'
                 + rowsHtml
                 + '</div>';
         }
@@ -8474,7 +8474,12 @@
             + sectionWithExtra('Sizing Notes & Recommendations (from Sizer)', 'summary-section-title--infra', '', sizerSizingNotesHtml, 'sizer-sizing-notes')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
-            + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
+            + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking',
+                '<span class="report-info-tooltip no-print">'
+                + '<button type="button" class="report-info-tooltip__trigger" aria-label="About example ToR switch configurations" aria-describedby="tor-switch-tool-tip">i</button>'
+                + '<span id="tor-switch-tool-tip" class="report-info-tooltip__content" role="tooltip">'
+                + 'Use the <a href="https://azure.github.io/odinforazurelocal/switch-config/" target="_blank" rel="noopener noreferrer">ToR Switch Configuration Generator &amp; Validator</a> to generate example Cisco or Dell switch configurations from this design. Review and adapt all output for your hardware, software version, and organizational standards before deployment.'
+                + '</span></span>')
             + vnicConfigSection
             + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')

@@ -631,6 +631,7 @@ function checkReportPresentationContracts() {
     const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
     const pptxJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'pptx-export.js'), 'utf8');
     const rackSvgJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'rack-svg.js'), 'utf8');
+    const sizerJs = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.js'), 'utf8');
     const title = 'Azure Local Instance | Design Configuration Report';
     const required = [
         { label: 'HTML report title', source: reportHtml, value: title },
@@ -639,7 +640,10 @@ function checkReportPresentationContracts() {
         { label: 'Designer-only singular workflow subtitle', source: reportJs, value: 'Designer workflow' },
         { label: 'Sizer and Designer plural workflow subtitle', source: reportJs, value: 'Sizer and Designer workflows' },
         { label: 'Trusted advisory prefix', source: reportJs, value: 'Advisory - minimum-fit hardware:' },
-        { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" }
+        { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" },
+        { label: 'Portable ToR tool report link', source: reportJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
+        { label: 'Portable ToR tool PowerPoint link', source: pptxJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
+        { label: 'Foundry Local model catalog link', source: sizerJs, value: 'https://aka.ms/FL_Models' }
     ];
     const missing = required.filter(item => !item.source.includes(item.value));
     const oldLegendPresent = rackSvgJs.includes("label: 'GPU Accent'");

@@ -101,7 +101,12 @@ const SEED_PAYLOAD = {
                                 const head = Array.from(bytes.slice(0, 4))
                                     .map(b => b.toString(16).padStart(2, '0'))
                                     .join(' ');
-                                resolve({ size: bytes.length, headHex: head, filename: el.download });
+                                const zip = await window.JSZip.loadAsync(buf);
+                                const relationshipNames = Object.keys(zip.files)
+                                    .filter(name => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name));
+                                const relationships = await Promise.all(relationshipNames.map(name => zip.file(name).async('string')));
+                                const hasTorToolLink = relationships.some(text => text.includes('https://azure.github.io/odinforazurelocal/switch-config/'));
+                                resolve({ size: bytes.length, headHex: head, filename: el.download, hasTorToolLink });
                             } catch (e) {
                                 reject(e);
                             }
@@ -126,6 +131,9 @@ const SEED_PAYLOAD = {
         }
         if (!/^odin-configuration-report_.+\.pptx$/.test(result.filename || '')) {
             throw new Error(`Unexpected download filename: ${result.filename}`);
+        }
+        if (!result.hasTorToolLink) {
+            throw new Error('Portable ToR Switch tool hyperlink is missing from slide relationships');
         }
 
         console.log(`PPTX smoke test: OK — ${result.filename}, ${(result.size / 1024).toFixed(1)} KB, magic ${result.headHex}`);

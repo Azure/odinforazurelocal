@@ -1102,9 +1102,21 @@
             }
         }
 
+        const torToolUrl = 'https://azure.github.io/odinforazurelocal/switch-config/';
+        bullets.push({
+            lvl: 1,
+            text: 'Planning aid: ToR Switch Configuration Generator & Validator',
+            runs: [
+                { text: 'Planning aid: ' },
+                { text: 'ToR Switch Configuration Generator & Validator', color: '93C5FD', linkRid: 100 },
+                { text: ' — generates example Cisco and Dell configurations; validate before deployment.' }
+            ]
+        });
+
         return {
             bullets: bullets,
-            sources: ['Report state']
+            sources: ['Report state'],
+            links: [{ rid: 100, url: torToolUrl }]
         };
     }
 

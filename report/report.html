@@ -43,6 +43,60 @@
             color: #000000 !important;
         }
 
+        .report-info-tooltip {
+            position: relative;
+            display: inline-flex;
+            margin-left: 0.4rem;
+            vertical-align: middle;
+            text-transform: none;
+        }
+
+        .report-info-tooltip__trigger {
+            width: 1.15rem;
+            height: 1.15rem;
+            padding: 0;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            background: transparent;
+            color: inherit;
+            font: 700 0.75rem/1 sans-serif;
+            cursor: help;
+        }
+
+        .report-info-tooltip__trigger:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .report-info-tooltip__content {
+            position: absolute;
+            z-index: 20;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            display: none;
+            width: min(22rem, calc(100vw - 3rem));
+            padding: 0.7rem 0.8rem;
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-weight: 400;
+            line-height: 1.45;
+            letter-spacing: 0;
+        }
+
+        .report-info-tooltip:hover .report-info-tooltip__content,
+        .report-info-tooltip:focus-within .report-info-tooltip__content {
+            display: block;
+        }
+
+        .report-info-tooltip__content a {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
         /* Mobile responsive styles for Report page */
         @media (max-width: 768px) {
             .container {
