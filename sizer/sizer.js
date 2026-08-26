@@ -1605,7 +1605,7 @@ function getMinimumFitHardwareNote(hwConfig) {
     }
     if (lowDimensions.length === 0) return null;
 
-    return 'Advisory - minimum-fit hardware: This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
+    return '<strong>Advisory - minimum-fit hardware:</strong> This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
 }
 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
@@ -7062,25 +7062,25 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
-        // Cluster size + N+1 note — always first
+        const minimumFitHardwareNote = getMinimumFitHardwareNote(hwConfig);
+        if (minimumFitHardwareNote) {
+            notes.push(minimumFitHardwareNote);
+        }
+
+        // Cluster size + N+1 note
         if (clusterType === 'single') {
             notes.push('1 x Machine Instance — Single machine deployment: No machine fault tolerance or maintenance capacity');
         } else {
             notes.push(`${nodeCount} x Machine Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} machines available during servicing / maintenance`);
         }
 
-        // Per node hardware config note — always second
+        // Per node hardware config note
         if (hwConfig && hwConfig.generation) {
             notes.push(`Per machine hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
             if (hwConfig.gpuCount > 0) {
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
                 notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per machine`);
             }
-        }
-
-        const minimumFitHardwareNote = getMinimumFitHardwareNote(hwConfig);
-        if (minimumFitHardwareNote) {
-            notes.push(minimumFitHardwareNote);
         }
 
         // Growth buffer note

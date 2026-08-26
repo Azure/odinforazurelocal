@@ -3570,9 +3570,9 @@
                 getAutoGpuCountPerNode(10, 3, 4)),
             (() => {
                 const note = getMinimumFitHardwareNote({ totalPhysicalCores: 24, memoryGB: 128 });
-                return assert(note && note.includes('24 physical cores') && note.includes('128 GB memory'),
-                    'Low CPU and memory produce a minimum-fit procurement caveat',
-                    'note naming both dimensions', note);
+                return assert(note && note.startsWith('<strong>Advisory - minimum-fit hardware:</strong>') && note.includes('24 physical cores') && note.includes('128 GB memory'),
+                    'Low CPU and memory produce a bold Advisory minimum-fit heading',
+                    'bold Advisory heading and note naming both dimensions', note);
             })(),
             assert(getMinimumFitHardwareNote({ totalPhysicalCores: 40, memoryGB: 512 }) === null,
                 '40 cores and 512 GB are outside the strict below-threshold caveat', null,

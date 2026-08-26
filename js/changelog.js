@@ -63,7 +63,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>H100 removed</strong> &mdash; NVIDIA H100 is no longer offered in Sizer hardware or workload GPU choices.</li>
                         <li><strong>Learn-aligned support</strong> &mdash; Arc VM DDA and GPU-P expose their exact documented model sets for both hyperconverged and disaggregated deployments; A10 is added for GPU-P and A100 is removed.</li>
                         <li><strong>Right-sized GPU inventory</strong> &mdash; automatically managed GPUs per machine are reconciled after machine scaling to preserve N&minus;1 headroom without retaining unnecessary devices.</li>
-                        <li><strong>Minimum-fit procurement guidance</strong> &mdash; low-core or low-memory recommendations are clearly identified as minimum-fit results rather than new-hardware procurement baselines.</li>
+                        <li><strong>Minimum-fit procurement guidance</strong> &mdash; the first Sizing Note displays a bold &ldquo;Advisory - minimum-fit hardware&rdquo; heading when low-core or low-memory recommendations are minimum-fit results rather than new-hardware procurement baselines.</li>
                         <li><strong>Sizing Notes in design documents</strong> &mdash; Sizer recommendations flow into Designer and appear in both HTML and PowerPoint cluster design documents.</li>
                         <li><strong>AMD Turin catalog coverage</strong> &mdash; standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.</li>
                         <li><strong>GPU-P and guidance</strong> &mdash; cluster-wide partition consistency is enforced, and GPU controls link to the relevant Microsoft Learn pages.</li>
