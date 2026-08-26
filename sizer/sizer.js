@@ -1605,7 +1605,7 @@ function getMinimumFitHardwareNote(hwConfig) {
     }
     if (lowDimensions.length === 0) return null;
 
-    return '<strong>Advisory - minimum-fit hardware:</strong> This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
+    return '<strong><span class="sizing-note-advisory">Advisory</span> - minimum-fit hardware:</strong> This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
 }
 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster

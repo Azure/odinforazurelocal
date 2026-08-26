@@ -1644,6 +1644,10 @@ header .header-description {
     color: var(--accent-blue);
 }
 
+.sizing-note-advisory {
+    color: var(--warning);
+}
+
 /* Export action buttons */
 .export-actions {
     display: flex;
