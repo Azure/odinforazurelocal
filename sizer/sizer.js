@@ -11,6 +11,7 @@ const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 const SIZER_VERSION = 4;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const MAX_AZURE_LOCAL_MACHINES = 64;
+const MAX_AZURE_LOCAL_EFFECTIVE_MACHINES = MAX_AZURE_LOCAL_MACHINES - 1;
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SHARED_CONFIG_CHARS = 12000;
@@ -891,7 +892,7 @@ function getDdaGpuCountLimit(workloadType, inputMode, gpuType) {
     const gpuModel = GPU_MODELS[gpuType];
     const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
     return workloadType === 'vm' && inputMode === 'total'
-        ? maxPerNode * MAX_AZURE_LOCAL_MACHINES
+        ? maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES
         : maxPerNode;
 }
 
@@ -1298,6 +1299,8 @@ function buildMaxHardwareConfig(hwConfig) {
         memoryGB: effectiveMaxMemory,
         sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
+        gpuCount: hwConfig.gpuCount,
+        gpuType: hwConfig.gpuType,
         diskConfig: maxDiskConfig // disk size scaled to max for node recommendation
     };
 }
@@ -1328,6 +1331,48 @@ function getGrowthFactor() {
     const el = document.getElementById('future-growth');
     const pct = el ? (parseInt(el.value) || 0) : 0;
     return _computeGrowthMultiplier(pct, getGrowthYears());
+}
+
+function getGpuGrowthCapacityStatus(workloadList, growthFactor) {
+    let gpuType = null;
+    let rawDemand = 0;
+    (Array.isArray(workloadList) ? workloadList : []).forEach(function(workload) {
+        const demand = calculateWorkloadGpuRequirement(workload);
+        if (demand <= 0) return;
+        const workloadGpuType = getWorkloadGpuType(workload);
+        if (!workloadGpuType || (gpuType && workloadGpuType !== gpuType)) {
+            gpuType = null;
+            rawDemand = 0;
+            return;
+        }
+        gpuType = workloadGpuType;
+        rawDemand += demand;
+    });
+    const gpuModel = gpuType ? GPU_MODELS[gpuType] : null;
+    if (!gpuModel || rawDemand <= 0) return null;
+    const limit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES;
+    const projectedDemand = Math.ceil(rawDemand * (Number(growthFactor) || 1));
+    return {
+        gpuType: gpuType,
+        gpuModel: gpuModel,
+        rawDemand: rawDemand,
+        projectedDemand: projectedDemand,
+        limit: limit,
+        exceedsWithGrowth: rawDemand <= limit && projectedDemand > limit
+    };
+}
+
+function removeDefaultGrowthIfGpuCapacityExceeded(workloadList) {
+    const growthEl = document.getElementById('future-growth');
+    const growthPct = growthEl ? (parseInt(growthEl.value, 10) || 0) : 0;
+    if (!growthEl || growthPct <= 0 || _manualFields.has('future-growth')) return null;
+    const status = getGpuGrowthCapacityStatus(workloadList, getGrowthFactor());
+    if (!status || !status.exceedsWithGrowth) return null;
+    growthEl.value = '0';
+    markAutoScaled('future-growth');
+    return 'The default ' + growthPct + '% future-growth allowance was set to 0% because it would increase GPU demand from ' +
+        status.rawDemand + ' to ' + status.projectedDemand + ', above the N−1 maximum of ' + status.limit + ' ' +
+        status.gpuModel.name + ' GPUs (63 effective machines × ' + status.gpuModel.maxPerNode + ' GPUs/machine).';
 }
 
 // Calculate recommended node count based on workload demands and per-node hardware
@@ -1595,7 +1640,9 @@ function updateNodeRecommendation(recommendation) {
 
         let msg = '';
         if (recommendation.recommended > getMaxNodeCap()) {
-            msg = `Auto-scaling requires ~${recommendation.recommended} machines which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity.`;
+            msg = recommendation.bottleneck === 'gpu'
+                ? `GPU demand requires ~${recommendation.recommended} machines for N−1 capacity, which exceeds max ${getMaxNodeCap()}. Reduce GPU workload demand or the future-growth allowance; the selected GPU model is already sized at its supported per-machine maximum.`
+                : `Auto-scaling requires ~${recommendation.recommended} machines which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity.`;
         } else {
             msg = `Auto-configured ${snapped} machine(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
@@ -1620,7 +1667,9 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
 
     let msg = '';
     if (recommendation.recommended > getMaxNodeCap()) {
-        msg = `⚠️ Workload requires ~${recommendation.recommended} machines (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity (CPU cores, memory, or disk size).`;
+        msg = recommendation.bottleneck === 'gpu'
+            ? `⚠️ GPU demand requires ~${recommendation.recommended} machines for N−1 capacity, which exceeds max ${getMaxNodeCap()}. Reduce GPU workload demand or the future-growth allowance; the selected GPU model is already sized at its supported per-machine maximum.`
+            : `⚠️ Workload requires ~${recommendation.recommended} machines (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity (CPU cores, memory, or disk size).`;
     } else if (snapped > currentNodeCount) {
         msg = `ℹ️ Workload recommends ${snapped} machine(s) based on ${driver} requirements. Current selection: ${currentNodeCount} machine(s).`;
     } else {
@@ -5042,7 +5091,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             };
         }
         if (gpuModel) {
-            const instanceLimit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_MACHINES;
+            const instanceLimit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES;
             const candidateGpus = calculateWorkloadGpuRequirement(workload);
             const otherGpus = Array.isArray(otherWorkloads)
                 ? otherWorkloads.reduce(function(total, otherWorkload) {
@@ -5055,7 +5104,8 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                 return {
                     code: 'gpu-count-exceeds-instance-limit',
                     message: 'GPU demand exceeds the Azure Local instance maximum for ' + gpuModel.name +
-                        ': ' + instanceLimit + ' GPUs across 64 machines (' + gpuModel.maxPerNode + ' per machine).'
+                        ': ' + instanceLimit + ' GPUs across 63 N−1 effective machines (' +
+                        gpuModel.maxPerNode + ' per machine; 64 physical machines).'
                 };
             }
         }
@@ -5235,9 +5285,11 @@ function addWorkload() {
             trackFormCompletion('sizerCalculation');
         }
     }
+    const growthAdjustmentMessage = removeDefaultGrowthIfGpuCapacityExceeded(workloads);
     closeModal();
     renderWorkloads();
     calculateRequirements();
+    if (growthAdjustmentMessage) showSizerToast(growthAdjustmentMessage, 'info');
 }
 
 // Edit workload - open modal pre-populated with existing values
@@ -6086,8 +6138,10 @@ function calculateRequirements(options) {
                     hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (finalRec) {
-                    // Override recommended with actual final node count so message matches dropdown
-                    finalRec.recommended = nodeCount;
+                    // Keep an over-cap recommendation intact so the banner reports
+                    // that the workload cannot fit instead of presenting the capped
+                    // machine count as a successful recommendation.
+                    if (finalRec.recommended <= getMaxNodeCap()) finalRec.recommended = nodeCount;
                     updateNodeRecommendation(finalRec);
                 }
 
@@ -6455,8 +6509,12 @@ function calculateRequirements(options) {
                             const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
                             // Disaggregated uses external SAN — internal storage never drives node count.
                             const dStoPct = (clusterType === 'disaggregated') ? 0 : (dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0);
+                            const dGpuPerNode = hwConfig.gpuCount || 0;
+                            const dAvailGpus = dGpuPerNode * dEffNodes;
+                            const dGpuPct = (totalGpus > 0 && dAvailGpus > 0) ? Math.round((totalGpus / dAvailGpus) * 100) : 0;
 
-                            if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
+                            if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD ||
+                                dStoPct >= DOWN_UTIL_THRESHOLD || dGpuPct >= DOWN_UTIL_THRESHOLD) {
                             // Can't reduce further — revert to the previous node count
                                 nodeCount = savedNodeCount;
                                 document.getElementById('node-count').value = savedNodeCount;
@@ -6497,7 +6555,7 @@ function calculateRequirements(options) {
                     hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (postAggressiveRec) {
-                    postAggressiveRec.recommended = nodeCount;
+                    if (postAggressiveRec.recommended <= getMaxNodeCap()) postAggressiveRec.recommended = nodeCount;
                     updateNodeRecommendation(postAggressiveRec);
                 }
             }

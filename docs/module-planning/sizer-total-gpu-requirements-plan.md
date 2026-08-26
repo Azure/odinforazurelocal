@@ -6,16 +6,18 @@
   Total VM input modes.
 - The dropdown is capped at the selected GPU model's per-machine limit, so
   Total VM mode cannot express an instance-wide requirement above four GPUs.
-- Azure Local disaggregated instances support up to 64 machines. The maximum
-  total GPU requirement is therefore 64 multiplied by the selected model's
-  `maxPerNode` value (256 for four-GPU models; 128 for two-GPU models).
+- Azure Local disaggregated instances support up to 64 physical machines. The
+  maximum total GPU requirement preserves N−1 maintenance capacity and is
+  therefore 63 multiplied by the selected model's `maxPerNode` value (252 for
+  four-GPU models; 126 for two-GPU models).
 - GPU support and assignment capabilities must follow the current Microsoft
   Learn support matrix for both hyperconverged and disaggregated deployments.
 
 ## Proposed change
 
 - Replace the workload DDA count dropdown with a numeric input.
-- In VM Total mode, set its maximum to `64 * GPU_MODELS[gpuType].maxPerNode`.
+- In VM Total mode, set its maximum to
+  `(MAX_AZURE_LOCAL_MACHINES - 1) * GPU_MODELS[gpuType].maxPerNode`.
 - In VM Per-VM mode and other workload dialogs, retain the selected model's
   per-machine maximum.
 - Validate the mode-aware maximum before saving so typed or imported values
@@ -28,6 +30,12 @@
   for hardware preparation, DDA, GPU-P, and AKS GPU sizing.
 - Show configured physical GPU capacity even when no workload consumes GPUs,
   reporting zero used against the N-1 effective machine inventory.
+- Preserve GPU model/count fields in maximum-hardware recommendations so Total
+  GPU demand participates in machine auto-sizing.
+- If the automatic 10% future-growth allowance alone pushes same-model GPU
+  demand above N−1 capacity, reset it to 0% and inform the user. Preserve an
+  explicitly selected growth allowance and show an actionable over-capacity
+  warning instead.
 - Preserve historical changelog and completed-plan references as release
   history rather than rewriting them.
 

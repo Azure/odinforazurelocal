@@ -57,9 +57,10 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <div style="font-size: 13px; color: var(--text-secondary);">August 26, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.</p>
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
-                        <li><strong>Total VM GPU requirements</strong> &mdash; enter up to 256 GPUs for four-per-machine models such as L40S or 128 GPUs for two-per-machine models such as A2.</li>
+                        <li><strong>Total VM GPU requirements</strong> &mdash; enter up to 252 GPUs for four-per-machine models such as L40S or 126 GPUs for two-per-machine models such as A2, preserving N&minus;1 capacity across 64 physical machines.</li>
                         <li><strong>Per-machine limits preserved</strong> &mdash; Per-VM and other workload modes retain each model's supported limit, and model changes clamp oversized values.</li>
-                        <li><strong>Instance-wide validation</strong> &mdash; combined same-model workloads cannot exceed the selected model's 64-machine capacity.</li>
+                        <li><strong>Instance-wide validation</strong> &mdash; combined same-model workloads cannot exceed the selected model's 63-machine N&minus;1 effective capacity, and GPU totals drive machine recommendations.</li>
+                        <li><strong>Growth at the GPU ceiling</strong> &mdash; Sizer removes and explains the automatic 10% growth allowance when it alone would exceed N&minus;1 GPU capacity; manually selected growth remains unchanged and receives an actionable over-capacity warning.</li>
                         <li><strong>H100 removed</strong> &mdash; NVIDIA H100 is no longer offered in Sizer hardware or workload GPU choices.</li>
                         <li><strong>Learn-aligned support</strong> &mdash; Arc VM DDA and GPU-P expose their exact documented model sets for both hyperconverged and disaggregated deployments; A10 is added for GPU-P and A100 is removed.</li>
                         <li><strong>Right-sized GPU inventory</strong> &mdash; automatically managed GPUs per machine are reconciled after machine scaling to preserve N&minus;1 headroom without retaining unnecessary devices.</li>
@@ -76,7 +77,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>AI sizing refresh</strong> &mdash; Foundry uses published worker profiles and per-deployment model caches; Agentic Retrieval and Video Indexer no longer add undocumented overhead.</li>
                         <li><strong>Foundry model discovery</strong> &mdash; the Worker Profile input links to Microsoft&rsquo;s current Foundry Local model catalog for compatible OSS model exploration.</li>
                         <li><strong>GHES feature allowances</strong> &mdash; GitHub Enterprise Local defaults to one VM and can include the documented Actions and Code Security CPU/memory increments.</li>
-                        <li>All <strong>1,547 / 1,547</strong> browser tests pass.</li>
+                        <li>All <strong>1,549 / 1,549</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

@@ -54,9 +54,10 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 > **Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.**
 
 **What's new**
-- **Model-dependent total GPU sizing** — Total VM mode accepts up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2 across all 64 machines.
+- **Model-dependent total GPU sizing** — Total VM mode accepts up to 252 GPUs for four-per-machine models such as L40S and 126 GPUs for two-per-machine models such as A2 across 63 N−1 effective machines (64 physical machines).
 - **Per-machine limits preserved** — Per-VM and other workload modes retain each model's supported GPUs-per-machine limit, and switching models clamps oversized values immediately.
-- **Instance-wide validation** — combined same-model workloads cannot exceed the selected GPU model's Azure Local instance capacity; mixed models continue to produce the dedicated homogeneous-GPU conflict.
+- **Instance-wide validation** — combined same-model workloads cannot exceed the selected GPU model's N−1 Azure Local instance capacity, and GPU totals drive machine recommendations; mixed models continue to produce the dedicated homogeneous-GPU conflict.
+- **Growth at the GPU ceiling** — Sizer removes and explains the automatic 10% growth allowance when it alone would exceed N−1 GPU capacity; manually selected growth remains unchanged and receives an actionable over-capacity warning.
 - **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
 - **Learn-aligned GPU support** — Arc VM DDA offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed, and the same support applies to hyperconverged and disaggregated deployments.
 - **Right-sized GPU inventory** — automatically managed GPUs per machine are reconciled after machine scaling to preserve N−1 headroom without retaining unnecessary devices.
@@ -73,7 +74,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Learn-aligned AI sizing** — Foundry Local uses published minimum/recommended worker profiles and per-deployment model-cache storage, while Agentic Retrieval and Video Indexer no longer add undocumented overhead above their published worker requirements.
 - **Foundry Local model discovery** — the Worker Profile input links to Microsoft's current Foundry Local model catalog for compatible OSS model exploration without coupling model choice to a fixed sizing preset.
 - **GHES feature-aware sizing** — GitHub Enterprise Local defaults to one appliance VM, supports optional active/passive replicas, and adds the documented CPU/memory allowances for GitHub Actions and GitHub Code Security.
-- **Validation** — all **1,547 / 1,547** browser tests pass, including exact support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, GPU-P partition consistency, model-dependent limits, final GPU reconciliation, minimum-fit guidance, Sizing Notes, GPU metadata and S2D calculation handoff, report presentation contracts, Infrastructure IP Pool calculation, aggregate capacity, CPU catalog options, and schema drift.
+- **Validation** — all **1,549 / 1,549** browser tests pass, including exact support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, GPU-P partition consistency, N−1 model-dependent limits and GPU-driven machine recommendations, default-growth reconciliation, final GPU reconciliation, minimum-fit guidance, Sizing Notes, GPU metadata and S2D calculation handoff, report presentation contracts, Infrastructure IP Pool calculation, aggregate capacity, CPU catalog options, and schema drift.
 
 ---
 

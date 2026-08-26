@@ -4263,6 +4263,55 @@
             return results;
         })());
 
+        testSuite('Default growth removal at N−1 GPU ceiling', 'sizer.js', [
+            (() => {
+                let growthEl = document.getElementById('future-growth');
+                const growthCreated = !growthEl;
+                if (!growthEl) {
+                    growthEl = document.createElement('select');
+                    growthEl.id = 'future-growth';
+                    ['0','10','20','30','40','50'].forEach(function(value) {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.text = value;
+                        growthEl.appendChild(option);
+                    });
+                    document.body.appendChild(growthEl);
+                }
+                const horizonEl = document.getElementById('size-for-5yr-growth');
+                const savedGrowth = growthEl.value;
+                const savedHorizon = horizonEl ? horizonEl.value : null;
+                const wasManual = _manualFields.has('future-growth');
+                const workload = {
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 252
+                };
+                try {
+                    _manualFields.delete('future-growth');
+                    growthEl.value = '10';
+                    if (horizonEl) horizonEl.value = 'no';
+                    const automaticMessage = removeDefaultGrowthIfGpuCapacityExceeded([workload]);
+                    const automaticRemoved = growthEl.value === '0' &&
+                        automaticMessage && automaticMessage.includes('252 to 278');
+
+                    growthEl.value = '10';
+                    _manualFields.add('future-growth');
+                    const manualMessage = removeDefaultGrowthIfGpuCapacityExceeded([workload]);
+                    const manualPreserved = growthEl.value === '10' && manualMessage === null;
+                    return assert(automaticRemoved && manualPreserved,
+                        'Default growth is removed at the GPU ceiling while manual growth is preserved',
+                        'auto: 0% with notice / manual: 10% unchanged',
+                        `auto: ${automaticRemoved} / manual: ${manualPreserved}`);
+                } finally {
+                    growthEl.value = savedGrowth;
+                    if (horizonEl && savedHorizon !== null) horizonEl.value = savedHorizon;
+                    if (wasManual) _manualFields.add('future-growth');
+                    else _manualFields.delete('future-growth');
+                    if (growthCreated && growthEl.parentNode) growthEl.parentNode.removeChild(growthEl);
+                }
+            })()
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),
@@ -4641,6 +4690,25 @@
                 const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
                 const hasFields = 'recommended' in r && 'computeNodes' in r && 'memoryNodes' in r && 'storageNodes' in r && 'bottleneck' in r;
                 return assert(hasFields, 'Returns recommended, computeNodes, memoryNodes, storageNodes, bottleneck', true, hasFields);
+            })(),
+            (() => {
+                const hw = {
+                    totalPhysicalCores: 100,
+                    coresPerSocket: 50,
+                    memoryGB: 1600,
+                    gpuCount: 1,
+                    gpuType: 'l4',
+                    generation: { coreOptions: [50] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                const r = getRecommendedNodeCount(4000, 16000, 100, maxHw, 2, '2way', 256);
+                const correct = maxHw.gpuCount === 1 && maxHw.gpuType === 'l4' &&
+                    r.gpuNodes === 64 && r.recommended === 65 && r.bottleneck === 'gpu';
+                return assert(correct,
+                    '256 total L4 GPUs remain GPU-driven and require 65 physical machines for N−1',
+                    '1 L4 / 64 working / 65 physical / GPU',
+                    `${maxHw.gpuCount} ${maxHw.gpuType} / ${r.gpuNodes} working / ${r.recommended} physical / ${r.bottleneck}`);
             })(),
             (() => {
                 const hw = {
@@ -5328,11 +5396,11 @@
         testSuite('DDA GPU count limits', 'sizer.js', [
             assert(typeof getDdaGpuCountLimit === 'function',
                 'getDdaGpuCountLimit is defined', 'function', typeof getDdaGpuCountLimit),
-            assert(getDdaGpuCountLimit('vm', 'total', 'l40s') === 256,
-                'Total VM + L40S allows 64 machines × 4 GPUs', 256,
+            assert(getDdaGpuCountLimit('vm', 'total', 'l40s') === 252,
+                'Total VM + L40S allows 63 N−1 effective machines × 4 GPUs', 252,
                 getDdaGpuCountLimit('vm', 'total', 'l40s')),
-            assert(getDdaGpuCountLimit('vm', 'total', 'a2') === 128,
-                'Total VM + A2 allows 64 machines × 2 GPUs', 128,
+            assert(getDdaGpuCountLimit('vm', 'total', 'a2') === 126,
+                'Total VM + A2 allows 63 N−1 effective machines × 2 GPUs', 126,
                 getDdaGpuCountLimit('vm', 'total', 'a2')),
             assert(getDdaGpuCountLimit('vm', 'per-vm', 'l40s') === 4,
                 'Per-VM + L40S remains capped at 4 GPUs per machine', 4,
@@ -5343,25 +5411,25 @@
             (() => {
                 const err = validateWorkloadBeforeSave({
                     type: 'vm', inputMode: 'total', count: 1,
-                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 256
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 252
                 }, []);
-                return assert(err === null, '256 total L40S GPUs is valid', null, err);
+                return assert(err === null, '252 total L40S GPUs is valid with N−1 capacity', null, err);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({
                     type: 'vm', inputMode: 'total', count: 1,
-                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 257
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 253
                 }, []);
                 return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
-                    '257 total L40S GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+                    '253 total L40S GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({
                     type: 'vm', inputMode: 'total', count: 1,
-                    gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 129
+                    gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 127
                 }, []);
                 return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
-                    '129 total A2 GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+                    '127 total A2 GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
             })(),
             (() => {
                 const others = [{
@@ -5370,10 +5438,10 @@
                 }];
                 const err = validateWorkloadBeforeSave({
                     type: 'vm', inputMode: 'total', count: 1,
-                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 57
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 53
                 }, others);
                 return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
-                    'Combined workload demand above 256 GPUs is rejected',
+                    'Combined workload demand above 252 GPUs is rejected',
                     'gpu-count-exceeds-instance-limit', err && err.code);
             })()
         ]);
