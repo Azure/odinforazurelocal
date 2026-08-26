@@ -3479,12 +3479,13 @@
 
     function formatScenario(val, s) {
         if (!val) return '-';
+        if (val === 'connected') return 'Azure connected control plane';
         if (val === 'hyperconverged') return 'Hyperconverged';
         if (val === 'multirack') return 'Multi-Rack';
         if (val === 'disconnected') {
-            if (s && s.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
-            if (s && s.outbound === 'air_gapped') return 'Disconnected (Air Gapped)';
-            return 'Disconnected';
+            if (s && s.outbound === 'limited') return 'Disconnected control plane (Limited Connectivity)';
+            if (s && s.outbound === 'air_gapped') return 'Disconnected control plane (Air Gapped)';
+            return 'Disconnected control plane';
         }
         if (val === 'm365local') return 'Microsoft 365 Local';
         return val;
@@ -8161,11 +8162,11 @@
         if (s.sdnFeatures && s.sdnFeatures.length) sdnRows += row('SDN Features', s.sdnFeatures.join(', '));
         if (s.sdnManagement) sdnRows += row('SDN Management', s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed');
 
-        function section(title, cls, rowsHtml, dataKey, titleExtraHtml) {
+        function section(title, cls, rowsHtml, dataKey) {
             if (!rowsHtml) return '';
             const dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
             return '<div class="summary-section"' + dataAttr + '>'
-            + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + (titleExtraHtml || '') + '</div>'
+            + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
                 + rowsHtml
                 + '</div>';
         }
@@ -8262,7 +8263,7 @@
                     .map(function(line) { return line.slice(0, 500); })
                     .slice(0, 10);
                 if (derivation.length > 0) {
-                    sizerS2dExtra = '<h4 style="margin: 0.75rem 0 0.5rem;">How the result is calculated</h4><ul>'
+                    sizerS2dExtra = '<h4 style="margin: 0.75rem 0 0.5rem;">How the result is calculated</h4><ul style="margin: 0; padding-left: 1.25rem;">'
                         + derivation.map(function(line) { return '<li>' + escapeHtml(line) + '</li>'; }).join('')
                         + '</ul>';
                 }
@@ -8468,18 +8469,19 @@
                 + '</div>';
         }
 
+        const hostNetworkingExtra = hostNetworkingRows
+            ? '<div class="report-planning-aid"><strong>Planning aid:</strong> Use the '
+                + '<a href="https://azure.github.io/odinforazurelocal/switch-config/" target="_blank" rel="noopener noreferrer">ToR Switch Configuration Generator &amp; Validator</a> '
+                + 'to generate example Cisco or Dell switch configurations from this design. Review and adapt all output for your hardware, software version, and organizational standards before deployment.</div>'
+            : '';
+
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
             + sectionWithExtra('S2D Calculation | Supported Maximum Volume Size', 'summary-section-title--infra', sizerS2dRows, sizerS2dExtra, 'sizer-s2d-calculation')
             + sectionWithExtra('Sizing Notes & Recommendations (from Sizer)', 'summary-section-title--infra', '', sizerSizingNotesHtml, 'sizer-sizing-notes')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
-            + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking',
-                '<span class="report-info-tooltip no-print">'
-                + '<button type="button" class="report-info-tooltip__trigger" aria-label="About example ToR switch configurations" aria-describedby="tor-switch-tool-tip">i</button>'
-                + '<span id="tor-switch-tool-tip" class="report-info-tooltip__content" role="tooltip">'
-                + 'Use the <a href="https://azure.github.io/odinforazurelocal/switch-config/" target="_blank" rel="noopener noreferrer">ToR Switch Configuration Generator &amp; Validator</a> to generate example Cisco or Dell switch configurations from this design. Review and adapt all output for your hardware, software version, and organizational standards before deployment.'
-                + '</span></span>')
+            + sectionWithExtra('Host Networking', 'summary-section-title--net', hostNetworkingRows, hostNetworkingExtra, 'host-networking')
             + vnicConfigSection
             + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
@@ -8510,9 +8512,9 @@
         if (subtitleEl) subtitleEl.textContent = getReportSubtitle(s);
 
         if (metaEl) {
-            metaEl.innerHTML = '<strong>Generated</strong><br>'
+            metaEl.innerHTML = '<strong>Generated:</strong> '
                 + escapeHtml(payload.generatedAt || '-')
-                + '<br><strong>Scenario</strong><br>'
+                + '<br><strong>Scenario:</strong> '
                 + escapeHtml(formatScenario(s.scenario, s));
         }
 

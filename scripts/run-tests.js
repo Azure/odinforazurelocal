@@ -639,9 +639,12 @@ function checkReportPresentationContracts() {
         { label: 'PowerPoint report title', source: pptxJs, value: title },
         { label: 'Designer-only singular workflow subtitle', source: reportJs, value: 'Designer workflow' },
         { label: 'Sizer and Designer plural workflow subtitle', source: reportJs, value: 'Sizer and Designer workflows' },
+        { label: 'Azure connected report scenario label', source: reportJs, value: 'Azure connected control plane' },
+        { label: 'Disconnected report scenario label', source: reportJs, value: 'Disconnected control plane' },
         { label: 'Trusted advisory prefix', source: reportJs, value: 'Advisory - minimum-fit hardware:' },
         { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" },
         { label: 'Portable ToR tool report link', source: reportJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
+        { label: 'Visible ToR tool report planning aid', source: reportJs, value: 'class="report-planning-aid"' },
         { label: 'Portable ToR tool PowerPoint link', source: pptxJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
         { label: 'Foundry Local model catalog link', source: sizerJs, value: 'https://learn.microsoft.com/azure/azure-sovereign-clouds/private/foundry-local/concept-model-catalog#example-models-in-the-curated-catalog' }
     ];
