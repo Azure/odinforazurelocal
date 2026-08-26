@@ -1214,9 +1214,9 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer', 'ghel': 'GitHub Enterprise Local' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            const foundryProfileLabels = { 'minimum': 'Microsoft minimum', 'recommended': 'Microsoft recommended', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
             md.push('');
             for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -1249,11 +1249,13 @@
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
                     }
                 } else if (wl.type === 'foundry') {
-                    md.push('| Model Class | ' + (foundryClassLabels[wl.modelClass] || wl.modelClass || '-') + ' |');
-                    md.push('| Replicas | ' + (wl.replicas || 1) + ' |');
+                    md.push('| Worker Profile | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
+                    md.push('| Worker Nodes | ' + (wl.workerNodes || 1) + ' |');
+                    md.push('| Model Deployments | ' + (wl.modelDeployments || 1) + ' |');
+                    md.push('| Cache per Deployment | ' + (wl.modelCacheStorageGB || 100) + ' GiB |');
                     md.push('| Inference Engine | ' + (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)') + ' |');
-                    if (wl.modelClass === 'custom') {
-                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
+                    if (wl.workerProfile === 'custom') {
+                        md.push('| Custom Worker Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB |');
                     }
                 } else if (wl.type === 'edgerag') {
                     const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
@@ -1268,6 +1270,10 @@
                     md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
                     md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
                     md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
+                } else if (wl.type === 'ghel') {
+                    md.push('| Topology | Primary + ' + (wl.replicas || 0) + ' replica(s) |');
+                    md.push('| GitHub Actions | ' + (wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
+                    md.push('| GitHub Code Security | ' + (wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
                 }
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
@@ -8216,9 +8222,9 @@
         // Sizer Workloads (individual workload details from Sizer)
         let sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer', 'ghel': 'GitHub Enterprise Local' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            const foundryProfileLabels = { 'minimum': 'Microsoft minimum', 'recommended': 'Microsoft recommended', 'custom': 'Custom' };
             for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
                 const wl = s.sizerWorkloads[wi];
                 const wlLabel = wl.name || typeLabels[wl.type] || wl.type;
@@ -8251,11 +8257,13 @@
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
                     }
                 } else if (wl.type === 'foundry') {
-                    sizerWorkloadsRows += row('Model Class', foundryClassLabels[wl.modelClass] || wl.modelClass || '-');
-                    sizerWorkloadsRows += row('Replicas', String(wl.replicas || 1));
+                    sizerWorkloadsRows += row('Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
+                    sizerWorkloadsRows += row('Worker Nodes', String(wl.workerNodes || 1));
+                    sizerWorkloadsRows += row('Model Deployments', String(wl.modelDeployments || 1));
+                    sizerWorkloadsRows += row('Cache per Deployment', (wl.modelCacheStorageGB || 100) + ' GiB');
                     sizerWorkloadsRows += row('Inference Engine', (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)'));
-                    if (wl.modelClass === 'custom') {
-                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
+                    if (wl.workerProfile === 'custom') {
+                        sizerWorkloadsRows += row('Custom Worker Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB');
                     }
                 } else if (wl.type === 'edgerag') {
                     const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
@@ -8270,6 +8278,10 @@
                     sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
                     sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
                     sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
+                } else if (wl.type === 'ghel') {
+                    sizerWorkloadsRows += row('Topology', 'Primary + ' + (wl.replicas || 0) + ' replica(s)');
+                    sizerWorkloadsRows += row('GitHub Actions', wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included');
+                    sizerWorkloadsRows += row('GitHub Code Security', wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included');
                 }
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');

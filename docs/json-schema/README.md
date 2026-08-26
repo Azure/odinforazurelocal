@@ -55,7 +55,7 @@ Stable URLs (suitable for a `$schema` reference):
 {
   "_meta": {
     "tool": "ODIN Sizer for Azure Local",
-    "version": 2,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
+    "version": 4,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
     "exportedAt": "2026-06-02T10:00:00.000Z",
     "url": "https://azure.github.io/odinforazurelocal/sizer/index.html"
   },

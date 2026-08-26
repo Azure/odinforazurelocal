@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.23.03] - 2026-08-26
 
-Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and aligns GPU choices and assignment modes with current Microsoft Learn guidance.
+Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.
 
 ### Changed
 
@@ -19,7 +19,12 @@ Sizer now accepts model-dependent total VM GPU requirements across a full 64-mac
 - **GPU support aligned with Microsoft Learn** (`sizer/`, `docs/json-schema/odin-sizer.schema.json`, `tests/index.html`) — Arc-enabled VM DDA now offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed from current choices, A10 is added for GPU-P, and the same matrices apply to hyperconverged and disaggregated deployments.
 - **GPU-P cluster behavior enforced** (`sizer/sizer.js`, `tests/index.html`) — workloads must use one cluster-wide partition size, unsupported GPU/mode combinations are rejected, and the dialog directs users to confirm partition counts exposed by their installed GPU fabric.
 - **Contextual GPU documentation added** (`sizer/index.html`, `sizer/sizer.js`) — hardware selection, DDA, GPU-P, and AKS GPU controls link to their relevant Microsoft Learn guidance.
-- **Validation** — all **1,514 / 1,514** browser tests pass, including exact Learn support matrices, deployment-topology parity, cluster-wide GPU-P partitioning, model-dependent total limits, aggregate capacity, schema drift, and existing workload sizing coverage.
+- **Included AKS infrastructure made explicit ([#284](https://github.com/Azure/odinforazurelocal/issues/284))** (`sizer/sizer.js`, `report/`) — Foundry Local, Agentic Retrieval, and AI Video Indexer cards and dialogs now state that their dedicated AKS Arc control plane and workers are already included. The generic AKS workload is labeled for additional independent application clusters, preventing accidental double-counting. GitHub Enterprise Local is identified as a standalone GHES appliance VM and does not use AKS.
+- **Foundry Local sizing aligned to published infrastructure guidance** (`sizer/sizer.js`, `docs/json-schema/odin-sizer.schema.json`, `report/`) — replaces speculative model-size presets with Microsoft minimum D4s_v3-equivalent and recommended D8s_v3-equivalent worker profiles, separates worker count from ModelDeployment count, and sizes the documented 100 GiB default model-cache PVC per deployment. Existing model-class exports migrate to the closest worker profile.
+- **Agentic Retrieval and Video Indexer totals corrected** (`sizer/sizer.js`, `tests/index.html`) — removes undocumented CPU and memory overhead previously added above the published worker requirements while retaining the explicit three-node production control-plane planning assumption and AKS Arc OS disks.
+- **GitHub Enterprise Local guidance refreshed** (`sizer/sizer.js`, `docs/json-schema/odin-sizer.schema.json`, `report/`) — new workloads default to the documented single GHES appliance VM, replicas remain optional for active/passive resilience, IOPS are labeled correctly, and GitHub Actions and GitHub Code Security can each add the documented 25% CPU and memory allowance.
+- **Sizer payload format 4** (`sizer/sizer.js`, `docs/json-schema/`) — exports the new Foundry worker/cache fields and GHES feature flags; reports render the same semantics.
+- **Validation** — all **1,519 / 1,519** browser tests pass, including exact Learn support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, cluster-wide GPU-P partitioning, model-dependent total limits, aggregate capacity, and schema drift.
 
 ---
 

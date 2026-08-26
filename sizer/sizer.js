@@ -7,7 +7,8 @@ const SIZER_STATE_KEY = 'odinSizerState';
 const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 // Bumped 1 → 2 in v0.22.62: GitHub Enterprise Local (GHEL) became a
 // first-class workload type (tier + HA fields added to the export shape).
-const SIZER_VERSION = 3;
+// Bumped 3 → 4 in v0.23.03: Foundry worker/cache fields and GHEL feature flags.
+const SIZER_VERSION = 4;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const MAX_AZURE_LOCAL_MACHINES = 64;
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
@@ -3248,8 +3249,10 @@ const WORKLOAD_DEFAULTS = {
     },
     foundry: {
         name: 'Foundry Local',
-        modelClass: 'medium', // small, medium, large, custom
-        replicas: 1,
+        workerProfile: 'recommended',
+        workerNodes: 2,
+        modelDeployments: 1,
+        modelCacheStorageGB: 100,
         engine: 'onnx-genai' // onnx-genai (CPU or GPU) or vllm (GPU only)
     },
     edgerag: {
@@ -3265,14 +3268,16 @@ const WORKLOAD_DEFAULTS = {
     ghel: {
         name: 'GitHub Enterprise Local',
         tier: 'up-to-1000', // see GHEL_TIERS
-        ha: true,           // GHES replica-based HA (doubles the VM footprint); defaults to Yes per production guidance
-        replicas: 1         // 0-7 additional replicas (GitHub caps total HA replicas at 8). Mirrors `ha` for the basic case; Advanced section can override up to 7.
+        ha: false,
+        replicas: 0,
+        actions: false,
+        codeSecurity: false
     }
 };
 
 // GitHub Enterprise Server "Minimum recommended requirements" table, as
-// published by GitHub for GHES 3.20 (the version GHEL ships).
-// Source: https://docs.github.com/en/enterprise-server@3.20/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements
+// published by GitHub for current GHES 3.21 guidance.
+// Source: https://docs.github.com/en/enterprise-server@3.21/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements
 // Storage = root disk + data disk, both presented to the GHEL VM as a single
 // total in the Sizer (Azure Local doesn't surface root vs data separately at
 // sizing time). Network-throughput column is informational only.
@@ -3284,7 +3289,7 @@ const GHEL_TIERS = {
         memory: 32,        // GB
         rootStorage: 400,  // GB
         dataStorage: 500,  // GB
-        throughputMbps: 600
+        iops: 600
     },
     'up-to-1000': {
         name: 'Up to 1,000 users',
@@ -3293,7 +3298,7 @@ const GHEL_TIERS = {
         memory: 48,
         rootStorage: 400,
         dataStorage: 500,
-        throughputMbps: 3000
+        iops: 3000
     },
     '1000-to-3000': {
         name: '1,000 to 3,000 users',
@@ -3302,7 +3307,7 @@ const GHEL_TIERS = {
         memory: 64,
         rootStorage: 400,
         dataStorage: 1000,
-        throughputMbps: 6000
+        iops: 6000
     },
     '3000-to-5000': {
         name: '3,000 to 5,000 users',
@@ -3311,7 +3316,7 @@ const GHEL_TIERS = {
         memory: 128,
         rootStorage: 400,
         dataStorage: 1500,
-        throughputMbps: 9000
+        iops: 9000
     },
     '5000-to-8000': {
         name: '5,000 to 8,000 users',
@@ -3320,7 +3325,7 @@ const GHEL_TIERS = {
         memory: 256,
         rootStorage: 400,
         dataStorage: 3000,
-        throughputMbps: 12000
+        iops: 12000
     },
     '8000-to-10000': {
         name: '8,000 to 10,000+ users',
@@ -3329,11 +3334,11 @@ const GHEL_TIERS = {
         memory: 512,
         rootStorage: 400,
         dataStorage: 5000,
-        throughputMbps: 15000
+        iops: 15000
     }
 };
 
-// Foundry Local model size classes (per replica resource estimates).
+// Legacy Foundry Local model classes retained for import migration.
 // Numbers are conservative rules-of-thumb (memory ~= params * bytes-per-weight + KV cache + overhead).
 // These are estimates only — actual sizing depends on the model, quantization,
 // batch size and concurrent request load. Validate with your OEM hardware partner.
@@ -3372,8 +3377,51 @@ const FOUNDRY_MODEL_CLASSES = {
     }
 };
 
+// Microsoft publishes worker-node infrastructure guidance rather than
+// model-size presets. Runtime requests remain model-specific and must fit
+// within this cluster-wide worker capacity.
+const FOUNDRY_WORKER_PROFILES = {
+    minimum: {
+        name: 'Microsoft minimum',
+        description: 'D4s_v3-equivalent worker capacity; 1 worker supported',
+        vcpus: 4,
+        memory: 16
+    },
+    recommended: {
+        name: 'Microsoft recommended',
+        description: 'D8s_v3-equivalent worker capacity; 2 or more workers recommended',
+        vcpus: 8,
+        memory: 32
+    },
+    custom: {
+        name: 'Custom',
+        description: 'Custom per-worker compute and memory capacity',
+        vcpus: 8,
+        memory: 32
+    }
+};
+
+function normalizeFoundryWorkload(w) {
+    if (!w || w.type !== 'foundry') return w;
+    if (!FOUNDRY_WORKER_PROFILES[w.workerProfile]) {
+        w.workerProfile = w.modelClass === 'small' ? 'minimum'
+            : w.modelClass === 'custom' ? 'custom' : 'recommended';
+    }
+    if (!Number.isFinite(w.workerNodes) || w.workerNodes < 1) {
+        w.workerNodes = Math.max(1, w.replicas || (w.workerProfile === 'recommended' ? 2 : 1));
+    }
+    if (!Number.isFinite(w.modelDeployments) || w.modelDeployments < 1) {
+        w.modelDeployments = Math.max(1, w.replicas || 1);
+    }
+    if (!Number.isFinite(w.modelCacheStorageGB) || w.modelCacheStorageGB < 1) {
+        const legacyClass = FOUNDRY_MODEL_CLASSES[w.modelClass];
+        w.modelCacheStorageGB = legacyClass ? Math.max(100, legacyClass.storage) : 100;
+    }
+    return w;
+}
+
 // Foundry Local fixed sizing constants. Foundry runs on a 3-node Arc-enabled
-// Kubernetes (AKS Arc) control plane plus N model deployment replicas.
+// Kubernetes (AKS Arc) control plane plus a configurable worker pool.
 // Numbers below mirror the AKS_OS_DISK_GB constant used in the AKS workload.
 const FOUNDRY_CP_NODES = 3;
 const FOUNDRY_CP_VCPU_PER_NODE = 4;
@@ -3390,8 +3438,8 @@ const FOUNDRY_OPERATOR_MEM_GB = 4;
 //   Combined / Knowledge: 2 GPU VMs, one per embedding model (NC8_A2 or NC8_A16 recommended)
 //   Agentic only: no embedding GPU VMs
 //   GPT-OSS-20B via Foundry Local: a separate minimum or production model host
-// Plus an Agentic Retrieval operator overhead and a vector-database storage allowance
-// driven by the user-supplied document corpus size (typical RAG embedding
+// A vector-database storage allowance is driven by the user-supplied document
+// corpus size (typical RAG embedding
 // overhead is ~1.5x the source corpus once chunked, embedded and indexed).
 const EDGERAG_CP_NODES = 3;
 const EDGERAG_CP_VCPU_PER_NODE = 4;
@@ -3403,8 +3451,6 @@ const EDGERAG_CPU_WORKER_MEM_GB = 32;
 const EDGERAG_EMBEDDING_GPU_NODES = 2;
 const EDGERAG_GPU_WORKER_VCPU = 8;
 const EDGERAG_GPU_WORKER_MEM_GB = 16;
-const EDGERAG_OPERATOR_VCPU = 2;
-const EDGERAG_OPERATOR_MEM_GB = 4;
 const EDGERAG_VECTOR_DB_MULTIPLIER = 1.5; // total storage = corpusGB * 1.5 (chunks + embeddings + index)
 const EDGERAG_LLM_PROFILES = {
     external: { label: 'External / Microsoft Foundry endpoint', vcpus: 0, memory: 0, storage: 0, gpus: 0, minVramGB: 0 },
@@ -3443,8 +3489,6 @@ const VI_CP_NODES = 3;
 const VI_CP_VCPU_PER_NODE = 4;
 const VI_CP_MEM_PER_NODE = 8;
 const VI_OS_DISK_GB = 200;
-const VI_OPERATOR_VCPU = 2;
-const VI_OPERATOR_MEM_GB = 4;
 const VI_MIN_WORKER_NODES = 1;
 const VI_MIN_VCPU = 32;       // cluster-wide minimum vCPU for VI
 const VI_MIN_MEM_GB = 64;     // cluster-wide minimum memory
@@ -4100,6 +4144,9 @@ function toggleVMInputMode() {
 function getAKSModalContent() {
     const defaults = WORKLOAD_DEFAULTS.aks;
     return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(14, 165, 233, 0.10); border-left: 3px solid var(--accent-blue); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong>Independent application cluster.</strong> Foundry Local, Agentic Retrieval, and AI Video Indexer already include their own AKS Arc infrastructure in ODIN. Add this workload only when you need another cluster.
+        </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
             <span style="margin-right: 4px;">\uD83D\uDCD6</span>
             <a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/scale-requirements" target="_blank" style="color: var(--link-color);">AKS Arc on Azure Local - Scale requirements &amp; limits</a>
@@ -4274,8 +4321,8 @@ function getAVDModalContent() {
 // Get Foundry Local modal content
 function getFoundryModalContent() {
     const defaults = WORKLOAD_DEFAULTS.foundry;
-    const cls = FOUNDRY_MODEL_CLASSES[defaults.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-    const customCls = FOUNDRY_MODEL_CLASSES.custom;
+    const profile = FOUNDRY_WORKER_PROFILES[defaults.workerProfile];
+    const customProfile = FOUNDRY_WORKER_PROFILES.custom;
     return `
         <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
@@ -4293,23 +4340,22 @@ function getFoundryModalContent() {
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Foundry">
         </div>
         <div class="form-group">
-            <label>Model Size Class
-                <span class="info-icon" title="Pick the model size class. Sizing presets are conservative rules of thumb (model weights + KV cache + overhead). Validate with your OEM hardware partner and your actual model.">ⓘ</span>
+            <label>Worker Profile
+                <span class="info-icon" title="Microsoft publishes minimum and recommended worker node capacity. Model runtime requests must fit within the selected cluster capacity.">ⓘ</span>
             </label>
             <select id="foundry-model-class" onchange="updateFoundryClassDescription()">
-                <option value="small">${FOUNDRY_MODEL_CLASSES.small.name} &mdash; ${FOUNDRY_MODEL_CLASSES.small.description}</option>
-                <option value="medium" selected>${FOUNDRY_MODEL_CLASSES.medium.name} &mdash; ${FOUNDRY_MODEL_CLASSES.medium.description}</option>
-                <option value="large">${FOUNDRY_MODEL_CLASSES.large.name} &mdash; ${FOUNDRY_MODEL_CLASSES.large.description}</option>
-                <option value="custom">${FOUNDRY_MODEL_CLASSES.custom.name} &mdash; ${FOUNDRY_MODEL_CLASSES.custom.description}</option>
+                <option value="minimum">${FOUNDRY_WORKER_PROFILES.minimum.name} &mdash; ${FOUNDRY_WORKER_PROFILES.minimum.description}</option>
+                <option value="recommended" selected>${FOUNDRY_WORKER_PROFILES.recommended.name} &mdash; ${FOUNDRY_WORKER_PROFILES.recommended.description}</option>
+                <option value="custom">${FOUNDRY_WORKER_PROFILES.custom.name} &mdash; ${FOUNDRY_WORKER_PROFILES.custom.description}</option>
             </select>
-            <span class="hint" id="foundry-class-desc">${cls.description}</span>
+            <span class="hint" id="foundry-class-desc">${profile.description}</span>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Number of Replicas
-                    <span class="info-icon" title="Number of model deployment replicas (pods). Each replica handles a share of inference traffic.">ⓘ</span>
+                <label>Worker Nodes
+                    <span class="info-icon" title="One worker is supported; Microsoft recommends two or more workers.">ⓘ</span>
                 </label>
-                <input type="number" id="foundry-replicas" value="${defaults.replicas}" min="1" max="100">
+                <input type="number" id="foundry-worker-nodes" value="${defaults.workerNodes}" min="1" max="100">
             </div>
             <div class="form-group">
                 <label>Inference Engine
@@ -4324,43 +4370,42 @@ function getFoundryModalContent() {
         <div id="foundry-custom-fields" style="display: none;">
             <div class="form-row">
                 <div class="form-group">
-                    <label>vCPUs per Replica</label>
-                    <input type="number" id="foundry-custom-vcpus" value="${customCls.vcpus}" min="1" max="256">
+                    <label>vCPUs per Worker</label>
+                    <input type="number" id="foundry-custom-vcpus" value="${customProfile.vcpus}" min="1" max="256">
                 </div>
                 <div class="form-group">
-                    <label>Memory per Replica (GB)</label>
-                    <input type="number" id="foundry-custom-memory" value="${customCls.memory}" min="1" max="2048">
+                    <label>Memory per Worker (GB)</label>
+                    <input type="number" id="foundry-custom-memory" value="${customProfile.memory}" min="1" max="2048">
                 </div>
             </div>
+        </div>
+        <div class="form-row">
             <div class="form-group">
-                <label>Storage per Replica (GB)
-                    <span class="info-icon" title="Disk space for model weights, KV cache and tokenizer artefacts. Excludes the fixed 200 GB AKS Arc OS disk per node.">ⓘ</span>
+                <label>Model Deployments</label>
+                <input type="number" id="foundry-model-deployments" value="${defaults.modelDeployments}" min="1" max="100">
+            </div>
+            <div class="form-group">
+                <label>Cache per Deployment (GiB)
+                    <span class="info-icon" title="The vLLM model-cache PVC defaults to 100 GiB. Increase it for models whose cache exceeds the default.">ⓘ</span>
                 </label>
-                <input type="number" id="foundry-custom-storage" value="${customCls.storage}" min="5" max="2048">
+                <input type="number" id="foundry-model-cache" value="${defaults.modelCacheStorageGB}" min="1" max="4096">
             </div>
         </div>
         <div id="foundry-specs-panel" style="margin-top: 12px; padding: 14px; background: var(--subtle-bg); border-radius: 8px;">
-            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Replica Specifications</h4>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Worker Capacity</h4>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
                 <div>
                     <span style="color: var(--text-secondary);">vCPUs:</span>
-                    <span id="foundry-spec-vcpus">${cls.vcpus}</span>
+                    <span id="foundry-spec-vcpus">${profile.vcpus}</span>
                 </div>
                 <div>
                     <span style="color: var(--text-secondary);">Memory:</span>
-                    <span id="foundry-spec-memory">${cls.memory} GB</span>
+                    <span id="foundry-spec-memory">${profile.memory} GB</span>
                 </div>
-                <div>
-                    <span style="color: var(--text-secondary);">Storage:</span>
-                    <span id="foundry-spec-storage">${cls.storage} GB</span>
-                </div>
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
-                GPU: <span id="foundry-spec-gpu">${cls.recommendedGpu}</span>
             </div>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas (scheduled across cluster-wide GPU / CPU capacity for multi-node inference), and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
+            <strong>AKS Arc infrastructure included:</strong> ${FOUNDRY_CP_NODES}-node control plane, selected worker pool, fixed ${FOUNDRY_OS_DISK_GB} GB OS disk per node, model-cache PVCs, and a ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB platform-services planning allowance. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.
@@ -4374,11 +4419,11 @@ function updateFoundryClassDescription() {
     const classSelect = document.getElementById('foundry-model-class');
     if (!classSelect) return;
     const classId = classSelect.value;
-    const cls = FOUNDRY_MODEL_CLASSES[classId] || FOUNDRY_MODEL_CLASSES.medium;
+    const profile = FOUNDRY_WORKER_PROFILES[classId] || FOUNDRY_WORKER_PROFILES.recommended;
     const customFields = document.getElementById('foundry-custom-fields');
     const specsPanel = document.getElementById('foundry-specs-panel');
     const descEl = document.getElementById('foundry-class-desc');
-    if (descEl) descEl.textContent = cls.description;
+    if (descEl) descEl.textContent = profile.description;
     if (classId === 'custom') {
         if (customFields) customFields.style.display = 'block';
         if (specsPanel) specsPanel.style.display = 'none';
@@ -4387,12 +4432,8 @@ function updateFoundryClassDescription() {
         if (specsPanel) specsPanel.style.display = 'block';
         const vcpusEl = document.getElementById('foundry-spec-vcpus');
         const memEl = document.getElementById('foundry-spec-memory');
-        const storEl = document.getElementById('foundry-spec-storage');
-        const gpuEl = document.getElementById('foundry-spec-gpu');
-        if (vcpusEl) vcpusEl.textContent = cls.vcpus;
-        if (memEl) memEl.textContent = cls.memory + ' GB';
-        if (storEl) storEl.textContent = cls.storage + ' GB';
-        if (gpuEl) gpuEl.textContent = cls.recommendedGpu;
+        if (vcpusEl) vcpusEl.textContent = profile.vcpus;
+        if (memEl) memEl.textContent = profile.memory + ' GB';
     }
 }
 
@@ -4462,7 +4503,7 @@ function getEdgeRagModalContent() {
             <span class="hint">Vector DB storage \u2248 ${EDGERAG_VECTOR_DB_MULTIPLIER} \u00d7 corpus size (chunks + embeddings + index).</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane, ${EDGERAG_CPU_WORKER_NODES} CPU workers, mode-dependent embedding GPU workers, selected LLM endpoint capacity, vector DB storage, and operator overhead.
+            <strong>AKS Arc infrastructure included:</strong> ${EDGERAG_CP_NODES}-node control plane, ${EDGERAG_CPU_WORKER_NODES} CPU workers, mode-dependent embedding GPU workers, selected LLM endpoint capacity, and vector DB storage. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
@@ -4515,7 +4556,7 @@ function updateEdgeRagConfiguration() {
 
 // GitHub Enterprise Local (Preview) modal.
 // Sizing is driven by the official GHES "Minimum recommended requirements"
-// table (GHES 3.20 docs), selected via an active-seat-count tier dropdown.
+// table (current GHES 3.21 docs), selected via an active-seat-count tier dropdown.
 // The basic HA toggle adds 1 replica (primary + 1). An optional Advanced
 // section lets users override with up to 7 replicas (GitHub's documented
 // maximum of 8 HA replicas per instance). Each additional replica is sized
@@ -4569,6 +4610,16 @@ function getGhelModalContent() {
             <span class="hint" id="ghel-tier-desc"></span>
         </div>
         <div class="form-group">
+            <label>Enabled features</label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: 400;">
+                <input type="checkbox" id="ghel-actions" onchange="updateGhelTierDescription()"> GitHub Actions (+25% CPU and memory)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: 400; margin-top: 6px;">
+                <input type="checkbox" id="ghel-code-security" onchange="updateGhelTierDescription()"> GitHub Code Security (+25% CPU and memory)
+            </label>
+            <span class="hint">Allowances are cumulative and apply to every appliance VM. External Actions artifact and Packages storage is not included.</span>
+        </div>
+        <div class="form-group">
             <label>GHES replica-based high availability
                 <span class="info-icon" title="Adds a second GHEL VM with the same spec as the primary. GHES replicates data from the primary to the replica; on failover the replica is promoted. Doubles the vCPU / memory / storage footprint for this workload.">&#9432;</span>
             </label>
@@ -4589,7 +4640,7 @@ function getGhelModalContent() {
                 </select>
                 <span class="hint">When set, overrides the basic HA dropdown. Total footprint = (1 + replicas) &times; per-VM spec. Includes passive HA, geo-replicas, and repository caches.</span>
                 <div style="margin-top: 10px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border-left: 2px solid var(--accent-orange); border-radius: 4px; font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
-                    <strong style="color: var(--accent-orange);">Note:</strong> GHES HA is <em>active/passive</em> &mdash; additional replicas add resilience and read locality (geo / repo cache), <strong>not write throughput</strong>. Write performance remains limited to the primary appliance. See <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration" target="_blank" rel="noopener" style="color: var(--link-color);">About high availability configuration (GHES 3.20)</a>.
+                    <strong style="color: var(--accent-orange);">Note:</strong> GHES HA is <em>active/passive</em> &mdash; additional replicas add resilience and read locality (geo / repo cache), <strong>not write throughput</strong>. Write performance remains limited to the primary appliance. See <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration" target="_blank" rel="noopener" style="color: var(--link-color);">About high availability configuration</a>.
                 </div>
             </div>
         </details>
@@ -4632,8 +4683,14 @@ function updateGhelTierDescription() {
     const tier = GHEL_TIERS[tierEl.value] || GHEL_TIERS['up-to-1000'];
     const replicas = getGhelReplicasFromModal();
     const vmCount = 1 + replicas;
-    const totalVcpu = tier.vcpus * vmCount;
-    const totalMem = tier.memory * vmCount;
+    const actionsEl = document.getElementById('ghel-actions');
+    const codeSecurityEl = document.getElementById('ghel-code-security');
+    const featureMultiplier = 1 + (actionsEl && actionsEl.checked ? 0.25 : 0) +
+        (codeSecurityEl && codeSecurityEl.checked ? 0.25 : 0);
+    const perVmVcpu = Math.ceil(tier.vcpus * featureMultiplier);
+    const perVmMem = Math.ceil(tier.memory * featureMultiplier);
+    const totalVcpu = perVmVcpu * vmCount;
+    const totalMem = perVmMem * vmCount;
     const totalStorage = (tier.rootStorage + tier.dataStorage) * vmCount;
     if (descEl) {
         descEl.textContent = tier.users + ' \u2014 ' + tier.vcpus + ' vCPU / ' + tier.memory + ' GB RAM per GHEL VM.';
@@ -4642,9 +4699,9 @@ function updateGhelTierDescription() {
         : replicas === 1 ? 'primary + 1 replica (HA pair)'
             : 'primary + ' + replicas + ' replicas';
     panel.innerHTML =
-        '<strong>Per GHEL VM:</strong> ' + tier.vcpus + ' vCPU \u00b7 ' + tier.memory + ' GB RAM \u00b7 ' +
+        '<strong>Per GHEL VM:</strong> ' + perVmVcpu + ' vCPU \u00b7 ' + perVmMem + ' GB RAM \u00b7 ' +
         tier.rootStorage + ' GB root disk + ' + tier.dataStorage + ' GB data disk' +
-        ' (' + (tier.rootStorage + tier.dataStorage) + ' GB total) \u00b7 ~' + tier.throughputMbps + ' Mbps network throughput.' +
+        ' (' + (tier.rootStorage + tier.dataStorage) + ' GB total) \u00b7 ' + tier.iops + ' IOPS.' +
         '<br><strong>This workload (' + vmCount + ' VM' + (vmCount > 1 ? 's' : '') + ', ' + topology + '):</strong> ' +
         totalVcpu + ' vCPU \u00b7 ' + totalMem + ' GB RAM \u00b7 ' + totalStorage + ' GB storage.';
 }
@@ -4677,7 +4734,7 @@ function getVideoIndexerModalContent() {
             <span class="hint" id="vi-config-desc">Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${VI_CP_NODES}-node AKS Arc control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), Phi language model (included for textual summarization), and ${VI_OPERATOR_VCPU} vCPU / ${VI_OPERATOR_MEM_GB} GB Video Indexer extension overhead.
+            <strong>AKS Arc infrastructure included:</strong> ${VI_CP_NODES}-node control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), and the Phi language model. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on video volume, resolution, codecs, and concurrent indexing jobs. Volume performance (storage class) significantly affects indexing turnaround. Validate with your OEM hardware partner.
@@ -4965,13 +5022,14 @@ function addWorkload() {
             workload.workerStorage = parseInt(document.getElementById('aks-worker-storage').value) || 200;
             break;
         case 'foundry':
-            workload.modelClass = document.getElementById('foundry-model-class').value || 'medium';
-            workload.replicas = parseInt(document.getElementById('foundry-replicas').value) || 1;
+            workload.workerProfile = document.getElementById('foundry-model-class').value || 'recommended';
+            workload.workerNodes = parseInt(document.getElementById('foundry-worker-nodes').value) || 1;
+            workload.modelDeployments = parseInt(document.getElementById('foundry-model-deployments').value) || 1;
+            workload.modelCacheStorageGB = parseInt(document.getElementById('foundry-model-cache').value) || 100;
             workload.engine = document.getElementById('foundry-engine').value || 'onnx-genai';
-            if (workload.modelClass === 'custom') {
+            if (workload.workerProfile === 'custom') {
                 workload.customVcpus = parseInt(document.getElementById('foundry-custom-vcpus').value) || 8;
-                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 16;
-                workload.customStorage = parseInt(document.getElementById('foundry-custom-storage').value) || 40;
+                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 32;
             }
             break;
         case 'edgerag':
@@ -4989,6 +5047,8 @@ function addWorkload() {
             // Keep legacy boolean mirror in sync so older exports / Designer
             // round-trips continue to behave (ha == any replicas present).
             workload.ha = workload.replicas >= 1;
+            workload.actions = document.getElementById('ghel-actions').checked;
+            workload.codeSecurity = document.getElementById('ghel-code-security').checked;
             break;
         }
         case 'avd':
@@ -5128,15 +5188,17 @@ function editWorkload(id) {
         case 'foundry':
             title.textContent = 'Edit Foundry Local';
             body.innerHTML = getFoundryModalContent();
+            normalizeFoundryWorkload(w);
             document.getElementById('workload-name').value = w.name;
-            document.getElementById('foundry-model-class').value = w.modelClass || 'medium';
-            document.getElementById('foundry-replicas').value = w.replicas || 1;
+            document.getElementById('foundry-model-class').value = w.workerProfile;
+            document.getElementById('foundry-worker-nodes').value = w.workerNodes;
+            document.getElementById('foundry-model-deployments').value = w.modelDeployments;
+            document.getElementById('foundry-model-cache').value = w.modelCacheStorageGB;
             document.getElementById('foundry-engine').value = w.engine || 'onnx-genai';
             updateFoundryClassDescription();
-            if (w.modelClass === 'custom') {
+            if (w.workerProfile === 'custom') {
                 document.getElementById('foundry-custom-vcpus').value = w.customVcpus || 8;
-                document.getElementById('foundry-custom-memory').value = w.customMemory || 16;
-                document.getElementById('foundry-custom-storage').value = w.customStorage || 40;
+                document.getElementById('foundry-custom-memory').value = w.customMemory || 32;
             }
             // Apply vLLM constraint to GPU mode after restoring engine
             onFoundryEngineChange();
@@ -5167,6 +5229,8 @@ function editWorkload(id) {
             const replicas = getGhelReplicasFromWorkload(w);
             const advEl = document.getElementById('ghel-replicas-advanced');
             const haEl = document.getElementById('ghel-ha');
+            document.getElementById('ghel-actions').checked = !!w.actions;
+            document.getElementById('ghel-code-security').checked = !!w.codeSecurity;
             if (replicas <= 1) {
                 // Representable by the basic dropdown.
                 if (haEl) haEl.value = replicas === 1 ? 'yes' : 'no';
@@ -5255,6 +5319,13 @@ function normalizeWorkloadType(type) {
         : '';
 }
 
+function getIncludedInfrastructureDetail(type) {
+    if (type === 'foundry' || type === 'edgerag' || type === 'videoindexer') {
+        return 'Includes dedicated AKS Arc cluster infrastructure';
+    }
+    return '';
+}
+
 function renderWorkloads() {
     const container = document.getElementById('workloads-list');
     // Use cached reference — getElementById returns null after innerHTML replacement
@@ -5279,6 +5350,7 @@ function renderWorkloads() {
             ? w
             : Object.assign(Object.create(null), w, { type: workloadType });
         const details = getWorkloadDetails(normalizedWorkload);
+        const includedInfrastructure = getIncludedInfrastructureDetail(workloadType);
         const numericId = Number(w.id);
         const actionId = Number.isSafeInteger(numericId) && numericId >= 0 ? numericId : -1;
         html += `
@@ -5294,6 +5366,7 @@ function renderWorkloads() {
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
                     <div class="workload-card-details">${escapeHtmlSizer(details)}${workloadType === 'ghel' ? ' <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>' : ''}</div>
+                    ${includedInfrastructure ? `<div class="workload-card-details"><strong>${escapeHtmlSizer(includedInfrastructure)}</strong></div>` : ''}
                 </div>
                 <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
                     <button class="edit" onclick="editWorkload(${actionId})" title="Edit">
@@ -5398,12 +5471,13 @@ function getWorkloadDetails(w) {
             break;
         }
         case 'foundry': {
-            const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-            const className = w.modelClass === 'custom'
-                ? `Custom (${w.customVcpus} vCPU / ${w.customMemory} GB / ${w.customStorage} GB per replica)`
-                : fcls.name;
+            normalizeFoundryWorkload(w);
+            const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
+            const profileName = w.workerProfile === 'custom'
+                ? `Custom (${w.customVcpus || 8} vCPU / ${w.customMemory || 32} GB per worker)`
+                : profile.name;
             const engineLabel = w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
-            detail = `${w.replicas || 1} replica${(w.replicas || 1) > 1 ? 's' : ''} \u2022 ${className} \u2022 ${engineLabel}`;
+            detail = `${w.workerNodes} worker${w.workerNodes > 1 ? 's' : ''} \u2022 ${profileName} \u2022 ${w.modelDeployments} model deployment${w.modelDeployments > 1 ? 's' : ''} \u2022 ${engineLabel}`;
             break;
         }
         case 'edgerag': {
@@ -5429,7 +5503,9 @@ function getWorkloadDetails(w) {
             const ghelTopology = ghelReplicas === 0 ? '1 VM'
                 : ghelReplicas === 1 ? '2 VMs (HA pair)'
                     : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
-            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM`;
+            const enabledFeatures = [w.actions ? 'Actions' : '', w.codeSecurity ? 'Code Security' : ''].filter(Boolean);
+            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB base per VM`;
+            if (enabledFeatures.length) detail += ` \u2022 ${enabledFeatures.join(' + ')}`;
             break;
         }
         default:
@@ -5462,7 +5538,8 @@ function calculateWorkloadGpuRequirement(w) {
                     ? (w.userCount || 0)
                     : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100)));
             case 'foundry':
-                return ddaCount * (w.replicas || 1);
+                normalizeFoundryWorkload(w);
+                return ddaCount * w.workerNodes;
             case 'edgerag':
                 normalizeEdgeRagWorkload(w);
                 return (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
@@ -5539,31 +5616,20 @@ function calculateWorkloadRequirements(w) {
             break;
         }
         case 'foundry': {
-            // Per-replica resources (model class preset OR custom override)
-            let perReplicaVcpu, perReplicaMem, perReplicaStor;
-            if (w.modelClass === 'custom') {
-                perReplicaVcpu = w.customVcpus || 8;
-                perReplicaMem = w.customMemory || 16;
-                perReplicaStor = w.customStorage || 40;
-            } else {
-                const cls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-                perReplicaVcpu = cls.vcpus;
-                perReplicaMem = cls.memory;
-                perReplicaStor = cls.storage;
-            }
-            const replicas = w.replicas || 1;
-            // Foundry runs on a 3-node Kubernetes control plane. Each model
-            // replica = 1 worker node sized to the model class, plus the fixed
-            // 200 GB AKS Arc OS disk (matching the AKS workload pattern).
+            normalizeFoundryWorkload(w);
+            const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
+            const workerVcpu = w.workerProfile === 'custom' ? (w.customVcpus || 8) : profile.vcpus;
+            const workerMem = w.workerProfile === 'custom' ? (w.customMemory || 32) : profile.memory;
             const cpVcpus = FOUNDRY_CP_NODES * FOUNDRY_CP_VCPU_PER_NODE;
             const cpMemory = FOUNDRY_CP_NODES * FOUNDRY_CP_MEM_PER_NODE;
             const cpStorage = FOUNDRY_CP_NODES * FOUNDRY_OS_DISK_GB;
-            const workerVcpus = perReplicaVcpu * replicas;
-            const workerMemory = perReplicaMem * replicas;
-            const workerStorage = (FOUNDRY_OS_DISK_GB + perReplicaStor) * replicas;
+            const workerVcpus = workerVcpu * w.workerNodes;
+            const workerMemory = workerMem * w.workerNodes;
+            const workerStorage = FOUNDRY_OS_DISK_GB * w.workerNodes;
+            const modelCacheStorage = w.modelCacheStorageGB * w.modelDeployments;
             vcpus = cpVcpus + workerVcpus + FOUNDRY_OPERATOR_VCPU;
             memory = cpMemory + workerMemory + FOUNDRY_OPERATOR_MEM_GB;
-            storage = cpStorage + workerStorage;
+            storage = cpStorage + workerStorage + modelCacheStorage;
             break;
         }
         case 'edgerag': {
@@ -5582,8 +5648,8 @@ function calculateWorkloadRequirements(w) {
             const workerStorageOs = (EDGERAG_CPU_WORKER_NODES + embeddingNodes) * EDGERAG_OS_DISK_GB;
             const corpusGB = w.corpusGB || 100;
             const vectorDbStorage = Math.ceil(corpusGB * EDGERAG_VECTOR_DB_MULTIPLIER);
-            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus + EDGERAG_OPERATOR_VCPU;
-            memory = cpMemory + cpuMemory + gpuMemory + llm.memory + EDGERAG_OPERATOR_MEM_GB;
+            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus;
+            memory = cpMemory + cpuMemory + gpuMemory + llm.memory;
             storage = cpStorage + workerStorageOs + llm.storage + vectorDbStorage;
             break;
         }
@@ -5602,8 +5668,8 @@ function calculateWorkloadRequirements(w) {
             const cpMemory = VI_CP_NODES * VI_CP_MEM_PER_NODE;
             const cpStorage = VI_CP_NODES * VI_OS_DISK_GB;
             const workerStorageOs = workerNodes * VI_OS_DISK_GB;
-            vcpus = cpVcpus + workerVcpus + VI_OPERATOR_VCPU;
-            memory = cpMemory + workerMemory + VI_OPERATOR_MEM_GB;
+            vcpus = cpVcpus + workerVcpus;
+            memory = cpMemory + workerMemory;
             storage = cpStorage + workerStorageOs + pvStorage;
             break;
         }
@@ -5615,8 +5681,9 @@ function calculateWorkloadRequirements(w) {
             // not add write throughput.
             const ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
             const vmCount = 1 + getGhelReplicasFromWorkload(w);
-            vcpus = ghelTier.vcpus * vmCount;
-            memory = ghelTier.memory * vmCount;
+            const featureMultiplier = 1 + (w.actions ? 0.25 : 0) + (w.codeSecurity ? 0.25 : 0);
+            vcpus = Math.ceil(ghelTier.vcpus * featureMultiplier) * vmCount;
+            memory = Math.ceil(ghelTier.memory * featureMultiplier) * vmCount;
             storage = (ghelTier.rootStorage + ghelTier.dataStorage) * vmCount;
             break;
         }
@@ -8288,13 +8355,15 @@ function selectRegionAndConfigure(region, cloud) {
                     }
                     break;
                 case 'foundry':
-                    entry.modelClass = w.modelClass;
-                    entry.replicas = w.replicas;
+                    normalizeFoundryWorkload(w);
+                    entry.workerProfile = w.workerProfile;
+                    entry.workerNodes = w.workerNodes;
+                    entry.modelDeployments = w.modelDeployments;
+                    entry.modelCacheStorageGB = w.modelCacheStorageGB;
                     entry.engine = w.engine;
-                    if (w.modelClass === 'custom') {
+                    if (w.workerProfile === 'custom') {
                         entry.customVcpus = w.customVcpus;
                         entry.customMemory = w.customMemory;
-                        entry.customStorage = w.customStorage;
                     }
                     break;
                 case 'edgerag':
@@ -8310,6 +8379,8 @@ function selectRegionAndConfigure(region, cloud) {
                     entry.tier = w.tier;
                     entry.replicas = getGhelReplicasFromWorkload(w);
                     entry.ha = entry.replicas >= 1;
+                    entry.actions = !!w.actions;
+                    entry.codeSecurity = !!w.codeSecurity;
                     break;
             }
             return entry;
@@ -8459,10 +8530,9 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'foundry') {
                     const foundryReqs = calculateWorkloadRequirements(w);
-                    const foundryClass = w.modelClass === 'custom'
-                        ? 'Custom (' + (w.customVcpus || 0) + ' vCPU / ' + (w.customMemory || 0) + ' GB / ' + (w.customStorage || 0) + ' GB per replica)'
-                        : (FOUNDRY_MODEL_CLASSES[w.modelClass] && FOUNDRY_MODEL_CLASSES[w.modelClass].name) || (w.modelClass || 'medium');
-                    const foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    normalizeFoundryWorkload(w);
+                    const foundryProfile = FOUNDRY_WORKER_PROFILES[w.workerProfile].name;
+                    const foundryDetail = w.workerNodes + ' worker(s) \u00b7 ' + foundryProfile + ' \u00b7 ' + w.modelDeployments + ' model deployment(s) \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
                     rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'edgerag') {
                     const edgeragReqs = calculateWorkloadRequirements(w);
@@ -8483,7 +8553,9 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     const ghelTopo = ghelReplicas === 0 ? 'Single VM'
                         : ghelReplicas === 1 ? 'HA pair (primary + 1 replica)'
                             : 'Primary + ' + ghelReplicas + ' replicas';
-                    const ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB per VM';
+                    let ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB base per VM';
+                    if (w.actions) ghelDetail += ' \u00b7 Actions';
+                    if (w.codeSecurity) ghelDetail += ' \u00b7 Code Security';
                     rows.push(['Workload', 'GitHub Enterprise Local', ghelDetail, ghelReqs.vcpus, ghelReqs.memory, ghelReqs.storage, 'No']);
                 }
             });
@@ -10521,7 +10593,8 @@ function applyImportedSizerState(d) {
                 w.name = String(w.name == null ? '' : w.name).substring(0, MAX_WORKLOAD_NAME_CHARS);
                 const importedId = Number(w.id);
                 w.id = Number.isSafeInteger(importedId) && importedId >= 0 ? importedId : index + 1;
-                return normalizeEdgeRagWorkload(w);
+                normalizeEdgeRagWorkload(w);
+                return normalizeFoundryWorkload(w);
             });
             if (d.workloads.length !== originalCount) {
                 console.warn('Import: dropped ' + (originalCount - d.workloads.length) +

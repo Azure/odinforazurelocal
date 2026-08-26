@@ -1546,9 +1546,9 @@
             return null;
         }
 
-        const typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Agentic Retrieval', videoindexer: 'AI Video Indexer' };
+        const typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Agentic Retrieval', videoindexer: 'AI Video Indexer', ghel: 'GitHub Enterprise Local' };
         const avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
-        const foundryClassLabels = { small: 'Small SLM', medium: 'Medium SLM', large: 'Large LLM', custom: 'Custom' };
+        const foundryProfileLabels = { minimum: 'Microsoft minimum', recommended: 'Microsoft recommended', custom: 'Custom' };
 
         function fmtStorage(gb) {
             const n = Number(gb) || 0;
@@ -1595,11 +1595,11 @@
                     headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
                 }
             } else if (wl.type === 'foundry') {
-                const fcls = foundryClassLabels[wl.modelClass] || wl.modelClass || '\u2014';
+                const fprofile = foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '\u2014';
                 const fengine = wl.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
-                headline = (wl.replicas || 1) + ' replica(s) \u00b7 ' + fcls + ' \u00b7 ' + fengine;
-                if (wl.modelClass === 'custom') {
-                    headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
+                headline = (wl.workerNodes || 1) + ' worker(s) \u00b7 ' + fprofile + ' \u00b7 ' + (wl.modelDeployments || 1) + ' model deployment(s) \u00b7 ' + fengine;
+                if (wl.workerProfile === 'custom') {
+                    headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB';
                 }
             } else if (wl.type === 'edgerag') {
                 const mode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
@@ -1609,6 +1609,10 @@
                 const viIsMin = wl.configuration === 'minimum';
                 const viWorkers = viIsMin ? 1 : 2;
                 headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
+            } else if (wl.type === 'ghel') {
+                headline = 'Primary + ' + (wl.replicas || 0) + ' replica(s)';
+                if (wl.actions) headline += ' \u00b7 Actions';
+                if (wl.codeSecurity) headline += ' \u00b7 Code Security';
             } else {
                 headline = '\u2014';
             }

@@ -19,7 +19,7 @@
             "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
             "version": {
               "type": ["integer", "string"],
-              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 3), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 2 → 3 in v0.23.02 when Agentic Retrieval gained deploymentMode and llmEndpoint fields."
+              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 4), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 3 → 4 in v0.23.03 when Foundry Local moved to worker profiles and GitHub Enterprise Local gained feature allowances."
             },
             "exportedAt": { "type": "string", "format": "date-time" },
             "url": { "type": "string", "description": "The Sizer page URL at export time." }
@@ -175,16 +175,18 @@
         },
         {
           "title": "Foundry Local workload",
+          "description": "A self-contained Foundry Local deployment including a dedicated AKS Arc control plane, worker pool, and model-cache storage.",
           "properties": {
             "type": { "const": "foundry" },
-            "modelClass": { "type": "string", "enum": ["small", "medium", "large", "custom"] },
-            "replicas": { "type": "integer", "minimum": 1 },
+            "workerProfile": { "type": "string", "enum": ["minimum", "recommended", "custom"], "description": "Microsoft minimum D4s_v3-equivalent, recommended D8s_v3-equivalent, or custom per-worker capacity." },
+            "workerNodes": { "type": "integer", "minimum": 1 },
+            "modelDeployments": { "type": "integer", "minimum": 1 },
+            "modelCacheStorageGB": { "type": "integer", "minimum": 1, "description": "Model-cache PVC capacity in GiB per ModelDeployment; the operator default is 100 GiB." },
             "engine": { "type": "string", "enum": ["onnx-genai", "vllm"], "description": "vLLM is GPU-only (forces gpuMode 'dda')." },
-            "customVcpus": { "type": "integer", "description": "Only when modelClass === 'custom'." },
-            "customMemory": { "type": "integer", "description": "GB. Only when modelClass === 'custom'." },
-            "customStorage": { "type": "integer", "description": "GB. Only when modelClass === 'custom'." }
+            "customVcpus": { "type": "integer", "description": "Only when workerProfile === 'custom'." },
+            "customMemory": { "type": "integer", "description": "GB. Only when workerProfile === 'custom'." }
           },
-          "required": ["type", "modelClass", "replicas", "engine"]
+          "required": ["type", "workerProfile", "workerNodes", "modelDeployments", "modelCacheStorageGB", "engine"]
         },
         {
           "title": "Agentic Retrieval workload",
@@ -206,7 +208,7 @@
         },
         {
           "title": "GitHub Enterprise Local (GHEL) workload",
-          "description": "GitHub Enterprise Server appliance VM on Azure Local. vCPU/memory/storage are derived from `tier` (see GHEL_TIERS in sizer.js, sourced from GHES 3.20 'Minimum recommended requirements').",
+          "description": "GitHub Enterprise Server appliance VM on Azure Local. vCPU/memory/storage are derived from `tier` (see GHEL_TIERS in sizer.js, sourced from current GHES 3.21 minimum recommended requirements). GitHub Enterprise Local does not use AKS.",
           "properties": {
             "type": { "const": "ghel" },
             "tier": {
@@ -220,7 +222,9 @@
               "minimum": 0,
               "maximum": 7,
               "description": "Additional GHES HA replicas beyond the primary. GitHub caps total HA replicas at 8 (primary + 7). Mirrors `ha` for the basic case; the Advanced section can override up to 7."
-            }
+            },
+            "actions": { "type": "boolean", "description": "Adds the documented 25% CPU and memory allowance for GitHub Actions." },
+            "codeSecurity": { "type": "boolean", "description": "Adds the documented 25% CPU and memory allowance for GitHub Code Security." }
           },
           "required": ["type", "tier"]
         }

@@ -51,7 +51,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ### Version 0.23.03 - Latest Release
 
-> **Sizer now supports model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and aligns GPU choices and assignment modes with current Microsoft Learn guidance.**
+> **Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.**
 
 **What's new**
 - **Model-dependent total GPU sizing** — Total VM mode accepts up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2 across all 64 machines.
@@ -60,7 +60,10 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
 - **Learn-aligned GPU support** — Arc VM DDA offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed, and the same support applies to hyperconverged and disaggregated deployments.
 - **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
-- **Validation** — all **1,514 / 1,514** browser tests pass, including exact support matrices, deployment-topology parity, GPU-P partition consistency, model-dependent limits, aggregate capacity, and schema drift.
+- **[No AKS double-counting](https://github.com/Azure/odinforazurelocal/issues/284)** — Foundry Local, Agentic Retrieval, and AI Video Indexer visibly include dedicated AKS Arc infrastructure; add the generic AKS workload only for another independent cluster. GitHub Enterprise Local runs as a GHES appliance VM, not on AKS.
+- **Learn-aligned AI sizing** — Foundry Local uses published minimum/recommended worker profiles and per-deployment model-cache storage, while Agentic Retrieval and Video Indexer no longer add undocumented overhead above their published worker requirements.
+- **GHES feature-aware sizing** — GitHub Enterprise Local defaults to one appliance VM, supports optional active/passive replicas, and adds the documented CPU/memory allowances for GitHub Actions and GitHub Code Security.
+- **Validation** — all **1,519 / 1,519** browser tests pass, including exact support matrices, workload requirement corrections, included-infrastructure guidance, deployment-topology parity, GPU-P partition consistency, model-dependent limits, aggregate capacity, and schema drift.
 
 ---
 

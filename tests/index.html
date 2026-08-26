@@ -750,7 +750,19 @@
                     'GHEL workload details remain plain text before trusted link rendering',
                     true,
                     details);
-                    })(),
+            })(),
+            assert(getIncludedInfrastructureDetail('foundry').includes('AKS Arc') &&
+                getIncludedInfrastructureDetail('edgerag').includes('AKS Arc') &&
+                getIncludedInfrastructureDetail('videoindexer').includes('AKS Arc'),
+                'Specialized AI workload cards identify included AKS Arc infrastructure', true,
+                [getIncludedInfrastructureDetail('foundry'), getIncludedInfrastructureDetail('edgerag'),
+                    getIncludedInfrastructureDetail('videoindexer')].every(Boolean)),
+            assert(getIncludedInfrastructureDetail('ghel') === '' && getIncludedInfrastructureDetail('aks') === '',
+                'GHEL is not presented as AKS-hosted and generic AKS is not self-described as included', '',
+                getIncludedInfrastructureDetail('ghel') + getIncludedInfrastructureDetail('aks')),
+            assert(WORKLOAD_DEFAULTS.ghel.replicas === 0 && WORKLOAD_DEFAULTS.ghel.ha === false,
+                'New GHEL workloads default to one appliance VM', '0/false',
+                WORKLOAD_DEFAULTS.ghel.replicas + '/' + WORKLOAD_DEFAULTS.ghel.ha),
             (function() {
                 const originalScenario = state.scenario;
                 state.scenario = 'retired-mode';
@@ -4214,72 +4226,68 @@
 
         testSuite('calculateWorkloadRequirements() - Foundry Local', 'sizer.js', [
             (() => {
-                // Medium SLM, 1 replica, ONNX-GenAI
-                // CP: 3 nodes × 4 vCPU = 12, worker: 1 × 8 = 8, operator: 2 → 22 vCPU
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // Recommended: CP 3×4 + 2 workers × 8 + platform allowance 2.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 22, 'Foundry Medium 1 replica: 22 vCPUs', 22, r.vcpus);
+                return assert(r.vcpus === 30, 'Foundry recommended: 30 vCPUs', 30, r.vcpus);
             })(),
             (() => {
-                // Medium SLM, 1 replica
-                // CP: 3 × 8 = 24, worker: 1 × 16 = 16, operator: 4 → 44 GB
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // Recommended: CP 3×8 + 2 workers × 32 + platform allowance 4.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 44, 'Foundry Medium 1 replica: 44 GB memory', 44, r.memory);
+                return assert(r.memory === 92, 'Foundry recommended: 92 GB memory', 92, r.memory);
             })(),
             (() => {
-                // Medium SLM, 1 replica
-                // CP storage: 3 × 200 = 600, worker storage: 1 × (200 + 40) = 240 → 840 GB
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // CP OS 600 + worker OS 400 + one 100-GiB model cache PVC.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.storage === 840, 'Foundry Medium 1 replica: 840 GB storage', 840, r.storage);
+                return assert(r.storage === 1100, 'Foundry recommended: 1100 GB storage', 1100, r.storage);
             })(),
             (() => {
-                // Large LLM, 2 replicas
-                // CP: 12, worker: 2 × 16 = 32, operator: 2 → 46 vCPU
-                // CP mem: 24, worker mem: 2 × 64 = 128, operator mem: 4 → 156 GB
-                // Storage: 600 + 2 × (200 + 100) = 1200
-                const w = { type: 'foundry', modelClass: 'large', replicas: 2, engine: 'vllm' };
+                // Minimum: CP + one D4s-class worker + platform allowance.
+                const w = { type: 'foundry', workerProfile: 'minimum', workerNodes: 1,
+                    modelDeployments: 2, modelCacheStorageGB: 200, engine: 'vllm' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46 && r.memory === 156 && r.storage === 1200,
-                    'Foundry Large 2 replicas: 46/156/1200', '46/156/1200',
+                return assert(r.vcpus === 18 && r.memory === 44 && r.storage === 1200,
+                    'Foundry minimum with two caches: 18/44/1200', '18/44/1200',
                     r.vcpus + '/' + r.memory + '/' + r.storage);
             })(),
             (() => {
-                // Custom: 6 vCPU, 12 GB, 30 GB per replica × 3 replicas
-                // CP: 12, worker: 18, operator: 2 → 32 vCPU
-                // CP mem: 24, worker: 36, operator: 4 → 64 GB
-                // Storage: 600 + 3 × (200 + 30) = 1290
-                const w = { type: 'foundry', modelClass: 'custom', replicas: 3,
-                            customVcpus: 6, customMemory: 12, customStorage: 30, engine: 'onnx-genai' };
+                const w = { type: 'foundry', workerProfile: 'custom', workerNodes: 3,
+                    modelDeployments: 2, modelCacheStorageGB: 150,
+                    customVcpus: 6, customMemory: 12, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 32 && r.memory === 64 && r.storage === 1290,
-                    'Foundry Custom 3 replicas (6/12/30): 32/64/1290', '32/64/1290',
+                return assert(r.vcpus === 32 && r.memory === 64 && r.storage === 1500,
+                    'Foundry custom workers and caches: 32/64/1500', '32/64/1500',
                     r.vcpus + '/' + r.memory + '/' + r.storage);
             })(),
             (() => {
-                // GPU: DDA 1 GPU per replica × 4 replicas = 4 GPUs
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 4, engine: 'vllm',
+                // GPU: DDA 1 GPU per worker × 4 workers = 4 GPUs
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 4,
+                            modelDeployments: 1, modelCacheStorageGB: 100, engine: 'vllm',
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.gpus === 4, 'Foundry vLLM 4 replicas × 1 GPU = 4 GPUs', 4, r.gpus);
+                return assert(r.gpus === 4, 'Foundry vLLM 4 workers × 1 GPU = 4 GPUs', 4, r.gpus);
             })()
         ]);
 
         testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
             (() => {
-                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16 + operator 2
+                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
                             corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 70, 'Combined + production LLM: 70 vCPUs', 70, r.vcpus);
+                return assert(r.vcpus === 68, 'Combined + production LLM: 68 vCPUs', 68, r.vcpus);
             })(),
             (() => {
-                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64 + operator 4
+                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
                             corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 220, 'Combined + production LLM: 220 GB memory', 220, r.memory);
+                return assert(r.memory === 216, 'Combined + production LLM: 216 GB memory', 216, r.memory);
             })(),
             (() => {
                 // CP 600 + five worker OS disks 1000 + LLM 100 + vector DB 150
@@ -4292,8 +4300,8 @@
                 const w = { type: 'edgerag', deploymentMode: 'agentic', llmEndpoint: 'external',
                             corpusGB: 50, gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 38 && r.memory === 124 && r.storage === 1275 && r.gpus === 0,
-                    'Agentic only + external LLM: 38/124/1275/0', '38/124/1275/0',
+                return assert(r.vcpus === 36 && r.memory === 120 && r.storage === 1275 && r.gpus === 0,
+                    'Agentic only + external LLM: 36/120/1275/0', '36/120/1275/0',
                     r.vcpus + '/' + r.memory + '/' + r.storage + '/' + r.gpus);
             })(),
             (() => {
@@ -4326,16 +4334,16 @@
 
         testSuite('calculateWorkloadRequirements() - Video Indexer', 'sizer.js', [
             (() => {
-                // Recommended: CP 3×4=12 + workers 64 + operator 2 = 78 vCPU
+                // Recommended: CP 3×4=12 + published worker capacity 64 = 76 vCPU
                 const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 78, 'VI Recommended: 78 vCPUs', 78, r.vcpus);
+                return assert(r.vcpus === 76, 'VI Recommended: 76 vCPUs', 76, r.vcpus);
             })(),
             (() => {
-                // Recommended: CP 3×8=24 + workers 256 + operator 4 = 284 GB
+                // Recommended: CP 3×8=24 + published worker capacity 256 = 280 GB
                 const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 284, 'VI Recommended: 284 GB memory', 284, r.memory);
+                return assert(r.memory === 280, 'VI Recommended: 280 GB memory', 280, r.memory);
             })(),
             (() => {
                 // Recommended: CP 600 + workers 2×200=400 + PV 100 = 1100 GB
@@ -4344,17 +4352,17 @@
                 return assert(r.storage === 1100, 'VI Recommended: 1100 GB storage', 1100, r.storage);
             })(),
             (() => {
-                // Minimum: CP 12 + workers 32 + operator 2 = 46 vCPU
+                // Minimum: CP 12 + published worker capacity 32 = 44 vCPU
                 const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46, 'VI Minimum: 46 vCPUs', 46, r.vcpus);
+                return assert(r.vcpus === 44, 'VI Minimum: 44 vCPUs', 44, r.vcpus);
             })(),
             (() => {
-                // Minimum: CP 24 + workers 64 + operator 4 = 92 GB; storage 600+200+50=850
+                // Minimum: CP 24 + published worker capacity 64 = 88 GB; storage 600+200+50=850
                 const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 92 && r.storage === 850,
-                    'VI Minimum: 92 GB memory / 850 GB storage', '92/850', r.memory + '/' + r.storage);
+                return assert(r.memory === 88 && r.storage === 850,
+                    'VI Minimum: 88 GB memory / 850 GB storage', '88/850', r.memory + '/' + r.storage);
             })(),
             (() => {
                 // GPU optional — none by default
@@ -4368,6 +4376,22 @@
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.gpus === 2, 'VI Recommended + 1 GPU/worker = 2 GPUs', 2, r.gpus);
+            })()
+        ]);
+
+        testSuite('calculateWorkloadRequirements() - GitHub Enterprise Local', 'sizer.js', [
+            (() => {
+                const r = calculateWorkloadRequirements({ type: 'ghel', tier: 'up-to-1000', replicas: 0,
+                    actions: false, codeSecurity: false });
+                return assert(r.vcpus === 8 && r.memory === 48 && r.storage === 900,
+                    'GHES default is one appliance VM', '8/48/900', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                const r = calculateWorkloadRequirements({ type: 'ghel', tier: 'up-to-1000', replicas: 0,
+                    actions: true, codeSecurity: true });
+                return assert(r.vcpus === 12 && r.memory === 72 && r.storage === 900,
+                    'Actions and Code Security each add 25% CPU and memory', '12/72/900',
+                    r.vcpus + '/' + r.memory + '/' + r.storage);
             })()
         ]);
 
