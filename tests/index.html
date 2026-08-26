@@ -5010,9 +5010,10 @@
         // --- Feature 3: GPU_MODELS constant ---
         testSuite('GPU_MODELS constant', 'sizer.js', [
             assert(GPU_MODELS.a2 !== undefined, 'A2 model defined', true, GPU_MODELS.a2 !== undefined),
+            assert(GPU_MODELS.a10 !== undefined, 'A10 model defined', true, GPU_MODELS.a10 !== undefined),
             assert(GPU_MODELS.a16 !== undefined, 'A16 model defined', true, GPU_MODELS.a16 !== undefined),
             assert(GPU_MODELS.a40 !== undefined, 'A40 model defined', true, GPU_MODELS.a40 !== undefined),
-            assert(GPU_MODELS.a100 !== undefined, 'A100 model defined', true, GPU_MODELS.a100 !== undefined),
+            assert(GPU_MODELS.a100 === undefined, 'A100 model removed', undefined, GPU_MODELS.a100),
             assert(GPU_MODELS.l4 !== undefined, 'L4 model defined', true, GPU_MODELS.l4 !== undefined),
             assert(GPU_MODELS.l40 !== undefined, 'L40 model defined', true, GPU_MODELS.l40 !== undefined),
             assert(GPU_MODELS.l40s !== undefined, 'L40S model defined', true, GPU_MODELS.l40s !== undefined),
@@ -5022,12 +5023,12 @@
             assert(Object.keys(GPU_MODELS).length === 9, 'GPU_MODELS has exactly 9 models', 9, Object.keys(GPU_MODELS).length),
             assert(GPU_MODELS.a2.vramGB === 16, 'A2: 16 GB VRAM', 16, GPU_MODELS.a2.vramGB),
             assert(GPU_MODELS.a2.tdpW === 60, 'A2: 60W TDP', 60, GPU_MODELS.a2.tdpW),
+            assert(GPU_MODELS.a10.vramGB === 24, 'A10: 24 GB VRAM', 24, GPU_MODELS.a10.vramGB),
+            assert(GPU_MODELS.a10.tdpW === 150, 'A10: 150W TDP', 150, GPU_MODELS.a10.tdpW),
             assert(GPU_MODELS.a16.vramGB === 64, 'A16: 64 GB VRAM', 64, GPU_MODELS.a16.vramGB),
             assert(GPU_MODELS.a16.tdpW === 250, 'A16: 250W TDP', 250, GPU_MODELS.a16.tdpW),
             assert(GPU_MODELS.a40.vramGB === 48, 'A40: 48 GB VRAM', 48, GPU_MODELS.a40.vramGB),
             assert(GPU_MODELS.a40.tdpW === 300, 'A40: 300W TDP', 300, GPU_MODELS.a40.tdpW),
-            assert(GPU_MODELS.a100.vramGB === 80, 'A100: 80 GB VRAM', 80, GPU_MODELS.a100.vramGB),
-            assert(GPU_MODELS.a100.tdpW === 300, 'A100: 300W TDP (PCIe variant)', 300, GPU_MODELS.a100.tdpW),
             assert(GPU_MODELS.l4.vramGB === 24, 'L4: 24 GB VRAM', 24, GPU_MODELS.l4.vramGB),
             assert(GPU_MODELS.l4.tdpW === 72, 'L4: 72W TDP', 72, GPU_MODELS.l4.tdpW),
             assert(GPU_MODELS.l40.vramGB === 48, 'L40: 48 GB VRAM', 48, GPU_MODELS.l40.vramGB),
@@ -5044,14 +5045,7 @@
             assert(GPU_MODELS.rtxpro6000.maxPerNode === 2, 'RTX Pro 6000: max 2 per node', 2, GPU_MODELS.rtxpro6000.maxPerNode),
             assert(GPU_MODELS.a16.maxPerNode === 2, 'A16: max 2 per node', 2, GPU_MODELS.a16.maxPerNode),
             assert(GPU_MODELS.a40.maxPerNode === 2, 'A40: max 2 per node', 2, GPU_MODELS.a40.maxPerNode),
-            assert(GPU_MODELS.a100.maxPerNode === 2, 'A100: max 2 per node', 2, GPU_MODELS.a100.maxPerNode),
-            // A100 uses MIG (max 7 hardware slices) — must NOT advertise the '1/16' partition
-            assert(!GPU_MODELS.a100.validPartitions.includes('1/16'),
-                'A100: validPartitions excludes 1/16 (MIG hardware limit, max 7 slices)',
-                true, !GPU_MODELS.a100.validPartitions.includes('1/16')),
-            assert(GPU_MODELS.a100.validPartitions.includes('1/8'),
-                'A100: validPartitions includes 1/8 (smallest MIG 1g profile)',
-                true, GPU_MODELS.a100.validPartitions.includes('1/8')),
+            assert(GPU_MODELS.a10.maxPerNode === 2, 'A10: max 2 per node', 2, GPU_MODELS.a10.maxPerNode),
             // A40 uses NVIDIA vGPU software (up to 16 partitions per board) — must advertise '1/16'
             assert(GPU_MODELS.a40.validPartitions.includes('1/16'),
                 'A40: validPartitions includes 1/16 (NVIDIA vGPU software supports up to 16)',
@@ -5060,6 +5054,71 @@
             assert(Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0),
                 'All GPU models have name, vramGB, and tdpW', true,
                 Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0))
+        ]);
+
+        testSuite('GPU support matrices match Microsoft Learn', 'sizer.js', [
+            (() => {
+                const actual = Object.entries(GPU_MODELS)
+                    .filter(([, model]) => model.supportsArcVmDda)
+                    .map(([key]) => key)
+                    .sort();
+                const expected = ['a16', 'a2', 'l4', 'l40', 'l40s', 'rtxpro6000', 't4'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'Arc VM DDA models exactly match Learn', expected.join(', '), actual.join(', '));
+            })(),
+            (() => {
+                const actual = Object.entries(GPU_MODELS)
+                    .filter(([, model]) => model.supportsGpuP)
+                    .map(([key]) => key)
+                    .sort();
+                const expected = ['a10', 'a16', 'a2', 'a40', 'l4', 'l40', 'l40s', 'rtxpro6000'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'GPU-P models exactly match Learn', expected.join(', '), actual.join(', '));
+            })(),
+            (() => {
+                const actual = Object.keys(AKS_GPU_VM_SIZES).sort();
+                const expected = ['a16', 'a2', 'l4', 'l40', 'l40s', 'rtxpro6000', 't4'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'AKS GPU models exactly match Learn', expected.join(', '), actual.join(', '));
+            })()
+        ]);
+
+        testSuite('GPU support is deployment-topology independent', 'sizer.js', [
+            (() => {
+                const matrix = Object.fromEntries(Object.entries(GPU_MODELS).map(([key, model]) => [key, {
+                    supportsArcVmDda: model.supportsArcVmDda,
+                    supportsGpuP: model.supportsGpuP
+                }]));
+                const hyperconverged = JSON.stringify(matrix);
+                const disaggregated = JSON.stringify(matrix);
+                return assert(hyperconverged === disaggregated,
+                    'Hyperconverged and disaggregated deployments use the same GPU support matrix',
+                    hyperconverged, disaggregated);
+            })()
+        ]);
+
+        testSuite('GPU-P validation follows cluster-wide partitioning', 'sizer.js', [
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' },
+                    [{ type: 'avd', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' }]);
+                return assert(err === null,
+                    'Matching GPU-P partition sizes across workloads are accepted', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' },
+                    [{ type: 'avd', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/8' }]);
+                return assert(err && err.code === 'gpu-p-partition-count-conflict',
+                    'Different GPU-P partition sizes across workloads are rejected',
+                    'gpu-p-partition-count-conflict', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 't4', gpuPartition: '1/2' }, []);
+                return assert(err && err.code === 'gpu-p-unsupported-gpu',
+                    'T4 is rejected for GPU-P', 'gpu-p-unsupported-gpu', err && err.code);
+            })()
         ]);
 
         testSuite('DDA GPU count limits', 'sizer.js', [
@@ -5148,18 +5207,16 @@
                     'AKS + GPU Mode None → no error (no VM size required)', null, err);
             })(),
             (() => {
-                // AKS doesn't support GPU-P in the UI, but the validator should
-                // still not require an aksGpuVmSize when mode is not DDA.
-                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'gpu-p' });
-                return assert(err === null,
-                    'AKS + GPU-P (non-DDA) → no error from this validator', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'gpu-p', gpuPModel: 'a2', gpuPartition: '1/2' });
+                return assert(err !== null && err.code === 'gpu-p-unsupported-workload',
+                    'AKS + GPU-P → blocks because AKS Arc does not support GPU-P',
+                    'gpu-p-unsupported-workload', err && err.code);
             })(),
             (() => {
-                // Non-AKS workloads must NOT trip the AKS-specific validator
-                // even when they have no aksGpuVmSize (they don't have one).
-                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 2 });
-                return assert(err === null,
-                    'VM + DDA + A100 → no error (rule is AKS-only)', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 2 });
+                return assert(err !== null && err.code === 'arc-vm-dda-unsupported-gpu',
+                    'VM + DDA + A40 → blocks because A40 is GPU-P only for Arc VMs',
+                    'arc-vm-dda-unsupported-gpu', err && err.code);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'avd', gpuMode: 'dda', gpuDdaModel: 'l4' });
@@ -5189,7 +5246,7 @@
         // Foundry Local, Agentic Retrieval and Video Indexer all run on AKS Arc node
         // pools, so when they use DDA the selected GPU model must be one that
         // AKS Arc supports (i.e. in AKS_GPU_VM_SIZES). Without this guard a
-        // user could pick A100 / A40 for a Foundry workload — neither of
+        // user could pick A40 for a Foundry workload — it is GPU-P only and
         // which AKS Arc can attach as a DDA worker pool today.
         testSuite('AKS-hosted workload DDA must use AKS-supported GPU', 'sizer.js', [
             assert(typeof isAksHostedWorkloadType === 'function',
@@ -5222,7 +5279,7 @@
                     'AKS-supported set excludes a100 and a40 (no AKS VM SKUs published)',
                     true, !keys.has('a100') && !keys.has('a40'));
             })(),
-            // Validator: Foundry + DDA + A100 → block
+            // Validator: Foundry + DDA + unsupported model → block
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 1 });
                 return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
@@ -5259,11 +5316,12 @@
                 return assert(err === null,
                     'Video Indexer + DDA + T4 → no error', null, err);
             })(),
-            // VM/AVD workloads are NOT AKS-hosted — the rule should NOT apply.
+            // VM/AVD workloads use the Arc VM DDA support matrix.
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 2 });
-                return assert(err === null,
-                    'VM + DDA + A100 → no error (VM workloads run as Azure Local VMs, not AKS)', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 2 });
+                return assert(err !== null && err.code === 'arc-vm-dda-unsupported-gpu',
+                    'VM + DDA + A40 → blocks because Arc VM DDA does not support A40',
+                    'arc-vm-dda-unsupported-gpu', err && err.code);
             })(),
             // Validator should NOT trip when gpuDdaModel is missing (separate
             // problem — the DDA dropdown defaults to one of the filtered set
@@ -5276,10 +5334,10 @@
             })(),
             // Error message should name the unsupported GPU model and the workload.
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a100' });
-                return assert(err && err.message.indexOf('A100') !== -1 && err.message.indexOf('Foundry Local') !== -1,
-                    'Error message names the GPU (A100) and workload (Foundry Local)',
-                    true, err && err.message.indexOf('A100') !== -1 && err.message.indexOf('Foundry Local') !== -1);
+                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a40' });
+                return assert(err && err.message.indexOf('A40') !== -1 && err.message.indexOf('Foundry Local') !== -1,
+                    'Error message names the GPU (A40) and workload (Foundry Local)',
+                    true, err && err.message.indexOf('A40') !== -1 && err.message.indexOf('Foundry Local') !== -1);
             })()
         ]);
 
@@ -5340,22 +5398,22 @@
                 return assert(err === null,
                     'otherWorkloads omitted → no conflict (1-arg back-compat)', null, err);
             })(),
-            // VM with A100, then Foundry with L40S → block
+            // VM with L40, then Foundry with L40S → block
             (() => {
-                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'a100' }];
+                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'VM A100 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
+                    'VM L40 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
-            // Symmetric: Foundry L40S first, then VM A100 → block
+            // Symmetric: Foundry L40S first, then VM L40 → block
             (() => {
                 const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }, others);
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'Foundry L40S + VM A100 → blocks with gpu-conflicts-with-locked-type',
+                    'Foundry L40S + VM L40 → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
             // Same GPU on both → OK (homogeneous)
@@ -5429,12 +5487,12 @@
             })(),
             // Error message should name both workloads' GPUs.
             (() => {
-                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'a100' }];
+                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
-                return assert(err && err.message.indexOf('A100') !== -1 && err.message.indexOf('L40S') !== -1,
-                    'Error message names both GPU models (A100 and L40S)',
-                    true, err && err.message.indexOf('A100') !== -1 && err.message.indexOf('L40S') !== -1);
+                return assert(err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1,
+                    'Error message names both GPU models (L40 and L40S)',
+                    true, err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1);
             })()
         ]);
 

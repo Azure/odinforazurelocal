@@ -166,22 +166,18 @@ const CPU_GENERATIONS = {
     ]
 };
 
-// GPU model specifications
-// Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
-// A100 / A40 added in v0.21.11 to reflect OEM SKUs seen in the public Azure Local
-// Solutions catalog (https://azurelocalsolutions.azure.microsoft.com). A100 uses
-// hardware Multi-Instance GPU (MIG) which tops out at 7 slices/board, so it does
-// NOT expose the '1/16' partition Sizer offers for vGPU-software GPUs.
+// GPU model specifications and assignment support.
+// Ref: https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models
 const GPU_MODELS = {
-    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
-    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    a100:      { name: 'NVIDIA A100',            vramGB: 80, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
+    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: false, validPartitions: [] },
+    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a10:       { name: 'NVIDIA A10',             vramGB: 24, tdpW: 150, maxPerNode: 2, supportsArcVmDda: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsArcVmDda: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
 
 // AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
@@ -242,7 +238,7 @@ function isAksHostedWorkloadType(workloadType) {
 
 // Returns the set of GPU keys that AKS Arc supports (i.e. that have at least
 // one published AKS GPU VM SKU). Currently: t4, a2, a16, l4, l40, l40s,
-// rtxpro6000. NOT included: a40, a100.
+// rtxpro6000. NOT included: a10, a40.
 function getAksSupportedGpuKeys() {
     return new Set(Object.keys(AKS_GPU_VM_SIZES));
 }
@@ -662,15 +658,15 @@ function getGpuRequirementFields(workloadType) {
     // Documentation link varies by workload type
     let gpuDocsLink = '';
     if (workloadType === 'aks') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc</a></div>';
     } else if (workloadType === 'foundry') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
     } else if (workloadType === 'edgerag') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Agentic Retrieval runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Agentic Retrieval runs on AKS Arc)</a></div>';
     } else if (workloadType === 'videoindexer') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and assignment types for Azure Local VMs</a></div>';
     }
 
     // DDA label varies by workload type
@@ -704,6 +700,7 @@ function getGpuRequirementFields(workloadType) {
             ${gpuPNote}
         </div>
         <div id="wl-gpu-dda-fields" style="display: none;">
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-device?view=azloc-2608" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Manage GPUs using Discrete Device Assignment</a></div>
             <div class="form-group">
                 <label>GPU Model
                     <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All machines must use the same GPU model.">ⓘ</span>
@@ -721,7 +718,8 @@ function getGpuRequirementFields(workloadType) {
         </div>
         ${aksGpuVmSizeField}
         <div id="wl-gpu-p-fields" style="display: none;">
-            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning" target="_blank" style="color: var(--link-color);">📖 GPU Partitioning (GPU-P) Management Guide</a></div>
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning?view=azloc-2608" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Manage GPUs using partitioning (GPU-P)</a></div>
+            <div class="hint" style="margin-bottom: 10px;">GPU-P partition count applies to every GPU in the cluster. Confirm the valid partition counts reported by your Azure Local GPU fabric before deployment.</div>
             <div class="form-group">
                 <label>GPU Model
                     <span class="info-icon" title="Select the GPU model for partitioning. This sets the hardware GPU type and determines available partition sizes.">ⓘ</span>
@@ -731,7 +729,7 @@ function getGpuRequirementFields(workloadType) {
             </div>
             <div class="form-group">
                 <label>GPU Partition Size
-                    <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
+                    <span class="info-icon" title="Planning estimate for the cluster-wide partition count. Azure Local reports the valid partition counts supported by the installed GPU fabric.">ⓘ</span>
                 </label>
                 <select id="wl-gpu-p-partition">
                 </select>
@@ -777,7 +775,7 @@ function toggleWorkloadGpuFields() {
 }
 
 // Populate DDA GPU model dropdown. Filters by workload type:
-//   - VM / AVD: any GPU with supportsAzureLocalVMs === true.
+//   - VM / AVD: any GPU with supportsArcVmDda === true.
 //   - Foundry / Agentic Retrieval / Video Indexer: AKS-hosted workloads, so the list
 //     is further restricted to GPUs that AKS Arc itself supports (those that
 //     have published AKS GPU VM SKUs in AKS_GPU_VM_SIZES). AKS itself doesn't
@@ -793,7 +791,7 @@ function populateDdaModels() {
     const restrictToAks = currentModalType && currentModalType !== 'aks' && isAksHostedWorkloadType(currentModalType);
     const aksSupportedKeys = restrictToAks ? getAksSupportedGpuKeys() : null;
     for (const [key, model] of Object.entries(GPU_MODELS)) {
-        if (!model.supportsAzureLocalVMs) continue;
+        if (!model.supportsArcVmDda) continue;
         if (restrictToAks && !aksSupportedKeys.has(key)) continue;
         const opt = document.createElement('option');
         opt.value = key;
@@ -827,7 +825,7 @@ function populateDdaModels() {
                 ' runs on AKS Arc node pools.</em>';
         } else if (lockedNotInDropdown) {
             // Non-AKS-hosted modal but the locked GPU still isn't in the dropdown
-            // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
+            // (e.g. the workload's locked GPU has supportsArcVmDda=false).
             // Defensive — shouldn't happen with current data but covers the case.
             const lockedModel = GPU_MODELS[lockedType];
             const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
@@ -845,7 +843,7 @@ function populateDdaModels() {
         modelSelect.title = 'GPU model is locked \u2014 all machines must use the same GPU model (homogeneous configuration).';
     } else if (lockedType) {
         // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
-        // workload locked the cluster to A100 but this is an AKS-hosted modal that
+        // workload locked the cluster to A10 or A40 but this is an AKS-hosted modal that
         // filters to AKS-supported GPUs only. Disable the dropdown and clear any
         // stale selection so the user cannot save a heterogeneous-GPU config.
         // validateWorkloadBeforeSave() also backstops this via the cross-workload
@@ -1029,7 +1027,7 @@ function populateAksGpuVmSizes() {
     if (infoEl) {
         if (lockedType && optionsAdded === 0) {
             // The cluster's GPU type is locked by another workload to a model
-            // that has NO published AKS Arc VM SKUs (e.g. A100 or A40).
+            // that has NO published AKS Arc VM SKUs (e.g. A10 or A40).
             // Warn the user *before* they try to save — addWorkload() will
             // also block save via validateWorkloadBeforeSave() as a backstop.
             const lockedModel = GPU_MODELS[lockedType];
@@ -4787,7 +4785,7 @@ function readWorkloadGpuFields() {
 //   - AKS Arc workloads with `gpuMode === 'dda'` MUST have an `aksGpuVmSize`
 //     selected. The "GPU VM Size" dropdown can legitimately end up empty when
 //     another workload has locked the cluster's GPU type to a model that has
-//     no AKS Arc VM SKUs (e.g. A100 or A40), or when the user simply
+//     no AKS Arc VM SKUs (e.g. A10 or A40), or when the user simply
 //     forgot to pick one. Without this guard the worker-node sizing math
 //     downstream would silently use the default vCPU/memory values from the
 //     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
@@ -4801,10 +4799,16 @@ function readWorkloadGpuFields() {
 //     that same model. If the new workload's effective GPU type differs from
 //     any *other* GPU-using workload's type, save is blocked. Backstops the
 //     UI dropdown lock for the case where the AKS-supported filter removed
-//     the locked GPU from the dropdown (e.g. VM with A100 + Foundry trying
+//     the locked GPU from the dropdown (e.g. VM with GPU-P A40 + Foundry trying
 //     to pick L40S would otherwise slip past the UI).
 function validateWorkloadBeforeSave(workload, otherWorkloads) {
     if (!workload || typeof workload !== 'object') return null;
+    if (workload.gpuMode === 'gpu-p' && workload.type !== 'vm' && workload.type !== 'avd') {
+        return {
+            code: 'gpu-p-unsupported-workload',
+            message: 'GPU-P is supported for Arc-enabled Azure Local VMs and AVD workloads, but not for this workload type.'
+        };
+    }
     if (workload.type === 'edgerag') {
         normalizeEdgeRagWorkload(workload);
         const llm = EDGERAG_LLM_PROFILES[workload.llmEndpoint];
@@ -4826,7 +4830,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             message:
                 'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
                 'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
-                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100 or A40) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A10 or A40) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
         };
     }
     // Foundry / Agentic Retrieval / Video Indexer all run on AKS Arc — their DDA GPU
@@ -4857,6 +4861,12 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                 message: 'The selected GPU model is no longer supported by the Sizer. Select a currently supported GPU model.'
             };
         }
+        if (gpuModel && workload.type !== 'aks' && !gpuModel.supportsArcVmDda) {
+            return {
+                code: 'arc-vm-dda-unsupported-gpu',
+                message: gpuModel.name + ' does not support DDA for Arc-enabled Azure Local VMs. Select a DDA-supported GPU or use GPU-P.'
+            };
+        }
         if (gpuModel) {
             const instanceLimit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_MACHINES;
             const candidateGpus = calculateWorkloadGpuRequirement(workload);
@@ -4872,6 +4882,27 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                     code: 'gpu-count-exceeds-instance-limit',
                     message: 'GPU demand exceeds the Azure Local instance maximum for ' + gpuModel.name +
                         ': ' + instanceLimit + ' GPUs across 64 machines (' + gpuModel.maxPerNode + ' per machine).'
+                };
+            }
+        }
+    }
+    if (workload.gpuMode === 'gpu-p') {
+        const gpuModel = workload.gpuPModel ? GPU_MODELS[workload.gpuPModel] : null;
+        if (!gpuModel || !gpuModel.supportsGpuP) {
+            return {
+                code: 'gpu-p-unsupported-gpu',
+                message: 'The selected GPU model does not support GPU-P for Arc-enabled Azure Local VMs.'
+            };
+        }
+        if (Array.isArray(otherWorkloads)) {
+            const conflictingPartition = otherWorkloads.find(function(otherWorkload) {
+                return otherWorkload.gpuMode === 'gpu-p' && otherWorkload.gpuPartition &&
+                    otherWorkload.gpuPartition !== workload.gpuPartition;
+            });
+            if (conflictingPartition) {
+                return {
+                    code: 'gpu-p-partition-count-conflict',
+                    message: 'GPU-P partition count is configured cluster-wide. Use the same GPU partition size for every GPU-P workload.'
                 };
             }
         }

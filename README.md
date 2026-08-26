@@ -51,14 +51,16 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ### Version 0.23.03 - Latest Release
 
-> **Sizer now supports model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and removes NVIDIA H100 from active sizing choices.**
+> **Sizer now supports model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and aligns GPU choices and assignment modes with current Microsoft Learn guidance.**
 
 **What's new**
 - **Model-dependent total GPU sizing** — Total VM mode accepts up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2 across all 64 machines.
 - **Per-machine limits preserved** — Per-VM and other workload modes retain each model's supported GPUs-per-machine limit, and switching models clamps oversized values immediately.
 - **Instance-wide validation** — combined same-model workloads cannot exceed the selected GPU model's Azure Local instance capacity; mixed models continue to produce the dedicated homogeneous-GPU conflict.
 - **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
-- **Validation** — all **1,508 / 1,508** browser tests pass, including model-dependent limits, aggregate capacity, model switching, H100 removal, and schema drift.
+- **Learn-aligned GPU support** — Arc VM DDA offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed, and the same support applies to hyperconverged and disaggregated deployments.
+- **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
+- **Validation** — all **1,514 / 1,514** browser tests pass, including exact support matrices, deployment-topology parity, GPU-P partition consistency, model-dependent limits, aggregate capacity, and schema drift.
 
 ---
 

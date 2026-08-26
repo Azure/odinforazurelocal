@@ -1,4 +1,4 @@
-# Sizer total GPU requirements and H100 removal
+# Sizer total GPU requirements and Learn alignment
 
 ## Current state
 
@@ -9,7 +9,8 @@
 - Azure Local disaggregated instances support up to 64 machines. The maximum
   total GPU requirement is therefore 64 multiplied by the selected model's
   `maxPerNode` value (256 for four-GPU models; 128 for two-GPU models).
-- NVIDIA H100 is currently exposed in the hardware and VM GPU model lists.
+- GPU support and assignment capabilities must follow the current Microsoft
+  Learn support matrix for both hyperconverged and disaggregated deployments.
 
 ## Proposed change
 
@@ -20,6 +21,11 @@
 - Validate the mode-aware maximum before saving so typed or imported values
   cannot bypass the HTML input constraint.
 - Remove H100 from active Sizer model choices and the public schema enum.
+- Separate Arc VM DDA and GPU-P capabilities, add A10 for GPU-P, remove A100
+  from current choices, and use the same model matrices for both deployment
+  topologies.
+- Enforce one cluster-wide GPU-P partition size and add contextual Learn links
+  for hardware preparation, DDA, GPU-P, and AKS GPU sizing.
 - Preserve historical changelog and completed-plan references as release
   history rather than rewriting them.
 
@@ -44,10 +50,15 @@
   for models whose supported maximum is two.
 - Legacy H100 values are unsupported after this change and must not be offered
   by current UI or accepted by the current public schema.
+- A100 remains recognized by the catalog gap checker but is a narrow design
+  exception because it is absent from the current Learn support matrix.
+- GPU-P partition options are planning estimates; deployments must confirm the
+  valid counts reported by the installed Azure Local GPU fabric.
 
 ## Implementation order
 
 1. Add focused tests for mode-aware DDA limits and the H100-free model list.
 2. Implement the numeric input, dynamic maximum, and save validation.
 3. Remove H100 from active Sizer UI/data and update the schema.
-4. Add the current-release changelog entry and run the full validation suite.
+4. Align assignment capabilities, topology parity, and contextual Learn links.
+5. Add the current-release changelog entry and run the full validation suite.

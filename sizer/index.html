@@ -340,6 +340,9 @@
                     <!-- GPU Configuration -->
                     <h3 class="hw-subsection-title">GPU Configuration</h3>
                     <div class="config-row">
+                        <span class="hint"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models" target="_blank" rel="noopener">Supported GPU models and assignment types</a></span>
+                    </div>
+                    <div class="config-row">
                         <label for="gpu-count">GPUs per Machine</label>
                         <select id="gpu-count" onchange="onGpuCountChange()">
                             <option value="0" selected>None</option>
@@ -354,9 +357,9 @@
                         <select id="gpu-type" onchange="onGpuTypeChange()">
                             <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/machine)</option>
                             <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/machine)</option>
+                            <option value="a10">NVIDIA A10 (24 GB, 150W, max 2/machine)</option>
                             <option value="a16">NVIDIA A16 (64 GB, 250W, max 2/machine)</option>
                             <option value="a40">NVIDIA A40 (48 GB, 300W, max 2/machine)</option>
-                            <option value="a100">NVIDIA A100 (80 GB, 300W, max 2/machine)</option>
                             <option value="l4">NVIDIA L4 (24 GB, 72W, max 4/machine)</option>
                             <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/machine)</option>
                             <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/machine)</option>

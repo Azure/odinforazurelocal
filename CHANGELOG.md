@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.23.03] - 2026-08-26
 
-Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and removes NVIDIA H100 from active sizing choices.
+Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and aligns GPU choices and assignment modes with current Microsoft Learn guidance.
 
 ### Changed
 
 - **Total VM GPU requirements expanded** (`sizer/`, `tests/index.html`) — Total VM mode uses a numeric DDA GPU input whose maximum follows the selected model's supported GPUs per machine: up to 256 GPUs for four-per-machine models such as L40S and 128 GPUs for two-per-machine models such as A2. Per-VM and non-total workload inputs retain their model-specific per-machine limits, and changing models immediately clamps an oversized value.
 - **Instance-wide GPU validation added** (`sizer/sizer.js`, `tests/index.html`) — save-time validation rejects same-model workload demand above the 64-machine instance ceiling while preserving the existing homogeneous-GPU conflict for mixed-model configurations.
 - **NVIDIA H100 removed from Sizer** (`sizer/index.html`, `sizer/sizer.js`, `docs/json-schema/odin-sizer.schema.json`) — H100 is no longer offered for hardware, DDA, or GPU-P selection and is removed from the current public Sizer schema enum. Historical release records remain unchanged.
-- **Validation** — all **1,508 / 1,508** browser tests pass, including model-dependent total limits, aggregate capacity, model switching, H100 removal, schema drift, and existing workload sizing coverage.
+- **GPU support aligned with Microsoft Learn** (`sizer/`, `docs/json-schema/odin-sizer.schema.json`, `tests/index.html`) — Arc-enabled VM DDA now offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed from current choices, A10 is added for GPU-P, and the same matrices apply to hyperconverged and disaggregated deployments.
+- **GPU-P cluster behavior enforced** (`sizer/sizer.js`, `tests/index.html`) — workloads must use one cluster-wide partition size, unsupported GPU/mode combinations are rejected, and the dialog directs users to confirm partition counts exposed by their installed GPU fabric.
+- **Contextual GPU documentation added** (`sizer/index.html`, `sizer/sizer.js`) — hardware selection, DDA, GPU-P, and AKS GPU controls link to their relevant Microsoft Learn guidance.
+- **Validation** — all **1,514 / 1,514** browser tests pass, including exact Learn support matrices, deployment-topology parity, cluster-wide GPU-P partitioning, model-dependent total limits, aggregate capacity, schema drift, and existing workload sizing coverage.
 
 ---
 

@@ -112,6 +112,16 @@ const LEGACY_CACHE_DRIVE_SIZES_TB = new Set([0.8, 1.6, 3.2, 6.4]);
 
 const KNOWN_DESIGN_EXCEPTIONS = [
     {
+        id: 'gpu-a100-not-currently-documented',
+        category: 'gpu-missing-in-sizer',
+        match: (g) => g.category === 'gpu-missing-in-sizer' &&
+            g.detail === 'GPUs mentioned in catalog but absent from Sizer GPU_MODELS: a100',
+        reason:
+            'The OEM catalog snapshot includes A100 configurations, but A100 is not in the current ' +
+            'Microsoft Learn supported-GPU matrix for Azure Local. Sizer follows the current support ' +
+            'documentation. Any additional catalog-only GPU remains a regular gap.',
+    },
+    {
         id: 'memory-cap-4tb',
         category: 'memory-max',
         match: (g) => g.category === 'memory-max' &&

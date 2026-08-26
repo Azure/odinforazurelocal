@@ -55,13 +55,15 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.03</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">August 26, 2026</div>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and removes NVIDIA H100 from active sizing choices.</p>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer now accepts model-dependent total VM GPU requirements across a full 64-machine Azure Local instance and aligns GPU choices and assignment modes with current Microsoft Learn guidance.</p>
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
                         <li><strong>Total VM GPU requirements</strong> &mdash; enter up to 256 GPUs for four-per-machine models such as L40S or 128 GPUs for two-per-machine models such as A2.</li>
                         <li><strong>Per-machine limits preserved</strong> &mdash; Per-VM and other workload modes retain each model's supported limit, and model changes clamp oversized values.</li>
                         <li><strong>Instance-wide validation</strong> &mdash; combined same-model workloads cannot exceed the selected model's 64-machine capacity.</li>
                         <li><strong>H100 removed</strong> &mdash; NVIDIA H100 is no longer offered in Sizer hardware or workload GPU choices.</li>
-                        <li>All <strong>1,508 / 1,508</strong> browser tests pass.</li>
+                        <li><strong>Learn-aligned support</strong> &mdash; Arc VM DDA and GPU-P expose their exact documented model sets for both hyperconverged and disaggregated deployments; A10 is added for GPU-P and A100 is removed.</li>
+                        <li><strong>GPU-P and guidance</strong> &mdash; cluster-wide partition consistency is enforced, and GPU controls link to the relevant Microsoft Learn pages.</li>
+                        <li>All <strong>1,514 / 1,514</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
