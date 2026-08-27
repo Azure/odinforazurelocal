@@ -13,6 +13,8 @@
   IP as five addresses later.
 - Populate Ending IP only when it is empty or was previously auto-generated;
   never overwrite a manually entered ending address.
+- Persist whether Ending IP was auto-generated so resume/import retains that
+  behavior instead of treating the restored value as a manual override.
 - Keep the existing CIDR, reserved-range, node-IP, gateway, and range validation
   as the final authority.
 

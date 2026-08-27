@@ -2429,6 +2429,7 @@
                     'infraGateway',
                     'infraGatewayManual',
                     'infraPoolManual',
+                    'infraPoolEndAuto',
                     'nodeSettings',
                     'infraVlan',
                     'infraVlanId',
@@ -2532,7 +2533,7 @@
                     'intentOverrides', 'customIntents', 'adapterMapping', 'adapterMappingConfirmed',
                     'adapterMappingSelection', 'overridesConfirmed', 'fqdnConfirmed',
                     'outbound', 'arc', 'proxy',
-                    'ip', 'infra', 'infraCidr', 'infraCidrAuto', 'infraGateway', 'infraGatewayManual', 'infraPoolManual',
+                    'ip', 'infra', 'infraCidr', 'infraCidrAuto', 'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'infraPoolEndAuto',
                     'nodeSettings', 'infraVlan', 'infraVlanId', 'storageAutoIp', 'customStorageSubnets',
                     'customStorageSubnetsConfirmed', 'activeDirectory', 'adDomain', 'adOuPath',
                     'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
@@ -3702,10 +3703,14 @@
                 document.body.appendChild(startInput);
                 document.body.appendChild(endInput);
                 const previousManualState = state.infraPoolManual;
+                const previousEndAutoState = state.infraPoolEndAuto;
+                const previousInfra = state.infra;
                 try {
                     startInput.value = '192.168.1.10';
                     updateInfraPoolEndFromStart();
                     const initialEnd = endInput.value;
+                    state.infra = { start: startInput.value, end: endInput.value };
+                    delete endInput.dataset.autoMinimumEnd;
                     startInput.value = '192.168.1.20';
                     updateInfraPoolEndFromStart();
                     const recalculatedEnd = endInput.value;
@@ -3714,13 +3719,15 @@
                     startInput.value = '192.168.1.30';
                     updateInfraPoolEndFromStart();
                     return assert(initialEnd === '192.168.1.15' && recalculatedEnd === '192.168.1.25' && endInput.value === '192.168.1.40',
-                        'Auto-generated Ending IP follows Starting IP while a manual Ending IP is preserved',
-                        '192.168.1.15, 192.168.1.25, manual 192.168.1.40',
-                        initialEnd + ', ' + recalculatedEnd + ', manual ' + endInput.value);
+                        'Persisted auto-ending state survives DOM restoration while a manual Ending IP is preserved',
+                        '192.168.1.15, restored 192.168.1.25, manual 192.168.1.40',
+                        initialEnd + ', restored ' + recalculatedEnd + ', manual ' + endInput.value);
                 } finally {
                     startInput.remove();
                     endInput.remove();
                     state.infraPoolManual = previousManualState;
+                    state.infraPoolEndAuto = previousEndAutoState;
+                    state.infra = previousInfra;
                 }
             })()
         ]);
@@ -5547,7 +5554,7 @@
         // pools, so when they use DDA the selected GPU model must be one that
         // AKS Arc supports (i.e. in AKS_GPU_VM_SIZES). Without this guard a
         // user could pick A40 for a Foundry workload — it is GPU-P only and
-        // which AKS Arc can attach as a DDA worker pool today.
+        // AKS Arc cannot attach it as a DDA worker pool today.
         testSuite('AKS-hosted workload DDA must use AKS-supported GPU', 'sizer.js', [
             assert(typeof isAksHostedWorkloadType === 'function',
                 'isAksHostedWorkloadType helper exists', 'function', typeof isAksHostedWorkloadType),
@@ -10284,7 +10291,7 @@
                 'outbound', 'arc', 'proxy',
                 // Step 09: IP & Infrastructure
                 'ip', 'infra', 'infraCidr', 'infraCidrAuto',
-                'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'nodeSettings',
+                'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'infraPoolEndAuto', 'nodeSettings',
                 'infraVlan', 'infraVlanId',
                 'storageAutoIp', 'customStorageSubnets', 'customStorageSubnetsConfirmed',
                 // Step 10: Identity

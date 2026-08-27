@@ -425,15 +425,18 @@
             .replace(/'/g, '&#39;');
     }
 
-    const SIZER_ADVISORY_PREFIX = 'Advisory - minimum-fit hardware:';
+    function parseSizerAdvisory(note) {
+        return /^(Advisory)( - [^:\r\n]+:)([\s\S]*)$/.exec(String(note || ''));
+    }
 
     function renderSizerSizingNoteHtml(note) {
         const text = String(note || '');
-        if (!text.startsWith(SIZER_ADVISORY_PREFIX)) return escapeHtml(text);
+        const advisory = parseSizerAdvisory(text);
+        if (!advisory) return escapeHtml(text);
         return '<strong><span class="sizing-note-advisory">Advisory</span>'
-            + escapeHtml(SIZER_ADVISORY_PREFIX.slice('Advisory'.length))
+            + escapeHtml(advisory[2])
             + '</strong>'
-            + escapeHtml(text.slice(SIZER_ADVISORY_PREFIX.length));
+            + escapeHtml(advisory[3]);
     }
 
     function formatSizerWorkloadGpu(workload) {
@@ -455,6 +458,13 @@
     /** Escape pipe, backtick, and backslash characters for markdown table cells */
     function escapeMd(val) {
         return String(val || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/`/g, '\\`');
+    }
+
+    function renderSizerSizingNoteMarkdown(note) {
+        const text = String(note || '');
+        const advisory = parseSizerAdvisory(text);
+        if (!advisory) return escapeMd(text);
+        return '**' + escapeMd(advisory[1] + advisory[2]) + '**' + escapeMd(advisory[3]);
     }
 
     function getReportSubtitle(state) {
@@ -1152,6 +1162,8 @@
         const architectureSelections = getArchitectureSelections(s);
         md.push('# Azure Local Instance | Design Configuration Report');
         md.push('');
+        md.push(getReportSubtitle(s));
+        md.push('');
 
         // Metadata section
         md.push('## Report Metadata');
@@ -1248,6 +1260,22 @@
                 md.push('| Total Storage Required | ' + (ws.totalStorageTB || 0) + ' TB |');
             }
             md.push('');
+
+            if (Array.isArray(hw.sizingNotes)) {
+                const sizingNotes = hw.sizingNotes
+                    .filter(function(note) { return typeof note === 'string'; })
+                    .map(function(note) { return note.trim().slice(0, 2000); })
+                    .filter(Boolean)
+                    .slice(0, 50);
+                if (sizingNotes.length > 0) {
+                    md.push('## Sizing Notes & Recommendations (from Sizer)');
+                    md.push('');
+                    sizingNotes.forEach(function(note) {
+                        md.push('- ' + renderSizerSizingNoteMarkdown(note));
+                    });
+                    md.push('');
+                }
+            }
 
             if (hw.s2dCalculation) {
                 const calc = hw.s2dCalculation;

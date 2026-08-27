@@ -43,6 +43,11 @@
 - Fixed the Example Configuration Templates overlay so it is a named modal,
   exposes template choices as buttons, traps focus, closes with Escape, labels
   its close control, and restores focus to the trigger.
+- Preserved report parity across formats: Markdown and PowerPoint now include
+  workflow provenance, Markdown carries Sizing Notes, PowerPoint paginates all
+  bounded notes, and every `Advisory - ...:` heading keeps its visual treatment.
+- Persisted the Infrastructure IP Pool auto-ending marker so restored designs
+  continue recalculating derived endings while manual overrides remain fixed.
 - Confirmed Connected HCI, Connected disaggregated, disconnected management,
   disconnected workload, Connected rack-aware, Multi-Rack stop-flow, and
   Microsoft 365 Local stop-flow behavior through rendered controls.

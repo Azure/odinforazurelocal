@@ -568,7 +568,9 @@ function checkRendererCoverage() {
         {
             label: 'sizerPayload.sizerHardware.sizingNotes',
             sourceFile: path.join('sizer', 'sizer.js'),
-            fieldNames: ['sizingNotes'],
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware'],
+            expectedFieldNames: ['sizingNotes'],
             consumers: [
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
@@ -577,7 +579,9 @@ function checkRendererCoverage() {
         {
             label: 'sizerPayload.sizerHardware.s2dCalculation',
             sourceFile: path.join('sizer', 'sizer.js'),
-            fieldNames: ['s2dCalculation'],
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware'],
+            expectedFieldNames: ['s2dCalculation'],
             consumers: [
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
@@ -586,7 +590,10 @@ function checkRendererCoverage() {
         {
             label: 'sizerPayload.sizerWorkloads GPU metadata',
             sourceFile: path.join('sizer', 'sizer.js'),
-            fieldNames: ['gpuMode', 'gpuType', 'gpuLabel'],
+            sourceAnchor: 'sizerWorkloads: workloads.map',
+            varName: 'entry',
+            keyPath: [],
+            expectedFieldNames: ['gpuMode', 'gpuType', 'gpuLabel'],
             consumers: [
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
@@ -598,9 +605,14 @@ function checkRendererCoverage() {
     cases.forEach(c => {
         try {
             const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
-            const fieldNames = c.fieldNames || extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
-            if (c.fieldNames) {
-                const missingFromSource = fieldNames.filter(f => !new RegExp('\\b' + f + '\\s*:').test(src));
+            const anchorIndex = c.sourceAnchor ? src.indexOf(c.sourceAnchor) : 0;
+            if (anchorIndex < 0) throw new Error(`Could not find source anchor '${c.sourceAnchor}' in ${c.sourceFile}`);
+            const sourceScope = src.slice(anchorIndex);
+            const extractedFields = extractNestedObjectKeysFromConst(sourceScope, c.varName, c.keyPath);
+            const fieldNames = c.expectedFieldNames || extractedFields;
+            if (c.expectedFieldNames) {
+                const extractedSet = new Set(extractedFields);
+                const missingFromSource = fieldNames.filter(f => !extractedSet.has(f));
                 if (missingFromSource.length > 0) {
                     throw new Error(`Payload field(s) missing from ${c.sourceFile}: ${missingFromSource.join(', ')}`);
                 }
@@ -639,9 +651,13 @@ function checkReportPresentationContracts() {
         { label: 'PowerPoint report title', source: pptxJs, value: title },
         { label: 'Designer-only singular workflow subtitle', source: reportJs, value: 'Designer workflow' },
         { label: 'Sizer and Designer plural workflow subtitle', source: reportJs, value: 'Sizer and Designer workflows' },
+        { label: 'Markdown workflow subtitle', source: reportJs, value: 'md.push(getReportSubtitle(s))' },
+        { label: 'Markdown sizing notes section', source: reportJs, value: "md.push('## Sizing Notes & Recommendations (from Sizer)')" },
         { label: 'Azure connected report scenario label', source: reportJs, value: 'Azure connected control plane' },
         { label: 'Disconnected report scenario label', source: reportJs, value: 'Disconnected control plane' },
-        { label: 'Trusted advisory prefix', source: reportJs, value: 'Advisory - minimum-fit hardware:' },
+        { label: 'Generic Advisory heading parser', source: reportJs, value: 'function parseSizerAdvisory(note)' },
+        { label: 'PowerPoint workflow subtitle', source: pptxJs, value: 'function getWorkflowSubtitle(state)' },
+        { label: 'PowerPoint sizing note pagination', source: pptxJs, value: 'paginateBullets: true' },
         { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" },
         { label: 'Portable ToR tool report link', source: reportJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
         { label: 'Visible ToR tool report planning aid', source: reportJs, value: 'class="report-planning-aid"' },

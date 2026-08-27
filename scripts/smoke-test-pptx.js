@@ -5,7 +5,7 @@
  * export, and verifies the resulting Blob:
  *   - is non-empty (> 50 KB),
  *   - starts with the ZIP magic bytes (PPTX is a ZIP container),
- *   - contains the expected slide count (cover + 11 sections + closing).
+ *   - preserves workflow metadata and all bounded sizing notes across slides.
  *
  * Run with:  node scripts/smoke-test-pptx.js
  *
@@ -40,7 +40,14 @@ const SEED_PAYLOAD = {
         defaultGateway: '10.71.0.1',
         dnsServers: ['10.71.0.5'],
         rackAwareTorsPerRoom: '2',
-        rackAwareTorArchitecture: 'lag'
+        rackAwareTorArchitecture: 'lag',
+        sizerHardware: {
+            sizingNotes: [
+                'Advisory - minimum-fit hardware: Verify the procurement baseline.',
+                'Advisory - single nodes provide no workload high-availability: Maintenance interrupts workloads.'
+            ].concat(Array.from({ length: 48 }, (_, index) => 'Sizing recommendation ' + (index + 3)))
+        },
+        sizerWorkloads: [{ type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 }]
     }
 };
 
@@ -124,6 +131,13 @@ const SEED_PAYLOAD = {
                                 const relationshipNames = Object.keys(zip.files)
                                     .filter(name => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name));
                                 const relationships = await Promise.all(relationshipNames.map(name => zip.file(name).async('string')));
+                                const slideNames = Object.keys(zip.files)
+                                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+                                const slideXml = await Promise.all(slideNames.map(name => zip.file(name).async('string')));
+                                const slideText = slideXml.map(text => {
+                                    const xml = new DOMParser().parseFromString(text, 'application/xml');
+                                    return xml.documentElement.textContent || '';
+                                });
                                 const torToolUrl = 'https://azure.github.io/odinforazurelocal/switch-config/';
                                 const hyperlinkType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';
                                 const hasTorToolLink = relationships.some(text => {
@@ -134,7 +148,16 @@ const SEED_PAYLOAD = {
                                         && relationship.getAttribute('Type') === hyperlinkType
                                         && relationship.getAttribute('TargetMode') === 'External');
                                 });
-                                complete({ size: bytes.length, headHex: head, filename: el.download, hasTorToolLink });
+                                complete({
+                                    size: bytes.length,
+                                    headHex: head,
+                                    filename: el.download,
+                                    hasTorToolLink,
+                                    sizingNotesSlides: slideText.filter(text => text.includes('Sizing Notes & Recommendations')).length,
+                                    hasFinalSizingNote: slideText.some(text => text.includes('Sizing recommendation 50')),
+                                    advisoryStyleCount: slideXml.reduce((count, text) => count + ((text.match(/val="B45309"/g) || []).length), 0),
+                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows'))
+                                });
                             })().catch(fail);
                         };
                     }
@@ -163,6 +186,15 @@ const SEED_PAYLOAD = {
         }
         if (!result.hasTorToolLink) {
             throw new Error('Portable ToR Switch tool hyperlink is missing from slide relationships');
+        }
+        if (result.sizingNotesSlides !== 3 || !result.hasFinalSizingNote) {
+            throw new Error(`Sizing notes were not preserved across 3 slides (slides=${result.sizingNotesSlides}, final=${result.hasFinalSizingNote})`);
+        }
+        if (result.advisoryStyleCount < 2) {
+            throw new Error('Both minimum-fit and Single Node Advisory headings must retain amber styling');
+        }
+        if (!result.hasWorkflowSubtitle) {
+            throw new Error('Sizer and Designer workflow subtitle is missing from the cover slide');
         }
 
         console.log(`PPTX smoke test: OK — ${result.filename}, ${(result.size / 1024).toFixed(1)} KB, magic ${result.headHex}`);

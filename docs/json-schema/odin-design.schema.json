@@ -238,6 +238,7 @@
         "infraGateway": { "type": ["string", "null"] },
         "infraGatewayManual": { "type": "boolean" },
         "infraPoolManual": { "type": "boolean" },
+        "infraPoolEndAuto": { "type": "boolean", "description": "Whether the Infrastructure IP Pool ending address was derived from its starting address." },
         "infraVlan": { "type": ["string", "boolean", "null"], "description": "Infrastructure VLAN toggle." },
         "storageAutoIp": { "type": ["string", "boolean", "null"], "description": "Storage Auto-IP toggle." },
         "customStorageSubnetsConfirmed": { "type": "boolean" },
