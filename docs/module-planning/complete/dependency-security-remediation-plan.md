@@ -1,5 +1,7 @@
 # Dependency Security Remediation Plan
 
+Status: **shipped (v0.23.01)**.
+
 ## Current state
 
 - Development-only transitive dependencies have new high and moderate advisories.

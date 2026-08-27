@@ -7940,6 +7940,7 @@ function updateInfraNetwork() {
     if (typeof renderInfraSubnetBar === 'function') {
         renderInfraSubnetBar();
     }
+    saveStateToLocalStorage();
 }
 
 function markInfraCidrManual(value) {

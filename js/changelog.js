@@ -73,6 +73,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>GPU instance totals</strong> &mdash; Sizer-originated reports show the full NVIDIA model per node and total physical GPU count across the instance.</li>
                         <li><strong>ToR configuration planning link</strong> &mdash; Host Networking reports and the Physical Network Configuration PowerPoint slide link to the portable ToR Switch Configuration Generator &amp; Validator for example Cisco and Dell configurations.</li>
                         <li><strong>Infrastructure IP Pool auto-ending</strong> &mdash; entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address, including after resume or import.</li>
+                        <li><strong>Designer session and mobile reliability</strong> &mdash; valid Infrastructure IP Pool edits persist for resume, while compact navigation and aligned breadcrumbs keep utility controls accessible on narrow mobile screens.</li>
                         <li><strong>Designer UI and report reliability</strong> &mdash; completed SAN designs report architecture-aware selections without HCI-only false warnings; all report formats preserve workflow metadata, bounded Sizing Notes, and Advisory headings; the template picker is keyboard-operable; and the welcome screen identifies AI workloads in Sizer coverage.</li>
                         <li><strong>AMD Turin catalog coverage</strong> &mdash; standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.</li>
                         <li><strong>GPU-P and guidance</strong> &mdash; cluster-wide partition consistency is enforced, and GPU controls link to the relevant Microsoft Learn pages.</li>
@@ -81,7 +82,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Foundry model discovery</strong> &mdash; the Worker Profile input links to Microsoft&rsquo;s current Foundry Local model catalog for compatible OSS model exploration.</li>
                         <li><strong>GHES feature allowances</strong> &mdash; GitHub Enterprise Local defaults to one VM and can include the documented Actions and Code Security CPU/memory increments.</li>
                         <li><strong>Integrated release validation</strong> &mdash; reusable Sizer and Designer real-UI matrices now complement static tests for releases and relevant pull requests.</li>
-                        <li>All <strong>1,559 / 1,559</strong> browser tests pass.</li>
+                        <li>All <strong>1,560 / 1,560</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

@@ -675,6 +675,37 @@ function checkReportPresentationContracts() {
     return false;
 }
 
+function checkDesignerResponsiveContracts() {
+    const indexHtml = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8').replace(/\r\n/g, '\n');
+    const styleCss = fs.readFileSync(path.resolve(process.cwd(), 'css', 'style.css'), 'utf8').replace(/\r\n/g, '\n');
+    const compactNavigation = `        @media (max-width: 480px) {
+            .odin-tab-container {
+                gap: 2px;
+            }
+
+            .odin-tab-btn {
+                padding: 8px 6px;
+            }
+
+            .nav-theme-toggle {
+                padding: 6px 4px;
+            }
+        }`;
+    const alignedBreadcrumb = `    .breadcrumb-nav {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }`;
+
+    if (indexHtml.includes(compactNavigation) && styleCss.includes(alignedBreadcrumb)) {
+        console.log('✅ Designer responsive contracts OK: compact navigation and aligned breadcrumb present');
+        return true;
+    }
+
+    if (!indexHtml.includes(compactNavigation)) console.error('❌ Designer responsive contract missing: compact navigation at 480px');
+    if (!styleCss.includes(alignedBreadcrumb)) console.error('❌ Designer responsive contract missing: aligned mobile breadcrumb');
+    return false;
+}
+
 function checkReportArchitectureSelections() {
     const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
     const helperMatch = reportJs.match(/function getArchitectureSelections\(s\) \{[\s\S]*?\r?\n    \}\r?\n\r?\n    function computeValidations/);
@@ -856,6 +887,10 @@ function generateJUnitXML(results, passed, failed, total) {
         // render site" (the bug that motivated this gate).
         if (!checkRendererCoverage()) {
             console.error('\n❌ Renderer coverage check failed — wire the missing field(s) into the report/PPT, or document why they are intentionally omitted.');
+            process.exit(1);
+        }
+        if (!checkDesignerResponsiveContracts()) {
+            console.error('\n❌ Designer responsive contract check failed.');
             process.exit(1);
         }
         if (!checkReportPresentationContracts()) {

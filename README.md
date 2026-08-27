@@ -70,6 +70,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **GPU instance totals** — Sizer-originated reports show the full NVIDIA model name per node and total physical GPU count across the instance.
 - **ToR configuration planning link** — Host Networking reports and the Physical Network Configuration PowerPoint slide link to the portable ToR Switch Configuration Generator & Validator for example Cisco and Dell configurations.
 - **Infrastructure IP Pool auto-ending** — entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address, including after resume or import.
+- **Designer session and mobile reliability** — valid Infrastructure IP Pool edits persist for resume, while compact navigation and aligned breadcrumbs keep utility controls accessible on narrow mobile screens.
 - **Designer UI and report reliability** — completed SAN designs report architecture-aware selections without HCI-only false warnings; all report formats preserve workflow metadata, bounded Sizing Notes, and Advisory headings; the template picker is keyboard-operable; and the welcome screen identifies AI workloads in Sizer coverage.
 - **AMD Turin catalog coverage** — standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.
 - **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
@@ -77,7 +78,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Learn-aligned AI sizing** — Foundry Local uses published minimum/recommended worker profiles and per-deployment model-cache storage, while Agentic Retrieval and Video Indexer no longer add undocumented overhead above their published worker requirements.
 - **Foundry Local model discovery** — the Worker Profile input links to Microsoft's current Foundry Local model catalog for compatible OSS model exploration without coupling model choice to a fixed sizing preset.
 - **GHES feature-aware sizing** — GitHub Enterprise Local defaults to one appliance VM, supports optional active/passive replicas, and adds the documented CPU/memory allowances for GitHub Actions and GitHub Code Security.
-- **Validation** — all **1,559 / 1,559** browser tests pass. Reusable Sizer and Designer real-UI validation matrices now complement the static suite for release candidates and relevant PRs, covering rendered-control transitions, synchronization, reset cleanup, outputs, handoffs, responsive layouts, and accessibility.
+- **Validation** — all **1,560 / 1,560** browser tests pass. Reusable Sizer and Designer real-UI validation matrices now complement the static suite for release candidates and relevant PRs, covering rendered-control transitions, synchronization, reset cleanup, outputs, handoffs, responsive layouts, and accessibility.
 
 ---
 

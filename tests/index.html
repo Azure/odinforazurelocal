@@ -3729,6 +3729,32 @@
                     state.infraPoolEndAuto = previousEndAutoState;
                     state.infra = previousInfra;
                 }
+            })(),
+            (() => {
+                const startInput = document.createElement('input');
+                const endInput = document.createElement('input');
+                startInput.id = 'infra-ip-start';
+                endInput.id = 'infra-ip-end';
+                document.body.appendChild(startInput);
+                document.body.appendChild(endInput);
+                const previousSave = saveStateToLocalStorage;
+                const previousInfra = state.infra;
+                let saveCount = 0;
+                try {
+                    saveStateToLocalStorage = () => { saveCount++; };
+                    startInput.value = '192.168.1.10';
+                    endInput.value = '192.168.1.15';
+                    updateInfraNetwork();
+                    return assert(saveCount === 1 && state.infra && state.infra.end === '192.168.1.15',
+                        'Valid Infrastructure IP Pool edits are saved for session resume',
+                        'one save with 192.168.1.15',
+                        saveCount + ' save(s), ' + JSON.stringify(state.infra));
+                } finally {
+                    saveStateToLocalStorage = previousSave;
+                    startInput.remove();
+                    endInput.remove();
+                    state.infra = previousInfra;
+                }
             })()
         ]);
 

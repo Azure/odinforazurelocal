@@ -1,6 +1,6 @@
 # iSCSI 6-NIC + backup — customer-managed Backup vNIC on Mgmt+Compute SET
 
-Status: **implemented — validated locally (1404 tests passing)**. Target branch: `Release`.
+Status: **shipped (v0.22.70)**.
 
 ## Current state (before this change)
 When In-Guest Backup was enabled on a 6-NIC iSCSI disaggregated cluster, the host-networking
