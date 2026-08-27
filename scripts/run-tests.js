@@ -564,6 +564,40 @@ function checkRendererCoverage() {
                 { file: path.join('report', 'report.js'), label: 'report/report.js' },
                 { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
             ]
+        },
+        {
+            label: 'sizerPayload.sizerHardware.sizingNotes',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware'],
+            expectedFieldNames: ['sizingNotes'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
+        },
+        {
+            label: 'sizerPayload.sizerHardware.s2dCalculation',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            varName: 'sizerPayload',
+            keyPath: ['sizerHardware'],
+            expectedFieldNames: ['s2dCalculation'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
+        },
+        {
+            label: 'sizerPayload.sizerWorkloads GPU metadata',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            sourceAnchor: 'sizerWorkloads: workloads.map',
+            varName: 'entry',
+            keyPath: [],
+            expectedFieldNames: ['gpuMode', 'gpuType', 'gpuLabel'],
+            consumers: [
+                { file: path.join('report', 'report.js'), label: 'report/report.js' },
+                { file: path.join('report', 'pptx-export.js'), label: 'report/pptx-export.js' }
+            ]
         }
     ];
 
@@ -571,7 +605,18 @@ function checkRendererCoverage() {
     cases.forEach(c => {
         try {
             const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
-            const fieldNames = extractNestedObjectKeysFromConst(src, c.varName, c.keyPath);
+            const anchorIndex = c.sourceAnchor ? src.indexOf(c.sourceAnchor) : 0;
+            if (anchorIndex < 0) throw new Error(`Could not find source anchor '${c.sourceAnchor}' in ${c.sourceFile}`);
+            const sourceScope = src.slice(anchorIndex);
+            const extractedFields = extractNestedObjectKeysFromConst(sourceScope, c.varName, c.keyPath);
+            const fieldNames = c.expectedFieldNames || extractedFields;
+            if (c.expectedFieldNames) {
+                const extractedSet = new Set(extractedFields);
+                const missingFromSource = fieldNames.filter(f => !extractedSet.has(f));
+                if (missingFromSource.length > 0) {
+                    throw new Error(`Payload field(s) missing from ${c.sourceFile}: ${missingFromSource.join(', ')}`);
+                }
+            }
             c.consumers.forEach(consumer => {
                 const consumerSrc = fs.readFileSync(path.resolve(process.cwd(), consumer.file), 'utf8');
                 const missing = fieldNames.filter(f => !new RegExp('\\b' + f + '\\b').test(consumerSrc));
@@ -591,6 +636,122 @@ function checkRendererCoverage() {
         }
     });
     return allOk;
+}
+
+function checkReportPresentationContracts() {
+    const reportHtml = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.html'), 'utf8');
+    const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
+    const pptxJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'pptx-export.js'), 'utf8');
+    const rackSvgJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'rack-svg.js'), 'utf8');
+    const sizerJs = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.js'), 'utf8');
+    const title = 'Azure Local Instance | Design Configuration Report';
+    const required = [
+        { label: 'HTML report title', source: reportHtml, value: title },
+        { label: 'Markdown/PDF report title', source: reportJs, value: title },
+        { label: 'PowerPoint report title', source: pptxJs, value: title },
+        { label: 'Designer-only singular workflow subtitle', source: reportJs, value: 'Designer workflow' },
+        { label: 'Sizer and Designer plural workflow subtitle', source: reportJs, value: 'Sizer and Designer workflows' },
+        { label: 'Markdown workflow subtitle', source: reportJs, value: 'md.push(getReportSubtitle(s))' },
+        { label: 'Markdown sizing notes section', source: reportJs, value: "md.push('## Sizing Notes & Recommendations (from Sizer)')" },
+        { label: 'Azure connected report scenario label', source: reportJs, value: 'Azure connected control plane' },
+        { label: 'Disconnected report scenario label', source: reportJs, value: 'Disconnected control plane' },
+        { label: 'Generic Advisory heading parser', source: reportJs, value: 'function parseSizerAdvisory(note)' },
+        { label: 'PowerPoint workflow subtitle', source: pptxJs, value: 'function getWorkflowSubtitle(state)' },
+        { label: 'PowerPoint sizing note pagination', source: pptxJs, value: 'paginateBullets: true' },
+        { label: 'Customer-facing GPU rack legend', source: rackSvgJs, value: "label: 'GPU Enabled'" },
+        { label: 'Portable ToR tool report link', source: reportJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
+        { label: 'Visible ToR tool report planning aid', source: reportJs, value: 'class="report-planning-aid"' },
+        { label: 'Portable ToR tool PowerPoint link', source: pptxJs, value: 'https://azure.github.io/odinforazurelocal/switch-config/' },
+        { label: 'Foundry Local model catalog link', source: sizerJs, value: 'https://learn.microsoft.com/azure/azure-sovereign-clouds/private/foundry-local/concept-model-catalog#example-models-in-the-curated-catalog' }
+    ];
+    const missing = required.filter(item => !item.source.includes(item.value));
+    const oldLegendPresent = rackSvgJs.includes("label: 'GPU Accent'");
+    if (missing.length === 0 && !oldLegendPresent) {
+        console.log(`✅ Report presentation contracts OK: ${required.length} required strings present`);
+        return true;
+    }
+    missing.forEach(item => console.error(`❌ Report presentation contract missing: ${item.label}`));
+    if (oldLegendPresent) console.error('❌ Report presentation contract still contains the old GPU Accent legend');
+    return false;
+}
+
+function checkDesignerResponsiveContracts() {
+    const indexHtml = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8').replace(/\r\n/g, '\n');
+    const styleCss = fs.readFileSync(path.resolve(process.cwd(), 'css', 'style.css'), 'utf8').replace(/\r\n/g, '\n');
+    const compactNavigation = `        @media (max-width: 480px) {
+            .odin-tab-container {
+                gap: 2px;
+            }
+
+            .odin-tab-btn {
+                padding: 8px 6px;
+            }
+
+            .nav-theme-toggle {
+                padding: 6px 4px;
+            }
+        }`;
+    const alignedBreadcrumb = `    .breadcrumb-nav {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }`;
+
+    if (indexHtml.includes(compactNavigation) && styleCss.includes(alignedBreadcrumb)) {
+        console.log('✅ Designer responsive contracts OK: compact navigation and aligned breadcrumb present');
+        return true;
+    }
+
+    if (!indexHtml.includes(compactNavigation)) console.error('❌ Designer responsive contract missing: compact navigation at 480px');
+    if (!styleCss.includes(alignedBreadcrumb)) console.error('❌ Designer responsive contract missing: aligned mobile breadcrumb');
+    return false;
+}
+
+function checkReportArchitectureSelections() {
+    const reportJs = fs.readFileSync(path.resolve(process.cwd(), 'report', 'report.js'), 'utf8');
+    const helperMatch = reportJs.match(/function getArchitectureSelections\(s\) \{[\s\S]*?\r?\n    \}\r?\n\r?\n    function computeValidations/);
+    if (!helperMatch) {
+        console.error('❌ Report architecture selections helper could not be loaded');
+        return false;
+    }
+
+    const helperSource = helperMatch[0].replace(/\r?\n\r?\n    function computeValidations$/, '');
+    const getArchitectureSelections = new Function(
+        'formatScale',
+        'formatIntent',
+        'return (' + helperSource + ');'
+    )(value => 'Scale: ' + value, value => 'Intent: ' + value);
+
+    const disaggregated = getArchitectureSelections({
+        architecture: 'disaggregated',
+        disaggRackCount: 4,
+        disaggNodesPerRack: 16,
+        disaggStorageType: 'fc_san',
+        disaggPortCount: '4',
+        disaggNicConfigConfirmed: true
+    });
+    const hci = getArchitectureSelections({
+        architecture: 'hci',
+        scale: 'medium',
+        storage: 'switched',
+        ports: '4',
+        intent: 'mgmt_compute'
+    });
+    const disaggregatedOk = disaggregated.scaleSelected
+        && disaggregated.scale === '4 racks × 16 nodes per rack'
+        && disaggregated.storageSelected && disaggregated.storage === 'FC SAN'
+        && disaggregated.portsSelected && disaggregated.ports === '4'
+        && disaggregated.intentSelected;
+    const hciOk = hci.scaleSelected && hci.scale === 'Scale: medium'
+        && hci.storageSelected && hci.storage === 'Switched'
+        && hci.portsSelected && hci.ports === '4'
+        && hci.intentSelected && hci.intent === 'Intent: mgmt_compute';
+
+    if (disaggregatedOk && hciOk) {
+        console.log('✅ Report architecture selections OK: disaggregated and HCI fields map correctly');
+        return true;
+    }
+    console.error('❌ Report architecture selections do not map correctly');
+    return false;
 }
 
 function generateNUnitXML(results, passed, failed, total) {
@@ -726,6 +887,18 @@ function generateJUnitXML(results, passed, failed, total) {
         // render site" (the bug that motivated this gate).
         if (!checkRendererCoverage()) {
             console.error('\n❌ Renderer coverage check failed — wire the missing field(s) into the report/PPT, or document why they are intentionally omitted.');
+            process.exit(1);
+        }
+        if (!checkDesignerResponsiveContracts()) {
+            console.error('\n❌ Designer responsive contract check failed.');
+            process.exit(1);
+        }
+        if (!checkReportPresentationContracts()) {
+            console.error('\n❌ Report presentation contract check failed.');
+            process.exit(1);
+        }
+        if (!checkReportArchitectureSelections()) {
+            console.error('\n❌ Report architecture selections check failed.');
             process.exit(1);
         }
 

@@ -1,16 +1,9 @@
 # ODIN — Planning Notes for Issue #230 (RVTools Excel import)
 
-> **In-flight planning document.** Lives in `docs/module-planning/` and is
-> committed to the repository so contributors and reviewers can see the
-> intended design before the work lands. Once the work ships, move this
-> file to `docs/module-planning/complete/`.
+> **Status: shipped (v0.22.55).**
 >
 > Captured: 2026-05-22. Split out of the original `issues-230-232-plan.md`
 > on 2026-06-01 when #232 was paired with #233 for the **0.21.55** release.
->
-> **Target release:** a **separate, later PR** (its own version bump). #230 is
-> **not** part of the 0.22.01 (#232 + #233) release — see
-> [`issues-232-233-plan.md`](issues-232-233-plan.md).
 
 ---
 

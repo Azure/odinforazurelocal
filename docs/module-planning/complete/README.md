@@ -6,3 +6,6 @@ why a decision was made, or when revisiting the same area later.
 
 Don't delete completed plans; just move them here from
 [`../`](../) once the corresponding work is in `main` and tagged.
+
+Add `Status: **shipped (vX.Y.Z)**.` near the top of each archived plan so its
+lifecycle and release are explicit. Preserve older planning context below it.

@@ -339,6 +339,9 @@
 
                     <!-- GPU Configuration -->
                     <h3 class="hw-subsection-title">GPU Configuration</h3>
+                    <p class="section-reference-link">
+                        <a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models" target="_blank" rel="noopener">Supported GPU models and assignment types</a>
+                    </p>
                     <div class="config-row">
                         <label for="gpu-count">GPUs per Machine</label>
                         <select id="gpu-count" onchange="onGpuCountChange()">
@@ -354,14 +357,13 @@
                         <select id="gpu-type" onchange="onGpuTypeChange()">
                             <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/machine)</option>
                             <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/machine)</option>
+                            <option value="a10">NVIDIA A10 (24 GB, 150W, max 2/machine)</option>
                             <option value="a16">NVIDIA A16 (64 GB, 250W, max 2/machine)</option>
                             <option value="a40">NVIDIA A40 (48 GB, 300W, max 2/machine)</option>
-                            <option value="a100">NVIDIA A100 (80 GB, 300W, max 2/machine)</option>
                             <option value="l4">NVIDIA L4 (24 GB, 72W, max 4/machine)</option>
                             <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/machine)</option>
                             <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/machine)</option>
                             <option value="rtxpro6000">NVIDIA RTX Pro 6000 (48 GB, 600W, max 2/machine)</option>
-                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 2/machine)</option>
                         </select>
                     </div>
                     <div class="config-row" id="gpu-max-warning" style="display: none;">
@@ -384,7 +386,7 @@
 
                     <!-- Storage Configuration -->
                     <h3 class="hw-subsection-title">Storage Configuration</h3>
-                    <p class="storage-calculator-link" id="storage-calculator-link">
+                    <p class="section-reference-link" id="storage-calculator-link">
                         Tip: Unsure? Use the <a href="../s2d-calc/">S2D Calculator tool</a>.
                     </p>
                     <div class="config-row">
@@ -577,6 +579,19 @@
                                     <option value="4">4</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div id="s2d-integration-section" class="notes-section" style="display: none;">
+                            <h3>S2D Calculation | Supported Maximum Volume Size</h3>
+                            <p class="s2d-integration-intro">Thin-provisioned Azure Local estimate. <a href="../s2d-calc/" target="_blank" rel="noopener noreferrer">Open S2D Calc</a> for interactive planning and detailed assumptions.</p>
+                            <div class="s2d-integration-values">
+                                <div><span>Number of Volumes to Create</span><strong id="s2d-volume-count">—</strong></div>
+                                <div><span>Maximum supported size of each volume</span><strong id="s2d-max-volume-size">—</strong></div>
+                            </div>
+                            <details>
+                                <summary>How the result is calculated</summary>
+                                <ul id="s2d-calculation-details"></ul>
+                            </details>
                         </div>
                     </div>
 
@@ -1334,6 +1349,8 @@
     <script src="../vendor/html2canvas-1.4.1.min.js"></script>
     <script src="../vendor/jspdf-4.2.1.umd.min.js"></script>
     <script src="rack3d.js?v=20260330z9"></script>
+    <script>window.__S2D_CALCULATIONS_ONLY__ = true;</script>
+    <script src="../s2d-calc/s2d-calc.js"></script>
     <script src="sizer.js"></script>
 </body>
 </html>

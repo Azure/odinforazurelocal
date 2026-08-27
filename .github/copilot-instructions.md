@@ -60,6 +60,8 @@
 - If your changes make imports, variables, or functions unused, remove them. Don't remove pre-existing dead code without asking first, but if you add new dead code, remove it.
 - Before implementing, state assumptions. If multiple approaches exist, present the tradeoffs — don't pick silently.
 - After making changes, run `node scripts/run-tests.js` and confirm the complete suite passes. If you add new functionality, add focused regression coverage.
+- Static tests are necessary but do not replace real-UI validation for stateful workflows. For PRs that change Sizer behavior, run the relevant scenarios in `.github/skills/sizer-scaling-release-validation/SKILL.md`. For PRs that change Designer behavior, run the relevant scenarios in `.github/skills/designer-release-validation/SKILL.md`. Cross-tool changes run both relevant smoke paths. Record the scenarios and outcomes in the PR description.
+- Before every release, run the complete Sizer and Designer matrices from both release-validation skills in addition to lint and `node scripts/run-tests.js`. Any defect found through the UI must receive focused regression coverage before the release proceeds.
 - If you need to make a breaking change, that would impact users, first raise it in the prompt to discuss it.
 - Consider this website is used on mobile devices, so ensure that any changes to the UI are responsive and work well on smaller screens.
 - When changes are made to the Designer, or Sizer, ensure that the interactions between them are fully considered and tested, to prevent any unintended consequences or bugs, for example, if you make a change to the Designer, ensure that it does not break any existing functionality in the Sizer, and vice versa.
@@ -77,6 +79,7 @@ npx eslint "js/*.js" "arm/*.js" "report/*.js" "sizer/*.js" "switch-config/**/*.j
 npx html-validate "**/*.html"        # must pass — run after any .html edit
 node scripts/run-tests.js            # must show the complete suite passing
 ```
+- Designer/Sizer changes also require the relevant real-UI skill validation above; release candidates require both complete matrices. These checks intentionally cover rendered-control state transitions, reset cleanup, synchronization, and output/handoff behavior that static assertions cannot fully exercise.
 - Zero **errors** are allowed; warnings are tolerated (legacy `var`, indentation, etc.). Don't introduce new warnings in new code — use `let`/`const`, follow existing indentation.
 - Do not disable lint rules inline (`// eslint-disable-line`) without a comment explaining why.
 - Do not modify `.eslintrc.json` or `.htmlvalidate.json` to make errors go away — fix the underlying issue or, for pre-existing structural patterns, downgrade specific rules with justification.

@@ -2696,6 +2696,11 @@ header .header-description {
         padding: 0.75rem 0.5rem;
     }
 
+    .breadcrumb-nav {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+
     header h1,
     header .header-title {
         font-size: 1.3rem;
@@ -2954,4 +2959,8 @@ header .header-description {
     .stats-row {
         display: contents;
     }
+}
+
+.sizing-note-advisory {
+    color: var(--warning);
 }

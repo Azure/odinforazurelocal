@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.02 - Available here: https://aka.ms/ODIN
+## Version 0.23.03 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,18 +49,36 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.02 - Latest Release
+### Version 0.23.03 - Latest Release
 
-> **Agentic Retrieval sizing now follows the current Foundry Local requirements.** This release separates CPU and embedding-GPU pools, models Combined, Knowledge, and Agentic deployment modes, and includes explicit external or local language-model endpoint capacity.
+> **Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.**
 
 **What's new**
-- **Documented deployment topology** — all modes include three D8s_v3-equivalent CPU workers; Combined and Knowledge add two embedding GPU workers, while Agentic-only does not allocate embedding GPUs.
-- **Explicit LLM endpoint sizing** — choose an external OpenAI-compatible endpoint, Foundry Local minimum, or Foundry Local production. Local GPT-OSS-20B choices add the documented dedicated CPU, memory, storage, GPU, and VRAM baseline.
-- **GPU validation** — Agentic Retrieval offers the full AKS Arc DDA list (T4, A2, A16, L4, L40, L40S, and RTX Pro 6000), identifies NC8_A2 and NC8_A16 as recommended sizes, and rejects insufficient local model-host VRAM.
-- **Compatible payload update** — `SIZER_VERSION` is now 3 with `deploymentMode` and `llmEndpoint`; older `computeMode` exports still import as Combined with an external endpoint.
-- **Reports and schemas aligned** — Sizer cards, JSON Schema, Markdown/HTML reports, and PowerPoint output use the Agentic Retrieval name and current topology.
-- **Dependency audit restored** — patched `js-yaml` and `brace-expansion` versions are enforced. The unavailable nanoid fix remains visible through one narrowly scoped temporary audit exception.
-- **Validation** — all **1,504 / 1,504** browser tests pass, including the new deployment-mode, endpoint, GPU, and legacy-import cases.
+- **Model-dependent total GPU sizing** — Total VM mode accepts up to 252 GPUs for four-per-machine models such as L40S and 126 GPUs for two-per-machine models such as A2 across 63 N−1 effective machines (64 physical machines).
+- **Per-machine limits preserved** — Per-VM and other workload modes retain each model's supported GPUs-per-machine limit, and switching models clamps oversized values immediately.
+- **Instance-wide validation** — combined same-model workloads cannot exceed the selected GPU model's N−1 Azure Local instance capacity, and GPU totals drive machine recommendations; mixed models continue to produce the dedicated homogeneous-GPU conflict.
+- **Growth at the GPU ceiling** — Sizer removes and explains the automatic 10% growth allowance when it alone would exceed N−1 GPU capacity; manually selected growth remains unchanged and receives an actionable over-capacity warning.
+- **H100 removed** — NVIDIA H100 is no longer offered in Sizer hardware, DDA, or GPU-P choices and has been removed from the current public Sizer schema enum.
+- **Learn-aligned GPU support** — Arc VM DDA offers T4, A2, A16, L4, L40, L40S, and RTX Pro 6000; GPU-P offers A2, A10, A16, A40, L4, L40, L40S, and RTX Pro 6000. A100 is removed, and the same support applies to hyperconverged and disaggregated deployments.
+- **Right-sized GPU inventory** — automatically managed GPUs per machine are reconciled after machine scaling to preserve N−1 headroom without retaining unnecessary devices, including returning to zero after the final GPU workload is removed while preserving manual inventory.
+- **Stable scaling and reset behavior** — Agentic Retrieval production defaults select a compatible GPU and synchronize Hardware Configuration; topology/rack transitions settle without recursive reversal; disaggregated rack capacity is rechecked; and ALDO Reset re-enables all workload cards.
+- **Minimum-fit procurement guidance** — the first Sizing Note displays an amber "Advisory" label within the bold "Advisory - minimum-fit hardware" heading when configurations below 32 physical cores or 384 GB memory per machine are minimum-fit results rather than new-hardware procurement baselines.
+- **Single Node availability guidance** — Single Node results place a matching Advisory first, explaining that one machine has no live-migration or workload-failover destination and restart-requiring maintenance interrupts workloads.
+- **Sizing Notes in design documents** — Sizer recommendations now flow into Designer and appear in both HTML and PowerPoint cluster design documents.
+- **Design report fidelity** — reports use the "Azure Local Instance | Design Configuration Report" title, identify Designer-only or Sizer-and-Designer workflow inputs, include each workload's resolved GPU model and mode across document formats, match the Sizer's Advisory styling, and label GPU racks as "GPU Enabled."
+- **S2D guidance in design reports** — Single Node, standard, and rack-aware Sizer results show the recommended number of volumes and maximum supported size per volume, then carry the exact calculation and derivation through Designer into HTML, Word, Markdown, and PowerPoint.
+- **GPU instance totals** — Sizer-originated reports show the full NVIDIA model name per node and total physical GPU count across the instance.
+- **ToR configuration planning link** — Host Networking reports and the Physical Network Configuration PowerPoint slide link to the portable ToR Switch Configuration Generator & Validator for example Cisco and Dell configurations.
+- **Infrastructure IP Pool auto-ending** — entering a valid Starting IP in Designer automatically fills the minimum six-address Ending IP without overwriting a manual ending address, including after resume or import.
+- **Designer session and mobile reliability** — valid Infrastructure IP Pool edits persist for resume, while compact navigation and aligned breadcrumbs keep utility controls accessible on narrow mobile screens.
+- **Designer UI and report reliability** — completed SAN designs report architecture-aware selections without HCI-only false warnings; all report formats preserve workflow metadata, bounded Sizing Notes, and Advisory headings; the template picker is keyboard-operable; and the welcome screen identifies AI workloads in Sizer coverage.
+- **AMD Turin catalog coverage** — standard 5th Gen AMD EPYC sizing now includes the catalog-listed 84-core-per-socket option.
+- **Cluster-wide GPU-P planning** — Sizer rejects conflicting partition sizes across workloads and links hardware, DDA, GPU-P, and AKS controls to the relevant Microsoft Learn guidance.
+- **[No AKS double-counting](https://github.com/Azure/odinforazurelocal/issues/284)** — Foundry Local, Agentic Retrieval, and AI Video Indexer visibly include dedicated AKS Arc infrastructure; add the generic AKS workload only for another independent cluster. GitHub Enterprise Local runs as a GHES appliance VM, not on AKS.
+- **Learn-aligned AI sizing** — Foundry Local uses published minimum/recommended worker profiles and per-deployment model-cache storage, while Agentic Retrieval and Video Indexer no longer add undocumented overhead above their published worker requirements.
+- **Foundry Local model discovery** — the Worker Profile input links to Microsoft's current Foundry Local model catalog for compatible OSS model exploration without coupling model choice to a fixed sizing preset.
+- **GHES feature-aware sizing** — GitHub Enterprise Local defaults to one appliance VM, supports optional active/passive replicas, and adds the documented CPU/memory allowances for GitHub Actions and GitHub Code Security.
+- **Validation** — all **1,560 / 1,560** browser tests pass. Reusable Sizer and Designer real-UI validation matrices now complement the static suite for release candidates and relevant PRs, covering rendered-control transitions, synchronization, reset cleanup, outputs, handoffs, responsive layouts, and accessibility.
 
 ---
 
@@ -385,7 +403,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.02<br>
+**Version**: 0.23.03<br>
 **Last Updated**: August 2026<br>
 **Compatibility**: Azure Local 2506+
 

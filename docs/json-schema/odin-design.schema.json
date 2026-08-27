@@ -149,8 +149,35 @@
         "sizerHardware": {
           "type": ["object", "null"],
           "additionalProperties": true,
-          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary, power). Only the `power` sub-object is structurally enforced by CI deep-drift right now; the rest is additionalProperties for forward compatibility. Source of truth: the `sizerHardware` block built inside `selectRegionAndConfigure()`'s `sizerPayload` in sizer/sizer.js.",
+          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary, sizing notes, power). Only the `power` sub-object is structurally enforced by CI deep-drift right now; the rest is additionalProperties for forward compatibility. Source of truth: the `sizerHardware` block built inside `selectRegionAndConfigure()`'s `sizerPayload` in sizer/sizer.js.",
           "properties": {
+            "sizingNotes": {
+              "type": ["array", "null"],
+              "maxItems": 50,
+              "description": "Bounded plain-text Sizer recommendations captured at Designer handoff and rendered in cluster design documents.",
+              "items": { "type": "string", "maxLength": 2000 }
+            },
+            "s2dCalculation": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "description": "Sizer-computed Azure Local S2D volume guidance for Single Node, hyperconverged, and rack-aware deployments.",
+              "properties": {
+                "provisioning": { "type": "string", "enum": ["Thin"] },
+                "extentMiB": { "type": "number" },
+                "copies": { "type": "integer", "enum": [2, 3, 4] },
+                "nodeCount": { "type": "integer", "minimum": 1 },
+                "tiering": { "type": "string", "enum": ["Capacity only", "Cache and Capacity"] },
+                "maximumVolumeTB": { "type": "number", "minimum": 0 },
+                "maximumVolumeLabel": { "type": "string", "maxLength": 50 },
+                "volumeCount": { "type": "integer", "minimum": 0, "maximum": 64 },
+                "usableCapacityTB": { "type": "number", "minimum": 0 },
+                "derivation": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": { "type": "string", "maxLength": 500 }
+                }
+              }
+            },
             "power": {
               "type": ["object", "null"],
               "additionalProperties": false,
@@ -175,7 +202,16 @@
         },
         "sizerWorkloads": {
           "type": ["array", "object", "null"],
-          "description": "Hidden: individual workload details handed off from the Sizer."
+          "description": "Hidden: individual workload details handed off from the Sizer.",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "gpuMode": { "type": ["string", "null"], "enum": ["dda", "gpu-p", null] },
+              "gpuType": { "type": ["string", "null"], "description": "Stable Sizer GPU model key." },
+              "gpuLabel": { "type": ["string", "null"], "description": "Display label for the GPU model." }
+            }
+          }
         },
         "ports": { "type": ["integer", "string", "null"], "description": "Selected NIC port count per node." },
         "portConfig": { "type": ["object", "null"], "additionalProperties": true, "description": "Per-port configuration (HCI)." },
@@ -202,6 +238,7 @@
         "infraGateway": { "type": ["string", "null"] },
         "infraGatewayManual": { "type": "boolean" },
         "infraPoolManual": { "type": "boolean" },
+        "infraPoolEndAuto": { "type": "boolean", "description": "Whether the Infrastructure IP Pool ending address was derived from its starting address." },
         "infraVlan": { "type": ["string", "boolean", "null"], "description": "Infrastructure VLAN toggle." },
         "storageAutoIp": { "type": ["string", "boolean", "null"], "description": "Storage Auto-IP toggle." },
         "customStorageSubnetsConfirmed": { "type": "boolean" },

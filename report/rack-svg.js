@@ -318,7 +318,7 @@
             { color: '#1a6fc4', label: 'Core Switch' }
         ];
         if (hasGpu) {
-            legendItems.splice(1, 0, { color: C.GPU_ACCENT, label: 'GPU Accent' });
+            legendItems.splice(1, 0, { color: C.GPU_ACCENT, label: 'GPU Enabled' });
         }
 
         let legendTotalW = 0;

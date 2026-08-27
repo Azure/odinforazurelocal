@@ -7,7 +7,7 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="no-referrer">
     <link rel="icon" type="image/png" href="../images/odin-logo.png">
-    <title>Odin for Azure Local — Report</title>
+    <title>Azure Local Instance | Design Configuration Report</title>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="../css/style.css">
     <style>
@@ -34,10 +34,33 @@
         body.print-friendly-mode strong {
             color: #000000 !important;
         }
+        body.print-friendly-mode .sizing-note-advisory {
+            color: #b45309 !important;
+        }
         body.print-friendly-mode .info-box {
             background: #f5f5f5 !important;
             border-color: #cccccc !important;
             color: #000000 !important;
+        }
+
+        #report-meta strong {
+            display: inline;
+            margin: 0;
+        }
+
+        .report-planning-aid {
+            margin-top: 0.75rem;
+            padding-top: 0.65rem;
+            border-top: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .report-planning-aid a,
+        .report-planning-aid a:visited {
+            color: var(--accent-blue);
+            font-weight: 600;
         }
 
         /* Mobile responsive styles for Report page */
@@ -359,7 +382,7 @@
                 <img src="../images/odin-logo.png" alt="ODIN Logo">
                 <span>ODIN</span>
             </a>
-            <span class="page-header-title">Configuration Report</span>
+            <span class="page-header-title">Azure Local Instance | Design Configuration Report</span>
             <div class="page-header-actions">
                 <button type="button" id="print-friendly-btn" class="header-action-btn" onclick="togglePrintFriendly()">
                     🖨️ Print Friendly
@@ -383,8 +406,8 @@
 
     <main class="container">
         <header>
-            <h1>Configuration Report</h1>
-            <p>Explains what was selected and why, based on the wizard decision rules.</p>
+            <h1>Azure Local Instance | Design Configuration Report</h1>
+            <p id="report-subtitle">This report explains what was selected and why, based on the inputs from ODIN Designer workflow.</p>
         </header>
 
         <section class="step" style="margin-bottom:1.5rem;">

@@ -5,7 +5,7 @@
  * export, and verifies the resulting Blob:
  *   - is non-empty (> 50 KB),
  *   - starts with the ZIP magic bytes (PPTX is a ZIP container),
- *   - contains the expected slide count (cover + 11 sections + closing).
+ *   - preserves workflow metadata and all bounded sizing notes across slides.
  *
  * Run with:  node scripts/smoke-test-pptx.js
  *
@@ -40,7 +40,14 @@ const SEED_PAYLOAD = {
         defaultGateway: '10.71.0.1',
         dnsServers: ['10.71.0.5'],
         rackAwareTorsPerRoom: '2',
-        rackAwareTorArchitecture: 'lag'
+        rackAwareTorArchitecture: 'lag',
+        sizerHardware: {
+            sizingNotes: [
+                'Advisory - minimum-fit hardware: Verify the procurement baseline.',
+                'Advisory - single nodes provide no workload high-availability: Maintenance interrupts workloads.'
+            ].concat(Array.from({ length: 48 }, (_, index) => 'Sizing recommendation ' + (index + 3)))
+        },
+        sizerWorkloads: [{ type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 }]
     }
 };
 
@@ -87,32 +94,82 @@ const SEED_PAYLOAD = {
         const result = await page.evaluate(async () => {
             return await new Promise((resolve, reject) => {
                 const origCreateElement = document.createElement.bind(document);
+                let settled = false;
+                let timeoutId;
+
+                function complete(value) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    document.createElement = origCreateElement;
+                    resolve(value);
+                }
+
+                function fail(error) {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    document.createElement = origCreateElement;
+                    reject(error);
+                }
+
                 document.createElement = function (tag) {
                     const el = origCreateElement(tag);
                     if (String(tag).toLowerCase() === 'a') {
                         const origClick = el.click.bind(el);
-                        el.click = async function () {
-                            try {
-                                const url = el.href;
-                                if (!url || !url.startsWith('blob:')) return origClick();
+                        el.click = function () {
+                            const url = el.href;
+                            if (!url || !url.startsWith('blob:')) return origClick();
+                            void (async function () {
                                 const resp = await fetch(url);
                                 const buf = await resp.arrayBuffer();
                                 const bytes = new Uint8Array(buf);
                                 const head = Array.from(bytes.slice(0, 4))
                                     .map(b => b.toString(16).padStart(2, '0'))
                                     .join(' ');
-                                resolve({ size: bytes.length, headHex: head, filename: el.download });
-                            } catch (e) {
-                                reject(e);
-                            }
+                                const zip = await window.JSZip.loadAsync(buf);
+                                const relationshipNames = Object.keys(zip.files)
+                                    .filter(name => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(name));
+                                const relationships = await Promise.all(relationshipNames.map(name => zip.file(name).async('string')));
+                                const slideNames = Object.keys(zip.files)
+                                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+                                const slideXml = await Promise.all(slideNames.map(name => zip.file(name).async('string')));
+                                const slideText = slideXml.map(text => {
+                                    const xml = new DOMParser().parseFromString(text, 'application/xml');
+                                    return xml.documentElement.textContent || '';
+                                });
+                                const torToolUrl = 'https://azure.github.io/odinforazurelocal/switch-config/';
+                                const hyperlinkType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';
+                                const hasTorToolLink = relationships.some(text => {
+                                    const xml = new DOMParser().parseFromString(text, 'application/xml');
+                                    if (xml.querySelector('parsererror')) return false;
+                                    return Array.from(xml.getElementsByTagNameNS('*', 'Relationship')).some(relationship =>
+                                        relationship.getAttribute('Target') === torToolUrl
+                                        && relationship.getAttribute('Type') === hyperlinkType
+                                        && relationship.getAttribute('TargetMode') === 'External');
+                                });
+                                complete({
+                                    size: bytes.length,
+                                    headHex: head,
+                                    filename: el.download,
+                                    hasTorToolLink,
+                                    sizingNotesSlides: slideText.filter(text => text.includes('Sizing Notes & Recommendations')).length,
+                                    hasFinalSizingNote: slideText.some(text => text.includes('Sizing recommendation 50')),
+                                    advisoryStyleCount: slideXml.reduce((count, text) => count + ((text.match(/val="B45309"/g) || []).length), 0),
+                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows'))
+                                });
+                            })().catch(fail);
                         };
                     }
                     return el;
                 };
 
-                window.downloadReportPptx('default');
-
-                setTimeout(() => reject(new Error('PPTX generation timed out after 30s')), 30000);
+                timeoutId = setTimeout(() => fail(new Error('PPTX generation timed out after 30s')), 30000);
+                try {
+                    window.downloadReportPptx('default');
+                } catch (error) {
+                    fail(error);
+                }
             });
         });
 
@@ -126,6 +183,18 @@ const SEED_PAYLOAD = {
         }
         if (!/^odin-configuration-report_.+\.pptx$/.test(result.filename || '')) {
             throw new Error(`Unexpected download filename: ${result.filename}`);
+        }
+        if (!result.hasTorToolLink) {
+            throw new Error('Portable ToR Switch tool hyperlink is missing from slide relationships');
+        }
+        if (result.sizingNotesSlides !== 3 || !result.hasFinalSizingNote) {
+            throw new Error(`Sizing notes were not preserved across 3 slides (slides=${result.sizingNotesSlides}, final=${result.hasFinalSizingNote})`);
+        }
+        if (result.advisoryStyleCount < 2) {
+            throw new Error('Both minimum-fit and Single Node Advisory headings must retain amber styling');
+        }
+        if (!result.hasWorkflowSubtitle) {
+            throw new Error('Sizer and Designer workflow subtitle is missing from the cover slide');
         }
 
         console.log(`PPTX smoke test: OK — ${result.filename}, ${(result.size / 1024).toFixed(1)} KB, magic ${result.headHex}`);

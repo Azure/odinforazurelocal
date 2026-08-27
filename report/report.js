@@ -425,9 +425,53 @@
             .replace(/'/g, '&#39;');
     }
 
+    function parseSizerAdvisory(note) {
+        return /^(Advisory)( - [^:\r\n]+:)([\s\S]*)$/.exec(String(note || ''));
+    }
+
+    function renderSizerSizingNoteHtml(note) {
+        const text = String(note || '');
+        const advisory = parseSizerAdvisory(text);
+        if (!advisory) return escapeHtml(text);
+        return '<strong><span class="sizing-note-advisory">Advisory</span>'
+            + escapeHtml(advisory[2])
+            + '</strong>'
+            + escapeHtml(advisory[3]);
+    }
+
+    function formatSizerWorkloadGpu(workload) {
+        if (!workload || !workload.gpuType) return '';
+        const mode = workload.gpuMode === 'gpu-p' ? 'GPU-P' : workload.gpuMode === 'dda' ? 'DDA' : '';
+        return (workload.gpuLabel || workload.gpuType) + (mode ? ' (' + mode + ')' : '');
+    }
+
+    function formatHardwareGpuType(gpuType) {
+        const modelLabels = {
+            t4: 'NVIDIA T4', a2: 'NVIDIA A2', a10: 'NVIDIA A10',
+            a16: 'NVIDIA A16', a40: 'NVIDIA A40', l4: 'NVIDIA L4',
+            l40: 'NVIDIA L40', l40s: 'NVIDIA L40S', rtxpro6000: 'NVIDIA RTX Pro 6000'
+        };
+        const value = String(gpuType || '');
+        return modelLabels[value.toLowerCase()] || value || '-';
+    }
+
     /** Escape pipe, backtick, and backslash characters for markdown table cells */
     function escapeMd(val) {
         return String(val || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/`/g, '\\`');
+    }
+
+    function renderSizerSizingNoteMarkdown(note) {
+        const text = String(note || '');
+        const advisory = parseSizerAdvisory(text);
+        if (!advisory) return escapeMd(text);
+        return '**' + escapeMd(advisory[1] + advisory[2]) + '**' + escapeMd(advisory[3]);
+    }
+
+    function getReportSubtitle(state) {
+        const hasSizerData = Boolean(state && (state.sizerHardware
+            || (Array.isArray(state.sizerWorkloads) && state.sizerWorkloads.length > 0)));
+        const workflows = hasSizerData ? 'Sizer and Designer workflows' : 'Designer workflow';
+        return 'This report explains what was selected and why, based on the inputs from ODIN ' + workflows + '.';
     }
 
     /**
@@ -610,6 +654,7 @@
 
             '.summary-section { margin: 0 0 12pt 0; }',
             '.summary-section-title { font-size: 12pt; font-weight: 700; color: #111111; padding: 6pt 8pt; background: #f3f4f6; border: 1px solid #e5e7eb; border-left: 4pt solid #0b5cab; border-radius: 8px; margin: 0 0 8pt 0; }',
+            '.sizing-note-advisory { color: #b45309; }',
 
             '.word-kv-table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; }',
             '.word-kv-table td { border: 1px solid #e5e7eb; padding: 6pt 8pt; vertical-align: top; }',
@@ -1114,7 +1159,10 @@
 
     function buildMarkdownContent(s, diagrams) {
         const md = [];
-        md.push('# Azure Local Configuration Report');
+        const architectureSelections = getArchitectureSelections(s);
+        md.push('# Azure Local Instance | Design Configuration Report');
+        md.push('');
+        md.push(getReportSubtitle(s));
         md.push('');
 
         // Metadata section
@@ -1132,6 +1180,7 @@
         md.push('| Setting | Value |');
         md.push('|---------|-------|');
         if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario, s) + ' |');
+        md.push('| Architecture | ' + (s.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)') + ' |');
         if (s.scenario === 'disconnected') {
             if (s.clusterRole) {
                 md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
@@ -1147,7 +1196,7 @@
             if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
             if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
         }
-        if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
+        if (architectureSelections.scaleSelected) md.push('| Scale | ' + architectureSelections.scale + ' |');
         if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
         if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
         md.push('');
@@ -1169,7 +1218,8 @@
                 md.push('| Memory per Node | ' + (hw.memory.perNodeGB || '-') + ' GB |');
             }
             if (hw.gpu && hw.gpu.countPerNode > 0) {
-                md.push('| GPU per Node | ' + hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-') + ' |');
+                md.push('| GPU per Node | ' + hw.gpu.countPerNode + ' × ' + formatHardwareGpuType(hw.gpu.type) + ' |');
+                md.push('| GPUs Total per Instance | ' + ((Number(hw.nodeCount) || Number(s.nodes) || 0) * Number(hw.gpu.countPerNode)) + ' |');
             }
             if (hw.vcpuRatio) {
                 md.push('| vCPU Ratio (pCPU:vCPU) | ' + hw.vcpuRatio + ':1 |');
@@ -1210,13 +1260,49 @@
                 md.push('| Total Storage Required | ' + (ws.totalStorageTB || 0) + ' TB |');
             }
             md.push('');
+
+            if (Array.isArray(hw.sizingNotes)) {
+                const sizingNotes = hw.sizingNotes
+                    .filter(function(note) { return typeof note === 'string'; })
+                    .map(function(note) { return note.trim().slice(0, 2000); })
+                    .filter(Boolean)
+                    .slice(0, 50);
+                if (sizingNotes.length > 0) {
+                    md.push('## Sizing Notes & Recommendations (from Sizer)');
+                    md.push('');
+                    sizingNotes.forEach(function(note) {
+                        md.push('- ' + renderSizerSizingNoteMarkdown(note));
+                    });
+                    md.push('');
+                }
+            }
+
+            if (hw.s2dCalculation) {
+                const calc = hw.s2dCalculation;
+                md.push('## S2D Calculation | Supported Maximum Volume Size');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                md.push('| Number of Volumes to Create | ' + calc.volumeCount + ' |');
+                md.push('| Maximum supported size of each volume | ' + escapeMd(calc.maximumVolumeLabel) + ' |');
+                md.push('| Provisioning | ' + escapeMd(calc.provisioning) + ' |');
+                md.push('| Data Copies | ' + calc.copies + ' |');
+                md.push('| Storage Layout | ' + escapeMd(calc.tiering) + ' |');
+                md.push('');
+                md.push('### How the result is calculated');
+                md.push('');
+                (Array.isArray(calc.derivation) ? calc.derivation : []).forEach(function(line) {
+                    md.push('- ' + escapeMd(line));
+                });
+                md.push('');
+            }
         }
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer', 'ghel': 'GitHub Enterprise Local' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            const foundryProfileLabels = { 'minimum': 'Microsoft minimum', 'recommended': 'Microsoft recommended', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
             md.push('');
             for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -1249,11 +1335,13 @@
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
                     }
                 } else if (wl.type === 'foundry') {
-                    md.push('| Model Class | ' + (foundryClassLabels[wl.modelClass] || wl.modelClass || '-') + ' |');
-                    md.push('| Replicas | ' + (wl.replicas || 1) + ' |');
+                    md.push('| Worker Profile | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
+                    md.push('| Worker Nodes | ' + (wl.workerNodes || 1) + ' |');
+                    md.push('| Model Deployments | ' + (wl.modelDeployments || 1) + ' |');
+                    md.push('| Cache per Deployment | ' + (wl.modelCacheStorageGB || 100) + ' GiB |');
                     md.push('| Inference Engine | ' + (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)') + ' |');
-                    if (wl.modelClass === 'custom') {
-                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
+                    if (wl.workerProfile === 'custom') {
+                        md.push('| Custom Worker Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB |');
                     }
                 } else if (wl.type === 'edgerag') {
                     const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
@@ -1268,7 +1356,13 @@
                     md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
                     md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
                     md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
+                } else if (wl.type === 'ghel') {
+                    md.push('| Topology | Primary + ' + (wl.replicas || 0) + ' replica(s) |');
+                    md.push('| GitHub Actions | ' + (wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
+                    md.push('| GitHub Code Security | ' + (wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included') + ' |');
                 }
+                const workloadGpu = formatSizerWorkloadGpu(wl);
+                if (workloadGpu) md.push('| GPU Type | ' + escapeMd(workloadGpu) + ' |');
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
             }
@@ -1515,7 +1609,7 @@
         // Scale & Nodes
         md.push('### Scale & Nodes');
         md.push('');
-        md.push('**Scale:** ' + formatScale(s.scale));
+        md.push('**Scale:** ' + architectureSelections.scale);
         md.push('');
         md.push('**Nodes:** ' + (s.nodes || '-'));
         md.push('');
@@ -1531,9 +1625,9 @@
         // Storage & Ports
         md.push('### Storage & Ports');
         md.push('');
-        md.push('**Storage:** ' + (s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-'));
+        md.push('**Storage:** ' + architectureSelections.storage);
         md.push('');
-        md.push('**Ports per node:** ' + (s.ports || '-'));
+        md.push('**Ports per node:** ' + architectureSelections.ports);
         md.push('');
         const storageNotes = [];
         if (s.storage === 'switchless') {
@@ -1549,7 +1643,7 @@
         // Traffic Intent & Adapter Mapping
         md.push('### Traffic Intent & Adapter Mapping');
         md.push('');
-        md.push('**Intent:** ' + formatIntent(s.intent));
+        md.push('**Intent:** ' + architectureSelections.intent);
         md.push('');
         const intentNotes = [];
         if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
@@ -3415,12 +3509,13 @@
 
     function formatScenario(val, s) {
         if (!val) return '-';
+        if (val === 'connected') return 'Azure connected control plane';
         if (val === 'hyperconverged') return 'Hyperconverged';
         if (val === 'multirack') return 'Multi-Rack';
         if (val === 'disconnected') {
-            if (s && s.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
-            if (s && s.outbound === 'air_gapped') return 'Disconnected (Air Gapped)';
-            return 'Disconnected';
+            if (s && s.outbound === 'limited') return 'Disconnected control plane (Limited Connectivity)';
+            if (s && s.outbound === 'air_gapped') return 'Disconnected control plane (Air Gapped)';
+            return 'Disconnected control plane';
         }
         if (val === 'm365local') return 'Microsoft 365 Local';
         return val;
@@ -6913,6 +7008,8 @@
             ));
         }
 
+        const architectureSelections = getArchitectureSelections(s);
+
         // Scale + Nodes
         const scaleNotes = [];
         if (s.scale === 'low_capacity') {
@@ -6925,7 +7022,7 @@
             scaleNotes.push('Disconnected mode typically enforces Standard scale constraints for supportability and operational simplicity.');
         }
         sections.push(block('Scale & Nodes',
-            '<strong>Scale:</strong> ' + escapeHtml(formatScale(s.scale))
+            '<strong>Scale:</strong> ' + escapeHtml(architectureSelections.scale)
             + '<br><strong>Nodes:</strong> <span class="summary-value mono">' + escapeHtml(s.nodes || '-') + '</span>'
             + (scaleNotes.length ? list(scaleNotes) : '')
             + renderValidationInline(validations.byArea.ScaleNodes)
@@ -6948,11 +7045,11 @@
             storageNotes.push('With 4 ports, the wizard disables Custom intent (insufficient ports for flexible mapping in this design).');
         }
         sections.push(block('Storage & Ports',
-            '<strong>Storage:</strong> ' + escapeHtml(s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-')
+            '<strong>Storage:</strong> ' + escapeHtml(architectureSelections.storage)
             + ((s.storage === 'switchless' && parseInt(s.nodes, 10) === 3 && s.scale === 'low_capacity' && s.switchlessLinkMode)
                 ? ('<br><strong>Switchless link mode:</strong> ' + escapeHtml(String(s.switchlessLinkMode) === 'single_link' ? 'Single-Link' : 'Dual-Link'))
                 : '')
-            + '<br><strong>Ports per node:</strong> <span class="summary-value mono">' + escapeHtml(s.ports || '-') + '</span>'
+            + '<br><strong>Ports per node:</strong> <span class="summary-value mono">' + escapeHtml(architectureSelections.ports) + '</span>'
             + (storageNotes.length ? list(storageNotes) : '')
             + renderValidationInline(validations.byArea.StoragePorts)
         ));
@@ -6995,7 +7092,7 @@
             if (!s.customIntentConfirmed) intentNotes.push('Custom mapping was not confirmed in the wizard (report generation is normally gated on confirmation).');
         }
         sections.push(block('Traffic Intent & Adapter Mapping',
-            '<strong>Intent:</strong> ' + escapeHtml(formatIntent(s.intent))
+            '<strong>Intent:</strong> ' + escapeHtml(architectureSelections.intent)
             + (intentNotes.length ? list(intentNotes) : '')
             + renderValidationInline(validations.byArea.Intent)
         ));
@@ -7248,6 +7345,41 @@
         return sections.join('');
     }
 
+    function getArchitectureSelections(s) {
+        if (s.architecture === 'disaggregated') {
+            const rackCount = parseInt(s.disaggRackCount, 10);
+            const nodesPerRack = parseInt(s.disaggNodesPerRack, 10);
+            const hasTopology = !isNaN(rackCount) && rackCount > 0 && !isNaN(nodesPerRack) && nodesPerRack > 0;
+            const storageLabels = {
+                fc_san: 'FC SAN',
+                iscsi_4nic: 'iSCSI 4-NIC',
+                iscsi_6nic: 'iSCSI 6-NIC'
+            };
+
+            return {
+                scaleSelected: hasTopology,
+                scale: hasTopology ? rackCount + ' racks × ' + nodesPerRack + ' nodes per rack' : '-',
+                storageSelected: !!s.disaggStorageType,
+                storage: storageLabels[s.disaggStorageType] || '-',
+                portsSelected: !!s.disaggPortCount,
+                ports: s.disaggPortCount || '-',
+                intentSelected: !!s.disaggNicConfigConfirmed,
+                intent: s.disaggNicConfigConfirmed ? 'Disaggregated adapter configuration confirmed' : '-'
+            };
+        }
+
+        return {
+            scaleSelected: !!s.scale,
+            scale: s.scale ? formatScale(s.scale) : '-',
+            storageSelected: !!s.storage,
+            storage: s.storage ? s.storage.charAt(0).toUpperCase() + s.storage.slice(1) : '-',
+            portsSelected: !!s.ports,
+            ports: s.ports || '-',
+            intentSelected: !!s.intent,
+            intent: s.intent ? formatIntent(s.intent) : '-'
+        };
+    }
+
     function computeValidations(s) {
         const results = [];
         const byArea = {
@@ -7382,8 +7514,10 @@
             );
         }
 
+        const architectureSelections = getArchitectureSelections(s);
+
         // Scale + nodes
-        add('ScaleNodes', 'Scale selected', !!s.scale, s.scale ? ('Selected: ' + formatScale(s.scale)) : '');
+        add('ScaleNodes', 'Scale selected', architectureSelections.scaleSelected, architectureSelections.scaleSelected ? ('Selected: ' + architectureSelections.scale) : '');
         add('ScaleNodes', 'Nodes selected', !!s.nodes, s.nodes ? ('Selected: ' + s.nodes) : '');
 
         if (s.scenario === 'disconnected') {
@@ -7405,8 +7539,8 @@
         }
 
         // Storage + Ports
-        add('StoragePorts', 'Storage selected', !!s.storage, s.storage ? ('Selected: ' + s.storage) : '');
-        add('StoragePorts', 'Ports selected', !!s.ports, s.ports ? ('Selected: ' + s.ports) : '');
+        add('StoragePorts', 'Storage selected', architectureSelections.storageSelected, architectureSelections.storageSelected ? ('Selected: ' + architectureSelections.storage) : '');
+        add('StoragePorts', 'Ports selected', architectureSelections.portsSelected, architectureSelections.portsSelected ? ('Selected: ' + architectureSelections.ports) : '');
 
         // Nodes >= 5 -> switchless disabled
         const nodeVal = (s.nodes === '16+') ? 17 : parseInt(s.nodes, 10);
@@ -7438,7 +7572,7 @@
         }
 
         // Intent validations
-        add('Intent', 'Intent selected', !!s.intent, s.intent ? ('Selected: ' + formatIntent(s.intent)) : '');
+        add('Intent', 'Intent selected', architectureSelections.intentSelected, architectureSelections.intentSelected ? ('Selected: ' + architectureSelections.intent) : '');
 
         // Single node cluster intent rules (takes priority)
         if (s.nodes === '1') {
@@ -8101,7 +8235,7 @@
             if (!rowsHtml) return '';
             const dataAttr = dataKey ? (' data-summary-section="' + escapeHtml(dataKey) + '"') : '';
             return '<div class="summary-section"' + dataAttr + '>'
-                + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
+            + '<div class="summary-section-title ' + cls + '">' + escapeHtml(title) + '</div>'
                 + rowsHtml
                 + '</div>';
         }
@@ -8118,6 +8252,9 @@
 
         // Sizer Hardware Configuration (only present when imported from Sizer)
         let sizerHardwareRows = '';
+        let sizerSizingNotesHtml = '';
+        let sizerS2dRows = '';
+        let sizerS2dExtra = '';
         if (s.sizerHardware) {
             const hw = s.sizerHardware;
             if (hw.cpu) {
@@ -8130,7 +8267,8 @@
                 sizerHardwareRows += row('Memory per Node', (hw.memory.perNodeGB || '-') + ' GB');
             }
             if (hw.gpu && hw.gpu.countPerNode > 0) {
-                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-'));
+                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + formatHardwareGpuType(hw.gpu.type));
+                sizerHardwareRows += row('GPUs Total per Instance', String((Number(hw.nodeCount) || Number(s.nodes) || 0) * Number(hw.gpu.countPerNode)));
             }
             if (hw.vcpuRatio) {
                 sizerHardwareRows += row('vCPU Ratio (pCPU:vCPU)', hw.vcpuRatio + ':1');
@@ -8169,6 +8307,35 @@
                 sizerHardwareRows += row('Total vCPUs Required', String(ws.totalVcpus || 0));
                 sizerHardwareRows += row('Total Memory Required', (ws.totalMemoryGB || 0) + ' GB');
                 sizerHardwareRows += row('Total Storage Required', (ws.totalStorageTB || 0) + ' TB');
+            }
+            if (Array.isArray(hw.sizingNotes)) {
+                const sizingNotes = hw.sizingNotes
+                    .filter(function(note) { return typeof note === 'string'; })
+                    .map(function(note) { return note.trim().slice(0, 2000); })
+                    .filter(Boolean)
+                    .slice(0, 50);
+                if (sizingNotes.length > 0) {
+                    sizerSizingNotesHtml = '<ul style="margin: 0; padding-left: 1.25rem;">'
+                        + sizingNotes.map(function(note) { return '<li>' + renderSizerSizingNoteHtml(note) + '</li>'; }).join('')
+                        + '</ul>';
+                }
+            }
+            if (hw.s2dCalculation) {
+                const calc = hw.s2dCalculation;
+                sizerS2dRows += row('Number of Volumes to Create', String(calc.volumeCount));
+                sizerS2dRows += row('Maximum supported size of each volume', calc.maximumVolumeLabel || '-');
+                sizerS2dRows += row('Provisioning', calc.provisioning || '-');
+                sizerS2dRows += row('Data Copies', String(calc.copies || '-'));
+                sizerS2dRows += row('Storage Layout', calc.tiering || '-');
+                const derivation = (Array.isArray(calc.derivation) ? calc.derivation : [])
+                    .filter(function(line) { return typeof line === 'string'; })
+                    .map(function(line) { return line.slice(0, 500); })
+                    .slice(0, 10);
+                if (derivation.length > 0) {
+                    sizerS2dExtra = '<h4 style="margin: 0.75rem 0 0.5rem;">How the result is calculated</h4><ul style="margin: 0; padding-left: 1.25rem;">'
+                        + derivation.map(function(line) { return '<li>' + escapeHtml(line) + '</li>'; }).join('')
+                        + '</ul>';
+                }
             }
         }
 
@@ -8216,9 +8383,9 @@
         // Sizer Workloads (individual workload details from Sizer)
         let sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer' };
+            const typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Agentic Retrieval', 'videoindexer': 'AI Video Indexer', 'ghel': 'GitHub Enterprise Local' };
             const avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
-            const foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
+            const foundryProfileLabels = { 'minimum': 'Microsoft minimum', 'recommended': 'Microsoft recommended', 'custom': 'Custom' };
             for (let wi = 0; wi < s.sizerWorkloads.length; wi++) {
                 const wl = s.sizerWorkloads[wi];
                 const wlLabel = wl.name || typeLabels[wl.type] || wl.type;
@@ -8251,11 +8418,13 @@
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
                     }
                 } else if (wl.type === 'foundry') {
-                    sizerWorkloadsRows += row('Model Class', foundryClassLabels[wl.modelClass] || wl.modelClass || '-');
-                    sizerWorkloadsRows += row('Replicas', String(wl.replicas || 1));
+                    sizerWorkloadsRows += row('Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
+                    sizerWorkloadsRows += row('Worker Nodes', String(wl.workerNodes || 1));
+                    sizerWorkloadsRows += row('Model Deployments', String(wl.modelDeployments || 1));
+                    sizerWorkloadsRows += row('Cache per Deployment', (wl.modelCacheStorageGB || 100) + ' GiB');
                     sizerWorkloadsRows += row('Inference Engine', (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)'));
-                    if (wl.modelClass === 'custom') {
-                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
+                    if (wl.workerProfile === 'custom') {
+                        sizerWorkloadsRows += row('Custom Worker Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB');
                     }
                 } else if (wl.type === 'edgerag') {
                     const deploymentMode = wl.deploymentMode === 'knowledge' ? 'Knowledge only' : wl.deploymentMode === 'agentic' ? 'Agentic only' : 'Combined';
@@ -8270,7 +8439,13 @@
                     sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
                     sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
                     sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
+                } else if (wl.type === 'ghel') {
+                    sizerWorkloadsRows += row('Topology', 'Primary + ' + (wl.replicas || 0) + ' replica(s)');
+                    sizerWorkloadsRows += row('GitHub Actions', wl.actions ? 'Enabled (+25% CPU/memory)' : 'Not included');
+                    sizerWorkloadsRows += row('GitHub Code Security', wl.codeSecurity ? 'Enabled (+25% CPU/memory)' : 'Not included');
                 }
+                const workloadGpu = formatSizerWorkloadGpu(wl);
+                if (workloadGpu) sizerWorkloadsRows += row('GPU Type', workloadGpu);
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
             }
@@ -8363,11 +8538,19 @@
                 + '</div>';
         }
 
+        const hostNetworkingExtra = hostNetworkingRows
+            ? '<div class="report-planning-aid"><strong>Planning aid:</strong> Use the '
+                + '<a href="https://azure.github.io/odinforazurelocal/switch-config/" target="_blank" rel="noopener noreferrer">ToR Switch Configuration Generator &amp; Validator</a> '
+                + 'to generate example Cisco or Dell switch configurations from this design. Review and adapt all output for your hardware, software version, and organizational standards before deployment.</div>'
+            : '';
+
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
+            + sectionWithExtra('S2D Calculation | Supported Maximum Volume Size', 'summary-section-title--infra', sizerS2dRows, sizerS2dExtra, 'sizer-s2d-calculation')
+            + sectionWithExtra('Sizing Notes & Recommendations (from Sizer)', 'summary-section-title--infra', '', sizerSizingNotesHtml, 'sizer-sizing-notes')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
-            + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
+            + sectionWithExtra('Host Networking', 'summary-section-title--net', hostNetworkingRows, hostNetworkingExtra, 'host-networking')
             + vnicConfigSection
             + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
@@ -8394,10 +8577,13 @@
         const s = payload.state;
         CURRENT_REPORT_STATE = s;
 
+        const subtitleEl = document.getElementById('report-subtitle');
+        if (subtitleEl) subtitleEl.textContent = getReportSubtitle(s);
+
         if (metaEl) {
-            metaEl.innerHTML = '<strong>Generated</strong><br>'
+            metaEl.innerHTML = '<strong>Generated:</strong> '
                 + escapeHtml(payload.generatedAt || '-')
-                + '<br><strong>Scenario</strong><br>'
+                + '<br><strong>Scenario:</strong> '
                 + escapeHtml(formatScenario(s.scenario, s));
         }
 
@@ -8668,7 +8854,7 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
 
         pdf.setFontSize(12);
         pdf.setTextColor(0, 120, 212);
-        pdf.text('ODIN — Configuration Report', margin, 10);
+        pdf.text('Azure Local Instance | Design Configuration Report', margin, 10);
         pdf.setFontSize(8);
         pdf.setTextColor(128, 128, 128);
         pdf.text('Generated: ' + new Date().toLocaleString(), margin, 15);

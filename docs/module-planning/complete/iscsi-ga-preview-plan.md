@@ -1,5 +1,7 @@
 # iSCSI external-SAN GA/Preview signalling (DA1 + Sizer)
 
+Status: **shipped (v0.22.66)**.
+
 ## Current state
 Microsoft has published external storage array (SAN) attach for Azure Local (build
 `azloc-2605`, requires Azure Local **version 2604 or later**):

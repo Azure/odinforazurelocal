@@ -462,16 +462,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.02'
+                    globalThis.ODIN_VERSION === '0.23.03'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.02')
+                        && branding.textContent.includes('Version 0.23.03')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.02 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.03 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -750,7 +750,19 @@
                     'GHEL workload details remain plain text before trusted link rendering',
                     true,
                     details);
-                    })(),
+            })(),
+            assert(getIncludedInfrastructureDetail('foundry').includes('AKS Arc') &&
+                getIncludedInfrastructureDetail('edgerag').includes('AKS Arc') &&
+                getIncludedInfrastructureDetail('videoindexer').includes('AKS Arc'),
+                'Specialized AI workload cards identify included AKS Arc infrastructure', true,
+                [getIncludedInfrastructureDetail('foundry'), getIncludedInfrastructureDetail('edgerag'),
+                    getIncludedInfrastructureDetail('videoindexer')].every(Boolean)),
+            assert(getIncludedInfrastructureDetail('ghel') === '' && getIncludedInfrastructureDetail('aks') === '',
+                'GHEL is not presented as AKS-hosted and generic AKS is not self-described as included', '',
+                getIncludedInfrastructureDetail('ghel') + getIncludedInfrastructureDetail('aks')),
+            assert(WORKLOAD_DEFAULTS.ghel.replicas === 0 && WORKLOAD_DEFAULTS.ghel.ha === false,
+                'New GHEL workloads default to one appliance VM', '0/false',
+                WORKLOAD_DEFAULTS.ghel.replicas + '/' + WORKLOAD_DEFAULTS.ghel.ha),
             (function() {
                 const originalScenario = state.scenario;
                 state.scenario = 'retired-mode';
@@ -2417,6 +2429,7 @@
                     'infraGateway',
                     'infraGatewayManual',
                     'infraPoolManual',
+                    'infraPoolEndAuto',
                     'nodeSettings',
                     'infraVlan',
                     'infraVlanId',
@@ -2520,7 +2533,7 @@
                     'intentOverrides', 'customIntents', 'adapterMapping', 'adapterMappingConfirmed',
                     'adapterMappingSelection', 'overridesConfirmed', 'fqdnConfirmed',
                     'outbound', 'arc', 'proxy',
-                    'ip', 'infra', 'infraCidr', 'infraCidrAuto', 'infraGateway', 'infraGatewayManual', 'infraPoolManual',
+                    'ip', 'infra', 'infraCidr', 'infraCidrAuto', 'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'infraPoolEndAuto',
                     'nodeSettings', 'infraVlan', 'infraVlanId', 'storageAutoIp', 'customStorageSubnets',
                     'customStorageSubnetsConfirmed', 'activeDirectory', 'adDomain', 'adOuPath',
                     'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
@@ -3519,6 +3532,232 @@
             assert(formatDiskSize(2048) === '2.0 TB', 'Format 2048 GB = 2.0 TB', '2.0 TB', formatDiskSize(2048))
         ]);
 
+        testSuite('getGpuCapacityMetrics()', 'sizer.js', [
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(2, 4, 3, 0)
+                    : null;
+                return assert(metrics && metrics.visible && metrics.percent === 0 && metrics.used === 0 && metrics.total === 6,
+                    'Configured GPUs with no workloads remain visible as 0 / N−1 capacity',
+                    '{visible:true,percent:0,used:0,total:6}', JSON.stringify(metrics));
+            })(),
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(0, 4, 3, 0)
+                    : null;
+                return assert(metrics && !metrics.visible && metrics.total === 0,
+                    'No configured physical GPUs keeps GPU capacity hidden',
+                    '{visible:false,total:0}', JSON.stringify(metrics));
+            })(),
+            (() => {
+                const metrics = typeof getGpuCapacityMetrics === 'function'
+                    ? getGpuCapacityMetrics(2, 4, 3, 4)
+                    : null;
+                return assert(metrics && metrics.visible && metrics.percent === 67 && metrics.used === 4 && metrics.total === 6,
+                    'Workload GPU demand still uses N−1 effective capacity',
+                    '{visible:true,percent:67,used:4,total:6}', JSON.stringify(metrics));
+            })()
+        ]);
+
+        testSuite('Enterprise minimum-fit recommendation helpers', 'sizer.js', [
+            assert(getAutoGpuCountPerNode(0, 4, 4) === 0,
+                'Zero GPU demand reconciles automatically managed inventory back to zero', 0,
+                getAutoGpuCountPerNode(0, 4, 4)),
+            assert(getAutoGpuCountPerNode(3, 3, 4) === 2,
+                '3 GPUs across a 3-machine N−1 design reconcile to 2 GPUs per machine', 2,
+                getAutoGpuCountPerNode(3, 3, 4)),
+            assert(getAutoGpuCountPerNode(4, 3, 4) === 3,
+                'GPU reconciliation preserves capacity below the 90% threshold', 3,
+                getAutoGpuCountPerNode(4, 3, 4)),
+            assert(getAutoGpuCountPerNode(10, 3, 4) === 4,
+                'GPU reconciliation remains capped by model support', 4,
+                getAutoGpuCountPerNode(10, 3, 4)),
+            (() => {
+                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 24, memoryGB: 128 });
+                return assert(note && note.startsWith('<strong><span class="sizing-note-advisory">Advisory</span> - minimum-fit hardware:</strong>') && note.includes('24 physical cores') && note.includes('128 GB memory'),
+                    'Low CPU and memory produce a warning-colored Advisory in the bold minimum-fit heading',
+                    'warning-colored Advisory and note naming both dimensions', note);
+            })(),
+            assert(getMinimumFitHardwareNote({ totalPhysicalCores: 32, memoryGB: 384 }) === null,
+                '32 cores and 384 GB are outside the strict below-threshold caveat', null,
+                getMinimumFitHardwareNote({ totalPhysicalCores: 32, memoryGB: 384 })),
+            (() => {
+                const note = getMinimumFitHardwareNote({ totalPhysicalCores: 48, memoryGB: 256 });
+                return assert(note && !note.includes('48 physical cores') && note.includes('256 GB memory'),
+                    'Either low dimension independently produces the caveat',
+                    'memory-only note', note);
+            })(),
+            (() => {
+                const note = getSingleNodeAvailabilityNote();
+                return assert(note.startsWith('<strong><span class="sizing-note-advisory">Advisory</span> - single nodes provide no workload high-availability:</strong>') &&
+                    note.includes('live migration or workload failover') && note.includes('interrupt workloads'),
+                    'Single Node availability note uses the standard Advisory heading and explains workload interruption',
+                    'styled availability advisory', note);
+            })()
+        ]);
+
+        testSuite('Sizer sizing notes handoff', 'sizer.js', [
+            (() => {
+                const list = document.createElement('ul');
+                list.innerHTML = '<li>Minimum-fit <a href="https://example.invalid">review guidance</a></li>';
+                const notes = typeof getSizingNotesForHandoff === 'function'
+                    ? getSizingNotesForHandoff(list)
+                    : null;
+                return assert(notes && notes.length === 1 && notes[0] === 'Minimum-fit review guidance',
+                    'Sizer handoff captures note text without HTML markup',
+                    '["Minimum-fit review guidance"]', JSON.stringify(notes));
+            })(),
+            (() => {
+                const list = document.createElement('ul');
+                for (let i = 0; i < 55; i++) {
+                    const item = document.createElement('li');
+                    item.textContent = 'N'.repeat(2100);
+                    list.appendChild(item);
+                }
+                const notes = typeof getSizingNotesForHandoff === 'function'
+                    ? getSizingNotesForHandoff(list)
+                    : null;
+                const bounded = notes && notes.length === 50 && notes.every(note => note.length === 2000);
+                return assert(bounded,
+                    'Sizer handoff bounds note count and individual note length',
+                    '50 notes of 2000 characters', notes ? notes.length + ' notes, max ' + Math.max(...notes.map(note => note.length)) : null);
+            })()
+        ]);
+
+        testSuite('Sizer workload GPU report metadata', 'sizer.js', [
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                return assert(details && details.mode === 'dda' && details.type === 'l40s' && details.label.includes('NVIDIA L40S'),
+                    'DDA workload metadata includes mode, stable type, and display label',
+                    'dda / l40s / NVIDIA L40S', JSON.stringify(details));
+            })(),
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'gpu-p', gpuPModel: 'a10' });
+                return assert(details && details.mode === 'gpu-p' && details.type === 'a10' && details.label.includes('NVIDIA A10'),
+                    'GPU-P workload metadata includes mode, stable type, and display label',
+                    'gpu-p / a10 / NVIDIA A10', JSON.stringify(details));
+            })(),
+            (() => {
+                const details = getWorkloadGpuReportDetails({ gpuMode: 'dda', aksGpuVmSize: 'Standard_NC8_A2' });
+                return assert(details && details.type === 'a2' && details.label.includes('NVIDIA A2'),
+                    'AKS GPU VM size resolves to its report GPU model',
+                    'a2 / NVIDIA A2', JSON.stringify(details));
+            })(),
+            assert(getWorkloadGpuReportDetails({ gpuMode: 'none' }) === null,
+                'CPU-only workload omits GPU report metadata', null,
+                getWorkloadGpuReportDetails({ gpuMode: 'none' }))
+        ]);
+
+        testSuite('Sizer integrated S2D calculation', 'sizer.js + s2d-calc.js', [
+            (() => {
+                const result = buildSizerS2dCalculation('single', 1, '2way', {
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3.84 * 1024 } }
+                });
+                return assert(result && result.volumeCount === 1 && result.maximumVolumeLabel === '< 15.5 TB' && result.derivation[0].includes('2 effective machines'),
+                    'Single Node uses the calculator two-effective-machine rule',
+                    '1 volume, < 15.5 TB, 2 effective machines', JSON.stringify(result));
+            })(),
+            (() => {
+                const result = buildSizerS2dCalculation('standard', 4, '3way', {
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3.84 * 1024 } }
+                });
+                return assert(result && result.volumeCount === 4 && result.maximumVolumeLabel === '< 20.8 TB' && result.tiering === 'Capacity only',
+                    'Hyperconverged capacity-only storage maps to three-copy S2D guidance',
+                    '4 volumes, < 20.8 TB, Capacity only', JSON.stringify(result));
+            })(),
+            (() => {
+                const result = buildSizerS2dCalculation('rack-aware', 4, '4way', {
+                    diskConfig: {
+                        isTiered: true,
+                        cache: { count: 2, sizeGB: 1.92 * 1024 },
+                        capacity: { count: 4, sizeGB: 6.4 * 1024 }
+                    }
+                });
+                return assert(result && result.volumeCount === 4 && result.maximumVolumeLabel === '< 15.5 TB' && result.tiering === 'Cache and Capacity' && result.derivation.some(line => line.includes('cache drives do not add usable capacity')),
+                    'Rack-aware tiered storage uses capacity disks and four-copy rules',
+                    '4 volumes, < 15.5 TB, Cache and Capacity', JSON.stringify(result));
+            })(),
+            assert(buildSizerS2dCalculation('disaggregated', 4, '3way', { diskConfig: {} }) === null,
+                'Disaggregated deployments omit integrated S2D guidance', null,
+                buildSizerS2dCalculation('disaggregated', 4, '3way', { diskConfig: {} })),
+            assert(buildSizerS2dCalculation('aldo-mgmt', 3, '3way', { diskConfig: {} }) === null,
+                'ALDO management deployments omit integrated S2D guidance', null,
+                buildSizerS2dCalculation('aldo-mgmt', 3, '3way', { diskConfig: {} }))
+        ]);
+
+        testSuite('Designer infrastructure pool minimum ending IP', 'script.js', [
+            assert(getMinimumInfraPoolEnd('192.168.1.10') === '192.168.1.15',
+                'Starting IP calculates a six-address minimum pool',
+                '192.168.1.15', getMinimumInfraPoolEnd('192.168.1.10')),
+            assert(getMinimumInfraPoolEnd('10.0.0.252') === '10.0.1.1',
+                'Minimum ending IP calculation carries across octets',
+                '10.0.1.1', getMinimumInfraPoolEnd('10.0.0.252')),
+            assert(getMinimumInfraPoolEnd('255.255.255.252') === null,
+                'Minimum ending IP rejects IPv4 overflow',
+                null, getMinimumInfraPoolEnd('255.255.255.252')),
+            (() => {
+                const startInput = document.createElement('input');
+                const endInput = document.createElement('input');
+                startInput.id = 'infra-ip-start';
+                endInput.id = 'infra-ip-end';
+                document.body.appendChild(startInput);
+                document.body.appendChild(endInput);
+                const previousManualState = state.infraPoolManual;
+                const previousEndAutoState = state.infraPoolEndAuto;
+                const previousInfra = state.infra;
+                try {
+                    startInput.value = '192.168.1.10';
+                    updateInfraPoolEndFromStart();
+                    const initialEnd = endInput.value;
+                    state.infra = { start: startInput.value, end: endInput.value };
+                    delete endInput.dataset.autoMinimumEnd;
+                    startInput.value = '192.168.1.20';
+                    updateInfraPoolEndFromStart();
+                    const recalculatedEnd = endInput.value;
+                    endInput.value = '192.168.1.40';
+                    markInfraPoolEndManual();
+                    startInput.value = '192.168.1.30';
+                    updateInfraPoolEndFromStart();
+                    return assert(initialEnd === '192.168.1.15' && recalculatedEnd === '192.168.1.25' && endInput.value === '192.168.1.40',
+                        'Persisted auto-ending state survives DOM restoration while a manual Ending IP is preserved',
+                        '192.168.1.15, restored 192.168.1.25, manual 192.168.1.40',
+                        initialEnd + ', restored ' + recalculatedEnd + ', manual ' + endInput.value);
+                } finally {
+                    startInput.remove();
+                    endInput.remove();
+                    state.infraPoolManual = previousManualState;
+                    state.infraPoolEndAuto = previousEndAutoState;
+                    state.infra = previousInfra;
+                }
+            })(),
+            (() => {
+                const startInput = document.createElement('input');
+                const endInput = document.createElement('input');
+                startInput.id = 'infra-ip-start';
+                endInput.id = 'infra-ip-end';
+                document.body.appendChild(startInput);
+                document.body.appendChild(endInput);
+                const previousSave = saveStateToLocalStorage;
+                const previousInfra = state.infra;
+                let saveCount = 0;
+                try {
+                    saveStateToLocalStorage = () => { saveCount++; };
+                    startInput.value = '192.168.1.10';
+                    endInput.value = '192.168.1.15';
+                    updateInfraNetwork();
+                    return assert(saveCount === 1 && state.infra && state.infra.end === '192.168.1.15',
+                        'Valid Infrastructure IP Pool edits are saved for session resume',
+                        'one save with 192.168.1.15',
+                        saveCount + ' save(s), ' + JSON.stringify(state.infra));
+                } finally {
+                    saveStateToLocalStorage = previousSave;
+                    startInput.remove();
+                    endInput.remove();
+                    state.infra = previousInfra;
+                }
+            })()
+        ]);
+
         // --- getDisaggMaxNodesPerRack() ---
         // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
         testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [
@@ -3765,6 +4004,11 @@
                 const r = shouldAutoScaleDisaggRacks(2, 70, true);
                 return assert(r.scale === true && r.racks === 3,
                     '2 racks / 70 needed / CONSERVATIVE FAILED → bump one tier to 3 (recursive recalc walks up)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldAutoScaleDisaggRacks(2, 40, true, true);
+                return assert(r.scale === false,
+                    'Active rack-shrink cycle suppresses an immediate rack increase', false, r.scale);
             })()
         ]);
 
@@ -3833,6 +4077,11 @@
                     'null racks → guarded as 1 → never shrinks', false, r.shrink);
             })(),
             (() => {
+                const r = shouldAutoShrinkDisaggRacks(3, 20, true);
+                return assert(r.shrink === false,
+                    'Active rack-growth cycle suppresses an immediate rack decrease', false, r.shrink);
+            })(),
+            (() => {
                 // No oscillation: scale-up fires when rec > cur × 16; shrink only when
                 // rec ≤ (cur-1) × 16 × 0.80. Verify cur=2 / rec=32 (right at scale-up
                 // boundary) does NOT shrink — would otherwise ping-pong with scale-up.
@@ -3884,6 +4133,11 @@
                 const r = shouldDowngradeFromDisaggregated(20);
                 return assert(r.downgrade === false,
                     '20 nodes needed → NO downgrade (would not fit on HCI)', false, r.downgrade);
+            })(),
+            (() => {
+                const r = shouldDowngradeFromDisaggregated(8, true);
+                return assert(r.downgrade === false,
+                    'Active upgrade cycle suppresses an immediate Disaggregated → HCI reversal', false, r.downgrade);
             })(),
             (() => {
                 const r = shouldDowngradeFromDisaggregated('10');
@@ -4067,6 +4321,55 @@
             return results;
         })());
 
+        testSuite('Default growth removal at N−1 GPU ceiling', 'sizer.js', [
+            (() => {
+                let growthEl = document.getElementById('future-growth');
+                const growthCreated = !growthEl;
+                if (!growthEl) {
+                    growthEl = document.createElement('select');
+                    growthEl.id = 'future-growth';
+                    ['0','10','20','30','40','50'].forEach(function(value) {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.text = value;
+                        growthEl.appendChild(option);
+                    });
+                    document.body.appendChild(growthEl);
+                }
+                const horizonEl = document.getElementById('size-for-5yr-growth');
+                const savedGrowth = growthEl.value;
+                const savedHorizon = horizonEl ? horizonEl.value : null;
+                const wasManual = _manualFields.has('future-growth');
+                const workload = {
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 252
+                };
+                try {
+                    _manualFields.delete('future-growth');
+                    growthEl.value = '10';
+                    if (horizonEl) horizonEl.value = 'no';
+                    const automaticMessage = removeDefaultGrowthIfGpuCapacityExceeded([workload]);
+                    const automaticRemoved = growthEl.value === '0' &&
+                        automaticMessage && automaticMessage.includes('252 to 278');
+
+                    growthEl.value = '10';
+                    _manualFields.add('future-growth');
+                    const manualMessage = removeDefaultGrowthIfGpuCapacityExceeded([workload]);
+                    const manualPreserved = growthEl.value === '10' && manualMessage === null;
+                    return assert(automaticRemoved && manualPreserved,
+                        'Default growth is removed at the GPU ceiling while manual growth is preserved',
+                        'auto: 0% with notice / manual: 10% unchanged',
+                        `auto: ${automaticRemoved} / manual: ${manualPreserved}`);
+                } finally {
+                    growthEl.value = savedGrowth;
+                    if (horizonEl && savedHorizon !== null) horizonEl.value = savedHorizon;
+                    if (wasManual) _manualFields.add('future-growth');
+                    else _manualFields.delete('future-growth');
+                    if (growthCreated && growthEl.parentNode) growthEl.parentNode.removeChild(growthEl);
+                }
+            })()
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),
@@ -4214,72 +4517,71 @@
 
         testSuite('calculateWorkloadRequirements() - Foundry Local', 'sizer.js', [
             (() => {
-                // Medium SLM, 1 replica, ONNX-GenAI
-                // CP: 3 nodes × 4 vCPU = 12, worker: 1 × 8 = 8, operator: 2 → 22 vCPU
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // Recommended: CP 3×4 + 2 workers × 8 + platform allowance 2.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 22, 'Foundry Medium 1 replica: 22 vCPUs', 22, r.vcpus);
+                return assert(r.vcpus === 30, 'Foundry recommended: 30 vCPUs', 30, r.vcpus);
             })(),
             (() => {
-                // Medium SLM, 1 replica
-                // CP: 3 × 8 = 24, worker: 1 × 16 = 16, operator: 4 → 44 GB
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // Recommended: CP 3×8 + 2 workers × 32 + platform allowance 4.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 44, 'Foundry Medium 1 replica: 44 GB memory', 44, r.memory);
+                return assert(r.memory === 92, 'Foundry recommended: 92 GB memory', 92, r.memory);
             })(),
             (() => {
-                // Medium SLM, 1 replica
-                // CP storage: 3 × 200 = 600, worker storage: 1 × (200 + 40) = 240 → 840 GB
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                // CP OS 600 + worker OS 400 + one 100-GiB model cache PVC.
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.storage === 840, 'Foundry Medium 1 replica: 840 GB storage', 840, r.storage);
+                return assert(r.storage === 1100, 'Foundry recommended: 1100 GB storage', 1100, r.storage);
             })(),
             (() => {
-                // Large LLM, 2 replicas
-                // CP: 12, worker: 2 × 16 = 32, operator: 2 → 46 vCPU
-                // CP mem: 24, worker mem: 2 × 64 = 128, operator mem: 4 → 156 GB
-                // Storage: 600 + 2 × (200 + 100) = 1200
-                const w = { type: 'foundry', modelClass: 'large', replicas: 2, engine: 'vllm' };
+                // Minimum: CP + one D4s-class worker + platform allowance.
+                const w = { type: 'foundry', workerProfile: 'minimum', workerNodes: 1,
+                    modelDeployments: 2, modelCacheStorageGB: 200, engine: 'vllm' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46 && r.memory === 156 && r.storage === 1200,
-                    'Foundry Large 2 replicas: 46/156/1200', '46/156/1200',
+                return assert(r.vcpus === 18 && r.memory === 44 && r.storage === 1200,
+                    'Foundry minimum with two caches: 18/44/1200', '18/44/1200',
                     r.vcpus + '/' + r.memory + '/' + r.storage);
             })(),
             (() => {
-                // Custom: 6 vCPU, 12 GB, 30 GB per replica × 3 replicas
-                // CP: 12, worker: 18, operator: 2 → 32 vCPU
-                // CP mem: 24, worker: 36, operator: 4 → 64 GB
-                // Storage: 600 + 3 × (200 + 30) = 1290
-                const w = { type: 'foundry', modelClass: 'custom', replicas: 3,
-                            customVcpus: 6, customMemory: 12, customStorage: 30, engine: 'onnx-genai' };
+                const w = { type: 'foundry', workerProfile: 'custom', workerNodes: 3,
+                    modelDeployments: 2, modelCacheStorageGB: 150,
+                    customVcpus: 6, customMemory: 12, engine: 'onnx-genai' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 32 && r.memory === 64 && r.storage === 1290,
-                    'Foundry Custom 3 replicas (6/12/30): 32/64/1290', '32/64/1290',
+                return assert(r.vcpus === 32 && r.memory === 64 && r.storage === 1500,
+                    'Foundry custom workers and caches: 32/64/1500', '32/64/1500',
                     r.vcpus + '/' + r.memory + '/' + r.storage);
             })(),
             (() => {
-                // GPU: DDA 1 GPU per replica × 4 replicas = 4 GPUs
-                const w = { type: 'foundry', modelClass: 'medium', replicas: 4, engine: 'vllm',
+                // GPU: DDA 1 GPU per worker × 4 workers = 4 GPUs
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 4,
+                            modelDeployments: 1, modelCacheStorageGB: 100, engine: 'vllm',
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.gpus === 4, 'Foundry vLLM 4 replicas × 1 GPU = 4 GPUs', 4, r.gpus);
+                return assert(r.gpus === 4, 'Foundry vLLM 4 workers × 1 GPU = 4 GPUs', 4, r.gpus);
             })()
         ]);
 
         testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
+            assert(getEdgeRagCompatibleGpuType('foundry-production') === 'a16',
+                'Production Agentic Retrieval defaults to an AKS-supported GPU with at least 48 GB VRAM',
+                'a16', getEdgeRagCompatibleGpuType('foundry-production')),
             (() => {
-                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16 + operator 2
+                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
                             corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 70, 'Combined + production LLM: 70 vCPUs', 70, r.vcpus);
+                return assert(r.vcpus === 68, 'Combined + production LLM: 68 vCPUs', 68, r.vcpus);
             })(),
             (() => {
-                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64 + operator 4
+                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
                             corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 220, 'Combined + production LLM: 220 GB memory', 220, r.memory);
+                return assert(r.memory === 216, 'Combined + production LLM: 216 GB memory', 216, r.memory);
             })(),
             (() => {
                 // CP 600 + five worker OS disks 1000 + LLM 100 + vector DB 150
@@ -4292,8 +4594,8 @@
                 const w = { type: 'edgerag', deploymentMode: 'agentic', llmEndpoint: 'external',
                             corpusGB: 50, gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 38 && r.memory === 124 && r.storage === 1275 && r.gpus === 0,
-                    'Agentic only + external LLM: 38/124/1275/0', '38/124/1275/0',
+                return assert(r.vcpus === 36 && r.memory === 120 && r.storage === 1275 && r.gpus === 0,
+                    'Agentic only + external LLM: 36/120/1275/0', '36/120/1275/0',
                     r.vcpus + '/' + r.memory + '/' + r.storage + '/' + r.gpus);
             })(),
             (() => {
@@ -4326,16 +4628,16 @@
 
         testSuite('calculateWorkloadRequirements() - Video Indexer', 'sizer.js', [
             (() => {
-                // Recommended: CP 3×4=12 + workers 64 + operator 2 = 78 vCPU
+                // Recommended: CP 3×4=12 + published worker capacity 64 = 76 vCPU
                 const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 78, 'VI Recommended: 78 vCPUs', 78, r.vcpus);
+                return assert(r.vcpus === 76, 'VI Recommended: 76 vCPUs', 76, r.vcpus);
             })(),
             (() => {
-                // Recommended: CP 3×8=24 + workers 256 + operator 4 = 284 GB
+                // Recommended: CP 3×8=24 + published worker capacity 256 = 280 GB
                 const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 284, 'VI Recommended: 284 GB memory', 284, r.memory);
+                return assert(r.memory === 280, 'VI Recommended: 280 GB memory', 280, r.memory);
             })(),
             (() => {
                 // Recommended: CP 600 + workers 2×200=400 + PV 100 = 1100 GB
@@ -4344,17 +4646,17 @@
                 return assert(r.storage === 1100, 'VI Recommended: 1100 GB storage', 1100, r.storage);
             })(),
             (() => {
-                // Minimum: CP 12 + workers 32 + operator 2 = 46 vCPU
+                // Minimum: CP 12 + published worker capacity 32 = 44 vCPU
                 const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 46, 'VI Minimum: 46 vCPUs', 46, r.vcpus);
+                return assert(r.vcpus === 44, 'VI Minimum: 44 vCPUs', 44, r.vcpus);
             })(),
             (() => {
-                // Minimum: CP 24 + workers 64 + operator 4 = 92 GB; storage 600+200+50=850
+                // Minimum: CP 24 + published worker capacity 64 = 88 GB; storage 600+200+50=850
                 const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 92 && r.storage === 850,
-                    'VI Minimum: 92 GB memory / 850 GB storage', '92/850', r.memory + '/' + r.storage);
+                return assert(r.memory === 88 && r.storage === 850,
+                    'VI Minimum: 88 GB memory / 850 GB storage', '88/850', r.memory + '/' + r.storage);
             })(),
             (() => {
                 // GPU optional — none by default
@@ -4368,6 +4670,22 @@
                             gpuMode: 'dda', gpuDdaCount: 1 };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.gpus === 2, 'VI Recommended + 1 GPU/worker = 2 GPUs', 2, r.gpus);
+            })()
+        ]);
+
+        testSuite('calculateWorkloadRequirements() - GitHub Enterprise Local', 'sizer.js', [
+            (() => {
+                const r = calculateWorkloadRequirements({ type: 'ghel', tier: 'up-to-1000', replicas: 0,
+                    actions: false, codeSecurity: false });
+                return assert(r.vcpus === 8 && r.memory === 48 && r.storage === 900,
+                    'GHES default is one appliance VM', '8/48/900', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                const r = calculateWorkloadRequirements({ type: 'ghel', tier: 'up-to-1000', replicas: 0,
+                    actions: true, codeSecurity: true });
+                return assert(r.vcpus === 12 && r.memory === 72 && r.storage === 900,
+                    'Actions and Code Security each add 25% CPU and memory', '12/72/900',
+                    r.vcpus + '/' + r.memory + '/' + r.storage);
             })()
         ]);
 
@@ -4433,6 +4751,25 @@
                 const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
                 const hasFields = 'recommended' in r && 'computeNodes' in r && 'memoryNodes' in r && 'storageNodes' in r && 'bottleneck' in r;
                 return assert(hasFields, 'Returns recommended, computeNodes, memoryNodes, storageNodes, bottleneck', true, hasFields);
+            })(),
+            (() => {
+                const hw = {
+                    totalPhysicalCores: 100,
+                    coresPerSocket: 50,
+                    memoryGB: 1600,
+                    gpuCount: 1,
+                    gpuType: 'l4',
+                    generation: { coreOptions: [50] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                const r = getRecommendedNodeCount(4000, 16000, 100, maxHw, 2, '2way', 256);
+                const correct = maxHw.gpuCount === 1 && maxHw.gpuType === 'l4' &&
+                    r.gpuNodes === 64 && r.recommended === 65 && r.bottleneck === 'gpu';
+                return assert(correct,
+                    '256 total L4 GPUs remain GPU-driven and require 65 physical machines for N−1',
+                    '1 L4 / 64 working / 65 physical / GPU',
+                    `${maxHw.gpuCount} ${maxHw.gpuType} / ${r.gpuNodes} working / ${r.recommended} physical / ${r.bottleneck}`);
             })(),
             (() => {
                 const hw = {
@@ -5010,24 +5347,25 @@
         // --- Feature 3: GPU_MODELS constant ---
         testSuite('GPU_MODELS constant', 'sizer.js', [
             assert(GPU_MODELS.a2 !== undefined, 'A2 model defined', true, GPU_MODELS.a2 !== undefined),
+            assert(GPU_MODELS.a10 !== undefined, 'A10 model defined', true, GPU_MODELS.a10 !== undefined),
             assert(GPU_MODELS.a16 !== undefined, 'A16 model defined', true, GPU_MODELS.a16 !== undefined),
             assert(GPU_MODELS.a40 !== undefined, 'A40 model defined', true, GPU_MODELS.a40 !== undefined),
-            assert(GPU_MODELS.a100 !== undefined, 'A100 model defined', true, GPU_MODELS.a100 !== undefined),
+            assert(GPU_MODELS.a100 === undefined, 'A100 model removed', undefined, GPU_MODELS.a100),
             assert(GPU_MODELS.l4 !== undefined, 'L4 model defined', true, GPU_MODELS.l4 !== undefined),
             assert(GPU_MODELS.l40 !== undefined, 'L40 model defined', true, GPU_MODELS.l40 !== undefined),
             assert(GPU_MODELS.l40s !== undefined, 'L40S model defined', true, GPU_MODELS.l40s !== undefined),
             assert(GPU_MODELS.t4 !== undefined, 'T4 model defined', true, GPU_MODELS.t4 !== undefined),
             assert(GPU_MODELS.rtxpro6000 !== undefined, 'RTX Pro 6000 model defined', true, GPU_MODELS.rtxpro6000 !== undefined),
-            assert(GPU_MODELS.h100 !== undefined, 'H100 model defined', true, GPU_MODELS.h100 !== undefined),
-            assert(Object.keys(GPU_MODELS).length === 10, 'GPU_MODELS has exactly 10 models', 10, Object.keys(GPU_MODELS).length),
+            assert(GPU_MODELS.h100 === undefined, 'H100 model removed', undefined, GPU_MODELS.h100),
+            assert(Object.keys(GPU_MODELS).length === 9, 'GPU_MODELS has exactly 9 models', 9, Object.keys(GPU_MODELS).length),
             assert(GPU_MODELS.a2.vramGB === 16, 'A2: 16 GB VRAM', 16, GPU_MODELS.a2.vramGB),
             assert(GPU_MODELS.a2.tdpW === 60, 'A2: 60W TDP', 60, GPU_MODELS.a2.tdpW),
+            assert(GPU_MODELS.a10.vramGB === 24, 'A10: 24 GB VRAM', 24, GPU_MODELS.a10.vramGB),
+            assert(GPU_MODELS.a10.tdpW === 150, 'A10: 150W TDP', 150, GPU_MODELS.a10.tdpW),
             assert(GPU_MODELS.a16.vramGB === 64, 'A16: 64 GB VRAM', 64, GPU_MODELS.a16.vramGB),
             assert(GPU_MODELS.a16.tdpW === 250, 'A16: 250W TDP', 250, GPU_MODELS.a16.tdpW),
             assert(GPU_MODELS.a40.vramGB === 48, 'A40: 48 GB VRAM', 48, GPU_MODELS.a40.vramGB),
             assert(GPU_MODELS.a40.tdpW === 300, 'A40: 300W TDP', 300, GPU_MODELS.a40.tdpW),
-            assert(GPU_MODELS.a100.vramGB === 80, 'A100: 80 GB VRAM', 80, GPU_MODELS.a100.vramGB),
-            assert(GPU_MODELS.a100.tdpW === 300, 'A100: 300W TDP (PCIe variant)', 300, GPU_MODELS.a100.tdpW),
             assert(GPU_MODELS.l4.vramGB === 24, 'L4: 24 GB VRAM', 24, GPU_MODELS.l4.vramGB),
             assert(GPU_MODELS.l4.tdpW === 72, 'L4: 72W TDP', 72, GPU_MODELS.l4.tdpW),
             assert(GPU_MODELS.l40.vramGB === 48, 'L40: 48 GB VRAM', 48, GPU_MODELS.l40.vramGB),
@@ -5038,23 +5376,13 @@
             assert(GPU_MODELS.t4.tdpW === 70, 'T4: 70W TDP', 70, GPU_MODELS.t4.tdpW),
             assert(GPU_MODELS.rtxpro6000.vramGB === 48, 'RTX Pro 6000: 48 GB VRAM', 48, GPU_MODELS.rtxpro6000.vramGB),
             assert(GPU_MODELS.rtxpro6000.tdpW === 600, 'RTX Pro 6000: 600W TDP', 600, GPU_MODELS.rtxpro6000.tdpW),
-            assert(GPU_MODELS.h100.vramGB === 80, 'H100: 80 GB VRAM', 80, GPU_MODELS.h100.vramGB),
-            assert(GPU_MODELS.h100.tdpW === 700, 'H100: 700W TDP', 700, GPU_MODELS.h100.tdpW),
             // maxPerNode checks
             assert(GPU_MODELS.l40s.maxPerNode === 4, 'L40S: max 4 per node', 4, GPU_MODELS.l40s.maxPerNode),
             assert(GPU_MODELS.l4.maxPerNode === 4, 'L4: max 4 per node', 4, GPU_MODELS.l4.maxPerNode),
-            assert(GPU_MODELS.h100.maxPerNode === 2, 'H100: max 2 per node', 2, GPU_MODELS.h100.maxPerNode),
             assert(GPU_MODELS.rtxpro6000.maxPerNode === 2, 'RTX Pro 6000: max 2 per node', 2, GPU_MODELS.rtxpro6000.maxPerNode),
             assert(GPU_MODELS.a16.maxPerNode === 2, 'A16: max 2 per node', 2, GPU_MODELS.a16.maxPerNode),
             assert(GPU_MODELS.a40.maxPerNode === 2, 'A40: max 2 per node', 2, GPU_MODELS.a40.maxPerNode),
-            assert(GPU_MODELS.a100.maxPerNode === 2, 'A100: max 2 per node', 2, GPU_MODELS.a100.maxPerNode),
-            // A100 uses MIG (max 7 hardware slices) — must NOT advertise the '1/16' partition
-            assert(!GPU_MODELS.a100.validPartitions.includes('1/16'),
-                'A100: validPartitions excludes 1/16 (MIG hardware limit, max 7 slices)',
-                true, !GPU_MODELS.a100.validPartitions.includes('1/16')),
-            assert(GPU_MODELS.a100.validPartitions.includes('1/8'),
-                'A100: validPartitions includes 1/8 (smallest MIG 1g profile)',
-                true, GPU_MODELS.a100.validPartitions.includes('1/8')),
+            assert(GPU_MODELS.a10.maxPerNode === 2, 'A10: max 2 per node', 2, GPU_MODELS.a10.maxPerNode),
             // A40 uses NVIDIA vGPU software (up to 16 partitions per board) — must advertise '1/16'
             assert(GPU_MODELS.a40.validPartitions.includes('1/16'),
                 'A40: validPartitions includes 1/16 (NVIDIA vGPU software supports up to 16)',
@@ -5065,9 +5393,123 @@
                 Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0))
         ]);
 
+        testSuite('GPU support matrices match Microsoft Learn', 'sizer.js', [
+            (() => {
+                const actual = Object.entries(GPU_MODELS)
+                    .filter(([, model]) => model.supportsArcVmDda)
+                    .map(([key]) => key)
+                    .sort();
+                const expected = ['a16', 'a2', 'l4', 'l40', 'l40s', 'rtxpro6000', 't4'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'Arc VM DDA models exactly match Learn', expected.join(', '), actual.join(', '));
+            })(),
+            (() => {
+                const actual = Object.entries(GPU_MODELS)
+                    .filter(([, model]) => model.supportsGpuP)
+                    .map(([key]) => key)
+                    .sort();
+                const expected = ['a10', 'a16', 'a2', 'a40', 'l4', 'l40', 'l40s', 'rtxpro6000'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'GPU-P models exactly match Learn', expected.join(', '), actual.join(', '));
+            })(),
+            (() => {
+                const actual = Object.keys(AKS_GPU_VM_SIZES).sort();
+                const expected = ['a16', 'a2', 'l4', 'l40', 'l40s', 'rtxpro6000', 't4'];
+                return assert(JSON.stringify(actual) === JSON.stringify(expected),
+                    'AKS GPU models exactly match Learn', expected.join(', '), actual.join(', '));
+            })()
+        ]);
+
+        testSuite('GPU support is deployment-topology independent', 'sizer.js', [
+            (() => {
+                const topologySpecificKeys = Object.values(GPU_MODELS).flatMap(model =>
+                    Object.keys(model).filter(key => /hyperconverged|disaggregated/i.test(key)));
+                return assert(topologySpecificKeys.length === 0,
+                    'GPU capabilities contain no topology-specific support flags',
+                    [], topologySpecificKeys);
+            })()
+        ]);
+
+        testSuite('GPU-P validation follows cluster-wide partitioning', 'sizer.js', [
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' },
+                    [{ type: 'avd', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' }]);
+                return assert(err === null,
+                    'Matching GPU-P partition sizes across workloads are accepted', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/4' },
+                    [{ type: 'avd', gpuMode: 'gpu-p', gpuPModel: 'a10', gpuPartition: '1/8' }]);
+                return assert(err && err.code === 'gpu-p-partition-count-conflict',
+                    'Different GPU-P partition sizes across workloads are rejected',
+                    'gpu-p-partition-count-conflict', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'gpu-p', gpuPModel: 't4', gpuPartition: '1/2' }, []);
+                return assert(err && err.code === 'gpu-p-unsupported-gpu',
+                    'T4 is rejected for GPU-P', 'gpu-p-unsupported-gpu', err && err.code);
+            })()
+        ]);
+
+        testSuite('DDA GPU count limits', 'sizer.js', [
+            assert(typeof getDdaGpuCountLimit === 'function',
+                'getDdaGpuCountLimit is defined', 'function', typeof getDdaGpuCountLimit),
+            assert(getDdaGpuCountLimit('vm', 'total', 'l40s') === 252,
+                'Total VM + L40S allows 63 N−1 effective machines × 4 GPUs', 252,
+                getDdaGpuCountLimit('vm', 'total', 'l40s')),
+            assert(getDdaGpuCountLimit('vm', 'total', 'a2') === 126,
+                'Total VM + A2 allows 63 N−1 effective machines × 2 GPUs', 126,
+                getDdaGpuCountLimit('vm', 'total', 'a2')),
+            assert(getDdaGpuCountLimit('vm', 'per-vm', 'l40s') === 4,
+                'Per-VM + L40S remains capped at 4 GPUs per machine', 4,
+                getDdaGpuCountLimit('vm', 'per-vm', 'l40s')),
+            assert(getDdaGpuCountLimit('avd', null, 'l40s') === 4,
+                'Non-VM workloads remain capped per machine', 4,
+                getDdaGpuCountLimit('avd', null, 'l40s')),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 252
+                }, []);
+                return assert(err === null, '252 total L40S GPUs is valid with N−1 capacity', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 253
+                }, []);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    '253 total L40S GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 127
+                }, []);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    '127 total A2 GPUs is rejected', 'gpu-count-exceeds-instance-limit', err && err.code);
+            })(),
+            (() => {
+                const others = [{
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 200
+                }];
+                const err = validateWorkloadBeforeSave({
+                    type: 'vm', inputMode: 'total', count: 1,
+                    gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 53
+                }, others);
+                return assert(err && err.code === 'gpu-count-exceeds-instance-limit',
+                    'Combined workload demand above 252 GPUs is rejected',
+                    'gpu-count-exceeds-instance-limit', err && err.code);
+            })()
+        ]);
+
         // --- Pre-save workload validation: AKS DDA must have a GPU VM size ---
         // Regression guard: previously, if a user added a non-AKS workload with
-        // GPU model = A100 (or A40, H100) and then tried to add an AKS cluster
+        // GPU model = A100 (or A40) and then tried to add an AKS cluster
         // with GPU Mode = DDA, the "GPU VM Size" dropdown was empty (no AKS
         // VM SKUs exist for those models) and the workload could still be
         // saved — leaving the cluster mis-sized. validateWorkloadBeforeSave()
@@ -5098,18 +5540,16 @@
                     'AKS + GPU Mode None → no error (no VM size required)', null, err);
             })(),
             (() => {
-                // AKS doesn't support GPU-P in the UI, but the validator should
-                // still not require an aksGpuVmSize when mode is not DDA.
-                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'gpu-p' });
-                return assert(err === null,
-                    'AKS + GPU-P (non-DDA) → no error from this validator', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'gpu-p', gpuPModel: 'a2', gpuPartition: '1/2' });
+                return assert(err !== null && err.code === 'gpu-p-unsupported-workload',
+                    'AKS + GPU-P → blocks because AKS Arc does not support GPU-P',
+                    'gpu-p-unsupported-workload', err && err.code);
             })(),
             (() => {
-                // Non-AKS workloads must NOT trip the AKS-specific validator
-                // even when they have no aksGpuVmSize (they don't have one).
-                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 2 });
-                return assert(err === null,
-                    'VM + DDA + A100 → no error (rule is AKS-only)', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 2 });
+                return assert(err !== null && err.code === 'arc-vm-dda-unsupported-gpu',
+                    'VM + DDA + A40 → blocks because A40 is GPU-P only for Arc VMs',
+                    'arc-vm-dda-unsupported-gpu', err && err.code);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'avd', gpuMode: 'dda', gpuDdaModel: 'l4' });
@@ -5139,8 +5579,8 @@
         // Foundry Local, Agentic Retrieval and Video Indexer all run on AKS Arc node
         // pools, so when they use DDA the selected GPU model must be one that
         // AKS Arc supports (i.e. in AKS_GPU_VM_SIZES). Without this guard a
-        // user could pick A100 / A40 / H100 for a Foundry workload — none of
-        // which AKS Arc can attach as a DDA worker pool today.
+        // user could pick A40 for a Foundry workload — it is GPU-P only and
+        // AKS Arc cannot attach it as a DDA worker pool today.
         testSuite('AKS-hosted workload DDA must use AKS-supported GPU', 'sizer.js', [
             assert(typeof isAksHostedWorkloadType === 'function',
                 'isAksHostedWorkloadType helper exists', 'function', typeof isAksHostedWorkloadType),
@@ -5168,11 +5608,11 @@
             })(),
             (() => {
                 const keys = getAksSupportedGpuKeys();
-                return assert(!keys.has('a100') && !keys.has('a40') && !keys.has('h100'),
-                    'AKS-supported set excludes a100, a40, h100 (no AKS VM SKUs published)',
-                    true, !keys.has('a100') && !keys.has('a40') && !keys.has('h100'));
+                return assert(!keys.has('a100') && !keys.has('a40'),
+                    'AKS-supported set excludes a100 and a40 (no AKS VM SKUs published)',
+                    true, !keys.has('a100') && !keys.has('a40'));
             })(),
-            // Validator: Foundry + DDA + A100 → block
+            // Validator: Foundry + DDA + unsupported model → block
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 1 });
                 return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
@@ -5183,12 +5623,6 @@
                 const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 1 });
                 return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
                     'Foundry + DDA + A40 → blocks (A40 has no AKS VM SKUs)',
-                    'aks-hosted-dda-unsupported-gpu', err && err.code);
-            })(),
-            (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'h100', gpuDdaCount: 1 });
-                return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
-                    'Foundry + DDA + H100 → blocks (H100 has no AKS VM SKUs)',
                     'aks-hosted-dda-unsupported-gpu', err && err.code);
             })(),
             // Validator: Foundry + DDA + AKS-supported GPU → OK
@@ -5215,16 +5649,12 @@
                 return assert(err === null,
                     'Video Indexer + DDA + T4 → no error', null, err);
             })(),
-            // VM/AVD workloads are NOT AKS-hosted — the rule should NOT apply.
+            // VM/AVD workloads use the Arc VM DDA support matrix.
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 2 });
-                return assert(err === null,
-                    'VM + DDA + A100 → no error (VM workloads run as Azure Local VMs, not AKS)', null, err);
-            })(),
-            (() => {
-                const err = validateWorkloadBeforeSave({ type: 'avd', gpuMode: 'dda', gpuDdaModel: 'h100' });
-                return assert(err === null,
-                    'AVD + DDA + H100 → no error (AVD workloads run as Azure Local VMs, not AKS)', null, err);
+                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a40', gpuDdaCount: 2 });
+                return assert(err !== null && err.code === 'arc-vm-dda-unsupported-gpu',
+                    'VM + DDA + A40 → blocks because Arc VM DDA does not support A40',
+                    'arc-vm-dda-unsupported-gpu', err && err.code);
             })(),
             // Validator should NOT trip when gpuDdaModel is missing (separate
             // problem — the DDA dropdown defaults to one of the filtered set
@@ -5237,10 +5667,10 @@
             })(),
             // Error message should name the unsupported GPU model and the workload.
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a100' });
-                return assert(err && err.message.indexOf('A100') !== -1 && err.message.indexOf('Foundry Local') !== -1,
-                    'Error message names the GPU (A100) and workload (Foundry Local)',
-                    true, err && err.message.indexOf('A100') !== -1 && err.message.indexOf('Foundry Local') !== -1);
+                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a40' });
+                return assert(err && err.message.indexOf('A40') !== -1 && err.message.indexOf('Foundry Local') !== -1,
+                    'Error message names the GPU (A40) and workload (Foundry Local)',
+                    true, err && err.message.indexOf('A40') !== -1 && err.message.indexOf('Foundry Local') !== -1);
             })()
         ]);
 
@@ -5255,9 +5685,9 @@
             assert(getWorkloadGpuType({}) === null, 'empty object → null', null, getWorkloadGpuType({})),
             assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'none' }) === null,
                 "gpuMode 'none' → null", null, getWorkloadGpuType({ type: 'vm', gpuMode: 'none' })),
-            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }) === 'h100',
-                "VM DDA H100 → 'h100'", 'h100',
-                getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' })),
+            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }) === 'a100',
+                "VM DDA A100 → 'a100'", 'a100',
+                getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' })),
             assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' }) === 'a16',
                 "VM GPU-P A16 → 'a16'", 'a16',
                 getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' })),
@@ -5279,8 +5709,8 @@
         ]);
 
         // --- validateWorkloadBeforeSave: cross-workload homogeneous-GPU rule ---
-        // Real-world bug: user adds Azure Local VM with H100 (DDA), then opens
-        // Add Foundry Local. The AKS-hosted GPU filter removes H100 from the
+        // Real-world bug: user adds Azure Local VM with A100 (DDA), then opens
+        // Add Foundry Local. The AKS-hosted GPU filter removes A100 from the
         // dropdown, so the lock-fallback in populateDdaModels did NOT engage
         // and the user could freely pick L40S — saving a heterogeneous-GPU
         // config that's physically impossible in a real cluster. This rule
@@ -5301,22 +5731,22 @@
                 return assert(err === null,
                     'otherWorkloads omitted → no conflict (1-arg back-compat)', null, err);
             })(),
-            // The exact reported scenario: VM with H100, then Foundry with L40S → block
+            // VM with L40, then Foundry with L40S → block
             (() => {
-                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'VM H100 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
+                    'VM L40 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
-            // Symmetric: Foundry L40S first, then VM H100 → block
+            // Symmetric: Foundry L40S first, then VM L40 → block
             (() => {
                 const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }, others);
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
-                    'Foundry L40S + VM H100 → blocks with gpu-conflicts-with-locked-type',
+                    'Foundry L40S + VM L40 → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
             // Same GPU on both → OK (homogeneous)
@@ -5371,7 +5801,7 @@
             })(),
             // New workload has no GPU → no conflict
             (() => {
-                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'none' }, others);
                 return assert(err === null,
@@ -5390,12 +5820,12 @@
             })(),
             // Error message should name both workloads' GPUs.
             (() => {
-                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
-                return assert(err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1,
-                    'Error message names both GPU models (H100 and L40S)',
-                    true, err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1);
+                return assert(err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1,
+                    'Error message names both GPU models (L40 and L40S)',
+                    true, err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1);
             })()
         ]);
 
@@ -7094,6 +7524,21 @@
             })()
         ]);
 
+        testSuite('CPU_GENERATIONS: AMD 5th Gen EPYC catalog options', 'sizer.js', [
+            (() => {
+                const turin = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th');
+                return assert(turin.coreOptions.includes(84),
+                    'Standard AMD Turin includes the catalog-listed 84-core option', true,
+                    turin.coreOptions.includes(84));
+            })(),
+            (() => {
+                const turinDense = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th-c');
+                return assert(!turinDense.coreOptions.includes(84),
+                    'AMD Turin Dense remains limited to its 96-core minimum and above', false,
+                    turinDense.coreOptions.includes(84));
+            })()
+        ]);
+
         // --- Power estimate core scaling logic ---
         testSuite('Power estimate core scaling (40% base + 60% proportional)', 'sizer.js', [
             (() => {
@@ -7220,13 +7665,25 @@
         // Populate window.configTemplates by calling showTemplates(), then clean up overlay
         (function() {
             showTemplates();
-            // Remove the overlay showTemplates() appended to body
-            document.querySelectorAll('div').forEach(el => {
-                if (el.style.position === 'fixed' && el.style.zIndex === '10000') {
-                    el.remove();
-                }
-            });
+            const overlay = document.getElementById('templates-overlay');
+            const dialog = overlay && overlay.querySelector('[role="dialog"]');
+            window.__templateDialogAccessibility = {
+                dialogNamed: !!dialog && dialog.getAttribute('aria-modal') === 'true'
+                    && dialog.getAttribute('aria-labelledby') === 'templates-dialog-title',
+                closeNamed: !!overlay && !!overlay.querySelector('button[aria-label="Close dialog"]'),
+                templateButtonCount: overlay ? overlay.querySelectorAll('button[onclick^="loadTemplate("]').length : 0
+            };
+            if (overlay) overlay.dispatchEvent(new Event('odin-close'));
         })();
+
+        testSuite('Template Dialog Accessibility', 'script.js', [
+            assert(window.__templateDialogAccessibility.dialogNamed,
+                'Template overlay is a named modal dialog', true, window.__templateDialogAccessibility.dialogNamed),
+            assert(window.__templateDialogAccessibility.closeNamed,
+                'Template dialog close button has an accessible name', true, window.__templateDialogAccessibility.closeNamed),
+            assert(window.__templateDialogAccessibility.templateButtonCount === 5,
+                'All template choices are keyboard-operable buttons', 5, window.__templateDialogAccessibility.templateButtonCount)
+        ]);
 
         // Test: Verify all template configs have the required fields for 100% progress
         testSuite('Template Data Completeness', 'script.js', [
@@ -7722,6 +8179,10 @@
             const y4 = labelY(hciSvg, 'Node 4');
             results.push(assert(y1 !== null && y4 !== null, 'HCI SVG renders Node 1 and Node 4 labels', true, y1 !== null && y4 !== null));
             results.push(assert(y1 > y4, 'HCI SVG fills bottom-up (Node 1 below Node 4)', true, y1 > y4));
+
+            const gpuSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 2, hasGpu: true });
+            results.push(assert(gpuSvg.indexOf('GPU Enabled') !== -1, 'GPU rack legend uses customer-facing wording', 'GPU Enabled', gpuSvg.indexOf('GPU Enabled') !== -1));
+            results.push(assert(gpuSvg.indexOf('GPU Accent') === -1, 'GPU rack legend omits implementation wording', false, gpuSvg.indexOf('GPU Accent') !== -1));
 
             // (b) Custom Designer node names surface in the diagram.
             const namedSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 2, hasGpu: false, nodeNames: ['AZL-HOST-A', 'AZL-HOST-B'] });
@@ -9856,7 +10317,7 @@
                 'outbound', 'arc', 'proxy',
                 // Step 09: IP & Infrastructure
                 'ip', 'infra', 'infraCidr', 'infraCidrAuto',
-                'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'nodeSettings',
+                'infraGateway', 'infraGatewayManual', 'infraPoolManual', 'infraPoolEndAuto', 'nodeSettings',
                 'infraVlan', 'infraVlanId',
                 'storageAutoIp', 'customStorageSubnets', 'customStorageSubnetsConfirmed',
                 // Step 10: Identity

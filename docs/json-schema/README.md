@@ -25,7 +25,7 @@ Stable URLs (suitable for a `$schema` reference):
 
 ```jsonc
 {
-  "version": "0.23.02",            // metadata only — the producing app version; NOT validated
+  "version": "0.23.03",            // metadata only — the producing app version; NOT validated
   "exportedAt": "2026-08-05T10:00:00.000Z",
   "state": {
     "scenario": "connected",        // connected | disconnected | rackscale | m365local
@@ -55,7 +55,7 @@ Stable URLs (suitable for a `$schema` reference):
 {
   "_meta": {
     "tool": "ODIN Sizer for Azure Local",
-    "version": 2,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
+    "version": 4,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
     "exportedAt": "2026-06-02T10:00:00.000Z",
     "url": "https://azure.github.io/odinforazurelocal/sizer/index.html"
   },
@@ -122,7 +122,7 @@ autocomplete:
 ```jsonc
 {
   "$schema": "https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json",
-  "version": "0.23.02",
+  "version": "0.23.03",
   "state": { /* … */ }
 }
 ```

@@ -7,8 +7,11 @@ const SIZER_STATE_KEY = 'odinSizerState';
 const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 // Bumped 1 → 2 in v0.22.62: GitHub Enterprise Local (GHEL) became a
 // first-class workload type (tier + HA fields added to the export shape).
-const SIZER_VERSION = 3;
+// Bumped 3 → 4 in v0.23.03: Foundry worker/cache fields and GHEL feature flags.
+const SIZER_VERSION = 4;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
+const MAX_AZURE_LOCAL_MACHINES = 64;
+const MAX_AZURE_LOCAL_EFFECTIVE_MACHINES = MAX_AZURE_LOCAL_MACHINES - 1;
 const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SHARED_CONFIG_CHARS = 12000;
@@ -123,7 +126,7 @@ const CPU_GENERATIONS = {
             name: 'AMD 5th Gen EPYC™ (Turin)',
             minCores: 8,
             maxCores: 128,
-            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 128],
+            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 84, 128],
             defaultCores: 32,
             architecture: 'Zen 5',
             socket: 'SP5 (LGA 6096)',
@@ -165,23 +168,18 @@ const CPU_GENERATIONS = {
     ]
 };
 
-// GPU model specifications
-// Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
-// A100 / A40 added in v0.21.11 to reflect OEM SKUs seen in the public Azure Local
-// Solutions catalog (https://azurelocalsolutions.azure.microsoft.com). A100 uses
-// hardware Multi-Instance GPU (MIG) which tops out at 7 slices/board, so it does
-// NOT expose the '1/16' partition Sizer offers for vGPU-software GPUs.
+// GPU model specifications and assignment support.
+// Ref: https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models
 const GPU_MODELS = {
-    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
-    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    a100:      { name: 'NVIDIA A100',            vramGB: 80, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
-    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
+    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: false, validPartitions: [] },
+    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a10:       { name: 'NVIDIA A10',             vramGB: 24, tdpW: 150, maxPerNode: 2, supportsArcVmDda: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsArcVmDda: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsArcVmDda: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
 
 // AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
@@ -242,7 +240,7 @@ function isAksHostedWorkloadType(workloadType) {
 
 // Returns the set of GPU keys that AKS Arc supports (i.e. that have at least
 // one published AKS GPU VM SKU). Currently: t4, a2, a16, l4, l40, l40s,
-// rtxpro6000. NOT included: a40, a100, h100.
+// rtxpro6000. NOT included: a10, a40.
 function getAksSupportedGpuKeys() {
     return new Set(Object.keys(AKS_GPU_VM_SIZES));
 }
@@ -622,6 +620,16 @@ function getGpuLabel(gpuType) {
     return gpuType || 'Unknown';
 }
 
+function getWorkloadGpuReportDetails(workload) {
+    const gpuType = getWorkloadGpuType(workload);
+    if (!gpuType) return null;
+    return {
+        mode: workload.gpuMode,
+        type: gpuType,
+        label: getGpuLabel(gpuType)
+    };
+}
+
 // Build GPU requirement fields HTML for workload modals
 // workloadType: 'vm', 'aks', 'avd', 'foundry', 'edgerag', or 'videoindexer'
 function getGpuRequirementFields(workloadType) {
@@ -662,15 +670,15 @@ function getGpuRequirementFields(workloadType) {
     // Documentation link varies by workload type
     let gpuDocsLink = '';
     if (workloadType === 'aks') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc</a></div>';
     } else if (workloadType === 'foundry') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
     } else if (workloadType === 'edgerag') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Agentic Retrieval runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Agentic Retrieval runs on AKS Arc)</a></div>';
     } else if (workloadType === 'videoindexer') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and VM sizes for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
-        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation?view=azloc-2608#supported-gpu-models" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Supported GPU models and assignment types for Azure Local VMs</a></div>';
     }
 
     // DDA label varies by workload type
@@ -704,6 +712,7 @@ function getGpuRequirementFields(workloadType) {
             ${gpuPNote}
         </div>
         <div id="wl-gpu-dda-fields" style="display: none;">
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-device?view=azloc-2608" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Manage GPUs using Discrete Device Assignment</a></div>
             <div class="form-group">
                 <label>GPU Model
                     <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All machines must use the same GPU model.">ⓘ</span>
@@ -716,15 +725,13 @@ function getGpuRequirementFields(workloadType) {
                 <label id="wl-gpu-dda-label">${ddaLabel}
                     <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
                 </label>
-                <select id="wl-gpu-dda-count">
-                    <option value="1" selected>1</option>
-                    <option value="2">2</option>
-                </select>
+                <input type="number" id="wl-gpu-dda-count" value="1" min="1" max="2" step="1">
             </div>
         </div>
         ${aksGpuVmSizeField}
         <div id="wl-gpu-p-fields" style="display: none;">
-            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning" target="_blank" style="color: var(--link-color);">📖 GPU Partitioning (GPU-P) Management Guide</a></div>
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning?view=azloc-2608" target="_blank" rel="noopener" style="color: var(--link-color);">📖 Manage GPUs using partitioning (GPU-P)</a></div>
+            <div class="hint" style="margin-bottom: 10px;">GPU-P partition count applies to every GPU in the cluster. Confirm the valid partition counts reported by your Azure Local GPU fabric before deployment.</div>
             <div class="form-group">
                 <label>GPU Model
                     <span class="info-icon" title="Select the GPU model for partitioning. This sets the hardware GPU type and determines available partition sizes.">ⓘ</span>
@@ -734,7 +741,7 @@ function getGpuRequirementFields(workloadType) {
             </div>
             <div class="form-group">
                 <label>GPU Partition Size
-                    <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
+                    <span class="info-icon" title="Planning estimate for the cluster-wide partition count. Azure Local reports the valid partition counts supported by the installed GPU fabric.">ⓘ</span>
                 </label>
                 <select id="wl-gpu-p-partition">
                 </select>
@@ -780,7 +787,7 @@ function toggleWorkloadGpuFields() {
 }
 
 // Populate DDA GPU model dropdown. Filters by workload type:
-//   - VM / AVD: any GPU with supportsAzureLocalVMs === true.
+//   - VM / AVD: any GPU with supportsArcVmDda === true.
 //   - Foundry / Agentic Retrieval / Video Indexer: AKS-hosted workloads, so the list
 //     is further restricted to GPUs that AKS Arc itself supports (those that
 //     have published AKS GPU VM SKUs in AKS_GPU_VM_SIZES). AKS itself doesn't
@@ -796,7 +803,7 @@ function populateDdaModels() {
     const restrictToAks = currentModalType && currentModalType !== 'aks' && isAksHostedWorkloadType(currentModalType);
     const aksSupportedKeys = restrictToAks ? getAksSupportedGpuKeys() : null;
     for (const [key, model] of Object.entries(GPU_MODELS)) {
-        if (!model.supportsAzureLocalVMs) continue;
+        if (!model.supportsArcVmDda) continue;
         if (restrictToAks && !aksSupportedKeys.has(key)) continue;
         const opt = document.createElement('option');
         opt.value = key;
@@ -830,7 +837,7 @@ function populateDdaModels() {
                 ' runs on AKS Arc node pools.</em>';
         } else if (lockedNotInDropdown) {
             // Non-AKS-hosted modal but the locked GPU still isn't in the dropdown
-            // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
+            // (e.g. the workload's locked GPU has supportsArcVmDda=false).
             // Defensive — shouldn't happen with current data but covers the case.
             const lockedModel = GPU_MODELS[lockedType];
             const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
@@ -848,7 +855,7 @@ function populateDdaModels() {
         modelSelect.title = 'GPU model is locked \u2014 all machines must use the same GPU model (homogeneous configuration).';
     } else if (lockedType) {
         // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
-        // workload locked the cluster to H100 but this is an AKS-hosted modal that
+        // workload locked the cluster to A10 or A40 but this is an AKS-hosted modal that
         // filters to AKS-supported GPUs only. Disable the dropdown and clear any
         // stale selection so the user cannot save a heterogeneous-GPU config.
         // validateWorkloadBeforeSave() also backstops this via the cross-workload
@@ -881,24 +888,26 @@ function workloadTypeDisplayName(t) {
     }
 }
 
-// Populate DDA GPU count dropdown based on selected model's maxPerNode
-function populateDdaCountOptions() {
-    const countSelect = document.getElementById('wl-gpu-dda-count');
-    const modelSelect = document.getElementById('wl-gpu-dda-model');
-    if (!countSelect) return;
-    const gpuType = modelSelect ? modelSelect.value : 'a2';
+function getDdaGpuCountLimit(workloadType, inputMode, gpuType) {
     const gpuModel = GPU_MODELS[gpuType];
     const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
-    const currentValue = parseInt(countSelect.value) || 1;
-    countSelect.innerHTML = '';
-    for (let i = 1; i <= maxPerNode; i++) {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i;
-        countSelect.appendChild(opt);
-    }
-    // Restore previous selection if still valid
-    countSelect.value = currentValue <= maxPerNode ? currentValue : 1;
+    return workloadType === 'vm' && inputMode === 'total'
+        ? maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES
+        : maxPerNode;
+}
+
+// Update the DDA GPU count input based on workload mode and selected model.
+function populateDdaCountOptions() {
+    const countInput = document.getElementById('wl-gpu-dda-count');
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!countInput) return;
+    const gpuType = modelSelect ? modelSelect.value : 'a2';
+    const inputModeEl = document.getElementById('vm-input-mode');
+    const inputMode = inputModeEl ? inputModeEl.value : null;
+    const limit = getDdaGpuCountLimit(currentModalType, inputMode, gpuType);
+    const currentValue = parseInt(countInput.value, 10) || 1;
+    countInput.max = String(limit);
+    countInput.value = String(Math.min(currentValue, limit));
 }
 
 // Handle DDA model selection \u2014 update hardware GPU type and count options
@@ -1030,7 +1039,7 @@ function populateAksGpuVmSizes() {
     if (infoEl) {
         if (lockedType && optionsAdded === 0) {
             // The cluster's GPU type is locked by another workload to a model
-            // that has NO published AKS Arc VM SKUs (e.g. A100, A40, H100).
+            // that has NO published AKS Arc VM SKUs (e.g. A10 or A40).
             // Warn the user *before* they try to save — addWorkload() will
             // also block save via validateWorkloadBeforeSave() as a backstop.
             const lockedModel = GPU_MODELS[lockedType];
@@ -1161,6 +1170,92 @@ function getHardwareConfig() {
     };
 }
 
+function buildSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig) {
+    if (!['single', 'standard', 'rack-aware'].includes(clusterType)) return null;
+    if (!globalThis.volumeCalculator || !hwConfig || !hwConfig.diskConfig) return null;
+
+    const copies = { '2way': 2, '3way': 3, '4way': 4 }[resiliency];
+    const machines = Number(nodeCount);
+    if (!copies || !Number.isInteger(machines)) return null;
+
+    const limit = globalThis.volumeCalculator.calculateLimit({
+        platform: 'azureLocal',
+        nodes: machines,
+        copies: copies,
+        provisioning: 'thin',
+        thinExtentMiB: 1024
+    });
+    if (!limit.valid) return null;
+
+    const disks = hwConfig.diskConfig;
+    const poolInput = disks.isTiered
+        ? {
+            servers: machines, maxVolumeTB: limit.exactTB, copies: copies,
+            platform: 'azureLocal', tiering: true,
+            cacheDrivesPerNode: disks.cache.count,
+            cacheDiskSizeTB: disks.cache.sizeGB / 1024,
+            capacityDrivesPerNode: disks.capacity.count,
+            capacityDiskSizeTB: disks.capacity.sizeGB / 1024
+        }
+        : {
+            servers: machines, maxVolumeTB: limit.exactTB, copies: copies,
+            platform: 'azureLocal',
+            drivesPerNode: disks.capacity.count,
+            driveSizeTB: disks.capacity.sizeGB / 1024
+        };
+    const pool = globalThis.volumeCalculator.calculatePoolConsumption(poolInput);
+    if (!pool.valid || pool.poolCapped) return null;
+
+    const format = globalThis.volumeCalculator.formatLimit;
+    const extentLabel = limit.extentMiB === 1024 ? '1 GiB' : limit.extentMiB + ' MiB';
+    const baseFormula = copies === 4
+        ? `32,768 usable records × ${extentLabel} extents ÷ 0.5 ÷ ${copies} copies = ${format(limit.baseExactTB)} TB base limit.`
+        : `32,768 usable records × ${limit.effectiveNodes} effective machines × ${extentLabel} extents ÷ ${2 * copies} = ${format(limit.baseExactTB)} TB base limit.`;
+    const poolFormula = disks.isTiered
+        ? `${machines} machines × ${poolInput.capacityDrivesPerNode} capacity drives × ${format(poolInput.capacityDiskSizeTB)} TB = ${format(pool.rawPoolTB)} TB raw capacity; cache drives do not add usable capacity.`
+        : `${machines} machines × ${poolInput.drivesPerNode} capacity drives × ${format(poolInput.driveSizeTB)} TB = ${format(pool.rawPoolTB)} TB raw capacity.`;
+
+    return {
+        provisioning: 'Thin',
+        extentMiB: limit.extentMiB,
+        copies: copies,
+        nodeCount: machines,
+        tiering: disks.isTiered ? 'Cache and Capacity' : 'Capacity only',
+        maximumVolumeTB: limit.exactTB,
+        maximumVolumeLabel: '< ' + format(limit.exactTB) + ' TB',
+        volumeCount: pool.volumesNeeded,
+        usableCapacityTB: pool.usableTB,
+        derivation: [
+            `${machines} selected machines = ${limit.effectiveNodes} effective machines; ${copies} copies, Thin provisioning, ${extentLabel} extents.`,
+            baseFormula,
+            `${format(Math.min(limit.baseExactTB, limit.maxVolumeTB))} TB capped base - ${format(limit.volumeOverheadTB)} TB overhead = < ${format(limit.exactTB)} TB maximum supported individual volume size.`,
+            poolFormula,
+            `${format(pool.rawPoolTB)} TB raw - ${format(pool.reservedTB)} TB rebuild reserve = ${format(pool.availableTB)} TB available.`,
+            `${format(pool.availableTB)} TB ÷ ${copies} copies - ${format(pool.infrastructureReservedTB)} TB Azure Local platform reserve = ${format(pool.usableTB)} TB usable.`,
+            `Create max(ceil(${format(pool.usableTB)} TB ÷ ${format(limit.exactTB)} TB), ${machines} machines) = ${pool.volumesNeeded} volumes.`
+        ]
+    };
+}
+
+let _lastS2dCalculation = null;
+
+function updateSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig) {
+    _lastS2dCalculation = buildSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig);
+    const section = document.getElementById('s2d-integration-section');
+    if (!section) return;
+    section.style.display = _lastS2dCalculation ? '' : 'none';
+    if (!_lastS2dCalculation) return;
+
+    document.getElementById('s2d-volume-count').textContent = String(_lastS2dCalculation.volumeCount);
+    document.getElementById('s2d-max-volume-size').textContent = _lastS2dCalculation.maximumVolumeLabel;
+    const details = document.getElementById('s2d-calculation-details');
+    details.replaceChildren(..._lastS2dCalculation.derivation.map(function(line) {
+        const item = document.createElement('li');
+        item.textContent = line;
+        return item;
+    }));
+}
+
 // ============================================
 // Growth Factor & Node Recommendation
 // ============================================
@@ -1204,6 +1299,8 @@ function buildMaxHardwareConfig(hwConfig) {
         memoryGB: effectiveMaxMemory,
         sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
+        gpuCount: hwConfig.gpuCount,
+        gpuType: hwConfig.gpuType,
         diskConfig: maxDiskConfig // disk size scaled to max for node recommendation
     };
 }
@@ -1234,6 +1331,48 @@ function getGrowthFactor() {
     const el = document.getElementById('future-growth');
     const pct = el ? (parseInt(el.value) || 0) : 0;
     return _computeGrowthMultiplier(pct, getGrowthYears());
+}
+
+function getGpuGrowthCapacityStatus(workloadList, growthFactor) {
+    let gpuType = null;
+    let rawDemand = 0;
+    (Array.isArray(workloadList) ? workloadList : []).forEach(function(workload) {
+        const demand = calculateWorkloadGpuRequirement(workload);
+        if (demand <= 0) return;
+        const workloadGpuType = getWorkloadGpuType(workload);
+        if (!workloadGpuType || (gpuType && workloadGpuType !== gpuType)) {
+            gpuType = null;
+            rawDemand = 0;
+            return;
+        }
+        gpuType = workloadGpuType;
+        rawDemand += demand;
+    });
+    const gpuModel = gpuType ? GPU_MODELS[gpuType] : null;
+    if (!gpuModel || rawDemand <= 0) return null;
+    const limit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES;
+    const projectedDemand = Math.ceil(rawDemand * (Number(growthFactor) || 1));
+    return {
+        gpuType: gpuType,
+        gpuModel: gpuModel,
+        rawDemand: rawDemand,
+        projectedDemand: projectedDemand,
+        limit: limit,
+        exceedsWithGrowth: rawDemand <= limit && projectedDemand > limit
+    };
+}
+
+function removeDefaultGrowthIfGpuCapacityExceeded(workloadList) {
+    const growthEl = document.getElementById('future-growth');
+    const growthPct = growthEl ? (parseInt(growthEl.value, 10) || 0) : 0;
+    if (!growthEl || growthPct <= 0 || _manualFields.has('future-growth')) return null;
+    const status = getGpuGrowthCapacityStatus(workloadList, getGrowthFactor());
+    if (!status || !status.exceedsWithGrowth) return null;
+    growthEl.value = '0';
+    markAutoScaled('future-growth');
+    return 'The default ' + growthPct + '% future-growth allowance was set to 0% because it would increase GPU demand from ' +
+        status.rawDemand + ' to ' + status.projectedDemand + ', above the N−1 maximum of ' + status.limit + ' ' +
+        status.gpuModel.name + ' GPUs (63 effective machines × ' + status.gpuModel.maxPerNode + ' GPUs/machine).';
 }
 
 // Calculate recommended node count based on workload demands and per-node hardware
@@ -1388,7 +1527,8 @@ function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
 //       without it the engine falls through to aggressive memory escalation
 //       (e.g. 2 TB → 3 TB DIMMs) instead of adding the cheaper next rack.
 // Returns { scale: false } or { scale: true, racks: N }.
-function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed) {
+function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conservativeFailed, suppressScale) {
+    if (suppressScale) return { scale: false };
     const MAX_AUTO_RACKS = 8;
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur >= MAX_AUTO_RACKS) return { scale: false };
@@ -1414,7 +1554,8 @@ function shouldAutoScaleDisaggRacks(currentRackCount, recommendedNodes, conserva
 // shrink fire at different recommendation thresholds, so a workload sitting
 // right at e.g. 32 nodes won't ping-pong between 2 and 3 racks.
 // Returns { shrink: false } or { shrink: true, racks: N }.
-function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
+function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes, suppressShrink) {
+    if (suppressShrink) return { shrink: false };
     const cur = Math.max(1, parseInt(currentRackCount, 10) || 1);
     if (cur <= 1) return { shrink: false };
     const rec = parseInt(recommendedNodes, 10) || 0;
@@ -1434,7 +1575,8 @@ function shouldAutoShrinkDisaggRacks(currentRackCount, recommendedNodes) {
 // the boundary is consistent and oscillation-safe with shouldUpgradeToDisaggregated()
 // which fires only when disagg rec > 16.
 // Returns { downgrade: false } or { downgrade: true, recommended: N }.
-function shouldDowngradeFromDisaggregated(standardRecommendedNodes) {
+function shouldDowngradeFromDisaggregated(standardRecommendedNodes, suppressDowngrade) {
+    if (suppressDowngrade) return { downgrade: false };
     const HCI_MAX_WITH_HEADROOM = Math.floor(16 * 0.80); // 12
     const rec = parseInt(standardRecommendedNodes, 10) || 0;
     if (rec <= 0 || rec > HCI_MAX_WITH_HEADROOM) return { downgrade: false };
@@ -1501,7 +1643,9 @@ function updateNodeRecommendation(recommendation) {
 
         let msg = '';
         if (recommendation.recommended > getMaxNodeCap()) {
-            msg = `Auto-scaling requires ~${recommendation.recommended} machines which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity.`;
+            msg = recommendation.bottleneck === 'gpu'
+                ? `GPU demand requires ~${recommendation.recommended} machines for N−1 capacity, which exceeds max ${getMaxNodeCap()}. Reduce GPU workload demand or the future-growth allowance; the selected GPU model is already sized at its supported per-machine maximum.`
+                : `Auto-scaling requires ~${recommendation.recommended} machines which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity.`;
         } else {
             msg = `Auto-configured ${snapped} machine(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
@@ -1526,7 +1670,9 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
 
     let msg = '';
     if (recommendation.recommended > getMaxNodeCap()) {
-        msg = `⚠️ Workload requires ~${recommendation.recommended} machines (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity (CPU cores, memory, or disk size).`;
+        msg = recommendation.bottleneck === 'gpu'
+            ? `⚠️ GPU demand requires ~${recommendation.recommended} machines for N−1 capacity, which exceeds max ${getMaxNodeCap()}. Reduce GPU workload demand or the future-growth allowance; the selected GPU model is already sized at its supported per-machine maximum.`
+            : `⚠️ Workload requires ~${recommendation.recommended} machines (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-machine hardware capacity (CPU cores, memory, or disk size).`;
     } else if (snapped > currentNodeCount) {
         msg = `ℹ️ Workload recommends ${snapped} machine(s) based on ${driver} requirements. Current selection: ${currentNodeCount} machine(s).`;
     } else {
@@ -1589,6 +1735,30 @@ const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM 
 // leaves the user free to manually pick a smaller value if they have a
 // specific reason to (e.g. low-throughput inference workloads).
 const GPU_MIN_CORES_PER_NODE = 24;
+
+// Advisory procurement thresholds. These do not constrain supported sizing;
+// they distinguish a mathematically sufficient minimum-fit result from a
+// typical enterprise new-hardware purchase with broader expansion headroom.
+const ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE = 32;
+const ENTERPRISE_CAVEAT_MIN_MEMORY_GB = 384;
+
+function getSingleNodeAvailabilityNote() {
+    return '<strong><span class="sizing-note-advisory">Advisory</span> - single nodes provide no workload high-availability:</strong> A single-machine deployment has no destination for live migration or workload failover, so solution updates and host maintenance that require a restart interrupt workloads.';
+}
+
+function getMinimumFitHardwareNote(hwConfig) {
+    if (!hwConfig) return null;
+    const lowDimensions = [];
+    if ((hwConfig.totalPhysicalCores || 0) < ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE) {
+        lowDimensions.push((hwConfig.totalPhysicalCores || 0) + ' physical cores');
+    }
+    if ((hwConfig.memoryGB || 0) < ENTERPRISE_CAVEAT_MIN_MEMORY_GB) {
+        lowDimensions.push((hwConfig.memoryGB || 0) + ' GB memory');
+    }
+    if (lowDimensions.length === 0) return null;
+
+    return '<strong><span class="sizing-note-advisory">Advisory</span> - minimum-fit hardware:</strong> This configuration is sized to satisfy the entered workloads and selected growth buffer, not as a new-hardware procurement baseline. The per-machine specification is below the planning caveat threshold (' + lowDimensions.join(' and ') + '; threshold: ' + ENTERPRISE_CAVEAT_MIN_CORES_PER_NODE + ' physical cores and ' + ENTERPRISE_CAVEAT_MIN_MEMORY_GB + ' GB memory). Consider likely additional workloads, model throughput and concurrency, future expansion, and OEM-validated configurations before purchasing hardware. Increase Allow for Future Growth or manually select more CPU or memory where appropriate.';
+}
 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
@@ -3251,8 +3421,10 @@ const WORKLOAD_DEFAULTS = {
     },
     foundry: {
         name: 'Foundry Local',
-        modelClass: 'medium', // small, medium, large, custom
-        replicas: 1,
+        workerProfile: 'recommended',
+        workerNodes: 2,
+        modelDeployments: 1,
+        modelCacheStorageGB: 100,
         engine: 'onnx-genai' // onnx-genai (CPU or GPU) or vllm (GPU only)
     },
     edgerag: {
@@ -3268,14 +3440,16 @@ const WORKLOAD_DEFAULTS = {
     ghel: {
         name: 'GitHub Enterprise Local',
         tier: 'up-to-1000', // see GHEL_TIERS
-        ha: true,           // GHES replica-based HA (doubles the VM footprint); defaults to Yes per production guidance
-        replicas: 1         // 0-7 additional replicas (GitHub caps total HA replicas at 8). Mirrors `ha` for the basic case; Advanced section can override up to 7.
+        ha: false,
+        replicas: 0,
+        actions: false,
+        codeSecurity: false
     }
 };
 
 // GitHub Enterprise Server "Minimum recommended requirements" table, as
-// published by GitHub for GHES 3.20 (the version GHEL ships).
-// Source: https://docs.github.com/en/enterprise-server@3.20/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements
+// published by GitHub for current GHES 3.21 guidance.
+// Source: https://docs.github.com/en/enterprise-server@3.21/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements
 // Storage = root disk + data disk, both presented to the GHEL VM as a single
 // total in the Sizer (Azure Local doesn't surface root vs data separately at
 // sizing time). Network-throughput column is informational only.
@@ -3287,7 +3461,7 @@ const GHEL_TIERS = {
         memory: 32,        // GB
         rootStorage: 400,  // GB
         dataStorage: 500,  // GB
-        throughputMbps: 600
+        iops: 600
     },
     'up-to-1000': {
         name: 'Up to 1,000 users',
@@ -3296,7 +3470,7 @@ const GHEL_TIERS = {
         memory: 48,
         rootStorage: 400,
         dataStorage: 500,
-        throughputMbps: 3000
+        iops: 3000
     },
     '1000-to-3000': {
         name: '1,000 to 3,000 users',
@@ -3305,7 +3479,7 @@ const GHEL_TIERS = {
         memory: 64,
         rootStorage: 400,
         dataStorage: 1000,
-        throughputMbps: 6000
+        iops: 6000
     },
     '3000-to-5000': {
         name: '3,000 to 5,000 users',
@@ -3314,7 +3488,7 @@ const GHEL_TIERS = {
         memory: 128,
         rootStorage: 400,
         dataStorage: 1500,
-        throughputMbps: 9000
+        iops: 9000
     },
     '5000-to-8000': {
         name: '5,000 to 8,000 users',
@@ -3323,7 +3497,7 @@ const GHEL_TIERS = {
         memory: 256,
         rootStorage: 400,
         dataStorage: 3000,
-        throughputMbps: 12000
+        iops: 12000
     },
     '8000-to-10000': {
         name: '8,000 to 10,000+ users',
@@ -3332,11 +3506,11 @@ const GHEL_TIERS = {
         memory: 512,
         rootStorage: 400,
         dataStorage: 5000,
-        throughputMbps: 15000
+        iops: 15000
     }
 };
 
-// Foundry Local model size classes (per replica resource estimates).
+// Legacy Foundry Local model classes retained for import migration.
 // Numbers are conservative rules-of-thumb (memory ~= params * bytes-per-weight + KV cache + overhead).
 // These are estimates only — actual sizing depends on the model, quantization,
 // batch size and concurrent request load. Validate with your OEM hardware partner.
@@ -3375,8 +3549,51 @@ const FOUNDRY_MODEL_CLASSES = {
     }
 };
 
+// Microsoft publishes worker-node infrastructure guidance rather than
+// model-size presets. Runtime requests remain model-specific and must fit
+// within this cluster-wide worker capacity.
+const FOUNDRY_WORKER_PROFILES = {
+    minimum: {
+        name: 'Microsoft minimum',
+        description: 'D4s_v3-equivalent worker capacity; 1 worker supported',
+        vcpus: 4,
+        memory: 16
+    },
+    recommended: {
+        name: 'Microsoft recommended',
+        description: 'D8s_v3-equivalent worker capacity; 2 or more workers recommended',
+        vcpus: 8,
+        memory: 32
+    },
+    custom: {
+        name: 'Custom',
+        description: 'Custom per-worker compute and memory capacity',
+        vcpus: 8,
+        memory: 32
+    }
+};
+
+function normalizeFoundryWorkload(w) {
+    if (!w || w.type !== 'foundry') return w;
+    if (!FOUNDRY_WORKER_PROFILES[w.workerProfile]) {
+        w.workerProfile = w.modelClass === 'small' ? 'minimum'
+            : w.modelClass === 'custom' ? 'custom' : 'recommended';
+    }
+    if (!Number.isFinite(w.workerNodes) || w.workerNodes < 1) {
+        w.workerNodes = Math.max(1, w.replicas || (w.workerProfile === 'recommended' ? 2 : 1));
+    }
+    if (!Number.isFinite(w.modelDeployments) || w.modelDeployments < 1) {
+        w.modelDeployments = Math.max(1, w.replicas || 1);
+    }
+    if (!Number.isFinite(w.modelCacheStorageGB) || w.modelCacheStorageGB < 1) {
+        const legacyClass = FOUNDRY_MODEL_CLASSES[w.modelClass];
+        w.modelCacheStorageGB = legacyClass ? Math.max(100, legacyClass.storage) : 100;
+    }
+    return w;
+}
+
 // Foundry Local fixed sizing constants. Foundry runs on a 3-node Arc-enabled
-// Kubernetes (AKS Arc) control plane plus N model deployment replicas.
+// Kubernetes (AKS Arc) control plane plus a configurable worker pool.
 // Numbers below mirror the AKS_OS_DISK_GB constant used in the AKS workload.
 const FOUNDRY_CP_NODES = 3;
 const FOUNDRY_CP_VCPU_PER_NODE = 4;
@@ -3393,8 +3610,8 @@ const FOUNDRY_OPERATOR_MEM_GB = 4;
 //   Combined / Knowledge: 2 GPU VMs, one per embedding model (NC8_A2 or NC8_A16 recommended)
 //   Agentic only: no embedding GPU VMs
 //   GPT-OSS-20B via Foundry Local: a separate minimum or production model host
-// Plus an Agentic Retrieval operator overhead and a vector-database storage allowance
-// driven by the user-supplied document corpus size (typical RAG embedding
+// A vector-database storage allowance is driven by the user-supplied document
+// corpus size (typical RAG embedding
 // overhead is ~1.5x the source corpus once chunked, embedded and indexed).
 const EDGERAG_CP_NODES = 3;
 const EDGERAG_CP_VCPU_PER_NODE = 4;
@@ -3406,14 +3623,21 @@ const EDGERAG_CPU_WORKER_MEM_GB = 32;
 const EDGERAG_EMBEDDING_GPU_NODES = 2;
 const EDGERAG_GPU_WORKER_VCPU = 8;
 const EDGERAG_GPU_WORKER_MEM_GB = 16;
-const EDGERAG_OPERATOR_VCPU = 2;
-const EDGERAG_OPERATOR_MEM_GB = 4;
 const EDGERAG_VECTOR_DB_MULTIPLIER = 1.5; // total storage = corpusGB * 1.5 (chunks + embeddings + index)
 const EDGERAG_LLM_PROFILES = {
     external: { label: 'External / Microsoft Foundry endpoint', vcpus: 0, memory: 0, storage: 0, gpus: 0, minVramGB: 0 },
     'foundry-minimum': { label: 'Foundry Local minimum', vcpus: 8, memory: 32, storage: 50, gpus: 1, minVramGB: 24 },
     'foundry-production': { label: 'Foundry Local production', vcpus: 16, memory: 64, storage: 100, gpus: 1, minVramGB: 48 }
 };
+
+function getEdgeRagCompatibleGpuType(llmEndpoint) {
+    const profile = EDGERAG_LLM_PROFILES[llmEndpoint];
+    const minVramGB = profile ? profile.minVramGB : 0;
+    return Object.keys(AKS_GPU_VM_SIZES).find(function(gpuType) {
+        const model = GPU_MODELS[gpuType];
+        return model && model.vramGB >= minVramGB;
+    }) || '';
+}
 
 function normalizeEdgeRagWorkload(w) {
     if (!w || w.type !== 'edgerag') return w;
@@ -3446,8 +3670,6 @@ const VI_CP_NODES = 3;
 const VI_CP_VCPU_PER_NODE = 4;
 const VI_CP_MEM_PER_NODE = 8;
 const VI_OS_DISK_GB = 200;
-const VI_OPERATOR_VCPU = 2;
-const VI_OPERATOR_MEM_GB = 4;
 const VI_MIN_WORKER_NODES = 1;
 const VI_MIN_VCPU = 32;       // cluster-wide minimum vCPU for VI
 const VI_MIN_MEM_GB = 64;     // cluster-wide minimum memory
@@ -4096,12 +4318,16 @@ function toggleVMInputMode() {
         storageHint.textContent = 'Total disk capacity including OS';
         if (gpuDdaLabel) gpuDdaLabel.innerHTML = 'GPUs per VM/Unit <span class="info-icon" title="Number of physical GPUs assigned via DDA to each VM or workload unit.">ⓘ</span>';
     }
+    populateDdaCountOptions();
 }
 
 // Get AKS modal content
 function getAKSModalContent() {
     const defaults = WORKLOAD_DEFAULTS.aks;
     return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(14, 165, 233, 0.10); border-left: 3px solid var(--accent-blue); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong>Independent application cluster.</strong> Foundry Local, Agentic Retrieval, and AI Video Indexer already include their own AKS Arc infrastructure in ODIN. Add this workload only when you need another cluster.
+        </div>
         <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
             <span style="margin-right: 4px;">\uD83D\uDCD6</span>
             <a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/scale-requirements" target="_blank" style="color: var(--link-color);">AKS Arc on Azure Local - Scale requirements &amp; limits</a>
@@ -4276,8 +4502,8 @@ function getAVDModalContent() {
 // Get Foundry Local modal content
 function getFoundryModalContent() {
     const defaults = WORKLOAD_DEFAULTS.foundry;
-    const cls = FOUNDRY_MODEL_CLASSES[defaults.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-    const customCls = FOUNDRY_MODEL_CLASSES.custom;
+    const profile = FOUNDRY_WORKER_PROFILES[defaults.workerProfile];
+    const customProfile = FOUNDRY_WORKER_PROFILES.custom;
     return `
         <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
@@ -4295,23 +4521,23 @@ function getFoundryModalContent() {
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Foundry">
         </div>
         <div class="form-group">
-            <label>Model Size Class
-                <span class="info-icon" title="Pick the model size class. Sizing presets are conservative rules of thumb (model weights + KV cache + overhead). Validate with your OEM hardware partner and your actual model.">ⓘ</span>
+            <label>Worker Profile
+                <span class="info-icon" title="Microsoft publishes minimum and recommended worker node capacity. Model runtime requests must fit within the selected cluster capacity.">ⓘ</span>
             </label>
             <select id="foundry-model-class" onchange="updateFoundryClassDescription()">
-                <option value="small">${FOUNDRY_MODEL_CLASSES.small.name} &mdash; ${FOUNDRY_MODEL_CLASSES.small.description}</option>
-                <option value="medium" selected>${FOUNDRY_MODEL_CLASSES.medium.name} &mdash; ${FOUNDRY_MODEL_CLASSES.medium.description}</option>
-                <option value="large">${FOUNDRY_MODEL_CLASSES.large.name} &mdash; ${FOUNDRY_MODEL_CLASSES.large.description}</option>
-                <option value="custom">${FOUNDRY_MODEL_CLASSES.custom.name} &mdash; ${FOUNDRY_MODEL_CLASSES.custom.description}</option>
+                <option value="minimum">${FOUNDRY_WORKER_PROFILES.minimum.name} &mdash; ${FOUNDRY_WORKER_PROFILES.minimum.description}</option>
+                <option value="recommended" selected>${FOUNDRY_WORKER_PROFILES.recommended.name} &mdash; ${FOUNDRY_WORKER_PROFILES.recommended.description}</option>
+                <option value="custom">${FOUNDRY_WORKER_PROFILES.custom.name} &mdash; ${FOUNDRY_WORKER_PROFILES.custom.description}</option>
             </select>
-            <span class="hint" id="foundry-class-desc">${cls.description}</span>
+            <span class="hint" id="foundry-class-desc">${profile.description}</span>
+            <span class="hint">Explore compatible OSS models in the <a class="foundry-model-catalog-link" href="https://learn.microsoft.com/azure/azure-sovereign-clouds/private/foundry-local/concept-model-catalog#example-models-in-the-curated-catalog" target="_blank" rel="noopener noreferrer">Foundry Local model catalog</a>. Confirm that the selected model runtime requirements fit within this worker profile.</span>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Number of Replicas
-                    <span class="info-icon" title="Number of model deployment replicas (pods). Each replica handles a share of inference traffic.">ⓘ</span>
+                <label>Worker Nodes
+                    <span class="info-icon" title="One worker is supported; Microsoft recommends two or more workers.">ⓘ</span>
                 </label>
-                <input type="number" id="foundry-replicas" value="${defaults.replicas}" min="1" max="100">
+                <input type="number" id="foundry-worker-nodes" value="${defaults.workerNodes}" min="1" max="100">
             </div>
             <div class="form-group">
                 <label>Inference Engine
@@ -4326,43 +4552,42 @@ function getFoundryModalContent() {
         <div id="foundry-custom-fields" style="display: none;">
             <div class="form-row">
                 <div class="form-group">
-                    <label>vCPUs per Replica</label>
-                    <input type="number" id="foundry-custom-vcpus" value="${customCls.vcpus}" min="1" max="256">
+                    <label>vCPUs per Worker</label>
+                    <input type="number" id="foundry-custom-vcpus" value="${customProfile.vcpus}" min="1" max="256">
                 </div>
                 <div class="form-group">
-                    <label>Memory per Replica (GB)</label>
-                    <input type="number" id="foundry-custom-memory" value="${customCls.memory}" min="1" max="2048">
+                    <label>Memory per Worker (GB)</label>
+                    <input type="number" id="foundry-custom-memory" value="${customProfile.memory}" min="1" max="2048">
                 </div>
             </div>
+        </div>
+        <div class="form-row">
             <div class="form-group">
-                <label>Storage per Replica (GB)
-                    <span class="info-icon" title="Disk space for model weights, KV cache and tokenizer artefacts. Excludes the fixed 200 GB AKS Arc OS disk per node.">ⓘ</span>
+                <label>Model Deployments</label>
+                <input type="number" id="foundry-model-deployments" value="${defaults.modelDeployments}" min="1" max="100">
+            </div>
+            <div class="form-group">
+                <label>Cache per Deployment (GiB)
+                    <span class="info-icon" title="The vLLM model-cache PVC defaults to 100 GiB. Increase it for models whose cache exceeds the default.">ⓘ</span>
                 </label>
-                <input type="number" id="foundry-custom-storage" value="${customCls.storage}" min="5" max="2048">
+                <input type="number" id="foundry-model-cache" value="${defaults.modelCacheStorageGB}" min="1" max="4096">
             </div>
         </div>
         <div id="foundry-specs-panel" style="margin-top: 12px; padding: 14px; background: var(--subtle-bg); border-radius: 8px;">
-            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Replica Specifications</h4>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Worker Capacity</h4>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
                 <div>
                     <span style="color: var(--text-secondary);">vCPUs:</span>
-                    <span id="foundry-spec-vcpus">${cls.vcpus}</span>
+                    <span id="foundry-spec-vcpus">${profile.vcpus}</span>
                 </div>
                 <div>
                     <span style="color: var(--text-secondary);">Memory:</span>
-                    <span id="foundry-spec-memory">${cls.memory} GB</span>
+                    <span id="foundry-spec-memory">${profile.memory} GB</span>
                 </div>
-                <div>
-                    <span style="color: var(--text-secondary);">Storage:</span>
-                    <span id="foundry-spec-storage">${cls.storage} GB</span>
-                </div>
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
-                GPU: <span id="foundry-spec-gpu">${cls.recommendedGpu}</span>
             </div>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas (scheduled across cluster-wide GPU / CPU capacity for multi-node inference), and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
+            <strong>AKS Arc infrastructure included:</strong> ${FOUNDRY_CP_NODES}-node control plane, selected worker pool, fixed ${FOUNDRY_OS_DISK_GB} GB OS disk per node, model-cache PVCs, and a ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB platform-services planning allowance. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.
@@ -4376,11 +4601,11 @@ function updateFoundryClassDescription() {
     const classSelect = document.getElementById('foundry-model-class');
     if (!classSelect) return;
     const classId = classSelect.value;
-    const cls = FOUNDRY_MODEL_CLASSES[classId] || FOUNDRY_MODEL_CLASSES.medium;
+    const profile = FOUNDRY_WORKER_PROFILES[classId] || FOUNDRY_WORKER_PROFILES.recommended;
     const customFields = document.getElementById('foundry-custom-fields');
     const specsPanel = document.getElementById('foundry-specs-panel');
     const descEl = document.getElementById('foundry-class-desc');
-    if (descEl) descEl.textContent = cls.description;
+    if (descEl) descEl.textContent = profile.description;
     if (classId === 'custom') {
         if (customFields) customFields.style.display = 'block';
         if (specsPanel) specsPanel.style.display = 'none';
@@ -4389,12 +4614,8 @@ function updateFoundryClassDescription() {
         if (specsPanel) specsPanel.style.display = 'block';
         const vcpusEl = document.getElementById('foundry-spec-vcpus');
         const memEl = document.getElementById('foundry-spec-memory');
-        const storEl = document.getElementById('foundry-spec-storage');
-        const gpuEl = document.getElementById('foundry-spec-gpu');
-        if (vcpusEl) vcpusEl.textContent = cls.vcpus;
-        if (memEl) memEl.textContent = cls.memory + ' GB';
-        if (storEl) storEl.textContent = cls.storage + ' GB';
-        if (gpuEl) gpuEl.textContent = cls.recommendedGpu;
+        if (vcpusEl) vcpusEl.textContent = profile.vcpus;
+        if (memEl) memEl.textContent = profile.memory + ' GB';
     }
 }
 
@@ -4464,7 +4685,7 @@ function getEdgeRagModalContent() {
             <span class="hint">Vector DB storage \u2248 ${EDGERAG_VECTOR_DB_MULTIPLIER} \u00d7 corpus size (chunks + embeddings + index).</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane, ${EDGERAG_CPU_WORKER_NODES} CPU workers, mode-dependent embedding GPU workers, selected LLM endpoint capacity, vector DB storage, and operator overhead.
+            <strong>AKS Arc infrastructure included:</strong> ${EDGERAG_CP_NODES}-node control plane, ${EDGERAG_CPU_WORKER_NODES} CPU workers, mode-dependent embedding GPU workers, selected LLM endpoint capacity, and vector DB storage. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
@@ -4502,6 +4723,18 @@ function updateEdgeRagConfiguration() {
             toggleWorkloadGpuFields();
             const noneOpt = gpuModeEl.querySelector('option[value="none"]');
             if (noneOpt) noneOpt.disabled = true;
+            const gpuModelEl = document.getElementById('wl-gpu-dda-model');
+            const selectedGpu = gpuModelEl ? GPU_MODELS[gpuModelEl.value] : null;
+            const llmProfile = llmEl ? EDGERAG_LLM_PROFILES[llmEl.value] : null;
+            if (gpuModelEl && !gpuModelEl.disabled && llmProfile &&
+                (!selectedGpu || selectedGpu.vramGB < llmProfile.minVramGB) &&
+                !_manualFields.has('gpu-type') && !getLockedGpuType()) {
+                const compatibleGpuType = getEdgeRagCompatibleGpuType(llmEl.value);
+                if (compatibleGpuType && gpuModelEl.querySelector(`option[value="${compatibleGpuType}"]`)) {
+                    gpuModelEl.value = compatibleGpuType;
+                    onDdaModelChange();
+                }
+            }
             const gpuCountEl = document.getElementById('wl-gpu-dda-count');
             if (gpuCountEl) gpuCountEl.value = '1';
         }
@@ -4517,7 +4750,7 @@ function updateEdgeRagConfiguration() {
 
 // GitHub Enterprise Local (Preview) modal.
 // Sizing is driven by the official GHES "Minimum recommended requirements"
-// table (GHES 3.20 docs), selected via an active-seat-count tier dropdown.
+// table (current GHES 3.21 docs), selected via an active-seat-count tier dropdown.
 // The basic HA toggle adds 1 replica (primary + 1). An optional Advanced
 // section lets users override with up to 7 replicas (GitHub's documented
 // maximum of 8 HA replicas per instance). Each additional replica is sized
@@ -4571,6 +4804,16 @@ function getGhelModalContent() {
             <span class="hint" id="ghel-tier-desc"></span>
         </div>
         <div class="form-group">
+            <label>Enabled features</label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: 400;">
+                <input type="checkbox" id="ghel-actions" onchange="updateGhelTierDescription()"> GitHub Actions (+25% CPU and memory)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: 400; margin-top: 6px;">
+                <input type="checkbox" id="ghel-code-security" onchange="updateGhelTierDescription()"> GitHub Code Security (+25% CPU and memory)
+            </label>
+            <span class="hint">Allowances are cumulative and apply to every appliance VM. External Actions artifact and Packages storage is not included.</span>
+        </div>
+        <div class="form-group">
             <label>GHES replica-based high availability
                 <span class="info-icon" title="Adds a second GHEL VM with the same spec as the primary. GHES replicates data from the primary to the replica; on failover the replica is promoted. Doubles the vCPU / memory / storage footprint for this workload.">&#9432;</span>
             </label>
@@ -4591,7 +4834,7 @@ function getGhelModalContent() {
                 </select>
                 <span class="hint">When set, overrides the basic HA dropdown. Total footprint = (1 + replicas) &times; per-VM spec. Includes passive HA, geo-replicas, and repository caches.</span>
                 <div style="margin-top: 10px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border-left: 2px solid var(--accent-orange); border-radius: 4px; font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
-                    <strong style="color: var(--accent-orange);">Note:</strong> GHES HA is <em>active/passive</em> &mdash; additional replicas add resilience and read locality (geo / repo cache), <strong>not write throughput</strong>. Write performance remains limited to the primary appliance. See <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration" target="_blank" rel="noopener" style="color: var(--link-color);">About high availability configuration (GHES 3.20)</a>.
+                    <strong style="color: var(--accent-orange);">Note:</strong> GHES HA is <em>active/passive</em> &mdash; additional replicas add resilience and read locality (geo / repo cache), <strong>not write throughput</strong>. Write performance remains limited to the primary appliance. See <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/configuring-high-availability/about-high-availability-configuration" target="_blank" rel="noopener" style="color: var(--link-color);">About high availability configuration</a>.
                 </div>
             </div>
         </details>
@@ -4634,8 +4877,14 @@ function updateGhelTierDescription() {
     const tier = GHEL_TIERS[tierEl.value] || GHEL_TIERS['up-to-1000'];
     const replicas = getGhelReplicasFromModal();
     const vmCount = 1 + replicas;
-    const totalVcpu = tier.vcpus * vmCount;
-    const totalMem = tier.memory * vmCount;
+    const actionsEl = document.getElementById('ghel-actions');
+    const codeSecurityEl = document.getElementById('ghel-code-security');
+    const featureMultiplier = 1 + (actionsEl && actionsEl.checked ? 0.25 : 0) +
+        (codeSecurityEl && codeSecurityEl.checked ? 0.25 : 0);
+    const perVmVcpu = Math.ceil(tier.vcpus * featureMultiplier);
+    const perVmMem = Math.ceil(tier.memory * featureMultiplier);
+    const totalVcpu = perVmVcpu * vmCount;
+    const totalMem = perVmMem * vmCount;
     const totalStorage = (tier.rootStorage + tier.dataStorage) * vmCount;
     if (descEl) {
         descEl.textContent = tier.users + ' \u2014 ' + tier.vcpus + ' vCPU / ' + tier.memory + ' GB RAM per GHEL VM.';
@@ -4644,9 +4893,9 @@ function updateGhelTierDescription() {
         : replicas === 1 ? 'primary + 1 replica (HA pair)'
             : 'primary + ' + replicas + ' replicas';
     panel.innerHTML =
-        '<strong>Per GHEL VM:</strong> ' + tier.vcpus + ' vCPU \u00b7 ' + tier.memory + ' GB RAM \u00b7 ' +
+        '<strong>Per GHEL VM:</strong> ' + perVmVcpu + ' vCPU \u00b7 ' + perVmMem + ' GB RAM \u00b7 ' +
         tier.rootStorage + ' GB root disk + ' + tier.dataStorage + ' GB data disk' +
-        ' (' + (tier.rootStorage + tier.dataStorage) + ' GB total) \u00b7 ~' + tier.throughputMbps + ' Mbps network throughput.' +
+        ' (' + (tier.rootStorage + tier.dataStorage) + ' GB total) \u00b7 ' + tier.iops + ' IOPS.' +
         '<br><strong>This workload (' + vmCount + ' VM' + (vmCount > 1 ? 's' : '') + ', ' + topology + '):</strong> ' +
         totalVcpu + ' vCPU \u00b7 ' + totalMem + ' GB RAM \u00b7 ' + totalStorage + ' GB storage.';
 }
@@ -4679,7 +4928,7 @@ function getVideoIndexerModalContent() {
             <span class="hint" id="vi-config-desc">Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.</span>
         </div>
         <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
-            <strong>Includes:</strong> ${VI_CP_NODES}-node AKS Arc control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), Phi language model (included for textual summarization), and ${VI_OPERATOR_VCPU} vCPU / ${VI_OPERATOR_MEM_GB} GB Video Indexer extension overhead.
+            <strong>AKS Arc infrastructure included:</strong> ${VI_CP_NODES}-node control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), and the Phi language model. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             Estimates only &mdash; actual sizing depends on video volume, resolution, codecs, and concurrent indexing jobs. Volume performance (storage class) significantly affects indexing turnaround. Validate with your OEM hardware partner.
@@ -4787,7 +5036,7 @@ function readWorkloadGpuFields() {
 //   - AKS Arc workloads with `gpuMode === 'dda'` MUST have an `aksGpuVmSize`
 //     selected. The "GPU VM Size" dropdown can legitimately end up empty when
 //     another workload has locked the cluster's GPU type to a model that has
-//     no AKS Arc VM SKUs (e.g. A100, A40, H100), or when the user simply
+//     no AKS Arc VM SKUs (e.g. A10 or A40), or when the user simply
 //     forgot to pick one. Without this guard the worker-node sizing math
 //     downstream would silently use the default vCPU/memory values from the
 //     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
@@ -4801,10 +5050,16 @@ function readWorkloadGpuFields() {
 //     that same model. If the new workload's effective GPU type differs from
 //     any *other* GPU-using workload's type, save is blocked. Backstops the
 //     UI dropdown lock for the case where the AKS-supported filter removed
-//     the locked GPU from the dropdown (e.g. VM with H100 + Foundry trying
+//     the locked GPU from the dropdown (e.g. VM with GPU-P A40 + Foundry trying
 //     to pick L40S would otherwise slip past the UI).
 function validateWorkloadBeforeSave(workload, otherWorkloads) {
     if (!workload || typeof workload !== 'object') return null;
+    if (workload.gpuMode === 'gpu-p' && workload.type !== 'vm' && workload.type !== 'avd') {
+        return {
+            code: 'gpu-p-unsupported-workload',
+            message: 'GPU-P is supported for Arc-enabled Azure Local VMs and AVD workloads, but not for this workload type.'
+        };
+    }
     if (workload.type === 'edgerag') {
         normalizeEdgeRagWorkload(workload);
         const llm = EDGERAG_LLM_PROFILES[workload.llmEndpoint];
@@ -4826,7 +5081,7 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             message:
                 'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
                 'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
-                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A10 or A40) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.'
         };
     }
     // Foundry / Agentic Retrieval / Video Indexer all run on AKS Arc — their DDA GPU
@@ -4846,6 +5101,62 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
                     'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
                     'Either select a different GPU model, or set this workload\'s GPU Mode to None.'
             };
+        }
+    }
+    if (workload.gpuMode === 'dda') {
+        const gpuType = getWorkloadGpuType(workload);
+        const gpuModel = gpuType ? GPU_MODELS[gpuType] : null;
+        if (gpuType && !gpuModel) {
+            return {
+                code: 'unsupported-gpu-model',
+                message: 'The selected GPU model is no longer supported by the Sizer. Select a currently supported GPU model.'
+            };
+        }
+        if (gpuModel && workload.type !== 'aks' && !gpuModel.supportsArcVmDda) {
+            return {
+                code: 'arc-vm-dda-unsupported-gpu',
+                message: gpuModel.name + ' does not support DDA for Arc-enabled Azure Local VMs. Select a DDA-supported GPU or use GPU-P.'
+            };
+        }
+        if (gpuModel) {
+            const instanceLimit = gpuModel.maxPerNode * MAX_AZURE_LOCAL_EFFECTIVE_MACHINES;
+            const candidateGpus = calculateWorkloadGpuRequirement(workload);
+            const otherGpus = Array.isArray(otherWorkloads)
+                ? otherWorkloads.reduce(function(total, otherWorkload) {
+                    return getWorkloadGpuType(otherWorkload) === gpuType
+                        ? total + calculateWorkloadGpuRequirement(otherWorkload)
+                        : total;
+                }, 0)
+                : 0;
+            if (candidateGpus + otherGpus > instanceLimit) {
+                return {
+                    code: 'gpu-count-exceeds-instance-limit',
+                    message: 'GPU demand exceeds the Azure Local instance maximum for ' + gpuModel.name +
+                        ': ' + instanceLimit + ' GPUs across 63 N−1 effective machines (' +
+                        gpuModel.maxPerNode + ' per machine; 64 physical machines).'
+                };
+            }
+        }
+    }
+    if (workload.gpuMode === 'gpu-p') {
+        const gpuModel = workload.gpuPModel ? GPU_MODELS[workload.gpuPModel] : null;
+        if (!gpuModel || !gpuModel.supportsGpuP) {
+            return {
+                code: 'gpu-p-unsupported-gpu',
+                message: 'The selected GPU model does not support GPU-P for Arc-enabled Azure Local VMs.'
+            };
+        }
+        if (Array.isArray(otherWorkloads)) {
+            const conflictingPartition = otherWorkloads.find(function(otherWorkload) {
+                return otherWorkload.gpuMode === 'gpu-p' && otherWorkload.gpuPartition &&
+                    otherWorkload.gpuPartition !== workload.gpuPartition;
+            });
+            if (conflictingPartition) {
+                return {
+                    code: 'gpu-p-partition-count-conflict',
+                    message: 'GPU-P partition count is configured cluster-wide. Use the same GPU partition size for every GPU-P workload.'
+                };
+            }
         }
     }
     // Cross-workload homogeneous-GPU rule. Compare this workload's effective
@@ -4906,13 +5217,14 @@ function addWorkload() {
             workload.workerStorage = parseInt(document.getElementById('aks-worker-storage').value) || 200;
             break;
         case 'foundry':
-            workload.modelClass = document.getElementById('foundry-model-class').value || 'medium';
-            workload.replicas = parseInt(document.getElementById('foundry-replicas').value) || 1;
+            workload.workerProfile = document.getElementById('foundry-model-class').value || 'recommended';
+            workload.workerNodes = parseInt(document.getElementById('foundry-worker-nodes').value) || 1;
+            workload.modelDeployments = parseInt(document.getElementById('foundry-model-deployments').value) || 1;
+            workload.modelCacheStorageGB = parseInt(document.getElementById('foundry-model-cache').value) || 100;
             workload.engine = document.getElementById('foundry-engine').value || 'onnx-genai';
-            if (workload.modelClass === 'custom') {
+            if (workload.workerProfile === 'custom') {
                 workload.customVcpus = parseInt(document.getElementById('foundry-custom-vcpus').value) || 8;
-                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 16;
-                workload.customStorage = parseInt(document.getElementById('foundry-custom-storage').value) || 40;
+                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 32;
             }
             break;
         case 'edgerag':
@@ -4930,6 +5242,8 @@ function addWorkload() {
             // Keep legacy boolean mirror in sync so older exports / Designer
             // round-trips continue to behave (ha == any replicas present).
             workload.ha = workload.replicas >= 1;
+            workload.actions = document.getElementById('ghel-actions').checked;
+            workload.codeSecurity = document.getElementById('ghel-code-security').checked;
             break;
         }
         case 'avd':
@@ -4999,9 +5313,11 @@ function addWorkload() {
             trackFormCompletion('sizerCalculation');
         }
     }
+    const growthAdjustmentMessage = removeDefaultGrowthIfGpuCapacityExceeded(workloads);
     closeModal();
     renderWorkloads();
     calculateRequirements();
+    if (growthAdjustmentMessage) showSizerToast(growthAdjustmentMessage, 'info');
 }
 
 // Edit workload - open modal pre-populated with existing values
@@ -5069,15 +5385,17 @@ function editWorkload(id) {
         case 'foundry':
             title.textContent = 'Edit Foundry Local';
             body.innerHTML = getFoundryModalContent();
+            normalizeFoundryWorkload(w);
             document.getElementById('workload-name').value = w.name;
-            document.getElementById('foundry-model-class').value = w.modelClass || 'medium';
-            document.getElementById('foundry-replicas').value = w.replicas || 1;
+            document.getElementById('foundry-model-class').value = w.workerProfile;
+            document.getElementById('foundry-worker-nodes').value = w.workerNodes;
+            document.getElementById('foundry-model-deployments').value = w.modelDeployments;
+            document.getElementById('foundry-model-cache').value = w.modelCacheStorageGB;
             document.getElementById('foundry-engine').value = w.engine || 'onnx-genai';
             updateFoundryClassDescription();
-            if (w.modelClass === 'custom') {
+            if (w.workerProfile === 'custom') {
                 document.getElementById('foundry-custom-vcpus').value = w.customVcpus || 8;
-                document.getElementById('foundry-custom-memory').value = w.customMemory || 16;
-                document.getElementById('foundry-custom-storage').value = w.customStorage || 40;
+                document.getElementById('foundry-custom-memory').value = w.customMemory || 32;
             }
             // Apply vLLM constraint to GPU mode after restoring engine
             onFoundryEngineChange();
@@ -5108,6 +5426,8 @@ function editWorkload(id) {
             const replicas = getGhelReplicasFromWorkload(w);
             const advEl = document.getElementById('ghel-replicas-advanced');
             const haEl = document.getElementById('ghel-ha');
+            document.getElementById('ghel-actions').checked = !!w.actions;
+            document.getElementById('ghel-code-security').checked = !!w.codeSecurity;
             if (replicas <= 1) {
                 // Representable by the basic dropdown.
                 if (haEl) haEl.value = replicas === 1 ? 'yes' : 'no';
@@ -5196,6 +5516,13 @@ function normalizeWorkloadType(type) {
         : '';
 }
 
+function getIncludedInfrastructureDetail(type) {
+    if (type === 'foundry' || type === 'edgerag' || type === 'videoindexer') {
+        return 'Includes dedicated AKS Arc cluster infrastructure';
+    }
+    return '';
+}
+
 function renderWorkloads() {
     const container = document.getElementById('workloads-list');
     // Use cached reference — getElementById returns null after innerHTML replacement
@@ -5220,6 +5547,7 @@ function renderWorkloads() {
             ? w
             : Object.assign(Object.create(null), w, { type: workloadType });
         const details = getWorkloadDetails(normalizedWorkload);
+        const includedInfrastructure = getIncludedInfrastructureDetail(workloadType);
         const numericId = Number(w.id);
         const actionId = Number.isSafeInteger(numericId) && numericId >= 0 ? numericId : -1;
         html += `
@@ -5235,6 +5563,7 @@ function renderWorkloads() {
                         ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
                     <div class="workload-card-details">${escapeHtmlSizer(details)}${workloadType === 'ghel' ? ' <a href="https://docs.github.com/en/enterprise-server@latest/admin/monitoring-and-managing-your-instance/updating-the-virtual-machine-and-physical-resources/increasing-storage-capacity#minimum-recommended-requirements" target="_blank" rel="noopener" style="color: var(--link-color); font-size: 11px; margin-left: 4px;" title="GitHub Enterprise Server: Minimum recommended requirements">(sizing info)</a>' : ''}</div>
+                    ${includedInfrastructure ? `<div class="workload-card-details"><strong>${escapeHtmlSizer(includedInfrastructure)}</strong></div>` : ''}
                 </div>
                 <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
                     <button class="edit" onclick="editWorkload(${actionId})" title="Edit">
@@ -5339,12 +5668,13 @@ function getWorkloadDetails(w) {
             break;
         }
         case 'foundry': {
-            const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-            const className = w.modelClass === 'custom'
-                ? `Custom (${w.customVcpus} vCPU / ${w.customMemory} GB / ${w.customStorage} GB per replica)`
-                : fcls.name;
+            normalizeFoundryWorkload(w);
+            const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
+            const profileName = w.workerProfile === 'custom'
+                ? `Custom (${w.customVcpus || 8} vCPU / ${w.customMemory || 32} GB per worker)`
+                : profile.name;
             const engineLabel = w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
-            detail = `${w.replicas || 1} replica${(w.replicas || 1) > 1 ? 's' : ''} \u2022 ${className} \u2022 ${engineLabel}`;
+            detail = `${w.workerNodes} worker${w.workerNodes > 1 ? 's' : ''} \u2022 ${profileName} \u2022 ${w.modelDeployments} model deployment${w.modelDeployments > 1 ? 's' : ''} \u2022 ${engineLabel}`;
             break;
         }
         case 'edgerag': {
@@ -5370,7 +5700,9 @@ function getWorkloadDetails(w) {
             const ghelTopology = ghelReplicas === 0 ? '1 VM'
                 : ghelReplicas === 1 ? '2 VMs (HA pair)'
                     : ghelVms + ' VMs (primary + ' + ghelReplicas + ' replicas)';
-            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB per VM`;
+            const enabledFeatures = [w.actions ? 'Actions' : '', w.codeSecurity ? 'Code Security' : ''].filter(Boolean);
+            detail = `${ghelTopology} \u2022 ${ghelTier.users} \u2022 ${ghelTier.vcpus} vCPU / ${ghelTier.memory} GB / ${(ghelTier.rootStorage + ghelTier.dataStorage)} GB base per VM`;
+            if (enabledFeatures.length) detail += ` \u2022 ${enabledFeatures.join(' + ')}`;
             break;
         }
         default:
@@ -5389,6 +5721,43 @@ function getWorkloadDetails(w) {
 }
 
 // Calculate workload requirements
+function calculateWorkloadGpuRequirement(w) {
+    if (!w || typeof w !== 'object') return 0;
+    if (w.gpuMode === 'dda') {
+        const ddaCount = w.gpuDdaCount || 1;
+        switch (w.type) {
+            case 'vm':
+                return ddaCount * (w.count || 1);
+            case 'aks':
+                return ddaCount * (w.workerNodes || 0) * (w.clusterCount || 0);
+            case 'avd':
+                return ddaCount * (w.sessionType === 'single'
+                    ? (w.userCount || 0)
+                    : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100)));
+            case 'foundry':
+                normalizeFoundryWorkload(w);
+                return ddaCount * w.workerNodes;
+            case 'edgerag':
+                normalizeEdgeRagWorkload(w);
+                return (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
+                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
+            case 'videoindexer':
+                return ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
+        }
+    } else if (w.gpuMode === 'gpu-p') {
+        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
+        const fraction = partProfile ? partProfile.fraction : 1;
+        if (w.type === 'vm') return fraction * (w.count || 1);
+        if (w.type === 'avd') {
+            const concurrentUsers = w.sessionType === 'single'
+                ? (w.userCount || 0)
+                : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100));
+            return fraction * concurrentUsers;
+        }
+    }
+    return 0;
+}
+
 function calculateWorkloadRequirements(w) {
     let vcpus = 0, memory = 0, storage = 0;
 
@@ -5444,31 +5813,20 @@ function calculateWorkloadRequirements(w) {
             break;
         }
         case 'foundry': {
-            // Per-replica resources (model class preset OR custom override)
-            let perReplicaVcpu, perReplicaMem, perReplicaStor;
-            if (w.modelClass === 'custom') {
-                perReplicaVcpu = w.customVcpus || 8;
-                perReplicaMem = w.customMemory || 16;
-                perReplicaStor = w.customStorage || 40;
-            } else {
-                const cls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
-                perReplicaVcpu = cls.vcpus;
-                perReplicaMem = cls.memory;
-                perReplicaStor = cls.storage;
-            }
-            const replicas = w.replicas || 1;
-            // Foundry runs on a 3-node Kubernetes control plane. Each model
-            // replica = 1 worker node sized to the model class, plus the fixed
-            // 200 GB AKS Arc OS disk (matching the AKS workload pattern).
+            normalizeFoundryWorkload(w);
+            const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
+            const workerVcpu = w.workerProfile === 'custom' ? (w.customVcpus || 8) : profile.vcpus;
+            const workerMem = w.workerProfile === 'custom' ? (w.customMemory || 32) : profile.memory;
             const cpVcpus = FOUNDRY_CP_NODES * FOUNDRY_CP_VCPU_PER_NODE;
             const cpMemory = FOUNDRY_CP_NODES * FOUNDRY_CP_MEM_PER_NODE;
             const cpStorage = FOUNDRY_CP_NODES * FOUNDRY_OS_DISK_GB;
-            const workerVcpus = perReplicaVcpu * replicas;
-            const workerMemory = perReplicaMem * replicas;
-            const workerStorage = (FOUNDRY_OS_DISK_GB + perReplicaStor) * replicas;
+            const workerVcpus = workerVcpu * w.workerNodes;
+            const workerMemory = workerMem * w.workerNodes;
+            const workerStorage = FOUNDRY_OS_DISK_GB * w.workerNodes;
+            const modelCacheStorage = w.modelCacheStorageGB * w.modelDeployments;
             vcpus = cpVcpus + workerVcpus + FOUNDRY_OPERATOR_VCPU;
             memory = cpMemory + workerMemory + FOUNDRY_OPERATOR_MEM_GB;
-            storage = cpStorage + workerStorage;
+            storage = cpStorage + workerStorage + modelCacheStorage;
             break;
         }
         case 'edgerag': {
@@ -5487,8 +5845,8 @@ function calculateWorkloadRequirements(w) {
             const workerStorageOs = (EDGERAG_CPU_WORKER_NODES + embeddingNodes) * EDGERAG_OS_DISK_GB;
             const corpusGB = w.corpusGB || 100;
             const vectorDbStorage = Math.ceil(corpusGB * EDGERAG_VECTOR_DB_MULTIPLIER);
-            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus + EDGERAG_OPERATOR_VCPU;
-            memory = cpMemory + cpuMemory + gpuMemory + llm.memory + EDGERAG_OPERATOR_MEM_GB;
+            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus;
+            memory = cpMemory + cpuMemory + gpuMemory + llm.memory;
             storage = cpStorage + workerStorageOs + llm.storage + vectorDbStorage;
             break;
         }
@@ -5507,8 +5865,8 @@ function calculateWorkloadRequirements(w) {
             const cpMemory = VI_CP_NODES * VI_CP_MEM_PER_NODE;
             const cpStorage = VI_CP_NODES * VI_OS_DISK_GB;
             const workerStorageOs = workerNodes * VI_OS_DISK_GB;
-            vcpus = cpVcpus + workerVcpus + VI_OPERATOR_VCPU;
-            memory = cpMemory + workerMemory + VI_OPERATOR_MEM_GB;
+            vcpus = cpVcpus + workerVcpus;
+            memory = cpMemory + workerMemory;
             storage = cpStorage + workerStorageOs + pvStorage;
             break;
         }
@@ -5520,64 +5878,44 @@ function calculateWorkloadRequirements(w) {
             // not add write throughput.
             const ghelTier = GHEL_TIERS[w.tier] || GHEL_TIERS['up-to-1000'];
             const vmCount = 1 + getGhelReplicasFromWorkload(w);
-            vcpus = ghelTier.vcpus * vmCount;
-            memory = ghelTier.memory * vmCount;
+            const featureMultiplier = 1 + (w.actions ? 0.25 : 0) + (w.codeSecurity ? 0.25 : 0);
+            vcpus = Math.ceil(ghelTier.vcpus * featureMultiplier) * vmCount;
+            memory = Math.ceil(ghelTier.memory * featureMultiplier) * vmCount;
             storage = (ghelTier.rootStorage + ghelTier.dataStorage) * vmCount;
             break;
         }
     }
 
-    // Calculate GPU requirements
-    let gpus = 0; // In units of whole physical GPUs
-    if (w.gpuMode === 'dda') {
-        const ddaCount = w.gpuDdaCount || 1;
-        switch (w.type) {
-            case 'vm':
-                gpus = ddaCount * w.count;
-                break;
-            case 'aks':
-                // DDA GPUs per worker node × worker nodes × clusters
-                gpus = ddaCount * w.workerNodes * w.clusterCount;
-                break;
-            case 'avd':
-                // DDA GPUs per session host (approximation: concurrent users, 1 GPU per session host)
-                gpus = ddaCount * (w.sessionType === 'single'
-                    ? w.userCount
-                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100)));
-                break;
-            case 'foundry':
-                // DDA GPUs per replica × replicas (one model pod per worker node)
-                gpus = ddaCount * (w.replicas || 1);
-                break;
-            case 'edgerag':
-                normalizeEdgeRagWorkload(w);
-                gpus = (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
-                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
-                break;
-            case 'videoindexer':
-                // Video Indexer GPU is optional (BYO model). ddaCount GPUs per
-                // worker × worker nodes (1 minimum, 2 recommended).
-                gpus = ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
-                break;
-        }
-    } else if (w.gpuMode === 'gpu-p') {
-        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
-        const fraction = partProfile ? partProfile.fraction : 1;
-        switch (w.type) {
-            case 'vm':
-                gpus = fraction * w.count;
-                break;
-            case 'avd': {
-                const concUsers = w.sessionType === 'single'
-                    ? w.userCount
-                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100));
-                gpus = fraction * concUsers;
-                break;
-            }
-        }
-    }
+    const gpus = calculateWorkloadGpuRequirement(w);
 
     return { vcpus, memory, storage, gpus };
+}
+
+function getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, totalGpus) {
+    const configuredPerNode = Math.max(Number(gpuCountPerNode) || 0, 0);
+    const physicalNodes = Math.max(Number(nodeCount) || 0, 0);
+    const availableNodes = Math.max(Number(effectiveNodes) || 0, 0);
+    const used = Math.max(Number(totalGpus) || 0, 0);
+    const total = configuredPerNode * availableNodes;
+    const cappedUsed = Math.min(used, configuredPerNode * physicalNodes);
+    const percent = total > 0 ? Math.min(100, Math.round((cappedUsed / total) * 100)) : 0;
+
+    return {
+        visible: configuredPerNode > 0,
+        percent: percent,
+        used: used,
+        total: total
+    };
+}
+
+function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode) {
+    const demand = Math.max(Number(totalGpus) || 0, 0);
+    if (demand === 0) return 0;
+    const physicalNodes = Math.max(Number(nodeCount) || 1, 1);
+    const effectiveNodes = physicalNodes > 1 ? physicalNodes - 1 : 1;
+    const supportedMax = Math.max(Number(maxPerNode) || 1, 1);
+    const requiredBelowThreshold = Math.floor(demand / (effectiveNodes * 0.9)) + 1;
+    return Math.min(Math.max(requiredBelowThreshold, 1), supportedMax);
 }
 
 // Calculate all requirements
@@ -5828,8 +6166,10 @@ function calculateRequirements(options) {
                     hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (finalRec) {
-                    // Override recommended with actual final node count so message matches dropdown
-                    finalRec.recommended = nodeCount;
+                    // Keep an over-cap recommendation intact so the banner reports
+                    // that the workload cannot fit instead of presenting the capped
+                    // machine count as a successful recommendation.
+                    if (finalRec.recommended <= getMaxNodeCap()) finalRec.recommended = nodeCount;
                     updateNodeRecommendation(finalRec);
                 }
 
@@ -5937,7 +6277,8 @@ function calculateRequirements(options) {
                     );
                     if (ctElDown) ctElDown.value = savedCt;
                     const downgradeDecision = shouldDowngradeFromDisaggregated(
-                        standardRec ? standardRec.recommended : 0
+                        standardRec ? standardRec.recommended : 0,
+                        options && options.topologyTransition === 'upgrade'
                     );
                     if (downgradeDecision.downgrade) {
                         if (ctElDown) ctElDown.value = 'standard';
@@ -5961,7 +6302,7 @@ function calculateRequirements(options) {
                         // the post-recalc value out of the DOM so the toast shows
                         // what the user actually sees in the dropdown.
                         isCalculating = false;
-                        calculateRequirements();
+                        calculateRequirements({ topologyTransition: 'downgrade' });
                         const finalNodeEl = document.getElementById('node-count');
                         const finalNodeCount = finalNodeEl ? (parseInt(finalNodeEl.value, 10) || downgradeDecision.recommended) : downgradeDecision.recommended;
                         showSizerToast('Workload no longer exceeds hyperconverged capacity \u2014 automatically scaled back to Hyperconverged (' + finalNodeCount + (finalNodeCount === 1 ? ' machine' : ' machines') + ').', 'info');
@@ -5986,7 +6327,8 @@ function calculateRequirements(options) {
                     );
                     const shrinkDecision = shouldAutoShrinkDisaggRacks(
                         curRacksShrink,
-                        disaggRecShrink ? disaggRecShrink.recommended : 0
+                        disaggRecShrink ? disaggRecShrink.recommended : 0,
+                        options && options.rackTransition === 'up'
                     );
                     if (shrinkDecision.shrink) {
                         if (rackElShrink) rackElShrink.value = String(shrinkDecision.racks);
@@ -6000,7 +6342,10 @@ function calculateRequirements(options) {
                         // dropdown value is the TOTAL machine count (not per-rack),
                         // so read it directly.
                         isCalculating = false;
-                        calculateRequirements();
+                        calculateRequirements({
+                            topologyTransition: options && options.topologyTransition,
+                            rackTransition: 'down'
+                        });
                         const totalElS = document.getElementById('node-count');
                         const totalMachinesS = totalElS ? (parseInt(totalElS.value, 10) || 0) : 0;
                         const rackTextS = shrinkDecision.racks + (shrinkDecision.racks === 1 ? ' rack' : ' racks');
@@ -6025,7 +6370,8 @@ function calculateRequirements(options) {
                     // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
                     // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
                     // the aggressive memory/ratio escalation below fix the remaining utilisation.
-                    if (clusterType === 'standard' && !_disaggAutoUpgraded) {
+                    if (clusterType === 'standard' && !_disaggAutoUpgraded
+                        && (!options || options.topologyTransition !== 'downgrade')) {
                         const disaggRec = getRecommendedNodeCount(
                             totalVcpus, totalMemory, totalStorage,
                             hwConfig, resiliencyMultiplier, resiliency, totalGpus
@@ -6059,7 +6405,7 @@ function calculateRequirements(options) {
                             // text "11 Nodes per Rack (22 total)"), so read it
                             // directly — do NOT multiply by rackCount.
                             isCalculating = false;
-                            calculateRequirements();
+                            calculateRequirements({ topologyTransition: 'upgrade' });
                             const totalEl = document.getElementById('node-count');
                             const totalMachines = totalEl ? (parseInt(totalEl.value, 10) || 0) : 0;
                             const rackText = minRacks + (minRacks === 1 ? ' rack' : ' racks');
@@ -6088,7 +6434,8 @@ function calculateRequirements(options) {
                         const rackDecision = shouldAutoScaleDisaggRacks(
                             curRacks,
                             disaggRec ? disaggRec.recommended : 0,
-                            true /* conservativeFailed */
+                            true, /* conservativeFailed */
+                            options && options.rackTransition === 'down'
                         );
                         if (rackDecision.scale) {
                             if (rackElAuto) rackElAuto.value = String(rackDecision.racks);
@@ -6107,7 +6454,10 @@ function calculateRequirements(options) {
                             // so skip the outer toast to avoid stale "scaled
                             // to N racks" messages when N changed downstream.
                             isCalculating = false;
-                            calculateRequirements();
+                            calculateRequirements({
+                                topologyTransition: options && options.topologyTransition,
+                                rackTransition: 'up'
+                            });
                             const finalRackEl = document.getElementById('disagg-rack-count');
                             const finalRacks = finalRackEl ? (parseInt(finalRackEl.value, 10) || rackDecision.racks) : rackDecision.racks;
                             if (finalRacks > rackDecision.racks) {
@@ -6197,8 +6547,12 @@ function calculateRequirements(options) {
                             const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
                             // Disaggregated uses external SAN — internal storage never drives node count.
                             const dStoPct = (clusterType === 'disaggregated') ? 0 : (dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0);
+                            const dGpuPerNode = hwConfig.gpuCount || 0;
+                            const dAvailGpus = dGpuPerNode * dEffNodes;
+                            const dGpuPct = (totalGpus > 0 && dAvailGpus > 0) ? Math.round((totalGpus / dAvailGpus) * 100) : 0;
 
-                            if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
+                            if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD ||
+                                dStoPct >= DOWN_UTIL_THRESHOLD || dGpuPct >= DOWN_UTIL_THRESHOLD) {
                             // Can't reduce further — revert to the previous node count
                                 nodeCount = savedNodeCount;
                                 document.getElementById('node-count').value = savedNodeCount;
@@ -6239,7 +6593,28 @@ function calculateRequirements(options) {
                     hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (postAggressiveRec) {
-                    postAggressiveRec.recommended = nodeCount;
+                    if (clusterType === 'disaggregated' && !_manualFields.has('disagg-rack-count')) {
+                        const finalRackEl = document.getElementById('disagg-rack-count');
+                        const finalRackCount = finalRackEl ? (parseInt(finalRackEl.value, 10) || 1) : 1;
+                        const finalRackDecision = shouldAutoScaleDisaggRacks(
+                            finalRackCount, postAggressiveRec.recommended, false,
+                            options && options.rackTransition === 'down'
+                        );
+                        if (finalRackDecision.scale) {
+                            if (finalRackEl) finalRackEl.value = String(finalRackDecision.racks);
+                            markAutoScaled('disagg-rack-count');
+                            updateNodeOptionsForClusterType();
+                            updateClusterInfo();
+                            _nodeCountUserSet = false;
+                            isCalculating = false;
+                            calculateRequirements({
+                                topologyTransition: options && options.topologyTransition,
+                                rackTransition: 'up'
+                            });
+                            return;
+                        }
+                    }
+                    if (postAggressiveRec.recommended <= getMaxNodeCap()) postAggressiveRec.recommended = nodeCount;
                     updateNodeRecommendation(postAggressiveRec);
                 }
             }
@@ -6265,6 +6640,22 @@ function calculateRequirements(options) {
             // (e.g. ratio was bumped in pass 1, then pass 2 reset the flag).
             if (getVcpuRatio() !== initialVcpuRatio) {
                 _vcpuRatioAutoEscalated = true;
+            }
+        }
+
+        // Node scaling can leave an earlier GPU-per-machine recommendation
+        // unnecessarily high. Reconcile against the final N-1 machine count
+        // while preserving the same strict-below-90% utilization policy.
+        if (!_gpuCountUserSet) {
+            const gpuCountEl = document.getElementById('gpu-count');
+            const gpuModel = GPU_MODELS[hwConfig.gpuType];
+            const maxPerNode = gpuModel ? gpuModel.maxPerNode : 1;
+            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode);
+            if (gpuCountEl && parseInt(gpuCountEl.value, 10) !== reconciledGpuCount) {
+                gpuCountEl.value = reconciledGpuCount;
+                markAutoScaled('gpu-count');
+                updateGpuTypeVisibility();
+                hwConfig = getHardwareConfig();
             }
         }
 
@@ -6451,17 +6842,13 @@ function calculateRequirements(options) {
         // --- GPU Capacity Bar ---
         const gpuCountPerNode = hwConfig.gpuCount || 0;
         const gpuCapacitySection = document.getElementById('gpu-capacity-section');
-        let gpuPercent = 0;
-        if (gpuCountPerNode > 0 && totalGpus > 0) {
-            // Available GPUs use N-1 effective nodes (resiliency — must be able to drain a node)
-            const totalAvailableGpus = gpuCountPerNode * effectiveNodes;
-            // Cap totalGpus at physical limit (growth factor cannot exceed physical hardware)
-            const cappedGpus = Math.min(totalGpus, gpuCountPerNode * nodeCount);
-            gpuPercent = Math.min(100, Math.round((cappedGpus / totalAvailableGpus) * 100)) || 0;
+        const gpuCapacity = getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, totalGpus);
+        const gpuPercent = gpuCapacity.percent;
+        if (gpuCapacity.visible) {
             document.getElementById('gpu-percent').textContent = gpuPercent + '%';
             document.getElementById('gpu-fill').style.width = gpuPercent + '%';
-            document.getElementById('gpu-used').textContent = totalGpus % 1 === 0 ? totalGpus : totalGpus.toFixed(1);
-            document.getElementById('gpu-total').textContent = totalAvailableGpus;
+            document.getElementById('gpu-used').textContent = gpuCapacity.used % 1 === 0 ? gpuCapacity.used : gpuCapacity.used.toFixed(1);
+            document.getElementById('gpu-total').textContent = gpuCapacity.total;
             document.getElementById('gpu-fill').classList.toggle('over-threshold', gpuPercent >= 90);
             if (gpuCapacitySection) gpuCapacitySection.style.display = '';
         } else {
@@ -6491,6 +6878,7 @@ function calculateRequirements(options) {
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);
+        updateSizerS2dCalculation(clusterType, nodeCount, resiliency, hwConfig);
 
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
@@ -6869,6 +7257,18 @@ function updateRunningCost() {
     if (hintEl) hintEl.style.display = '';
 }
 
+const SIZER_HANDOFF_MAX_NOTES = 50;
+const SIZER_HANDOFF_MAX_NOTE_LENGTH = 2000;
+
+function getSizingNotesForHandoff(notesList) {
+    const list = notesList || document.getElementById('sizing-notes');
+    if (!list) return [];
+    return Array.from(list.querySelectorAll('li'))
+        .map(item => (item.textContent || '').trim().slice(0, SIZER_HANDOFF_MAX_NOTE_LENGTH))
+        .filter(Boolean)
+        .slice(0, SIZER_HANDOFF_MAX_NOTES);
+}
+
 // Update sizing notes
 function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes) {
     const notes = [];
@@ -6877,14 +7277,22 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
-        // Cluster size + N+1 note — always first
+        if (clusterType === 'single') {
+            notes.push(getSingleNodeAvailabilityNote());
+        }
+        const minimumFitHardwareNote = getMinimumFitHardwareNote(hwConfig);
+        if (minimumFitHardwareNote) {
+            notes.push(minimumFitHardwareNote);
+        }
+
+        // Cluster size + N+1 note
         if (clusterType === 'single') {
             notes.push('1 x Machine Instance — Single machine deployment: No machine fault tolerance or maintenance capacity');
         } else {
             notes.push(`${nodeCount} x Machine Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} machines available during servicing / maintenance`);
         }
 
-        // Per node hardware config note — always second
+        // Per node hardware config note
         if (hwConfig && hwConfig.generation) {
             notes.push(`Per machine hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
             if (hwConfig.gpuCount > 0) {
@@ -8176,6 +8584,8 @@ function selectRegionAndConfigure(region, cloud) {
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
             },
+            sizingNotes: getSizingNotesForHandoff(),
+            s2dCalculation: _lastS2dCalculation,
             // Power, heat & rack-space estimate captured from the Sizer's
             // "Estimated Power, Heat & Rack Space per Instance" panel. These
             // surface on the Designer's report and as a dedicated Power & Heat
@@ -8202,12 +8612,16 @@ function selectRegionAndConfigure(region, cloud) {
         // Individual workload details (transparent pass-through to Report)
         sizerWorkloads: workloads.map(function(w) {
             const req = calculateWorkloadRequirements(w);
+            const workloadGpu = getWorkloadGpuReportDetails(w);
             const entry = {
                 type: w.type,
                 name: w.name,
                 totalVcpus: req.vcpus,
                 totalMemoryGB: req.memory,
-                totalStorageGB: req.storage
+                totalStorageGB: req.storage,
+                gpuMode: workloadGpu ? workloadGpu.mode : null,
+                gpuType: workloadGpu ? workloadGpu.type : null,
+                gpuLabel: workloadGpu ? workloadGpu.label : null
             };
             // Type-specific details for the report
             switch (w.type) {
@@ -8241,13 +8655,15 @@ function selectRegionAndConfigure(region, cloud) {
                     }
                     break;
                 case 'foundry':
-                    entry.modelClass = w.modelClass;
-                    entry.replicas = w.replicas;
+                    normalizeFoundryWorkload(w);
+                    entry.workerProfile = w.workerProfile;
+                    entry.workerNodes = w.workerNodes;
+                    entry.modelDeployments = w.modelDeployments;
+                    entry.modelCacheStorageGB = w.modelCacheStorageGB;
                     entry.engine = w.engine;
-                    if (w.modelClass === 'custom') {
+                    if (w.workerProfile === 'custom') {
                         entry.customVcpus = w.customVcpus;
                         entry.customMemory = w.customMemory;
-                        entry.customStorage = w.customStorage;
                     }
                     break;
                 case 'edgerag':
@@ -8263,6 +8679,8 @@ function selectRegionAndConfigure(region, cloud) {
                     entry.tier = w.tier;
                     entry.replicas = getGhelReplicasFromWorkload(w);
                     entry.ha = entry.replicas >= 1;
+                    entry.actions = !!w.actions;
+                    entry.codeSecurity = !!w.codeSecurity;
                     break;
             }
             return entry;
@@ -8412,10 +8830,9 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'foundry') {
                     const foundryReqs = calculateWorkloadRequirements(w);
-                    const foundryClass = w.modelClass === 'custom'
-                        ? 'Custom (' + (w.customVcpus || 0) + ' vCPU / ' + (w.customMemory || 0) + ' GB / ' + (w.customStorage || 0) + ' GB per replica)'
-                        : (FOUNDRY_MODEL_CLASSES[w.modelClass] && FOUNDRY_MODEL_CLASSES[w.modelClass].name) || (w.modelClass || 'medium');
-                    const foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    normalizeFoundryWorkload(w);
+                    const foundryProfile = FOUNDRY_WORKER_PROFILES[w.workerProfile].name;
+                    const foundryDetail = w.workerNodes + ' worker(s) \u00b7 ' + foundryProfile + ' \u00b7 ' + w.modelDeployments + ' model deployment(s) \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
                     rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'edgerag') {
                     const edgeragReqs = calculateWorkloadRequirements(w);
@@ -8436,7 +8853,9 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     const ghelTopo = ghelReplicas === 0 ? 'Single VM'
                         : ghelReplicas === 1 ? 'HA pair (primary + 1 replica)'
                             : 'Primary + ' + ghelReplicas + ' replicas';
-                    const ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB per VM';
+                    let ghelDetail = ghelVms + ' VM' + (ghelVms > 1 ? 's' : '') + ' \u00b7 ' + ghelTopo + ' \u00b7 ' + ghelTier.users + ' \u00b7 ' + ghelTier.vcpus + ' vCPU / ' + ghelTier.memory + ' GB / ' + (ghelTier.rootStorage + ghelTier.dataStorage) + ' GB base per VM';
+                    if (w.actions) ghelDetail += ' \u00b7 Actions';
+                    if (w.codeSecurity) ghelDetail += ' \u00b7 Code Security';
                     rows.push(['Workload', 'GitHub Enterprise Local', ghelDetail, ghelReqs.vcpus, ghelReqs.memory, ghelReqs.storage, 'No']);
                 }
             });
@@ -10474,7 +10893,8 @@ function applyImportedSizerState(d) {
                 w.name = String(w.name == null ? '' : w.name).substring(0, MAX_WORKLOAD_NAME_CHARS);
                 const importedId = Number(w.id);
                 w.id = Number.isSafeInteger(importedId) && importedId >= 0 ? importedId : index + 1;
-                return normalizeEdgeRagWorkload(w);
+                normalizeEdgeRagWorkload(w);
+                return normalizeFoundryWorkload(w);
             });
             if (d.workloads.length !== originalCount) {
                 console.warn('Import: dropped ' + (originalCount - d.workloads.length) +
@@ -10742,6 +11162,7 @@ function resetScenario() {
 
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
+    updateAldoWorkloadButtons();
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
     // Hide the disaggregated-only rows (Number of Racks, Storage Connectivity)
