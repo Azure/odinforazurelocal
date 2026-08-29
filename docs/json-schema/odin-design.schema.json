@@ -230,7 +230,11 @@
         "intent": { "type": ["string", "null"], "description": "Network intent selection." },
         "customIntentConfirmed": { "type": "boolean" },
         "fqdnConfirmed": { "type": "boolean" },
-        "outbound": { "type": ["string", "null"], "description": "Outbound connectivity mode." },
+        "outbound": {
+          "type": ["string", "null"],
+          "enum": ["public", "private", "air_gapped", "limited", null],
+          "description": "Outbound connectivity mode. Private Path is supported for hyperconverged and disaggregated deployments on Azure Local 2608 or later and requires Arc Gateway plus Azure Firewall Explicit Proxy."
+        },
         "arc": { "type": ["string", "null"], "description": "Azure Arc connectivity mode." },
         "proxy": { "type": ["string", "object", "null"], "description": "Proxy configuration." },
         "ip": { "type": ["string", "null"], "description": "IP allocation mode." },

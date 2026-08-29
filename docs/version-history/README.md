@@ -6,6 +6,17 @@ Return to the [ODIN README](../../README.md).
 
 ### Version 0.23.x Series (August 2026)
 
+#### 0.23.03 - GPU, AI workload, and design-report alignment
+
+> Sizer aligned GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.
+
+- Added model-dependent total GPU sizing, N−1 instance limits, growth reconciliation, and final physical GPU inventory reconciliation.
+- Aligned DDA and GPU-P model support, removed H100 and A100 where unsupported, and enforced cluster-wide GPU-P partition consistency.
+- Clarified included AKS infrastructure for Foundry Local, Agentic Retrieval, and AI Video Indexer while keeping GitHub Enterprise Local as a standalone appliance VM.
+- Carried bounded Sizing Notes, GPU metadata, S2D volume calculations, workflow provenance, and ToR planning guidance into design reports and PowerPoint.
+- Stabilized Sizer transitions and reset behavior, improved Designer report fidelity and mobile session behavior, and added integrated real-UI release-validation skills.
+- All **1,560 / 1,560** browser tests passed.
+
 #### 0.23.02 - Agentic Retrieval sizing and dependency audit fixes
 
 > Agentic Retrieval sizing follows the current Foundry Local requirements with explicit deployment modes and language-model endpoint capacity.
