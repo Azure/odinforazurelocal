@@ -110,23 +110,21 @@
                         </ul>
                     </div>
                 </div>
-                <!-- PRIVATE-PATH-PREVIEW: Remove this comment and the preview-banner div when Private Path is GA -->
                 <div class="arch-card private">
-                    <div class="preview-banner private-path-preview">
-                        <span class="preview-icon">🚧</span>
-                        <span><strong>Coming Soon:</strong> Private Path is an upcoming feature not yet supported. Documentation is provided for planning purposes.</span>
-                    </div>
                     <div class="arch-header">
                         <h3>🔐 Private Path</h3>
-                        <span class="badge">Enhanced Security</span>
+                        <span class="badge">Generally Available</span>
                     </div>
                     <div class="arch-body">
                         <p>Traffic routes through Arc Gateway via <strong>ExpressRoute or Site-to-Site VPN</strong>.</p>
                         <ul>
+                            <li>Azure Local 2608 or later</li>
+                            <li>Hyperconverged and disaggregated deployments</li>
                             <li>Azure Firewall Explicit Proxy</li>
                             <li>No public internet exposure</li>
                             <li>Private connectivity to Azure</li>
                         </ul>
+                        <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway-private-path?view=azloc-2608" target="_blank" rel="noopener noreferrer">Private Path prerequisites and registration ↗</a>
                     </div>
                 </div>
             </div>
@@ -1235,6 +1233,20 @@
         <!-- Configuration Section -->
         <section id="configuration" class="section">
             <h2>Configuration</h2>
+
+            <h3>Private Path Prerequisites</h3>
+            <div class="config-section">
+                <ul class="config-list">
+                    <li>Azure Local software version 2608 or later</li>
+                    <li>An existing Azure virtual network with Azure Arc Private Link Scope disabled</li>
+                    <li>A workload subnet and an <code>AzureFirewallSubnet</code> of at least <code>/26</code></li>
+                    <li>Azure Firewall Standard or Premium with Explicit Proxy enabled</li>
+                    <li>Existing ExpressRoute or site-to-site VPN connectivity and routing to the Azure Firewall private IP</li>
+                    <li>An Azure Arc gateway in the same subscription where the Azure Local machines are registered</li>
+                </ul>
+                <p><strong>Important:</strong> TLS inspection and certificates on Azure Firewall Explicit Proxy aren't supported. Microsoft supports only the documented Private Path architecture.</p>
+                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway-private-path?view=azloc-2608" target="_blank" rel="noopener noreferrer" class="doc-link">📖 Private Path deployment guidance ↗</a>
+            </div>
 
             <h3>Proxy Bypass Requirements</h3>
             <p>When defining your proxy bypass string for Arc initialization or the Companion App, include:</p>

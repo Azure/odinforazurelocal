@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.04] - 2026-08-28
+
+Private Path planning now reflects its Azure Local 2608 general availability for both hyperconverged and disaggregated deployments.
+
+### Changed
+
+- **Private Path promoted to GA** (`index.html`, `css/style.css`, `docs/outbound-connectivity/`) — removes Coming Soon signaling and documents the Azure Local 2608+, Arc Gateway, Azure Firewall Explicit Proxy, ExpressRoute or site-to-site VPN, VNet, subnet, routing, and TLS-inspection requirements.
+- **Private Path constraints made consistent** (`js/script.js`, `tests/index.html`) — both hyperconverged and disaggregated designs retain Private Path support and automatically require Arc Gateway plus Azure Firewall Explicit Proxy. Clouds where the Designer disables Arc Gateway can no longer select, resume, or import a contradictory Private Path state.
+- **Design outputs aligned with GA guidance** (`report/`, `docs/json-schema/odin-design.schema.json`) — HTML, Markdown, validation, and PowerPoint output identify Private Path as GA, include its 2608 and connectivity prerequisites, warn that TLS inspection and explicit-proxy certificates aren't supported, and publish the existing outbound values as a schema enum.
+
+---
+
 ## [0.23.03] - 2026-08-26
 
 Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.

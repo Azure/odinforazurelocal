@@ -2031,9 +2031,7 @@
                             <h3>Public Internet</h3>
                             <p>Direct connectivity to cloud endpoints.</p>
                         </div>
-                        <!-- PRIVATE-PATH-PREVIEW: Remove this comment and the coming-soon-badge span when Private Path is GA -->
                         <div class="option-card" data-value="private" onclick="selectOption('outbound', 'private')">
-                            <span class="coming-soon-badge private-path-preview">Coming Soon</span>
                             <div class="icon">
                                 <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 12L20 12" stroke-width="1.5" />
@@ -2043,9 +2041,14 @@
                                 </svg>
                             </div>
                             <h3>ExpressRoute / VPN</h3>
-                            <p>Private connectivity.</p>
-                            <p class="preview-note private-path-preview">⚠️ Feature not available yet</p>
+                            <p>Private Path connectivity for Azure Local 2608 or later.</p>
                         </div>
+                    </div>
+
+                    <div id="private-path-ga-info" class="info-box" style="margin-top: 1.5rem;">
+                        <strong style="color: var(--accent-blue);">Private Path requirements</strong>
+                        <p style="margin-top: 0.5rem;">Private Path is supported for hyperconverged and disaggregated deployments running Azure Local 2608 or later. It requires an Azure Arc gateway, Azure Firewall Explicit Proxy, and existing ExpressRoute or site-to-site VPN connectivity.</p>
+                        <p><a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway-private-path?view=azloc-2608" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Review Private Path prerequisites and registration</a></p>
                     </div>
 
                     <!-- Disconnected Options -->
@@ -2156,8 +2159,8 @@
                                 target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Read
                                 documentation</a>
                         </p>
-                        <p>Azure Local doesn't support HTTPS inspection. Make sure that HTTPS inspection is disabled along your networking path for Azure Local required endpoints to prevent any connectivity errors. This includes use of Entra ID tenant restrictions v1 which isn't supported for Azure Local management network communication.
-                            <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Review the required firewall endpoints</a>
+                        <p>Azure Local doesn't support HTTPS inspection. Make sure that HTTPS inspection is disabled along your networking path for Azure Local required endpoints to prevent any connectivity errors. Azure Firewall Explicit Proxy certificates aren't supported for Private Path. This includes use of Entra ID tenant restrictions v1 which isn't supported for Azure Local management network communication.
+                            <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/private-path-network-overview?view=azloc-2608" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Review Private Path restrictions and traffic flows</a>
                         </p>
                     </div>
                 </section>
