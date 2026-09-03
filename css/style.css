@@ -922,6 +922,28 @@ header .header-description {
     overflow: hidden;
 }
 
+.option-card-with-link {
+    position: relative;
+    min-width: 0;
+}
+
+.option-card-with-link .option-card {
+    width: 100%;
+    height: 100%;
+    padding-bottom: 3rem;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.option-card-with-link > .info-link {
+    position: absolute;
+    left: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1;
+    margin: 0;
+}
+
 .option-card:hover {
     background: rgba(255, 255, 255, 0.06);
     transform: translateY(-2px);
@@ -1001,9 +1023,23 @@ header .header-description {
     font-weight: 600;
 }
 
+.option-card-title {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
 .option-card p {
     font-size: 0.9rem;
     color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.option-card-description {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
     line-height: 1.5;
 }
 
@@ -2510,16 +2546,27 @@ header .header-description {
         padding: 1rem;
     }
 
+    .option-card-with-link .option-card {
+        padding-bottom: 2.5rem;
+    }
+
+    .option-card-with-link > .info-link {
+        left: 1rem;
+        bottom: 1rem;
+    }
+
     .option-card .icon svg {
         width: 36px;
         height: 36px;
     }
 
-    .option-card h3 {
+    .option-card h3,
+    .option-card-title {
         font-size: 1rem;
     }
 
-    .option-card p {
+    .option-card p,
+    .option-card-description {
         font-size: 0.85rem;
     }
 
@@ -2668,6 +2715,10 @@ header .header-description {
     .breadcrumb-nav {
         margin-left: -0.5rem;
         margin-right: -0.5rem;
+    }
+
+    .step code {
+        overflow-wrap: anywhere;
     }
 
     header h1,

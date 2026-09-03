@@ -2075,6 +2075,28 @@ header .header-description {
     }
 }
 
+@media (max-width: 480px) {
+    .odin-tab-container {
+        gap: 2px;
+    }
+
+    .odin-tab-btn {
+        padding: 8px 6px;
+    }
+
+    .nav-theme-toggle {
+        padding: 6px 4px;
+    }
+
+    .power-rack-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .power-rack-item {
+        min-width: 0;
+    }
+}
+
 /* Resume banner animations */
 @keyframes slideDown {
     from { transform: translateX(-50%) translateY(-100%); opacity: 0; }

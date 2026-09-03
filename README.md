@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.05 - Available here: https://aka.ms/ODIN
+## Version 0.23.06 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,17 +49,17 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.05 - Latest Release
+### Version 0.23.06 - Latest Release
 
-> **Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity.** The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.
+> **Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings.** Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
 
 **What's new**
-- **Four high-severity dependency alerts resolved** — the development-only transitive `fast-uri` dependency is enforced at 4.1.4.
-- **Code scanning findings cleared** — two unused report-validator reference constants are removed without changing generated reports.
-- **Workflow dependencies made immutable** — GitHub Actions now use full commit SHA references to prevent tag-retargeting risk.
-- **Safer action updates** — grouped weekly GitHub Actions updates use a seven-day cooldown before Dependabot proposes them.
-- **Sizer import buttons and onboarding restored for first-time visitors** — Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs; Escape dismisses the visible dialog without deleting shared overlays; and the Sizer tour introduces both estate-import paths in an even tile layout.
-- All **1,572 / 1,572** browser tests pass.
+- **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
+- **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
+- **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
+- **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
+- **Release UI validation completed** — full Sizer and Designer matrices now cover every supported topology, outputs, imports, cross-tool handoffs, reset behavior, keyboard access, both themes, and phone/tablet/desktop layouts. The pass also fixed narrow-screen overflow, stale reset/region/architecture state, dialog Escape handling, and option-card disabled and nested-link semantics.
+- All **1,577 / 1,577** browser tests pass.
 
 ---
 
@@ -384,7 +384,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.05<br>
+**Version**: 0.23.06<br>
 **Last Updated**: September 2026<br>
 **Compatibility**: Azure Local 2506+
 

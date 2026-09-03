@@ -273,18 +273,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Make all option-cards keyboard accessible
-    document.querySelectorAll('.option-card').forEach(card => {
-        if (!card.hasAttribute('tabindex')) {
-            card.setAttribute('tabindex', '0');
-        }
-        // Allow Enter/Space to select the card
+    const syncOptionCardState = card => {
+        const disabled = card.classList.contains('disabled');
+        card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');
+        card.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        card.setAttribute('tabindex', disabled ? '-1' : '0');
+    };
+
+    const initializeOptionCard = card => {
+        const isNativeButton = card.tagName === 'BUTTON';
+        if (!isNativeButton) card.setAttribute('role', 'button');
+        syncOptionCardState(card);
+        card.addEventListener('click', (e) => {
+            if (!card.classList.contains('disabled')) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }, true);
+        if (isNativeButton) return;
         card.addEventListener('keydown', (e) => {
+            if (e.target !== card) return;
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                if (card.classList.contains('disabled')) return;
                 card.click();
             }
         });
+    };
+
+    // Make existing and dynamically-rendered option cards keyboard accessible.
+    document.querySelectorAll('.option-card').forEach(initializeOptionCard);
+
+    const optionCardObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'attributes' && mutation.target.matches('.option-card')) {
+                syncOptionCardState(mutation.target);
+            }
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                if (node.matches('.option-card')) initializeOptionCard(node);
+                node.querySelectorAll('.option-card').forEach(initializeOptionCard);
+            });
+        });
+    });
+    optionCardObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class'],
+        childList: true,
+        subtree: true
     });
 });
 
@@ -2941,6 +2976,7 @@ function selectOption(category, value) {
         state.localInstanceRegion = null;
         state.scale = null;
         state.nodes = null;
+        state.nodeSettings = [];
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -2988,6 +3024,7 @@ function selectOption(category, value) {
         state.localInstanceRegion = null;
         state.scale = null;
         state.nodes = null;
+        state.nodeSettings = [];
         state.ports = null;
         state.storage = null;
         state.intent = null;
@@ -3020,7 +3057,10 @@ function selectOption(category, value) {
         state.region = value;
         state.localInstanceRegion = null;
         state.scale = null;
-        if (state.architecture !== 'disaggregated') { state.nodes = null; }
+        if (state.architecture !== 'disaggregated') {
+            state.nodes = null;
+            state.nodeSettings = [];
+        }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -3049,7 +3089,10 @@ function selectOption(category, value) {
     } else if (category === 'localInstanceRegion') {
         state.localInstanceRegion = value;
         state.scale = null;
-        if (state.architecture !== 'disaggregated') { state.nodes = null; }
+        if (state.architecture !== 'disaggregated') {
+            state.nodes = null;
+            state.nodeSettings = [];
+        }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -4384,6 +4427,7 @@ function updateUI() {
             chip.classList.add('disabled');
             if (state.nodes === valueStr) {
                 state.nodes = null;
+                state.nodeSettings = [];
                 chip.classList.remove('selected');
             }
         } else {
@@ -4501,7 +4545,11 @@ function updateUI() {
     }
 
     // Reset disabled
-    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
+    document.querySelectorAll('.option-card').forEach(c => {
+        if (!c.closest('#da4-vrf-mode-grid') && !c.closest('#da8-port-count-grid')) {
+            c.classList.remove('disabled');
+        }
+    });
     const proxyText = document.getElementById('proxy-enabled-text');
     if (proxyText) proxyText.innerText = 'Traffic routed through proxy.';
 
@@ -8370,11 +8418,11 @@ function resetAll() {
     // Clear localStorage
     clearSavedState();
 
+    // Start Over must also remove any stale prompt created during page load.
+    dismissResumeBanner(true);
+
     // Update UI to reflect clean state
     updateUI();
-
-    // Scroll to top of page (to step 1)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     showToast('Started fresh - all previous data cleared', 'info');
 }
@@ -11624,8 +11672,8 @@ function buildPrintableConfigurationHtml(readiness) {
             </thead>
             <tbody>
                 ${state.nodeSettings.map((node, i) => {
-            const escName = printable(node && node.name ? node.name : 'Not set');
-            const escIp = printable(node && node.ipCidr ? node.ipCidr : 'Not set');
+        const escName = printable(node && node.name ? node.name : 'Not set');
+        const escIp = printable(node && node.ipCidr ? node.ipCidr : 'Not set');
         return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
     }).join('')}
             </tbody>

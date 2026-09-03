@@ -185,7 +185,7 @@ function openInteractionDialog(options) {
             if (outside) finish(settings.input ? null : false);
         });
         dialog.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && !supportsModalDialog) {
+            if (event.key === 'Escape') {
                 event.preventDefault();
                 finish(settings.input ? null : false);
                 return;
@@ -344,7 +344,7 @@ function copyToClipboard(text, successMessage = 'Copied to clipboard!') {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
             showToast(successMessage, 'success');
-        }).catch(err => {
+        }).catch(() => {
             fallbackCopyToClipboard(text, successMessage);
         });
     } else {

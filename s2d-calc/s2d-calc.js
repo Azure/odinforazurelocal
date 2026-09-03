@@ -341,20 +341,33 @@
         return lines.join('\n');
     }
 
+    // This tracks the tour revision, not ODIN_VERSION. Bump only when the tour should replay.
     const S2D_ONBOARDING_KEY = 'odin_s2d_onboarding_v0_23_01';
     const S2D_STATE_KEY = 'odin_s2d_calc_state';
     const S2D_STATE_VERSION = 1;
     const MAX_SHARED_CONFIG_CHARS = 12000;
+    const S2D_STATE_FIELDS = Object.freeze([
+        ['platform', 'radio'],
+        ['nodes', 'input', 'node-number'],
+        ['copies', 'radio'],
+        ['provisioning', 'radio'],
+        ['thinExtentMiB', 'radio'],
+        ['tiering', 'radio'],
+        ['drivesPerNode', 'input', 'drives-per-node'],
+        ['diskSize', 'input', 'disk-size'],
+        ['customDiskSize', 'input', 'custom-disk-size'],
+        ['cacheDrives', 'input', 'cache-drives-per-node'],
+        ['cacheDiskSize', 'input', 'cache-disk-size'],
+        ['cacheCustomDiskSize', 'input', 'cache-custom-disk-size'],
+        ['capacityDrives', 'input', 'capacity-drives-per-node'],
+        ['capacityDiskSize', 'input', 'capacity-disk-size'],
+        ['capacityCustomDiskSize', 'input', 'capacity-custom-disk-size']
+    ]);
 
     function isValidSharedState(payload) {
         if (!payload || payload.version !== S2D_STATE_VERSION || !payload.data || typeof payload.data !== 'object') return false;
         if (payload.name !== undefined && (typeof payload.name !== 'string' || payload.name.length > 100)) return false;
-        const requiredFields = [
-            'platform', 'nodes', 'copies', 'provisioning', 'thinExtentMiB', 'tiering',
-            'drivesPerNode', 'diskSize', 'customDiskSize', 'cacheDrives', 'cacheDiskSize',
-            'cacheCustomDiskSize', 'capacityDrives', 'capacityDiskSize', 'capacityCustomDiskSize'
-        ];
-        if (!requiredFields.every(field => typeof payload.data[field] === 'string')) return false;
+        if (!S2D_STATE_FIELDS.every(([field]) => typeof payload.data[field] === 'string')) return false;
         if (!['azureLocal', 'windowsServer'].includes(payload.data.platform)) return false;
         if (!['2', '3', '4'].includes(payload.data.copies)) return false;
         if (!['thin', 'fixed'].includes(payload.data.provisioning)) return false;
@@ -384,15 +397,37 @@
         });
     }
 
+    function utf8ToBase64(value) {
+        const bytes = new TextEncoder().encode(value);
+        let binary = '';
+        bytes.forEach(byte => {
+            binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+    }
+
+    function base64ToUtf8(value) {
+        const binary = atob(value);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    }
+
+    function readSharedStateData(readRadio, readControl) {
+        return S2D_STATE_FIELDS.reduce((data, [field, controlKind, controlId]) => {
+            data[field] = controlKind === 'radio' ? readRadio(field) : readControl(controlId);
+            return data;
+        }, {});
+    }
+
     function encodeSharedConfiguration(payload) {
         if (!isValidSharedState(payload)) throw new TypeError('Invalid S2D Calc share payload.');
-        return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+        return utf8ToBase64(JSON.stringify(payload));
     }
 
     function decodeSharedConfiguration(configParam) {
         if (typeof configParam !== 'string' || !configParam || configParam.length > MAX_SHARED_CONFIG_CHARS) return null;
         try {
-            const payload = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(configParam)))));
+            const payload = JSON.parse(base64ToUtf8(decodeURIComponent(configParam)));
             return isValidSharedState(payload) ? payload : null;
         } catch (_) {
             return null;
@@ -417,6 +452,7 @@
         calculatePoolConsumption,
         buildExportReport,
         createCalculationTelemetryGate,
+        readSharedStateData,
         encodeSharedConfiguration,
         decodeSharedConfiguration
     });
@@ -850,23 +886,10 @@
         }
 
         function getStateData() {
-            return {
-                platform: selectedValue('platform'),
-                nodes: nodeNumber.value,
-                copies: selectedValue('copies'),
-                provisioning: selectedValue('provisioning'),
-                thinExtentMiB: selectedValue('thinExtentMiB'),
-                tiering: selectedValue('tiering'),
-                drivesPerNode: drivesPerNode.value,
-                diskSize: diskSize.value,
-                customDiskSize: customDiskSize.value,
-                cacheDrives: cacheDrives.value,
-                cacheDiskSize: cacheDiskSize.value,
-                cacheCustomDiskSize: cacheCustomDiskSize.value,
-                capacityDrives: capacityDrives.value,
-                capacityDiskSize: capacityDiskSize.value,
-                capacityCustomDiskSize: capacityCustomDiskSize.value
-            };
+            return readSharedStateData(selectedValue, controlId => {
+                const element = document.getElementById(controlId);
+                return element ? String(element.value) : '';
+            });
         }
 
         function saveState() {

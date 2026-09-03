@@ -4,7 +4,18 @@ This document contains historical ODIN release summaries. For the complete chang
 
 Return to the [ODIN README](../../README.md).
 
-### Version 0.23.x Series (August 2026)
+### Version 0.23.x Series (August-September 2026)
+
+#### 0.23.05 - Security and CI supply-chain maintenance
+
+> Security maintenance updated development dependencies, code scanning, and CI supply-chain integrity without changing runtime application behavior.
+
+- Resolved four high-severity alerts by enforcing the development-only transitive `fast-uri` dependency at 4.1.4.
+- Removed two unused report-validator reference constants without changing generated reports.
+- Pinned GitHub Actions to immutable commit SHAs and added a seven-day cooldown for grouped weekly action updates.
+- Restored first-visit Sizer import dialogs and scoped Sizer and S2D onboarding cleanup to their owning walkthroughs.
+- Restored Escape dismissal through each dialog's close path and documented both estate-import options in the Sizer tour.
+- All **1,572 / 1,572** browser tests passed.
 
 #### 0.23.04 - Private Path general availability
 
