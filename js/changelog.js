@@ -60,6 +60,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Modern UTF-8 shared links</strong> &mdash; S2D configuration names and data use standards-based browser encoding and decoding APIs.</li>
                         <li><strong>Single shared-state definition</strong> &mdash; serialization and completeness validation use the same typed field list while retaining each control's access behavior.</li>
                         <li><strong>Quality cleanup</strong> &mdash; the Arc Private Link icon is restored, clipboard fallback drops an unused parameter, and the onboarding revision-key policy is documented.</li>
+                        <li><strong>GitHub Actions dependencies refreshed</strong> &mdash; checkout 7.0.1, setup-node 7.0.0, and upload-artifact 7.0.1 remain pinned to immutable commit SHAs and pass the complete CI workflow.</li>
                         <li>All <strong>1,572 / 1,572</strong> browser tests pass.</li>
                     </ul>
                 </div>

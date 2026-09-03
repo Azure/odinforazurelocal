@@ -16,7 +16,8 @@ Quality maintenance release that modernizes S2D shared-link handling and resolve
 - **S2D shared-link encoding modernized** (`s2d-calc/s2d-calc.js`, `tests/index.html`) — replaces deprecated UTF-8 conversion globals with `TextEncoder`, `TextDecoder`, and byte-safe Base64 conversion while retaining bounded, fail-closed decoding and Unicode round trips.
 - **S2D shared-state fields centralized** (`s2d-calc/s2d-calc.js`, `tests/index.html`) — uses one typed field definition for serialization and payload completeness checks while preserving radio-group and direct-control access semantics; focused coverage rejects incomplete payloads.
 - **Code quality cleanup** (`docs/outbound-connectivity/index.html`, `js/notifications.js`, `s2d-calc/s2d-calc.js`) — restores the Arc Private Link icon, removes an unused clipboard rejection parameter, and documents that the S2D onboarding key tracks tour revisions independently of the application version.
-- **Validation** — all **1,572 / 1,572** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors.
+- **GitHub Actions dependencies updated ([#292](https://github.com/Azure/odinforazurelocal/pull/292))** (`.github/workflows/codeql.yml`, `.github/workflows/test.yml`) — upgrades `actions/checkout` to 7.0.1, `actions/setup-node` to 7.0.0, and `actions/upload-artifact` to 7.0.1 while retaining immutable commit SHA pins, the Node 24 action runtime, the Node 22 ODIN runtime, and existing artifact inputs.
+- **Validation** — all **1,572 / 1,572** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors; and PR #292 passed CodeQL, dependency audit, test-result upload, and PowerPoint export smoke checks with the upgraded actions.
 
 ---
 

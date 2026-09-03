@@ -57,6 +57,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
 - **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
 - **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
+- **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
 - All **1,572 / 1,572** browser tests pass.
 
 ---
