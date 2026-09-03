@@ -55,7 +55,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.05</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">September 3, 2026</div>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity without changing runtime application behavior.</p>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity. The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and runtime application behavior is unchanged.</p>
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
                         <li><strong>Dependency alerts resolved</strong> &mdash; the development-only transitive <code>fast-uri</code> dependency is enforced at 4.1.4, resolving four high-severity advisories.</li>
                         <li><strong>Code scanning cleanup</strong> &mdash; two unused report-validator reference constants are removed without changing report output.</li>

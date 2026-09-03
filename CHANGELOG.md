@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.23.05] - 2026-09-03
 
-Security maintenance release for development dependencies, code scanning, and CI supply-chain integrity. Runtime application behavior is unchanged.
+Security maintenance release for development dependencies, code scanning, and CI supply-chain integrity. The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and runtime application behavior is unchanged.
 
 ### Changed
 
