@@ -26,7 +26,7 @@
 - `README.md`
 - `CHANGELOG.md`
 - `docs/version-history/README.md`
-- `docs/module-planning/ai-quality-findings-fast-follow-plan.md`
+- `docs/module-planning/complete/ai-quality-findings-fast-follow-plan.md`
 
 ## Open questions
 

@@ -382,7 +382,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.05<br>
+**Version**: 0.23.06<br>
 **Last Updated**: September 2026<br>
 **Compatibility**: Azure Local 2506+
 

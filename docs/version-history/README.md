@@ -4,7 +4,7 @@ This document contains historical ODIN release summaries. For the complete chang
 
 Return to the [ODIN README](../../README.md).
 
-### Version 0.23.x Series (August 2026)
+### Version 0.23.x Series (August-September 2026)
 
 #### 0.23.05 - Security and CI supply-chain maintenance
 
