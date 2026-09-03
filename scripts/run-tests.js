@@ -749,10 +749,15 @@ function checkDesignerResetContracts() {
 
 function checkDesignerAccessibilityContracts() {
     const scriptJs = fs.readFileSync(path.resolve(process.cwd(), 'js', 'script.js'), 'utf8');
+    const disaggregatedJs = fs.readFileSync(path.resolve(process.cwd(), 'js', 'disaggregated.js'), 'utf8');
+    const indexHtml = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
     const required = [
-        "card.setAttribute('role', 'button');",
+        "const isNativeButton = card.tagName === 'BUTTON';",
+        "if (!isNativeButton) card.setAttribute('role', 'button');",
+        'if (isNativeButton) return;',
         "card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');",
-        "card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');",
+        "card.setAttribute('aria-disabled', disabled ? 'true' : 'false');",
+        "card.setAttribute('tabindex', disabled ? '-1' : '0');",
         'if (e.target !== card) return;',
         "if (card.classList.contains('disabled')) return;",
         "document.querySelectorAll('.option-card').forEach(initializeOptionCard);",
@@ -761,6 +766,12 @@ function checkDesignerAccessibilityContracts() {
         "if (!c.closest('#da8-port-count-grid')) c.classList.remove('disabled');"
     ];
     const missing = required.filter(value => !scriptJs.includes(value));
+    if (!disaggregatedJs.includes("card.classList.toggle('disabled', confirmed);")) {
+        missing.push('confirmed VRF cards use shared disabled state');
+    }
+    if (!/<div class="option-card-with-link">[\s\S]*?<\/button>\s*<a [^>]*class="info-link"/.test(indexHtml)) {
+        missing.push('Rack-Aware selector and documentation link are sibling controls');
+    }
     if (missing.length === 0) {
         console.log(`✅ Designer accessibility contracts OK: ${required.length} option-card semantics present`);
         return true;

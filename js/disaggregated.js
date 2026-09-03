@@ -476,8 +476,7 @@ function renderDisaggVrfModeCards() {
     grid.querySelectorAll('.option-card').forEach(function(card) {
         const cardMode = card.getAttribute('data-vrf-mode');
         card.classList.toggle('selected', cardMode === mode);
-        card.style.opacity = confirmed ? '0.65' : '';
-        card.style.pointerEvents = confirmed ? 'none' : '';
+        card.classList.toggle('disabled', confirmed);
     });
 }
 

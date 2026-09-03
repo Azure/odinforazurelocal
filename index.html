@@ -1400,18 +1400,20 @@
                             <h3>Hyperconverged</h3>
                             <p>1 to 16 machines.</p>
                         </div>
-                        <div class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
-                            <div class="icon">
-                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <rect x="3" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
-                                    <rect x="14" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
-                                    <path d="M7 7h0M7 11h0M7 15h0M7 19h0" stroke-width="2" stroke-linecap="round" />
-                                    <path d="M18 7h0M18 11h0M18 15h0M18 19h0" stroke-width="2" stroke-linecap="round" />
-                                </svg>
-                            </div>
-                            <h3>Rack-Aware Cluster <span style="font-size: 0.75em; font-weight: 400; opacity: 0.7;">(Hyperconverged)</span></h3>
-                            <p>Spread across rooms (2, 4, 6, 8 machines).</p>
-                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
+                        <div class="option-card-with-link">
+                            <button type="button" class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
+                                <span class="icon">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
+                                        <rect x="14" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
+                                        <path d="M7 7h0M7 11h0M7 15h0M7 19h0" stroke-width="2" stroke-linecap="round" />
+                                        <path d="M18 7h0M18 11h0M18 15h0M18 19h0" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                </span>
+                                <span class="option-card-title">Rack-Aware Cluster <span style="font-size: 0.75em; font-weight: 400; opacity: 0.7;">(Hyperconverged)</span></span>
+                                <span class="option-card-description">Spread across rooms (2, 4, 6, 8 machines).</span>
+                            </button>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" rel="noopener noreferrer" class="info-link">Learn more ↗</a>
                         </div>
                     </div>
                 </section>

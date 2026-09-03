@@ -273,13 +273,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const initializeOptionCard = card => {
-        card.setAttribute('role', 'button');
+    const syncOptionCardState = card => {
+        const disabled = card.classList.contains('disabled');
         card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');
-        card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');
-        if (!card.hasAttribute('tabindex')) {
-            card.setAttribute('tabindex', '0');
-        }
+        card.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        card.setAttribute('tabindex', disabled ? '-1' : '0');
+    };
+
+    const initializeOptionCard = card => {
+        const isNativeButton = card.tagName === 'BUTTON';
+        if (!isNativeButton) card.setAttribute('role', 'button');
+        syncOptionCardState(card);
+        if (isNativeButton) return;
         card.addEventListener('keydown', (e) => {
             if (e.target !== card) return;
             if (e.key === 'Enter' || e.key === ' ') {
@@ -296,9 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const optionCardObserver = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             if (mutation.type === 'attributes' && mutation.target.matches('.option-card')) {
-                const card = mutation.target;
-                card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');
-                card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');
+                syncOptionCardState(mutation.target);
             }
             mutation.addedNodes.forEach(node => {
                 if (node.nodeType !== Node.ELEMENT_NODE) return;
