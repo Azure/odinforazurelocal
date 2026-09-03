@@ -25,15 +25,18 @@
 
 - `.github/skills/designer-release-validation/SKILL.md`
 - `.github/copilot-instructions.md`
+- `css/style.css`
+- `js/notifications.js`
+- `js/script.js`
+- `scripts/run-tests.js`
+- `tests/index.html`
 - `docs/module-planning/designer-release-validation-plan.md`
 - Current release notes describing the new integrated validation layer.
 
 ## Open questions
 
-- The wizard's legacy option cards and node chips are pointer-operable generic
-  elements rather than native buttons. A future accessibility pass should make
-  the shared card/chip interaction keyboard-operable without changing selection
-  behavior across the full wizard.
+- None. Shared option cards now expose button, pressed, and disabled semantics,
+  initialize dynamically rendered cards, and preserve Enter/Space selection.
 
 ## Validation findings
 
@@ -56,6 +59,10 @@
   Sizer handoff applies once without overwriting later Designer edits.
 - Confirmed the modified dialog at 375 x 667 and 768 x 1024 in both themes with
   no horizontal overflow.
+- Confirmed the full Designer at 375 x 667, 768 x 1024, and 1440 x 900 in both
+  themes. Long SAN parameter names wrap without widening the phone layout.
+- Confirmed option-card ARIA state, dynamic disaggregated port-card semantics,
+  focus trapping and return, deterministic Escape dismissal, and progress ARIA.
 
 ## Implementation order
 

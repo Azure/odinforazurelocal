@@ -58,7 +58,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
 - **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
 - **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
-- All **1,572 / 1,572** browser tests pass.
+- **Release UI validation completed** — full Sizer and Designer matrices now cover every supported topology, outputs, imports, cross-tool handoffs, reset behavior, keyboard access, both themes, and phone/tablet/desktop layouts. The pass also fixed narrow-screen overflow, stale reset/architecture state, dialog Escape handling, and option-card semantics.
+- All **1,575 / 1,575** browser tests pass.
 
 ---
 

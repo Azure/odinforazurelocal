@@ -22,8 +22,12 @@
 - `docs/outbound-connectivity/index.html`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/test.yml`
+- `css/style.css`
 - `js/notifications.js`
+- `js/script.js`
 - `s2d-calc/s2d-calc.js`
+- `scripts/run-tests.js`
+- `sizer/sizer.css`
 - `tests/index.html`
 - `js/version.js`
 - `js/changelog.js`
@@ -39,6 +43,15 @@
 - Jobs run on `ubuntu-latest` with the Node 24 action runtime enabled; `setup-node` continues to select Node 22 for ODIN scripts and tests.
 - Existing action inputs are unchanged. The new `upload-artifact` direct-upload mode remains disabled, preserving the archived `test-results/` artifact behavior.
 - PR #292 passed CodeQL, JavaScript, HTML, CSS, browser tests, dependency audit, test-result upload, and PowerPoint export smoke validation before merge.
+
+## Release validation evidence
+
+- The browser suite passes **1,575 / 1,575**, including malformed Base64, incomplete S2D payloads, and invalid UTF-8 that reaches fatal `TextDecoder` handling.
+- The complete Sizer matrix covers every deployment and workload type, mixed-workload scale up/down, GPU capacity, growth, reset, responsive layouts, both themes, and keyboard/dialog behavior.
+- The complete Designer matrix covers Connected HCI, Connected disaggregated SAN, disconnected management and workload roles, rack-aware HCI, Multi-Rack and Microsoft 365 Local stop flows, architecture/scenario inverse transitions, networking validation, and reset cleanup.
+- Designer export/import round trip, legacy migration, reciprocal Sizer-import guidance, Sizer-to-Designer, Designer-to-Sizer, report, ARM, and ToR payload handoffs were exercised through rendered controls. The integrated browser host suppresses spawned ToR tabs, so the exact disaggregated payload and one-shot target consumption supplement the static destination coverage.
+- Responsive validation passes at 375 x 667, 768 x 1024, and 1440 x 900 in light and dark themes. Accessibility checks cover focus trapping and return, Escape dismissal, progress ARIA, and option-card button, pressed, disabled, Enter, and Space behavior.
+- Defects found and fixed during the matrices: Sizer phone overflow, native dialog Escape handling, stale Designer resume banners, stale node identities after architecture changes, long SAN parameter overflow on phones, and disabled-state loss on dynamically rendered disaggregated port cards.
 
 ## Open questions
 

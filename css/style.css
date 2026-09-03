@@ -2670,6 +2670,10 @@ header .header-description {
         margin-right: -0.5rem;
     }
 
+    .step code {
+        overflow-wrap: anywhere;
+    }
+
     header h1,
     header .header-title {
         font-size: 1.3rem;

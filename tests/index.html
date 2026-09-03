@@ -454,6 +454,26 @@
             (function() {
                 const payload = {
                     version: 1,
+                    name: 'Lab ~',
+                    data: {
+                        platform: 'azureLocal', nodes: '4', copies: '3', provisioning: 'thin',
+                        thinExtentMiB: '1024', tiering: 'single', drivesPerNode: '8', diskSize: '6.4',
+                        customDiskSize: '', cacheDrives: '2', cacheDiskSize: '3.2', cacheCustomDiskSize: '',
+                        capacityDrives: '4', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
+                    }
+                };
+                const validBinary = atob(volumeCalculator.encodeSharedConfiguration(payload));
+                const markerIndex = validBinary.indexOf('~');
+                const invalidBinary = markerIndex >= 0
+                    ? `${validBinary.slice(0, markerIndex)}${String.fromCharCode(0xff)}${validBinary.slice(markerIndex + 1)}`
+                    : '';
+                const decoded = volumeCalculator.decodeSharedConfiguration(btoa(invalidBinary));
+                return assert(markerIndex >= 0 && decoded === null,
+                    'invalid UTF-8 inside otherwise valid S2D share JSON is rejected', null, decoded);
+            })(),
+            (function() {
+                const payload = {
+                    version: 1,
                     data: {
                         platform: 'azureLocal', nodes: '4', copies: '3', provisioning: 'thin',
                         thinExtentMiB: '1024', tiering: 'single', drivesPerNode: '999', diskSize: '6.4',
@@ -572,6 +592,15 @@
                 'Cancelling a guidance dialog removes it without navigation',
                 false,
                 document.body.contains(confirmDialog)));
+
+            showConfirmDialog({ title: 'Native dialog', message: 'Keyboard dismissal check' });
+            const nativeDialog = document.querySelector('.odin-dialog');
+            nativeDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            results.push(assert(
+                !document.body.contains(nativeDialog),
+                'Escape deterministically closes the native dialog',
+                false,
+                document.body.contains(nativeDialog)));
 
             showTextInputDialog({
                 title: 'Export configuration',
@@ -10526,6 +10555,7 @@
                 // Set LUN IDs, then switch architecture away from disaggregated
                 state.infraVolLunId = 'PURELUN1';
                 state.infraPerfLunId = 'PURELUN2';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.2/24' }];
                 selectOption('architecture', 'hci');
                 results.push(assert(state.infraVolLunId === null,
                     'infraVolLunId cleared when leaving disaggregated',
@@ -10533,6 +10563,9 @@
                 results.push(assert(state.infraPerfLunId === null,
                     'infraPerfLunId cleared when leaving disaggregated',
                     null, state.infraPerfLunId));
+                results.push(assert(Array.isArray(state.nodeSettings) && state.nodeSettings.length === 0,
+                    'nodeSettings cleared when architecture resets node count',
+                    '[]', JSON.stringify(state.nodeSettings)));
             } else {
                 results.push(assert(false, 'selectOption is available', true, false));
             }

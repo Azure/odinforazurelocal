@@ -695,14 +695,77 @@ function checkDesignerResponsiveContracts() {
         margin-left: -0.5rem;
         margin-right: -0.5rem;
     }`;
+    const wrappedInlineCode = `    .step code {
+        overflow-wrap: anywhere;
+    }`;
 
-    if (indexHtml.includes(compactNavigation) && styleCss.includes(alignedBreadcrumb)) {
-        console.log('✅ Designer responsive contracts OK: compact navigation and aligned breadcrumb present');
+    if (indexHtml.includes(compactNavigation) && styleCss.includes(alignedBreadcrumb) && styleCss.includes(wrappedInlineCode)) {
+        console.log('✅ Designer responsive contracts OK: compact navigation, aligned breadcrumb, and wrapped inline code present');
         return true;
     }
 
     if (!indexHtml.includes(compactNavigation)) console.error('❌ Designer responsive contract missing: compact navigation at 480px');
     if (!styleCss.includes(alignedBreadcrumb)) console.error('❌ Designer responsive contract missing: aligned mobile breadcrumb');
+    if (!styleCss.includes(wrappedInlineCode)) console.error('❌ Designer responsive contract missing: wrapped mobile inline code');
+    return false;
+}
+
+function checkSizerResponsiveContracts() {
+    const sizerCss = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.css'), 'utf8').replace(/\r\n/g, '\n');
+    const required = [
+        { label: 'compact phone navigation', value: `.odin-tab-container {
+        gap: 2px;
+    }` },
+        { label: 'single-column phone power grid', value: `.power-rack-grid {
+        grid-template-columns: 1fr;
+    }` },
+        { label: 'shrinkable phone power items', value: `.power-rack-item {
+        min-width: 0;
+    }` }
+    ];
+    const missing = required.filter(item => !sizerCss.includes(item.value));
+    if (missing.length === 0) {
+        console.log(`✅ Sizer responsive contracts OK: ${required.length} phone layout rules present`);
+        return true;
+    }
+
+    missing.forEach(item => console.error(`❌ Sizer responsive contract missing: ${item.label}`));
+    return false;
+}
+
+function checkDesignerResetContracts() {
+    const scriptJs = fs.readFileSync(path.resolve(process.cwd(), 'js', 'script.js'), 'utf8').replace(/\r\n/g, '\n');
+    const resetMatch = scriptJs.match(/function resetAll\(\) \{[\s\S]*?\n\}\n\nasync function requestDesignerReset/);
+    const dismissesResumeBanner = resetMatch && resetMatch[0].includes('dismissResumeBanner(true);');
+
+    if (dismissesResumeBanner) {
+        console.log('✅ Designer reset contracts OK: Start Over dismisses the saved-session banner');
+        return true;
+    }
+
+    console.error('❌ Designer reset contract missing: Start Over must dismiss the saved-session banner');
+    return false;
+}
+
+function checkDesignerAccessibilityContracts() {
+    const scriptJs = fs.readFileSync(path.resolve(process.cwd(), 'js', 'script.js'), 'utf8');
+    const required = [
+        "card.setAttribute('role', 'button');",
+        "card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');",
+        "card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');",
+        "if (card.classList.contains('disabled')) return;",
+        "document.querySelectorAll('.option-card').forEach(initializeOptionCard);",
+        "if (node.matches('.option-card')) initializeOptionCard(node);",
+        'optionCardObserver.observe(document.body, {',
+        "if (!c.closest('#da8-port-count-grid')) c.classList.remove('disabled');"
+    ];
+    const missing = required.filter(value => !scriptJs.includes(value));
+    if (missing.length === 0) {
+        console.log(`✅ Designer accessibility contracts OK: ${required.length} option-card semantics present`);
+        return true;
+    }
+
+    console.error('❌ Designer accessibility contract missing: option cards must expose role and selected state');
     return false;
 }
 
@@ -891,6 +954,18 @@ function generateJUnitXML(results, passed, failed, total) {
         }
         if (!checkDesignerResponsiveContracts()) {
             console.error('\n❌ Designer responsive contract check failed.');
+            process.exit(1);
+        }
+        if (!checkSizerResponsiveContracts()) {
+            console.error('\n❌ Sizer responsive contract check failed.');
+            process.exit(1);
+        }
+        if (!checkDesignerResetContracts()) {
+            console.error('\n❌ Designer reset contract check failed.');
+            process.exit(1);
+        }
+        if (!checkDesignerAccessibilityContracts()) {
+            console.error('\n❌ Designer accessibility contract check failed.');
             process.exit(1);
         }
         if (!checkReportPresentationContracts()) {

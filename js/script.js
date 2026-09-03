@@ -273,18 +273,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Make all option-cards keyboard accessible
-    document.querySelectorAll('.option-card').forEach(card => {
+    const initializeOptionCard = card => {
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');
+        card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');
         if (!card.hasAttribute('tabindex')) {
             card.setAttribute('tabindex', '0');
         }
-        // Allow Enter/Space to select the card
         card.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                if (card.classList.contains('disabled')) return;
                 card.click();
             }
         });
+    };
+
+    // Make existing and dynamically-rendered option cards keyboard accessible.
+    document.querySelectorAll('.option-card').forEach(initializeOptionCard);
+
+    const optionCardObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'attributes' && mutation.target.matches('.option-card')) {
+                const card = mutation.target;
+                card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');
+                card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');
+            }
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                if (node.matches('.option-card')) initializeOptionCard(node);
+                node.querySelectorAll('.option-card').forEach(initializeOptionCard);
+            });
+        });
+    });
+    optionCardObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class'],
+        childList: true,
+        subtree: true
     });
 });
 
@@ -2941,6 +2967,7 @@ function selectOption(category, value) {
         state.localInstanceRegion = null;
         state.scale = null;
         state.nodes = null;
+        state.nodeSettings = [];
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -2988,6 +3015,7 @@ function selectOption(category, value) {
         state.localInstanceRegion = null;
         state.scale = null;
         state.nodes = null;
+        state.nodeSettings = [];
         state.ports = null;
         state.storage = null;
         state.intent = null;
@@ -4501,7 +4529,9 @@ function updateUI() {
     }
 
     // Reset disabled
-    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
+    document.querySelectorAll('.option-card').forEach(c => {
+        if (!c.closest('#da8-port-count-grid')) c.classList.remove('disabled');
+    });
     const proxyText = document.getElementById('proxy-enabled-text');
     if (proxyText) proxyText.innerText = 'Traffic routed through proxy.';
 
@@ -8370,11 +8400,11 @@ function resetAll() {
     // Clear localStorage
     clearSavedState();
 
+    // Start Over must also remove any stale prompt created during page load.
+    dismissResumeBanner(true);
+
     // Update UI to reflect clean state
     updateUI();
-
-    // Scroll to top of page (to step 1)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     showToast('Started fresh - all previous data cleared', 'info');
 }
@@ -11624,8 +11654,8 @@ function buildPrintableConfigurationHtml(readiness) {
             </thead>
             <tbody>
                 ${state.nodeSettings.map((node, i) => {
-            const escName = printable(node && node.name ? node.name : 'Not set');
-            const escIp = printable(node && node.ipCidr ? node.ipCidr : 'Not set');
+        const escName = printable(node && node.name ? node.name : 'Not set');
+        const escIp = printable(node && node.ipCidr ? node.ipCidr : 'Not set');
         return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
     }).join('')}
             </tbody>

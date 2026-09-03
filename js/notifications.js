@@ -185,7 +185,7 @@ function openInteractionDialog(options) {
             if (outside) finish(settings.input ? null : false);
         });
         dialog.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && !supportsModalDialog) {
+            if (event.key === 'Escape') {
                 event.preventDefault();
                 finish(settings.input ? null : false);
                 return;
