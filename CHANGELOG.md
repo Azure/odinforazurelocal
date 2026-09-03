@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.05] - 2026-09-03
+
+Security maintenance release for development dependencies, code scanning, and CI supply-chain integrity. Runtime application behavior is unchanged.
+
+### Changed
+
+- **`fast-uri` security update** (`package.json`, `package-lock.json`, `.github/copilot-instructions.md`) — raises the enforced development-only transitive dependency floor from 4.1.2 to 4.1.4, resolving GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, and GHSA-jqff-g426-hqxp while retaining the follow-up malformed IPv6 zone-identifier hardening.
+- **Code scanning cleanup** (`report/report.js`) — removes two unused reference constants reported by CodeQL alerts 43 and 44 without changing report validation output.
+- **GitHub Actions supply-chain hardening ([#285](https://github.com/Azure/odinforazurelocal/pull/285))** (`.github/workflows/`, `.github/dependabot.yml`) — pins all workflow actions to immutable full-length commit SHAs and groups weekly GitHub Actions updates behind a seven-day cooldown.
+- **Validation** — all **1,564 / 1,564** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors; and the PowerPoint export smoke test succeeds.
+
+---
+
 ## [0.23.04] - 2026-08-28
 
 Private Path planning now reflects its Azure Local 2608 general availability for both hyperconverged and disaggregated deployments.

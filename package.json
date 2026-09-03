@@ -12,7 +12,7 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "// security-update": "Current floors supersede older versions mentioned below: ip-address >=10.3.1, fast-uri >=4.1.2, postcss >=8.5.25, js-yaml >=4.3.1, and brace-expansion 1.1.18/5.0.9. Only nanoid 3.3.17 remains unavailable from the configured feed, so its exact dev-only advisory is temporarily package-scoped in scripts/check-npm-audit.js.",
+  "// security-update": "Current floors supersede older versions mentioned below: ip-address >=10.3.1, fast-uri >=4.1.4, postcss >=8.5.25, js-yaml >=4.3.1, and brace-expansion 1.1.18/5.0.9. Only nanoid 3.3.17 remains unavailable from the configured feed, so its exact dev-only advisory is temporarily package-scoped in scripts/check-npm-audit.js.",
   "// extract-zip-security": "Puppeteer >=25.6.0 removes the vulnerable extract-zip dependency path (GHSA-jmr9-qjv8-65gv / CVE-2026-56876). Do not downgrade Puppeteer below 25.6.0.",
   "devDependencies": {
     "@playwright/test": "^1.62.0",
@@ -26,7 +26,7 @@
   "overrides": {
     "basic-ftp": ">=5.3.1",
     "ip-address": ">=10.3.1",
-    "fast-uri": ">=4.1.2",
+    "fast-uri": ">=4.1.4",
     "brace-expansion@>=1.0.0 <2.0.0": "1.1.18",
     "brace-expansion@>=5.0.0 <6.0.0": "5.0.9",
     "postcss": ">=8.5.25",
