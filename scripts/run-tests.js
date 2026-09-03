@@ -712,30 +712,33 @@ function checkDesignerResponsiveContracts() {
 
 function checkSizerResponsiveContracts() {
     const sizerCss = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.css'), 'utf8').replace(/\r\n/g, '\n');
-    const required = [
-        { label: 'compact phone navigation', value: `.odin-tab-container {
+    const phoneLayout = `@media (max-width: 480px) {
+    .odin-tab-container {
         gap: 2px;
-    }` },
-        { label: 'compact phone tab padding', value: `.odin-tab-btn {
+    }
+
+    .odin-tab-btn {
         padding: 8px 6px;
-    }` },
-        { label: 'compact phone theme padding', value: `.nav-theme-toggle {
+    }
+
+    .nav-theme-toggle {
         padding: 6px 4px;
-    }` },
-        { label: 'single-column phone power grid', value: `.power-rack-grid {
+    }
+
+    .power-rack-grid {
         grid-template-columns: 1fr;
-    }` },
-        { label: 'shrinkable phone power items', value: `.power-rack-item {
+    }
+
+    .power-rack-item {
         min-width: 0;
-    }` }
-    ];
-    const missing = required.filter(item => !sizerCss.includes(item.value));
-    if (missing.length === 0) {
-        console.log(`✅ Sizer responsive contracts OK: ${required.length} phone layout rules present`);
+    }
+}`;
+    if (sizerCss.includes(phoneLayout)) {
+        console.log('✅ Sizer responsive contracts OK: 5 phone layout rules scoped to 480px');
         return true;
     }
 
-    missing.forEach(item => console.error(`❌ Sizer responsive contract missing: ${item.label}`));
+    console.error('❌ Sizer responsive contract missing: complete phone layout must remain scoped to 480px');
     return false;
 }
 

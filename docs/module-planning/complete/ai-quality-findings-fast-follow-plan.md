@@ -39,6 +39,7 @@
 - `docs/module-planning/complete/ai-quality-findings-fast-follow-plan.md`
 - `docs/module-planning/complete/designer-release-validation-plan.md`
 - `docs/module-planning/complete/security-release-0.23.05-plan.md`
+- `docs/module-planning/complete/sizer-scaling-release-validation-plan.md`
 
 ## GitHub Actions compatibility validation
 
@@ -49,7 +50,7 @@
 
 ## Release validation evidence
 
-- The browser suite passes **1,575 / 1,575**, including malformed Base64, incomplete S2D payloads, and invalid UTF-8 that reaches fatal `TextDecoder` handling.
+- The browser suite passes **1,577 / 1,577**, including malformed Base64, incomplete S2D payloads, and invalid UTF-8 that reaches fatal `TextDecoder` handling.
 - The complete Sizer matrix covers every deployment and workload type, mixed-workload scale up/down, GPU capacity, growth, reset, responsive layouts, both themes, and keyboard/dialog behavior.
 - The complete Designer matrix covers Connected HCI, Connected disaggregated SAN, disconnected management and workload roles, rack-aware HCI, Multi-Rack and Microsoft 365 Local stop flows, architecture/scenario inverse transitions, networking validation, and reset cleanup.
 - Designer export/import round trip, legacy migration, reciprocal Sizer-import guidance, Sizer-to-Designer, Designer-to-Sizer, report, ARM, and ToR payload handoffs were exercised through rendered controls. The integrated browser host suppresses spawned ToR tabs, so the exact disaggregated payload and one-shot target consumption supplement the static destination coverage.
