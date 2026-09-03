@@ -6,12 +6,14 @@
 - Pull request 288 updates the development-only transitive dependency from 4.1.2 to 4.1.4 and passes its GitHub checks, but targets `main` instead of the required `Release` branch.
 - Code scanning alerts 43-44 report two unused Microsoft reference constants in `report/report.js`.
 - Pull request 285 pins GitHub Actions to immutable commit SHAs and adds grouped weekly GitHub Actions updates with a seven-day cooldown.
+- Issue 287 reports that the Sizer Import, Azure Migrate, and RVTools buttons do not open their shared dialog. First-visit onboarding removes every `.onboarding-overlay`, including the static import dialogs, before the buttons are used.
 
 ## Proposed change
 
 - Apply the `fast-uri` 4.1.4 floor and lockfile update on `Release`.
 - Remove only the two constants identified by CodeQL.
 - Incorporate the action pinning and Dependabot configuration from pull request 285 on `Release`.
+- Scope Sizer onboarding cleanup to its dynamically generated walkthrough so static import dialogs remain available, with focused regression coverage for render, skip, finish, and Escape paths.
 - Publish these changes as ODIN 0.23.05 with security-focused release notes.
 
 ## Files touched
@@ -19,6 +21,8 @@
 - `package.json`
 - `package-lock.json`
 - `report/report.js`
+- `sizer/sizer.js`
+- `tests/index.html`
 - `.github/dependabot.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/test.yml`
@@ -41,4 +45,5 @@
 3. Update version and release notes, including README history rollover.
 4. Run lint, HTML validation, the full automated test suite, dependency audit, and diff checks.
 5. Run the complete Sizer and Designer release-validation matrices through localhost.
-6. Push `Release`, open the `Release` to `main` pull request, and verify GitHub checks and alert closure behavior.
+6. Reproduce issue 287 through the deployed and local Sizer UI, scope onboarding cleanup to its own overlay, and add regression coverage.
+7. Push `Release`, update the `Release` to `main` pull request, and verify GitHub checks and alert closure behavior.

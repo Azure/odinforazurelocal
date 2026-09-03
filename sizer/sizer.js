@@ -11365,13 +11365,19 @@ function showSizerOnboarding() {
     renderSizerOnboardingStep();
 }
 
+function removeSizerOnboardingOverlay() {
+    const overlay = document.getElementById('sizer-onboarding-overlay');
+    if (overlay) overlay.remove();
+}
+
 function renderSizerOnboardingStep() {
     const step = sizerOnboardingSteps[currentSizerOnboardingStep];
 
     // Remove existing overlay if any
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    removeSizerOnboardingOverlay();
 
     const overlay = document.createElement('div');
+    overlay.id = 'sizer-onboarding-overlay';
     overlay.className = 'onboarding-overlay';
     overlay.innerHTML = `
         <div class="onboarding-card">
@@ -11427,16 +11433,16 @@ function nextSizerOnboardingStep() {
 
 function skipSizerOnboarding() {
     localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    removeSizerOnboardingOverlay();
 }
 
 function finishSizerOnboarding() {
     localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    removeSizerOnboardingOverlay();
 }
 
 // Close onboarding overlay or workload modal on Escape key
-document.addEventListener('keydown', function(e) {
+function handleSizerKeydown(e) {
     if (e.key === 'Escape') {
         // Workload modal takes precedence
         const modal = document.getElementById('add-workload-modal');
@@ -11444,7 +11450,7 @@ document.addEventListener('keydown', function(e) {
             closeModal();
             return;
         }
-        const overlay = document.querySelector('.onboarding-overlay');
+        const overlay = document.getElementById('sizer-onboarding-overlay');
         if (overlay) {
             skipSizerOnboarding();
             return;
@@ -11471,7 +11477,9 @@ document.addEventListener('keydown', function(e) {
             }
         }
     }
-});
+}
+
+document.addEventListener('keydown', handleSizerKeydown);
 
 // Theme toggle functionality
 let currentTheme = localStorage.getItem('odin-theme') || 'dark';
