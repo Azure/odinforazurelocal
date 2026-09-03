@@ -1676,9 +1676,11 @@
         }
         const outboundNotes = [];
         if (s.outbound === 'private') {
-            outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
+            outboundNotes.push('Private Path is generally available for hyperconverged and disaggregated deployments running Azure Local 2608 or later.');
+            outboundNotes.push('Private Path requires ExpressRoute or site-to-site VPN, Arc Gateway, and Azure Firewall Explicit Proxy.');
             outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint.');
             outboundNotes.push('Proxy bypass lists need to include node IPs, cluster IP, and infrastructure IPs/subnet.');
+            outboundNotes.push('TLS inspection and certificates on Azure Firewall Explicit Proxy are not supported.');
         } else if (s.outbound === 'public') {
             outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
         }
@@ -7100,11 +7102,13 @@
         // Outbound / Arc / Proxy
         const outboundNotes = [];
         if (s.outbound === 'private') {
-            outboundNotes.push('Private outbound assumes controlled egress (for example, via your firewall/proxy) and the wizard forces Arc Gateway + explicit proxy behavior.');
+            outboundNotes.push('Private Path is generally available for hyperconverged and disaggregated deployments running Azure Local 2608 or later.');
+            outboundNotes.push('Private Path requires ExpressRoute or site-to-site VPN, Arc Gateway, and Azure Firewall Explicit Proxy.');
             outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint, which reduces the number of outbound destinations you typically need to allow compared to managing many individual Azure service endpoints.');
             outboundNotes.push('Not all traffic types are handled the same way: OS HTTPS traffic intended for Microsoft-managed endpoints can be routed via Arc proxy; OS HTTP and non-Microsoft HTTPS traffic typically must traverse your enterprise proxy/firewall based on your organization\'s allowlists.');
             outboundNotes.push('Implementation note: proxy bypass lists usually need to include at least the node IPs, cluster IP, and the infrastructure IPs/subnet so internal cluster traffic (and infrastructure services) do not get forced through the proxy path.');
             outboundNotes.push('Proxy planning note: Azure Local guidance emphasizes configuring proxy settings before registering nodes to Azure Arc, and keeping proxy configuration consistent across OS proxy components (WinINET, WinHTTP, and environment variables).');
+            outboundNotes.push('TLS inspection and certificates on Azure Firewall Explicit Proxy are not supported.');
         } else if (s.outbound === 'public') {
             outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
             outboundNotes.push('Even with public outbound, Arc-related components still require outbound HTTPS to Microsoft endpoints; ensure your firewall policy allows the required destinations.');
@@ -7440,6 +7444,7 @@
 
         // Additional official references (not in wizard UI but still Microsoft Learn)
         const REF_AZLOC_PREREQS = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prerequisites?view=azloc-2511';
+        const REF_AZLOC_PRIVATE_PATH = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway-private-path?view=azloc-2608';
         const REF_AZLOC_AD_PREP = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prep-active-directory?view=azloc-2511';
         const REF_AZLOC_LOCAL_ID = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-local-identity-with-key-vault?view=azloc-2511';
         const REF_ARC_GATEWAY = 'https://learn.microsoft.com/en-us/azure/azure-arc/servers/arc-gateway';
@@ -7635,8 +7640,9 @@
         // Outbound -> arc + proxy
         add('Outbound', 'Outbound selected', !!s.outbound, s.outbound ? ('Selected: ' + formatOutbound(s.outbound)) : '');
         if (s.outbound === 'private') {
-            add('Outbound', 'Private outbound forces Arc Gateway', s.arc === 'arc_gateway', 'Private outbound assumes controlled egress; the wizard forces Arc Gateway so outbound Arc traffic is routed through a secured tunnel to the Arc Gateway public endpoint, reducing the number of outbound destinations you typically need to allow.', [REF_ARC_GATEWAY, REF_ARC_GATEWAY_DEEPDIVE, REF_AZLOC_FIREWALL]);
-            add('Outbound', 'Private outbound forces Proxy enabled', s.proxy === 'proxy', 'Private outbound requires explicit proxy behavior in the wizard. OS HTTP traffic and non-approved HTTPS destinations generally need to be handled by your enterprise proxy/firewall policy, while Arc proxy routes approved Microsoft-managed HTTPS endpoints through the Arc Gateway tunnel.', [REF_ARC_GATEWAY_DEEPDIVE, REF_AZLOC_FIREWALL, REF_AZLOC_PREREQS]);
+            add('Outbound', 'Private Path architecture is supported', s.architecture === 'hyperconverged' || s.architecture === 'disaggregated', 'Private Path is generally available for hyperconverged and disaggregated deployments running Azure Local 2608 or later.', [REF_AZLOC_PRIVATE_PATH]);
+            add('Outbound', 'Private Path forces Arc Gateway', s.arc === 'arc_gateway', 'Private Path requires Arc Gateway so approved Microsoft-managed HTTPS traffic can use the Arc Gateway tunnel.', [REF_AZLOC_PRIVATE_PATH, REF_ARC_GATEWAY]);
+            add('Outbound', 'Private Path forces Azure Firewall Explicit Proxy', s.proxy === 'proxy', 'Private Path requires Azure Firewall Explicit Proxy over existing ExpressRoute or site-to-site VPN connectivity. TLS inspection and explicit-proxy certificates are not supported.', [REF_AZLOC_PRIVATE_PATH]);
         }
 
         // Azure Gov constraint

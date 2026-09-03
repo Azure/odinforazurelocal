@@ -462,16 +462,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.03'
+                    globalThis.ODIN_VERSION === '0.23.04'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.03')
+                        && branding.textContent.includes('Version 0.23.04')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.03 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.04 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -955,6 +955,50 @@
                 'Air Gapped', 'Air Gapped', formatOutbound('air_gapped')),
             assert(formatOutbound('limited') === 'Limited Connectivity', 
                 'Limited', 'Limited Connectivity', formatOutbound('limited'))
+        ]);
+
+        testSuite('Private Path GA constraints', 'script.js', [
+            (function() {
+                const original = JSON.parse(JSON.stringify(state));
+                state.region = 'azure_commercial';
+                state.architecture = 'hyperconverged';
+                selectOption('outbound', 'private');
+                const result = state.outbound === 'private' && state.arc === 'arc_gateway' && state.proxy === 'proxy';
+                Object.keys(state).forEach(key => delete state[key]);
+                Object.assign(state, original);
+                return assert(result, 'Hyperconverged supports Private Path and forces Arc Gateway + explicit proxy', true, result);
+            })(),
+            (function() {
+                const original = JSON.parse(JSON.stringify(state));
+                state.region = 'azure_commercial';
+                state.architecture = 'disaggregated';
+                selectOption('outbound', 'private');
+                const result = state.outbound === 'private' && state.arc === 'arc_gateway' && state.proxy === 'proxy';
+                Object.keys(state).forEach(key => delete state[key]);
+                Object.assign(state, original);
+                return assert(result, 'Disaggregated supports Private Path and forces Arc Gateway + explicit proxy', true, result);
+            })(),
+            (function() {
+                const candidate = { region: 'azure_government', outbound: 'private', arc: 'arc_gateway', proxy: 'proxy', privateEndpoints: 'pe_enabled', privateEndpointsList: ['keyvault'] };
+                const changed = clearUnsupportedPrivatePath(candidate);
+                const result = changed && candidate.outbound === null && candidate.arc === null && candidate.proxy === null && candidate.privateEndpoints === null && candidate.privateEndpointsList.length === 0;
+                return assert(result, 'Unsupported cloud clears stale Private Path dependencies', true, result);
+            })(),
+            (function() {
+                const prepared = prepareDesignerImport({
+                    version: WIZARD_VERSION,
+                    state: Object.assign(getInitialWizardState(), {
+                        scenario: 'connected',
+                        architecture: 'hyperconverged',
+                        region: 'azure_government',
+                        outbound: 'private',
+                        arc: 'arc_gateway',
+                        proxy: 'proxy'
+                    })
+                });
+                return assert(prepared.ok === false && /Arc Gateway is unavailable/.test(prepared.message),
+                    'Import rejects Private Path where Arc Gateway is unavailable', false, prepared.ok);
+            })()
         ]);
 
         // Test: getProxyLabel

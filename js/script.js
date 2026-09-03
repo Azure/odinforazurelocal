@@ -456,6 +456,20 @@ function getInitialWizardState() {
 
 const state = getInitialWizardState();
 
+function isPrivatePathAvailableForRegion(region) {
+    return region !== 'azure_government' && region !== 'azure_china';
+}
+
+function clearUnsupportedPrivatePath(target) {
+    if (!target || target.outbound !== 'private' || isPrivatePathAvailableForRegion(target.region)) return false;
+    target.outbound = null;
+    target.arc = null;
+    target.proxy = null;
+    target.privateEndpoints = null;
+    target.privateEndpointsList = [];
+    return true;
+}
+
 // Auto-save state to localStorage
 function saveStateToLocalStorage() {
     try {
@@ -482,6 +496,7 @@ function loadStateFromLocalStorage() {
             // iSCSI 4-NIC was retired in v0.22.70 (build 2607 ships 6-NIC iSCSI
             // only). Remap any resumed session to the supported 6-NIC layout.
             if (parsed.data.disaggStorageType === 'iscsi_4nic') parsed.data.disaggStorageType = 'iscsi_6nic';
+            clearUnsupportedPrivatePath(parsed.data);
             return parsed;
         }
         return null;
@@ -2849,6 +2864,11 @@ function generateReport() {
 }
 
 function selectOption(category, value) {
+    if (category === 'outbound' && value === 'private' && !isPrivatePathAvailableForRegion(state.region)) {
+        showToast('Private Path requires Arc Gateway, which is unavailable for the selected Azure cloud.', 'warning');
+        return;
+    }
+
     // Special handling for Microsoft 365 Local - stop workflow and show documentation
     if (category === 'scenario' && value === 'm365local') {
         // Hide Multi-Rack message when switching to Microsoft 365 Local
@@ -2971,6 +2991,11 @@ function selectOption(category, value) {
         state.ports = null;
         state.storage = null;
         state.intent = null;
+        state.outbound = null;
+        state.arc = null;
+        state.proxy = null;
+        state.privateEndpoints = null;
+        state.privateEndpointsList = [];
         state.disaggStorageType = null;
         state.disaggBackupEnabled = false;
         state.disaggPortCount = null;
@@ -4171,14 +4196,23 @@ function updateUI() {
         // Outbound visibility logic (Step 7) moved later or handled here?
         const outboundConnected = document.getElementById('outbound-connected');
         const outboundDisconnected = document.getElementById('outbound-disconnected');
+        const privatePathGaInfo = document.getElementById('private-path-ga-info');
 
         // Disconnected scenario forces Step 7 options
         if (state.scenario === 'disconnected') {
             if (outboundConnected) outboundConnected.classList.add('hidden');
             if (outboundDisconnected) outboundDisconnected.classList.remove('hidden');
+            if (privatePathGaInfo) {
+                privatePathGaInfo.classList.add('hidden');
+                privatePathGaInfo.classList.remove('visible');
+            }
         } else {
             if (outboundConnected) outboundConnected.classList.remove('hidden');
             if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
+            if (privatePathGaInfo) {
+                privatePathGaInfo.classList.remove('hidden');
+                privatePathGaInfo.classList.add('visible');
+            }
         }
 
         // Single-node clusters: Hide storage switched/switchless options but show ToR switch selection
@@ -4399,6 +4433,10 @@ function updateUI() {
         arc: {
             'arc_gateway': document.querySelector('[data-value="arc_gateway"]'),
             'no_arc': document.querySelector('[data-value="no_arc"]')
+        },
+        outbound: {
+            'public': document.querySelector('[data-value="public"][onclick*="outbound"]'),
+            'private': document.querySelector('[data-value="private"][onclick*="outbound"]')
         },
         proxy: {
             'proxy': document.querySelector('[data-value="proxy"]'),
@@ -4833,6 +4871,16 @@ function updateUI() {
     if (state.region === 'azure_government') {
         cards.arc['arc_gateway'].classList.add('disabled');
         if (state.arc === 'arc_gateway') state.arc = null;
+        if (cards.outbound.private) {
+            cards.outbound.private.classList.add('disabled');
+            cards.outbound.private.classList.remove('selected');
+            cards.outbound.private.title = 'Private Path requires Arc Gateway, which is unavailable for Azure Government in this Designer.';
+        }
+        clearUnsupportedPrivatePath(state);
+        cards.arc.arc_gateway.classList.remove('selected');
+        cards.proxy.proxy.classList.remove('selected');
+    } else if (cards.outbound.private) {
+        cards.outbound.private.title = '';
     }
 
     // Step 9b -> Step 10 (IP): Depends on privateEndpoints selection
@@ -9498,6 +9546,12 @@ function prepareDesignerImport(imported) {
         return {
             ok: false,
             message: 'This Designer configuration uses an unsupported architecture and was not imported.'
+        };
+    }
+    if (candidate.outbound === 'private' && !isPrivatePathAvailableForRegion(candidate.region)) {
+        return {
+            ok: false,
+            message: 'This Designer configuration uses Private Path in an Azure cloud where Arc Gateway is unavailable.'
         };
     }
     if (!Array.isArray(candidate.sdnFeatures) || !Array.isArray(candidate.dnsServers) ||

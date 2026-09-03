@@ -53,6 +53,18 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.04</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">August 28, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Private Path planning now reflects Azure Local 2608 general availability for hyperconverged and disaggregated deployments.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>Generally available</strong> &mdash; Designer no longer labels ExpressRoute/VPN Private Path as Coming Soon.</li>
+                        <li><strong>Both architecture paths</strong> &mdash; Hyperconverged and Disaggregated designs support Private Path with required Arc Gateway and Azure Firewall Explicit Proxy.</li>
+                        <li><strong>GA prerequisites</strong> &mdash; Designer guidance and reports include Azure Local 2608+, ExpressRoute or site-to-site VPN, Azure networking, proxy bypass, and no-TLS-inspection requirements.</li>
+                        <li><strong>Consistent cloud constraints</strong> &mdash; clouds where the Designer disables Arc Gateway cannot select, resume, or import Private Path.</li>
+                        <li><strong>Output alignment</strong> &mdash; HTML, Markdown, validation, PowerPoint, and the public Designer JSON schema use the same GA semantics.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.03</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">August 26, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Sizer now aligns GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.</p>

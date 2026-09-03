@@ -1272,7 +1272,7 @@
 
         const bullets = [];
 
-        const outboundLabel = s.outbound === 'private' ? 'Private (controlled egress via firewall/proxy)'
+        const outboundLabel = s.outbound === 'private' ? 'Private Path (ExpressRoute or site-to-site VPN)'
             : s.outbound === 'public' ? 'Public (direct, allow-listed)'
                 : (s.outbound || 'n/a');
         bullets.push({ text: 'Outbound: ' + outboundLabel, lvl: 1 });
@@ -1317,6 +1317,10 @@
 
         // Planning notes that mirror the validation report.
         bullets.push({ text: 'Configure proxy on WinINET, WinHTTP and HTTP_PROXY/HTTPS_PROXY env vars consistently before Arc registration.', lvl: 1 });
+        if (s.outbound === 'private') {
+            bullets.push({ text: 'Requires Azure Local 2608+, Arc Gateway, and Azure Firewall Explicit Proxy; supported for hyperconverged and disaggregated deployments.', lvl: 1 });
+            bullets.push({ text: 'TLS inspection and certificates on Azure Firewall Explicit Proxy are not supported.', lvl: 1 });
+        }
         if (s.arc === 'arc_gateway') {
             bullets.push({ text: 'Arc Gateway tunnels OS HTTPS to Microsoft endpoints; non-Microsoft HTTPS and OS HTTP still traverse the enterprise proxy.', lvl: 1 });
         }
