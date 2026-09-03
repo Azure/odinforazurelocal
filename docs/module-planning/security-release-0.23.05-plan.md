@@ -6,14 +6,14 @@
 - Pull request 288 updates the development-only transitive dependency from 4.1.2 to 4.1.4 and passes its GitHub checks, but targets `main` instead of the required `Release` branch.
 - Code scanning alerts 43-44 report two unused Microsoft reference constants in `report/report.js`.
 - Pull request 285 pins GitHub Actions to immutable commit SHAs and adds grouped weekly GitHub Actions updates with a seven-day cooldown.
-- Issue 287 reports that the Sizer Import, Azure Migrate, and RVTools buttons do not open their shared dialog. First-visit onboarding removes every `.onboarding-overlay`, including the static import dialogs, before the buttons are used.
+- Issue 287 reports that the Sizer Import, Azure Migrate, and RVTools buttons do not open their shared dialog. First-visit Sizer onboarding and the embedded S2D Escape listener remove every `.onboarding-overlay`, including the static import dialogs, before the buttons are used.
 
 ## Proposed change
 
 - Apply the `fast-uri` 4.1.4 floor and lockfile update on `Release`.
 - Remove only the two constants identified by CodeQL.
 - Incorporate the action pinning and Dependabot configuration from pull request 285 on `Release`.
-- Scope Sizer onboarding cleanup to its dynamically generated walkthrough so static import dialogs remain available, with focused regression coverage for render, skip, finish, and Escape paths.
+- Scope Sizer and S2D onboarding cleanup to their dynamically generated walkthroughs so static import dialogs remain available, with focused regression coverage for render, skip, finish, and Escape paths.
 - Publish these changes as ODIN 0.23.05 with security-focused release notes.
 
 ## Files touched
@@ -21,6 +21,7 @@
 - `package.json`
 - `package-lock.json`
 - `report/report.js`
+- `s2d-calc/s2d-calc.js`
 - `sizer/sizer.js`
 - `tests/index.html`
 - `.github/dependabot.yml`

@@ -449,7 +449,25 @@
 
         testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [
             assert(typeof globalThis.showS2dOnboarding === 'function',
-                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding)
+                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding),
+            (function() {
+                const staticOverlay = document.createElement('div');
+                staticOverlay.id = 's2d-static-overlay-regression';
+                staticOverlay.className = 'onboarding-overlay';
+                document.body.appendChild(staticOverlay);
+
+                globalThis.showS2dOnboarding();
+                const s2dOverlay = document.getElementById('s2d-onboarding-overlay');
+                const renderPreservedStaticOverlay = !!s2dOverlay && !!document.getElementById(staticOverlay.id);
+                if (s2dOverlay) s2dOverlay.querySelector('[data-action="skip"]').click();
+                const closePreservedStaticOverlay = !document.getElementById('s2d-onboarding-overlay')
+                    && !!document.getElementById(staticOverlay.id);
+                staticOverlay.remove();
+
+                return assert(renderPreservedStaticOverlay && closePreservedStaticOverlay,
+                    'S2D onboarding render and close preserve other tool overlays', true,
+                    renderPreservedStaticOverlay && closePreservedStaticOverlay);
+            })()
         ]);
 
         testSuite('Shared release branding', 'header-branding.js', [

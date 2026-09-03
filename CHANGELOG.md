@@ -16,8 +16,8 @@ Security maintenance release for development dependencies, code scanning, and CI
 - **`fast-uri` security update** (`package.json`, `package-lock.json`, `.github/copilot-instructions.md`) — raises the enforced development-only transitive dependency floor from 4.1.2 to 4.1.4, resolving GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, and GHSA-jqff-g426-hqxp while retaining the follow-up malformed IPv6 zone-identifier hardening.
 - **Code scanning cleanup** (`report/report.js`) — removes two unused reference constants reported by CodeQL alerts 43 and 44 without changing report validation output.
 - **GitHub Actions supply-chain hardening ([#285](https://github.com/Azure/odinforazurelocal/pull/285))** (`.github/workflows/`, `.github/dependabot.yml`) — pins all workflow actions to immutable full-length commit SHAs and groups weekly GitHub Actions updates behind a seven-day cooldown.
-- **Sizer import buttons restored ([#287](https://github.com/Azure/odinforazurelocal/issues/287))** (`sizer/sizer.js`) — scopes onboarding cleanup to its own walkthrough so first-time visitors can open the Import, Azure Migrate, and RVTools dialogs.
-- **Validation** — all **1,568 / 1,568** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors; and the PowerPoint export smoke test succeeds.
+- **Sizer import buttons restored ([#287](https://github.com/Azure/odinforazurelocal/issues/287))** (`sizer/sizer.js`, `s2d-calc/s2d-calc.js`) — scopes Sizer and embedded S2D onboarding cleanup to their own walkthroughs so first-time visitors can open the Import, Azure Migrate, and RVTools dialogs.
+- **Validation** — all **1,569 / 1,569** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors; and the PowerPoint export smoke test succeeds.
 
 ---
 

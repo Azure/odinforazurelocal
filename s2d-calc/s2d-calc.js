@@ -459,14 +459,16 @@
 
     function closeS2dOnboarding() {
         try { localStorage.setItem(S2D_ONBOARDING_KEY, 'true'); } catch (_) { /* localStorage blocked */ }
-        document.querySelectorAll('.onboarding-overlay').forEach(overlay => overlay.remove());
+        const overlay = document.getElementById('s2d-onboarding-overlay');
+        if (overlay) overlay.remove();
     }
 
     function renderS2dOnboardingStep() {
         const step = s2dOnboardingSteps[currentS2dOnboardingStep];
-        document.querySelectorAll('.onboarding-overlay').forEach(overlay => overlay.remove());
+        closeS2dOnboarding();
 
         const overlay = document.createElement('div');
+        overlay.id = 's2d-onboarding-overlay';
         overlay.className = 'onboarding-overlay';
         overlay.innerHTML = `
             <div class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="s2d-onboarding-title">
@@ -509,7 +511,7 @@
     };
 
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && document.querySelector('.onboarding-overlay')) closeS2dOnboarding();
+        if (event.key === 'Escape' && document.getElementById('s2d-onboarding-overlay')) closeS2dOnboarding();
     });
 
     function initializeCalculatorPage() {
