@@ -451,6 +451,8 @@
             assert(typeof globalThis.showS2dOnboarding === 'function',
                 'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding),
             (function() {
+                const onboardingKey = 'odin_s2d_onboarding_v0_23_01';
+                localStorage.removeItem(onboardingKey);
                 const staticOverlay = document.createElement('div');
                 staticOverlay.id = 's2d-static-overlay-regression';
                 staticOverlay.className = 'onboarding-overlay';
@@ -458,15 +460,19 @@
 
                 globalThis.showS2dOnboarding();
                 const s2dOverlay = document.getElementById('s2d-onboarding-overlay');
-                const renderPreservedStaticOverlay = !!s2dOverlay && !!document.getElementById(staticOverlay.id);
+                const renderPreservedState = !!s2dOverlay
+                    && !!document.getElementById(staticOverlay.id)
+                    && localStorage.getItem(onboardingKey) === null;
                 if (s2dOverlay) s2dOverlay.querySelector('[data-action="skip"]').click();
-                const closePreservedStaticOverlay = !document.getElementById('s2d-onboarding-overlay')
-                    && !!document.getElementById(staticOverlay.id);
+                const closePreservedState = !document.getElementById('s2d-onboarding-overlay')
+                    && !!document.getElementById(staticOverlay.id)
+                    && localStorage.getItem(onboardingKey) === 'true';
                 staticOverlay.remove();
+                localStorage.removeItem(onboardingKey);
 
-                return assert(renderPreservedStaticOverlay && closePreservedStaticOverlay,
-                    'S2D onboarding render and close preserve other tool overlays', true,
-                    renderPreservedStaticOverlay && closePreservedStaticOverlay);
+                return assert(renderPreservedState && closePreservedState,
+                    'S2D onboarding persists completion only on close and preserves other tool overlays', true,
+                    renderPreservedState && closePreservedState);
             })()
         ]);
 

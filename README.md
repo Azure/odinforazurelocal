@@ -51,7 +51,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ### Version 0.23.05 - Latest Release
 
-> **Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity.** The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and runtime application behavior is unchanged.
+> **Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity.** The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.
 
 **What's new**
 - **Four high-severity dependency alerts resolved** — the development-only transitive `fast-uri` dependency is enforced at 4.1.4.

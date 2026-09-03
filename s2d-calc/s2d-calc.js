@@ -457,15 +457,19 @@
     ];
     let currentS2dOnboardingStep = 0;
 
-    function closeS2dOnboarding() {
-        try { localStorage.setItem(S2D_ONBOARDING_KEY, 'true'); } catch (_) { /* localStorage blocked */ }
+    function removeS2dOnboardingOverlay() {
         const overlay = document.getElementById('s2d-onboarding-overlay');
         if (overlay) overlay.remove();
     }
 
+    function closeS2dOnboarding() {
+        try { localStorage.setItem(S2D_ONBOARDING_KEY, 'true'); } catch (_) { /* localStorage blocked */ }
+        removeS2dOnboardingOverlay();
+    }
+
     function renderS2dOnboardingStep() {
         const step = s2dOnboardingSteps[currentS2dOnboardingStep];
-        closeS2dOnboarding();
+        removeS2dOnboardingOverlay();
 
         const overlay = document.createElement('div');
         overlay.id = 's2d-onboarding-overlay';
