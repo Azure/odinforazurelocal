@@ -10566,6 +10566,23 @@
                 results.push(assert(Array.isArray(state.nodeSettings) && state.nodeSettings.length === 0,
                     'nodeSettings cleared when architecture resets node count',
                     '[]', JSON.stringify(state.nodeSettings)));
+
+                state.architecture = 'hci';
+                state.nodes = '2';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.2/24' }];
+                selectOption('region', 'azure_commercial');
+                results.push(assert(state.nodes === null && state.nodeSettings.length === 0,
+                    'nodeSettings cleared when Azure cloud region resets node count',
+                    'nodes=null, nodeSettings=[]',
+                    'nodes=' + state.nodes + ', nodeSettings=' + JSON.stringify(state.nodeSettings)));
+
+                state.nodes = '2';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.2/24' }];
+                selectOption('localInstanceRegion', 'east_us');
+                results.push(assert(state.nodes === null && state.nodeSettings.length === 0,
+                    'nodeSettings cleared when local instance region resets node count',
+                    'nodes=null, nodeSettings=[]',
+                    'nodes=' + state.nodes + ', nodeSettings=' + JSON.stringify(state.nodeSettings)));
             } else {
                 results.push(assert(false, 'selectOption is available', true, false));
             }

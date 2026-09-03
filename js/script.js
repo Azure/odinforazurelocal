@@ -3057,7 +3057,10 @@ function selectOption(category, value) {
         state.region = value;
         state.localInstanceRegion = null;
         state.scale = null;
-        if (state.architecture !== 'disaggregated') { state.nodes = null; }
+        if (state.architecture !== 'disaggregated') {
+            state.nodes = null;
+            state.nodeSettings = [];
+        }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -3086,7 +3089,10 @@ function selectOption(category, value) {
     } else if (category === 'localInstanceRegion') {
         state.localInstanceRegion = value;
         state.scale = null;
-        if (state.architecture !== 'disaggregated') { state.nodes = null; }
+        if (state.architecture !== 'disaggregated') {
+            state.nodes = null;
+            state.nodeSettings = [];
+        }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -4421,6 +4427,7 @@ function updateUI() {
             chip.classList.add('disabled');
             if (state.nodes === valueStr) {
                 state.nodes = null;
+                state.nodeSettings = [];
                 chip.classList.remove('selected');
             }
         } else {
