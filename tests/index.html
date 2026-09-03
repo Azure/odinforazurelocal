@@ -11618,6 +11618,20 @@
 
             addStaticOverlays();
             showSizerOnboarding();
+            var onboardingFeatureCountsAreEven = sizerOnboardingSteps.every(function (step) {
+                return step.features.length % 2 === 0;
+            });
+            var onboardingImportCopy = sizerOnboardingSteps.reduce(function (copy, step) {
+                return copy + ' ' + step.features.map(function (feature) { return feature.text; }).join(' ');
+            }, '');
+            results.push(assert(
+                onboardingFeatureCountsAreEven,
+                'Every Sizer onboarding page has an even number of feature tiles', true,
+                onboardingFeatureCountsAreEven));
+            results.push(assert(
+                onboardingImportCopy.includes('Azure Migrate') && onboardingImportCopy.includes('RVTools'),
+                'Sizer onboarding introduces Azure Migrate and RVTools estate imports', true,
+                onboardingImportCopy.includes('Azure Migrate') && onboardingImportCopy.includes('RVTools')));
             results.push(assert(
                 staticOverlaysRemain() && !!document.getElementById('sizer-onboarding-overlay'),
                 'Rendering onboarding preserves static import overlays', true,

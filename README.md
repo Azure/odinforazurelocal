@@ -58,8 +58,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Code scanning findings cleared** — two unused report-validator reference constants are removed without changing generated reports.
 - **Workflow dependencies made immutable** — GitHub Actions now use full commit SHA references to prevent tag-retargeting risk.
 - **Safer action updates** — grouped weekly GitHub Actions updates use a seven-day cooldown before Dependabot proposes them.
-- **Sizer import buttons restored for first-time visitors** — Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs.
-- All **1,569 / 1,569** browser tests pass.
+- **Sizer import buttons and onboarding restored for first-time visitors** — Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs, and the Sizer tour introduces both estate-import paths in an even tile layout.
+- All **1,571 / 1,571** browser tests pass.
 
 ---
 

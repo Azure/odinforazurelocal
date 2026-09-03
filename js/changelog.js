@@ -61,8 +61,8 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Code scanning cleanup</strong> &mdash; two unused report-validator reference constants are removed without changing report output.</li>
                         <li><strong>Immutable workflow dependencies</strong> &mdash; GitHub Actions use full commit SHA references to prevent tag-retargeting risk.</li>
                         <li><strong>Safer action updates</strong> &mdash; grouped weekly GitHub Actions updates use a seven-day Dependabot cooldown.</li>
-                        <li><strong>Sizer import buttons restored</strong> &mdash; Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs for first-time visitors.</li>
-                        <li>All <strong>1,569 / 1,569</strong> browser tests pass.</li>
+                        <li><strong>Sizer import buttons and onboarding restored</strong> &mdash; Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs for first-time visitors, and the Sizer tour introduces both estate-import paths in an even tile layout.</li>
+                        <li>All <strong>1,571 / 1,571</strong> browser tests pass.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

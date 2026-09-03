@@ -11330,7 +11330,7 @@ const sizerOnboardingSteps = [
             { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, AVD, GHEL, SQL, Foundry, and File Server workloads with CPU, memory, and storage needs' },
             { icon: '⚖️', title: 'Deployment Types', text: 'Single Node, Hyperconverged, Rack-Aware Cluster, Disaggregated Storage, or ALDO Management Cluster' },
             { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time as you add workloads' },
-            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved locally — export/import JSON, or import an existing estate from an RVTools spreadsheet' }
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved locally — export/import JSON, or create workloads from Azure Migrate and RVTools exports' }
         ]
     },
     {
@@ -11339,7 +11339,7 @@ const sizerOnboardingSteps = [
         description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
         features: [
             { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Single Node, Hyperconverged, Rack-Aware, Disaggregated, or ALDO Management — each with its own constraints' },
-            { icon: '2️⃣', title: 'Add Workloads', text: 'Use the workload buttons (VM, AKS, AVD, SQL, GHEL, Foundry, File Server) to define your scenarios — or import from RVTools' },
+            { icon: '2️⃣', title: 'Add Workloads', text: 'Use the workload buttons (VM, AKS, AVD, SQL, GHEL, Foundry, File Server) to define your scenarios — or import from Azure Migrate or RVTools' },
             { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends machine count, cores per machine, memory, and disks to fit your workloads' },
             { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config and pick matching hardware (opens in a new tab)' }
         ]
@@ -11353,7 +11353,8 @@ const sizerOnboardingSteps = [
             { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks per machine before adding more physical machines' },
             { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 compute machines, no S2D local storage' },
             { icon: '📦', title: 'Multi-Instance Scale-Out', text: 'Model multiple identical instances (rooms, sites, regions) and see total racks, machines, power, and cost' },
-            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support and a full hardware bill of materials' }
+            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support and a full hardware bill of materials' },
+            { icon: '📥', title: 'Estate Imports', text: 'Turn Azure Migrate collector ZIPs or RVTools Excel exports into grouped or per-machine VM workloads' }
         ]
     }
 ];
