@@ -7438,7 +7438,6 @@
         // Wizard UI links
         const REF_AZLOC_MULTIRACK = 'https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511';
         const REF_ARB_IP_RANGES = 'https://learn.microsoft.com/en-us/azure/azure-arc/resource-bridge/network-requirements#designated-ip-ranges-for-arc-resource-bridge';
-        const REF_AZLOC_FIREWALL = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511';
         const REF_AZLOC_VLAN = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id';
         const REF_AZLOC_NET_CONSIDERATIONS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511';
 
@@ -7448,7 +7447,6 @@
         const REF_AZLOC_AD_PREP = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prep-active-directory?view=azloc-2511';
         const REF_AZLOC_LOCAL_ID = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-local-identity-with-key-vault?view=azloc-2511';
         const REF_ARC_GATEWAY = 'https://learn.microsoft.com/en-us/azure/azure-arc/servers/arc-gateway';
-        const REF_ARC_GATEWAY_DEEPDIVE = 'https://github.com/Azure/AzureLocal-Supportability/blob/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/DeepDive-ArcGateway-Outbound-Traffic.md';
         const REF_AZLOC_SDN_OVERVIEW = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/sdn-overview?view=azloc-2511';
         const REF_AZLOC_SDN = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/software-defined-networking?view=azloc-2511';
         const REF_AZLOC_SYSREQ_PUBLIC = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-23h2?view=azloc-2511&tabs=azure-public';

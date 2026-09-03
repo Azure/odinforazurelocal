@@ -449,7 +449,31 @@
 
         testSuite('S2D onboarding and result presentation', 's2d-calc.js + s2d-calc.css', [
             assert(typeof globalThis.showS2dOnboarding === 'function',
-                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding)
+                'S2D exposes onboarding for navigation Help replay', 'function', typeof globalThis.showS2dOnboarding),
+            (function() {
+                const onboardingKey = 'odin_s2d_onboarding_v0_23_01';
+                localStorage.removeItem(onboardingKey);
+                const staticOverlay = document.createElement('div');
+                staticOverlay.id = 's2d-static-overlay-regression';
+                staticOverlay.className = 'onboarding-overlay';
+                document.body.appendChild(staticOverlay);
+
+                globalThis.showS2dOnboarding();
+                const s2dOverlay = document.getElementById('s2d-onboarding-overlay');
+                const renderPreservedState = !!s2dOverlay
+                    && !!document.getElementById(staticOverlay.id)
+                    && localStorage.getItem(onboardingKey) === null;
+                if (s2dOverlay) s2dOverlay.querySelector('[data-action="skip"]').click();
+                const closePreservedState = !document.getElementById('s2d-onboarding-overlay')
+                    && !!document.getElementById(staticOverlay.id)
+                    && localStorage.getItem(onboardingKey) === 'true';
+                staticOverlay.remove();
+                localStorage.removeItem(onboardingKey);
+
+                return assert(renderPreservedState && closePreservedState,
+                    'S2D onboarding persists completion only on close and preserves other tool overlays', true,
+                    renderPreservedState && closePreservedState);
+            })()
         ]);
 
         testSuite('Shared release branding', 'header-branding.js', [
@@ -462,16 +486,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.04'
+                    globalThis.ODIN_VERSION === '0.23.05'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.04')
+                        && branding.textContent.includes('Version 0.23.05')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.04 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.05 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -11560,6 +11584,112 @@
                 '', document.getElementById('cluster-import-parse-btn').style.display));
 
             cleanup3();
+            return results;
+        })());
+
+        testSuite('Sizer onboarding preserves static import overlays (#287)', 'sizer.js', (() => {
+            var results = [];
+            var staticOverlayIds = ['import-modal-overlay', 'post-import-overlay', 'rvtools-post-import-overlay'];
+            var previousOnboardingValue = localStorage.getItem(SIZER_ONBOARDING_KEY);
+
+            function addStaticOverlays() {
+                staticOverlayIds.forEach(function (id) {
+                    var existing = document.getElementById(id);
+                    if (existing) existing.remove();
+                    var overlay = document.createElement('div');
+                    overlay.id = id;
+                    overlay.className = 'onboarding-overlay';
+                    document.body.appendChild(overlay);
+                });
+            }
+
+            function staticOverlaysRemain() {
+                return staticOverlayIds.every(function (id) { return !!document.getElementById(id); });
+            }
+
+            function cleanupOnboardingTest() {
+                staticOverlayIds.concat(['sizer-onboarding-overlay']).forEach(function (id) {
+                    var overlay = document.getElementById(id);
+                    if (overlay) overlay.remove();
+                });
+                if (previousOnboardingValue === null) localStorage.removeItem(SIZER_ONBOARDING_KEY);
+                else localStorage.setItem(SIZER_ONBOARDING_KEY, previousOnboardingValue);
+            }
+
+            addStaticOverlays();
+            showSizerOnboarding();
+            var onboardingFeatureCountsAreEven = sizerOnboardingSteps.every(function (step) {
+                return step.features.length % 2 === 0;
+            });
+            var onboardingImportCopy = sizerOnboardingSteps.reduce(function (copy, step) {
+                return copy + ' ' + step.features.map(function (feature) { return feature.text; }).join(' ');
+            }, '');
+            results.push(assert(
+                onboardingFeatureCountsAreEven,
+                'Every Sizer onboarding page has an even number of feature tiles', true,
+                onboardingFeatureCountsAreEven));
+            results.push(assert(
+                onboardingImportCopy.includes('Azure Migrate') && onboardingImportCopy.includes('RVTools'),
+                'Sizer onboarding introduces Azure Migrate and RVTools estate imports', true,
+                onboardingImportCopy.includes('Azure Migrate') && onboardingImportCopy.includes('RVTools')));
+            results.push(assert(
+                staticOverlaysRemain() && !!document.getElementById('sizer-onboarding-overlay'),
+                'Rendering onboarding preserves static import overlays', true,
+                staticOverlaysRemain() && !!document.getElementById('sizer-onboarding-overlay')));
+
+            skipSizerOnboarding();
+            results.push(assert(
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay'),
+                'Skipping onboarding removes only the Sizer walkthrough', true,
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay')));
+
+            showSizerOnboarding();
+            finishSizerOnboarding();
+            results.push(assert(
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay'),
+                'Finishing onboarding removes only the Sizer walkthrough', true,
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay')));
+
+            showSizerOnboarding();
+            var workloadModal = document.getElementById('add-workload-modal');
+            var workloadModalWasActive = workloadModal && workloadModal.classList.contains('active');
+            if (workloadModalWasActive) workloadModal.classList.remove('active');
+            handleSizerKeydown({ key: 'Escape' });
+            if (workloadModalWasActive) workloadModal.classList.add('active');
+            results.push(assert(
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay'),
+                'Escape closes only the Sizer walkthrough', true,
+                staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay')));
+
+            var escapeOverlayCases = [
+                'import-modal-overlay',
+                'hw-weighting-info-overlay',
+                'post-import-overlay',
+                'rvtools-post-import-overlay'
+            ];
+            var escapeOverlayFailures = [];
+            escapeOverlayCases.forEach(function (targetId) {
+                staticOverlayIds.concat(['hw-weighting-info-overlay']).forEach(function (id) {
+                    var overlay = document.getElementById(id);
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = id;
+                        document.body.appendChild(overlay);
+                    }
+                    overlay.style.display = id === targetId ? 'flex' : 'none';
+                });
+                handleSizerKeydown({ key: 'Escape' });
+                var target = document.getElementById(targetId);
+                if (!target || target.style.display !== 'none') escapeOverlayFailures.push(targetId);
+            });
+            results.push(assert(
+                escapeOverlayFailures.length === 0 && staticOverlaysRemain(),
+                'Escape hides each visible Sizer import or help overlay without removing shared dialogs', true,
+                escapeOverlayFailures.length === 0 && staticOverlaysRemain()));
+
+            cleanupOnboardingTest();
+            var hardwareOverlay = document.getElementById('hw-weighting-info-overlay');
+            if (hardwareOverlay) hardwareOverlay.remove();
             return results;
         })());
 

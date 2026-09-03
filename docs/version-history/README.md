@@ -6,6 +6,15 @@ Return to the [ODIN README](../../README.md).
 
 ### Version 0.23.x Series (August 2026)
 
+#### 0.23.04 - Private Path general availability
+
+> Private Path planning reflects Azure Local 2608 general availability for hyperconverged and disaggregated deployments.
+
+- Removed Coming Soon signaling and documented the Azure Local 2608+, Arc Gateway, Azure Firewall Explicit Proxy, ExpressRoute or site-to-site VPN, VNet, subnet, routing, proxy-bypass, and TLS-inspection requirements.
+- Retained Private Path for both hyperconverged and disaggregated designs while enforcing Arc Gateway and Azure Firewall Explicit Proxy.
+- Prevented clouds that disable Arc Gateway from selecting, resuming, or importing contradictory Private Path state.
+- Aligned HTML, Markdown, validation, PowerPoint, and the public Designer JSON schema on the same GA semantics.
+
 #### 0.23.03 - GPU, AI workload, and design-report alignment
 
 > Sizer aligned GPU and AI/GitHub workload planning with current Microsoft Learn and GitHub Enterprise Server guidance, including explicit AKS infrastructure ownership.

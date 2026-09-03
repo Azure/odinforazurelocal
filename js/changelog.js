@@ -53,6 +53,19 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.05</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">September 3, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity. The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>Dependency alerts resolved</strong> &mdash; the development-only transitive <code>fast-uri</code> dependency is enforced at 4.1.4, resolving four high-severity advisories.</li>
+                        <li><strong>Code scanning cleanup</strong> &mdash; two unused report-validator reference constants are removed without changing report output.</li>
+                        <li><strong>Immutable workflow dependencies</strong> &mdash; GitHub Actions use full commit SHA references to prevent tag-retargeting risk.</li>
+                        <li><strong>Safer action updates</strong> &mdash; grouped weekly GitHub Actions updates use a seven-day Dependabot cooldown.</li>
+                        <li><strong>Sizer import buttons and onboarding restored</strong> &mdash; Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs for first-time visitors; Escape dismisses the visible dialog without deleting shared overlays; and the Sizer tour introduces both estate-import paths in an even tile layout.</li>
+                        <li>All <strong>1,572 / 1,572</strong> browser tests pass.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.04</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">August 28, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Private Path planning now reflects Azure Local 2608 general availability for hyperconverged and disaggregated deployments.</p>

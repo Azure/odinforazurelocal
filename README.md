@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.04 - Available here: https://aka.ms/ODIN
+## Version 0.23.05 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,16 +49,17 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.04 - Latest Release
+### Version 0.23.05 - Latest Release
 
-> **Private Path planning now reflects Azure Local 2608 general availability for hyperconverged and disaggregated deployments.**
+> **Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity.** The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.
 
 **What's new**
-- **Private Path is generally available** — Designer no longer labels ExpressRoute/VPN Private Path as Coming Soon.
-- **Both architecture paths supported** — Hyperconverged and Disaggregated designs can select Private Path, which requires Arc Gateway and Azure Firewall Explicit Proxy.
-- **GA prerequisites included** — Designer guidance and generated reports identify the Azure Local 2608+, ExpressRoute or site-to-site VPN, Azure networking, routing, proxy-bypass, and no-TLS-inspection requirements.
-- **Cloud state remains valid** — clouds where the Designer disables Arc Gateway cannot select, resume, or import Private Path.
-- **Current design outputs** — HTML, Markdown, validation, PowerPoint, and the public Designer JSON schema use the same GA semantics.
+- **Four high-severity dependency alerts resolved** — the development-only transitive `fast-uri` dependency is enforced at 4.1.4.
+- **Code scanning findings cleared** — two unused report-validator reference constants are removed without changing generated reports.
+- **Workflow dependencies made immutable** — GitHub Actions now use full commit SHA references to prevent tag-retargeting risk.
+- **Safer action updates** — grouped weekly GitHub Actions updates use a seven-day cooldown before Dependabot proposes them.
+- **Sizer import buttons and onboarding restored for first-time visitors** — Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs; Escape dismisses the visible dialog without deleting shared overlays; and the Sizer tour introduces both estate-import paths in an even tile layout.
+- All **1,572 / 1,572** browser tests pass.
 
 ---
 
@@ -383,8 +384,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.23.04<br>
-**Last Updated**: August 2026<br>
+**Version**: 0.23.05<br>
+**Last Updated**: September 2026<br>
 **Compatibility**: Azure Local 2506+
 
 ---
