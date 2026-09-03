@@ -11661,7 +11661,35 @@
                 'Escape closes only the Sizer walkthrough', true,
                 staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay')));
 
+            var escapeOverlayCases = [
+                'import-modal-overlay',
+                'hw-weighting-info-overlay',
+                'post-import-overlay',
+                'rvtools-post-import-overlay'
+            ];
+            var escapeOverlayFailures = [];
+            escapeOverlayCases.forEach(function (targetId) {
+                staticOverlayIds.concat(['hw-weighting-info-overlay']).forEach(function (id) {
+                    var overlay = document.getElementById(id);
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = id;
+                        document.body.appendChild(overlay);
+                    }
+                    overlay.style.display = id === targetId ? 'flex' : 'none';
+                });
+                handleSizerKeydown({ key: 'Escape' });
+                var target = document.getElementById(targetId);
+                if (!target || target.style.display !== 'none') escapeOverlayFailures.push(targetId);
+            });
+            results.push(assert(
+                escapeOverlayFailures.length === 0 && staticOverlaysRemain(),
+                'Escape hides each visible Sizer import or help overlay without removing shared dialogs', true,
+                escapeOverlayFailures.length === 0 && staticOverlaysRemain()));
+
             cleanupOnboardingTest();
+            var hardwareOverlay = document.getElementById('hw-weighting-info-overlay');
+            if (hardwareOverlay) hardwareOverlay.remove();
             return results;
         })());
 

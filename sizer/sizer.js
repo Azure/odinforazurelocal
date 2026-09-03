@@ -11456,6 +11456,20 @@ function handleSizerKeydown(e) {
             skipSizerOnboarding();
             return;
         }
+        const staticOverlayClosers = [
+            ['rvtools-post-import-overlay', closeRVToolsPostImport],
+            ['post-import-overlay', closePostImportOverlay],
+            ['hw-weighting-info-overlay', closeHardwareWeightingInfo],
+            ['import-modal-overlay', closeImportModal]
+        ];
+        const visibleOverlay = staticOverlayClosers.find(function(entry) {
+            const element = document.getElementById(entry[0]);
+            return element && window.getComputedStyle(element).display !== 'none';
+        });
+        if (visibleOverlay) {
+            visibleOverlay[1]();
+            return;
+        }
     }
 
     // Focus trap inside active modal (Tab / Shift+Tab)
