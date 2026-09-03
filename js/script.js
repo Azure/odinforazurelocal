@@ -4534,7 +4534,9 @@ function updateUI() {
 
     // Reset disabled
     document.querySelectorAll('.option-card').forEach(c => {
-        if (!c.closest('#da8-port-count-grid')) c.classList.remove('disabled');
+        if (!c.closest('#da4-vrf-mode-grid') && !c.closest('#da8-port-count-grid')) {
+            c.classList.remove('disabled');
+        }
     });
     const proxyText = document.getElementById('proxy-enabled-text');
     if (proxyText) proxyText.innerText = 'Traffic routed through proxy.';

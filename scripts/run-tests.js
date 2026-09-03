@@ -763,7 +763,7 @@ function checkDesignerAccessibilityContracts() {
         "document.querySelectorAll('.option-card').forEach(initializeOptionCard);",
         "if (node.matches('.option-card')) initializeOptionCard(node);",
         'optionCardObserver.observe(document.body, {',
-        "if (!c.closest('#da8-port-count-grid')) c.classList.remove('disabled');"
+        "!c.closest('#da4-vrf-mode-grid') && !c.closest('#da8-port-count-grid')"
     ];
     const missing = required.filter(value => !scriptJs.includes(value));
     if (!disaggregatedJs.includes("card.classList.toggle('disabled', confirmed);")) {
