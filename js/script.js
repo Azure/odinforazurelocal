@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
             card.setAttribute('tabindex', '0');
         }
         card.addEventListener('keydown', (e) => {
+            if (e.target !== card) return;
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 if (card.classList.contains('disabled')) return;

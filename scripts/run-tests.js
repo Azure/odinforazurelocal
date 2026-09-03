@@ -753,6 +753,7 @@ function checkDesignerAccessibilityContracts() {
         "card.setAttribute('role', 'button');",
         "card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');",
         "card.setAttribute('aria-disabled', card.classList.contains('disabled') ? 'true' : 'false');",
+        'if (e.target !== card) return;',
         "if (card.classList.contains('disabled')) return;",
         "document.querySelectorAll('.option-card').forEach(initializeOptionCard);",
         "if (node.matches('.option-card')) initializeOptionCard(node);",
