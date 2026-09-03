@@ -716,6 +716,12 @@ function checkSizerResponsiveContracts() {
         { label: 'compact phone navigation', value: `.odin-tab-container {
         gap: 2px;
     }` },
+        { label: 'compact phone tab padding', value: `.odin-tab-btn {
+        padding: 8px 6px;
+    }` },
+        { label: 'compact phone theme padding', value: `.nav-theme-toggle {
+        padding: 6px 4px;
+    }` },
         { label: 'single-column phone power grid', value: `.power-rack-grid {
         grid-template-columns: 1fr;
     }` },
@@ -758,6 +764,9 @@ function checkDesignerAccessibilityContracts() {
         "card.setAttribute('aria-pressed', card.classList.contains('selected') ? 'true' : 'false');",
         "card.setAttribute('aria-disabled', disabled ? 'true' : 'false');",
         "card.setAttribute('tabindex', disabled ? '-1' : '0');",
+        "card.addEventListener('click', (e) => {",
+        "if (!card.classList.contains('disabled')) return;",
+        'e.stopImmediatePropagation();',
         'if (e.target !== card) return;',
         "if (card.classList.contains('disabled')) return;",
         "document.querySelectorAll('.option-card').forEach(initializeOptionCard);",

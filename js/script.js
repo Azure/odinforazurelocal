@@ -284,6 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const isNativeButton = card.tagName === 'BUTTON';
         if (!isNativeButton) card.setAttribute('role', 'button');
         syncOptionCardState(card);
+        card.addEventListener('click', (e) => {
+            if (!card.classList.contains('disabled')) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }, true);
         if (isNativeButton) return;
         card.addEventListener('keydown', (e) => {
             if (e.target !== card) return;
