@@ -23,6 +23,8 @@
 - `.github/workflows/codeql.yml`
 - `.github/workflows/test.yml`
 - `css/style.css`
+- `index.html`
+- `js/disaggregated.js`
 - `js/notifications.js`
 - `js/script.js`
 - `s2d-calc/s2d-calc.js`
@@ -35,6 +37,7 @@
 - `CHANGELOG.md`
 - `docs/version-history/README.md`
 - `docs/module-planning/complete/ai-quality-findings-fast-follow-plan.md`
+- `docs/module-planning/complete/designer-release-validation-plan.md`
 - `docs/module-planning/complete/security-release-0.23.05-plan.md`
 
 ## GitHub Actions compatibility validation

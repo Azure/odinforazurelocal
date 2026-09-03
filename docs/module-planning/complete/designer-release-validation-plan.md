@@ -26,11 +26,13 @@
 - `.github/skills/designer-release-validation/SKILL.md`
 - `.github/copilot-instructions.md`
 - `css/style.css`
+- `index.html`
+- `js/disaggregated.js`
 - `js/notifications.js`
 - `js/script.js`
 - `scripts/run-tests.js`
 - `tests/index.html`
-- `docs/module-planning/designer-release-validation-plan.md`
+- `docs/module-planning/complete/designer-release-validation-plan.md`
 - Current release notes describing the new integrated validation layer.
 
 ## Open questions
