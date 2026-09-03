@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.05 - Available here: https://aka.ms/ODIN
+## Version 0.23.06 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,16 +49,14 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.05 - Latest Release
+### Version 0.23.06 - Latest Release
 
-> **Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity.** The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.
+> **Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings.** Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
 
 **What's new**
-- **Four high-severity dependency alerts resolved** — the development-only transitive `fast-uri` dependency is enforced at 4.1.4.
-- **Code scanning findings cleared** — two unused report-validator reference constants are removed without changing generated reports.
-- **Workflow dependencies made immutable** — GitHub Actions now use full commit SHA references to prevent tag-retargeting risk.
-- **Safer action updates** — grouped weekly GitHub Actions updates use a seven-day cooldown before Dependabot proposes them.
-- **Sizer import buttons and onboarding restored for first-time visitors** — Sizer and embedded S2D onboarding no longer remove the Import, Azure Migrate, or RVTools dialogs; Escape dismisses the visible dialog without deleting shared overlays; and the Sizer tour introduces both estate-import paths in an even tile layout.
+- **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
+- **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
+- **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
 - All **1,572 / 1,572** browser tests pass.
 
 ---

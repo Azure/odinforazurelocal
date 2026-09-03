@@ -53,6 +53,17 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.06</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">September 3, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings. Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>Modern UTF-8 shared links</strong> &mdash; S2D configuration names and data use standards-based browser encoding and decoding APIs.</li>
+                        <li><strong>Single shared-state definition</strong> &mdash; serialization and completeness validation use the same typed field list while retaining each control's access behavior.</li>
+                        <li><strong>Quality cleanup</strong> &mdash; the Arc Private Link icon is restored, clipboard fallback drops an unused parameter, and the onboarding revision-key policy is documented.</li>
+                        <li>All <strong>1,572 / 1,572</strong> browser tests pass.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.05</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">September 3, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security maintenance updates development dependencies, code scanning, and CI supply-chain integrity. The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.</p>

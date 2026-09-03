@@ -344,7 +344,7 @@ function copyToClipboard(text, successMessage = 'Copied to clipboard!') {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
             showToast(successMessage, 'success');
-        }).catch(err => {
+        }).catch(() => {
             fallbackCopyToClipboard(text, successMessage);
         });
     } else {

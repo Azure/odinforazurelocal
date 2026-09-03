@@ -414,7 +414,7 @@
             (function() {
                 const payload = {
                     version: 1,
-                    name: 'Lab – West',
+                    name: 'Lab – West 🔗',
                     data: {
                         platform: 'azureLocal', nodes: '6', copies: '3', provisioning: 'thin',
                         thinExtentMiB: '1024', tiering: 'tiered', drivesPerNode: '8', diskSize: '3.2',
@@ -423,9 +423,30 @@
                     }
                 };
                 const decoded = volumeCalculator.decodeSharedConfiguration(volumeCalculator.encodeSharedConfiguration(payload));
-                return assert(decoded && decoded.name === payload.name && decoded.data.capacityDrives === '6',
-                    'named S2D share configuration round trips Unicode and inputs',
-                    'Lab – West / 6', decoded ? `${decoded.name} / ${decoded.data.capacityDrives}` : 'null');
+                const missingFieldPayload = JSON.parse(JSON.stringify(payload));
+                delete missingFieldPayload.data.capacityDrives;
+                let missingFieldRejected = false;
+                try {
+                    volumeCalculator.encodeSharedConfiguration(missingFieldPayload);
+                } catch (error) {
+                    missingFieldRejected = error instanceof TypeError;
+                }
+                const radioNames = [];
+                const controlIds = [];
+                const mappedData = volumeCalculator.readSharedStateData(
+                    name => { radioNames.push(name); return `radio:${name}`; },
+                    id => { controlIds.push(id); return `control:${id}`; }
+                );
+                const mappingsValid = mappedData.platform === 'radio:platform'
+                    && mappedData.nodes === 'control:node-number'
+                    && mappedData.cacheDrives === 'control:cache-drives-per-node'
+                    && mappedData.capacityCustomDiskSize === 'control:capacity-custom-disk-size'
+                    && radioNames.join(',') === 'platform,copies,provisioning,thinExtentMiB,tiering'
+                    && controlIds.join(',') === 'node-number,drives-per-node,disk-size,custom-disk-size,cache-drives-per-node,cache-disk-size,cache-custom-disk-size,capacity-drives-per-node,capacity-disk-size,capacity-custom-disk-size';
+                return assert(decoded && decoded.name === payload.name && decoded.data.capacityDrives === '6'
+                    && missingFieldRejected && mappingsValid,
+                    'named S2D share configuration round trips Unicode and keeps state control mappings complete',
+                    'Lab – West 🔗 / 6 / true / true', decoded ? `${decoded.name} / ${decoded.data.capacityDrives} / ${missingFieldRejected} / ${mappingsValid}` : 'null');
             })(),
             assert(volumeCalculator.decodeSharedConfiguration('not-valid-base64') === null,
                 'malformed S2D share configuration is rejected', null,
@@ -440,7 +461,7 @@
                         capacityDrives: '4', capacityDiskSize: '6.4', capacityCustomDiskSize: ''
                     }
                 };
-                const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+                const encoded = btoa(JSON.stringify(payload));
                 const decoded = volumeCalculator.decodeSharedConfiguration(encoded);
                 return assert(decoded === null,
                     'out-of-range S2D share values are rejected before state is applied', null, decoded);
@@ -486,16 +507,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.05'
+                    globalThis.ODIN_VERSION === '0.23.06'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.05')
+                        && branding.textContent.includes('Version 0.23.06')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.05 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.06 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);

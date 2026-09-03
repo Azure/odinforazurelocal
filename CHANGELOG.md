@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.06] - 2026-09-03
+
+Quality maintenance release that modernizes S2D shared-link handling and resolves GitHub Code Quality findings. Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
+
+### Changed
+
+- **S2D shared-link encoding modernized** (`s2d-calc/s2d-calc.js`, `tests/index.html`) — replaces deprecated UTF-8 conversion globals with `TextEncoder`, `TextDecoder`, and byte-safe Base64 conversion while retaining bounded, fail-closed decoding and Unicode round trips.
+- **S2D shared-state fields centralized** (`s2d-calc/s2d-calc.js`, `tests/index.html`) — uses one typed field definition for serialization and payload completeness checks while preserving radio-group and direct-control access semantics; focused coverage rejects incomplete payloads.
+- **Code quality cleanup** (`docs/outbound-connectivity/index.html`, `js/notifications.js`, `s2d-calc/s2d-calc.js`) — restores the Arc Private Link icon, removes an unused clipboard rejection parameter, and documents that the S2D onboarding key tracks tour revisions independently of the application version.
+- **Validation** — all **1,572 / 1,572** browser tests pass; JavaScript, HTML, and CSS lint complete with zero errors.
+
+---
+
 ## [0.23.05] - 2026-09-03
 
 Security maintenance release for development dependencies, code scanning, and CI supply-chain integrity. The high-severity advisories affected development-only validation tooling. The affected package was not shipped to, loaded by, or executed in the public-facing ODIN website, and the dependency remediation does not change runtime application behavior.
