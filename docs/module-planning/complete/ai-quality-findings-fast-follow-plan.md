@@ -31,6 +31,7 @@
 - `CHANGELOG.md`
 - `docs/version-history/README.md`
 - `docs/module-planning/complete/ai-quality-findings-fast-follow-plan.md`
+- `docs/module-planning/complete/security-release-0.23.05-plan.md`
 
 ## GitHub Actions compatibility validation
 
@@ -49,5 +50,6 @@
 2. Add S2D state-shape and UTF-8 regression coverage.
 3. Merge the approved grouped GitHub Actions update into `Release`.
 4. Synchronize 0.23.06 release metadata and history.
-5. Run lint, full tests, release-history validation, workflow checks, and targeted UI checks.
-6. Commit, push `Release`, and open the `Release` to `main` pull request.
+5. Archive the shipped 0.23.05 security release plan.
+6. Run lint, full tests, release-history validation, workflow checks, and targeted UI checks.
+7. Commit, push `Release`, and open the `Release` to `main` pull request.

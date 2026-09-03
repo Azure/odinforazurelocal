@@ -33,7 +33,7 @@
 - `README.md`
 - `CHANGELOG.md`
 - `docs/version-history/README.md`
-- `docs/module-planning/security-release-0.23.05-plan.md`
+- `docs/module-planning/complete/security-release-0.23.05-plan.md`
 
 ## Open questions
 
