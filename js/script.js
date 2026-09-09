@@ -8874,31 +8874,51 @@ function parseArmTemplateToState(armTemplate) {
 
         // Import custom storage subnets from storageNetworkList IP/mask info
         if (result.storageAutoIp === 'disabled' || params.enableStorageAutoIp === false) {
-            const maskToCidr = {
-                '255.255.255.0': 24, '255.255.255.128': 25, '255.255.255.192': 26,
-                '255.255.255.224': 27, '255.255.255.240': 28, '255.255.255.248': 29,
-                '255.255.254.0': 23, '255.255.252.0': 22, '255.255.248.0': 21,
-                '255.255.240.0': 20, '255.255.0.0': 16
-            };
-            result.customStorageSubnets = [];
+            const maskToCidr = new Map(Array.from({ length: 33 }, (_, prefix) =>
+                [window.intToIpv4(window.prefixToMask(prefix)), prefix]));
+            const uniqueSubnets = new Set();
+            const endpointSubnets = new Map();
             params.storageNetworkList.forEach(net => {
-                if (net.storageAdapterIPInfo && Array.isArray(net.storageAdapterIPInfo) && net.storageAdapterIPInfo.length > 0) {
-                    const firstNode = net.storageAdapterIPInfo[0];
-                    const ip = firstNode.ipv4Address || '';
-                    const mask = firstNode.subnetMask || '255.255.255.0';
-                    const cidrBits = maskToCidr[mask] || 24;
-                    // Calculate network address from IP and mask
-                    if (ip) {
-                        const ipParts = ip.split('.').map(Number);
-                        const maskParts = mask.split('.').map(Number);
-                        const networkParts = ipParts.map((p, i) => p & maskParts[i]);
-                        result.customStorageSubnets.push(networkParts.join('.') + '/' + cidrBits);
-                    }
-                }
+                if (!net || !Array.isArray(net.storageAdapterIPInfo)) return;
+                net.storageAdapterIPInfo.forEach(endpoint => {
+                    if (!endpoint) return;
+                    const prefix = maskToCidr.get(endpoint.subnetMask || '255.255.255.0');
+                    if (prefix === undefined) return;
+                    const subnet = window.getIpv4SubnetInfo((endpoint.ipv4Address || '') + '/' + prefix);
+                    if (!subnet) return;
+                    uniqueSubnets.add(subnet.cidr);
+                    const key = JSON.stringify([
+                        String(endpoint.physicalNode || '').trim().toLowerCase(),
+                        String(net.networkAdapterName || '').trim().toLowerCase()
+                    ]);
+                    endpointSubnets.set(key, subnet.cidr);
+                });
             });
-            if (result.customStorageSubnets.length > 0) {
-                result.customStorageSubnetsConfirmed = true;
+            if (result.storage === 'switchless' && result.nodes === '3' && result.ports === '4') {
+                result.switchlessLinkMode = 'single_link';
             }
+            const topology = window.getSwitchlessStorageTopology({ ...result, adapterMappingConfirmed: true });
+            if (topology && Array.isArray(result.nodeSettings) && Array.isArray(result.portConfig)) {
+                const getEndpointSubnet = endpoint => {
+                    const node = result.nodeSettings[endpoint.n];
+                    const port = result.portConfig[topology.storagePorts[endpoint.p] - 1];
+                    if (!node || !port) return null;
+                    return endpointSubnets.get(JSON.stringify([
+                        String(node.name || '').trim().toLowerCase(),
+                        String(port.customName || '').trim().toLowerCase()
+                    ]));
+                };
+                result.customStorageSubnets = topology.links.map(link => {
+                    const firstSubnet = getEndpointSubnet(link.a);
+                    const secondSubnet = getEndpointSubnet(link.b);
+                    return firstSubnet && firstSubnet === secondSubnet ? firstSubnet : '';
+                });
+            } else {
+                result.customStorageSubnets = Array.from(uniqueSubnets);
+            }
+            const hostCount = result.storage === 'switchless' ? 2 : Math.max(1, parseInt(result.nodes, 10) || 0);
+            result.customStorageSubnetsConfirmed = result.customStorageSubnets.length > 0 &&
+                window.getStorageSubnetErrors(result.customStorageSubnets, hostCount).every(error => !error);
         }
     }
 

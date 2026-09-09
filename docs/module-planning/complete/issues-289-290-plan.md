@@ -42,7 +42,7 @@
 
 ## Validation notes
 
-- Main browser suite: 1,606 tests passed, including CIDR boundaries, overlap,
+- Main browser suite: 1,608 tests passed, including CIDR boundaries, overlap,
   manual-value preservation, and Designer-to-ARM endpoint assignments.
 - `node tools/scripts/test-switchless-networking.js` requires localhost:5500
   and validates two-, three-, and four-node dual-link designs through rendered
@@ -67,3 +67,19 @@
 - Order: update the override and lockfile, verify the audit, rerun lint/tests,
   push the additional fix to Release, and merge only after all PR checks pass.
 - Open questions: none; patched 4.3.2 is available from the configured feed.
+
+## PR review: ARM import round trip
+
+- The importer currently reads one adapter IP per storage network and omits /30
+  from its mask table, losing link subnets from newly generated ARM output.
+- Read all endpoint records, validate contiguous IPv4 masks, and reconstruct
+  switchless subnet order by node and adapter identity rather than address order.
+- Preserve custom NIC names and manually ordered CIDRs; leave incomplete or
+  inconsistent link addressing unconfirmed instead of guessing.
+- Files: `js/script.js`, `tests/index.html`, browser regression script, and notes.
+- Order: importer correction, generated-ARM round-trip tests, real file-picker
+  import check, full validation, then resolve the PR comment before merging.
+- Open questions: none.
+- Outcome: all supported dual-link UI paths retain every /30 subnet and storage
+  adapter after generated-ARM import. Model tests also preserve manually ordered
+  CIDRs with shuffled ARM records and reject non-contiguous subnet masks.

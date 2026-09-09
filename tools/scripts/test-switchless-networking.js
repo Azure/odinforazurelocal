@@ -198,6 +198,24 @@ async function run() {
                 await expect(page.getByRole('button', { name: 'Confirm Storage Subnets', exact: true })).toBeDisabled();
                 console.log('PASS: switchless/switched/switchless clears stale subnet and confirmation state');
             }
+            await page.getByRole('button', { name: 'Start Over', exact: true }).click();
+            await page.getByRole('dialog', { name: 'Start over?' }).getByRole('button', { name: 'Start over', exact: true }).click();
+            await page.getByRole('button', { name: /Import$/, exact: false }).click();
+            const [armChooser] = await Promise.all([
+                page.waitForEvent('filechooser'),
+                page.getByText('Import Azure Local ARM Template', { exact: true }).click()
+            ]);
+            await armChooser.setFiles({ name: label + '-arm.json', mimeType: 'application/json',
+                buffer: Buffer.from(parametersText) });
+            await page.getByRole('button', { name: 'Import Template', exact: true }).click();
+            await expect(page.locator('.custom-storage-subnet-input')).toHaveCount(scenario.count);
+            for (let index = 0; index < scenario.count; index++) {
+                await expect(page.getByLabel('Storage Subnet ' + (index + 1), { exact: true })).toHaveValue(config.customStorageSubnets[index]);
+                await expect(page.getByLabel('Storage Subnet ' + (index + 1), { exact: true })).toBeDisabled();
+            }
+            assert.deepEqual(await page.locator('[aria-label="Storage drop zone"] .adapter-pill__id').allTextContents(),
+                storagePorts.map(port => 'Demo-NIC-' + port));
+            console.log('PASS: ' + label + ' generated ARM import preserves every /30 subnet and storage adapter');
             await report.close();
             console.log('PASS: ' + label + ' autofill, validation, preview, report, SVG, draw.io, Markdown, ARM');
         }

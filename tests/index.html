@@ -2447,6 +2447,43 @@
             })()
         ]);
 
+        testSuite('Issue #290: ARM storage-mask import', 'script.js', [
+            (() => {
+                const imported = parseArmTemplateToState({
+                    $schema: 'https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#',
+                    parameters: {
+                        enableStorageAutoIp: { value: false },
+                        storageNetworkList: { value: [{
+                            networkAdapterName: 'Demo-NIC-1',
+                            storageAdapterIPInfo: [
+                                { physicalNode: 'demo1', ipv4Address: '198.51.100.5', subnetMask: '255.255.255.252' },
+                                { physicalNode: 'demo2', ipv4Address: '198.51.100.6', subnetMask: '255.255.255.252' },
+                                { physicalNode: 'demo3', ipv4Address: '198.51.100.130', subnetMask: '255.255.255.128' }
+                            ]
+                        }] }
+                    }
+                });
+                return assert(imported.customStorageSubnets.join(',') === '198.51.100.4/30,198.51.100.128/25',
+                    'Read every adapter entry, deduplicate shared networks, and preserve /30 and /25 prefixes');
+            })(),
+            (() => {
+                const imported = parseArmTemplateToState({
+                    $schema: 'https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#',
+                    parameters: {
+                        enableStorageAutoIp: { value: false },
+                        storageNetworkList: { value: [{
+                            networkAdapterName: 'Demo-NIC-1',
+                            storageAdapterIPInfo: [
+                                { physicalNode: 'demo1', ipv4Address: '198.51.100.5', subnetMask: '255.0.255.0' }
+                            ]
+                        }] }
+                    }
+                });
+                return assert(imported.customStorageSubnets.length === 0 && !imported.customStorageSubnetsConfirmed,
+                    'Reject a non-contiguous mask instead of silently importing /24');
+            })()
+        ]);
+
         // Test: parseArmTemplateToState - Security settings
         testSuite('parseArmTemplateToState() - Security Settings', 'script.js', [
             (function() {
@@ -3399,8 +3436,19 @@
                             addresses.push(address.ipv4Address);
                         });
                     }
-                    return assert(autoFilled && adapterNamesMatch && endpointsMatch && new Set(addresses).size === config.subnets * 2,
-                        config.nodes + '-node ' + config.linkMode + ': autofill, mapped NICs, masks, and unique /30 endpoints agree');
+                    const imported = parseArmTemplateToState(payload.parametersFile);
+                    const roundTripMatches = imported.customStorageSubnetsConfirmed &&
+                        JSON.stringify(imported.customStorageSubnets) === JSON.stringify(state.customStorageSubnets);
+                    state.customStorageSubnets.reverse();
+                    generateArmParameters();
+                    const reorderedArm = JSON.parse(localStorage.getItem('azloc_arm_payload')).parametersFile;
+                    reorderedArm.parameters.storageNetworkList.value.reverse().forEach(network => network.storageAdapterIPInfo.reverse());
+                    const reorderedImport = parseArmTemplateToState(reorderedArm);
+                    const manualOrderMatches = reorderedImport.customStorageSubnetsConfirmed &&
+                        JSON.stringify(reorderedImport.customStorageSubnets) === JSON.stringify(state.customStorageSubnets);
+                    return assert(autoFilled && adapterNamesMatch && endpointsMatch && new Set(addresses).size === config.subnets * 2 &&
+                        roundTripMatches && manualOrderMatches,
+                        config.nodes + '-node ' + config.linkMode + ': autofill, mapped NICs, /30 endpoints, and ARM import round trip agree');
                 } finally {
                     Object.assign(state, originalState);
                     window.open = originalOpen;
