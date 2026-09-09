@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Development dependency security** - Raise the `js-yaml` override to `>=4.3.2 <5.0.0` and update the lockfile to fix the high-severity empty-merge-source CPU limit bypass (GHSA-2883-xcg3-v3hh). This is development tooling only; no runtime dependency or audit exception is added.
 - **Switchless NIC assignments preserved ([#289](https://github.com/Azure/odinforazurelocal/issues/289))** - Cluster Design Document diagrams, storage address listings, and SVG/draw.io downloads now use the confirmed management/storage adapter assignments and custom NIC names. ARM storage networks and intents use the same assignments.
 - **CIDR-aware storage addressing ([#290](https://github.com/Azure/odinforazurelocal/issues/290))** - Storage subnet autofill advances by the actual CIDR block size, including /30 networks and octet rollover. Report, Markdown, PowerPoint, and ARM output allocate usable addresses to each link endpoint without dropping the fourth octet or repeating addresses. Manual subnet entries and valid existing /24 host offsets are preserved; invalid, overlapping, and undersized custom subnets block confirmation and output readiness.
 

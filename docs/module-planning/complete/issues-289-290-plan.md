@@ -55,3 +55,15 @@
 - Existing first-run onboarding removes the Designer import modal. The browser
   regression reloads after dismissing onboarding before opening Import; this
   unrelated behavior is not changed by these fixes.
+
+## Approved CI security unblock
+
+- PR #296 exposed GHSA-2883-xcg3-v3hh in the existing development-only
+  `js-yaml` 4.3.1 dependency, blocking the required Dependency Audit check.
+- Scope extension approved: raise the 4.x floor to 4.3.2 and regenerate the
+  lockfile without adding an audit exception or upgrading to version 5.
+- Files: `package.json`, `package-lock.json`, `.github/copilot-instructions.md`,
+  `CHANGELOG.md`, and this plan.
+- Order: update the override and lockfile, verify the audit, rerun lint/tests,
+  push the additional fix to Release, and merge only after all PR checks pass.
+- Open questions: none; patched 4.3.2 is available from the configured feed.
