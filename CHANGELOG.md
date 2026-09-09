@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Switchless NIC assignments preserved ([#289](https://github.com/Azure/odinforazurelocal/issues/289))** - Cluster Design Document diagrams, storage address listings, and SVG/draw.io downloads now use the confirmed management/storage adapter assignments and custom NIC names. ARM storage networks and intents use the same assignments.
+- **CIDR-aware storage addressing ([#290](https://github.com/Azure/odinforazurelocal/issues/290))** - Storage subnet autofill advances by the actual CIDR block size, including /30 networks and octet rollover. Report, Markdown, PowerPoint, and ARM output allocate usable addresses to each link endpoint without dropping the fourth octet or repeating addresses. Manual subnet entries and valid existing /24 host offsets are preserved; invalid, overlapping, and undersized custom subnets block confirmation and output readiness.
+
+---
+
 ## [0.23.06] - 2026-09-03
 
 Quality maintenance release that modernizes S2D shared-link handling and resolves GitHub Code Quality findings. Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.

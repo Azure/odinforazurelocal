@@ -610,6 +610,42 @@
         return defaultNote;
     }
 
+    function getStorageAdapterIpDetails(config) {
+        if (config.storageAutoIp !== 'disabled' || !Array.isArray(config.customStorageSubnets)) return [];
+        const nodeCount = parseInt(config.nodes, 10) || 0;
+        const nodeName = index => (config.nodeSettings && config.nodeSettings[index] && config.nodeSettings[index].name) || ('node' + (index + 1));
+        const topology = window.getSwitchlessStorageTopology(config);
+        if (topology) {
+            return topology.links.map(link => {
+                const cidr = config.customStorageSubnets[link.subnet - 1] || '';
+                const endpoints = [link.a, link.b].map((endpoint, hostIndex) => {
+                    const port = topology.storagePorts[endpoint.p];
+                    const adapter = port ? getPortCustomName(config, port, 'nic') : 'Unassigned adapter';
+                    const address = window.getStorageSubnetAddress(cidr, hostIndex, 2) || 'Invalid or missing subnet';
+                    return nodeName(endpoint.n) + ' / ' + adapter + ': ' + address;
+                });
+                return 'Subnet ' + link.subnet + ' (' + cidr + '): ' + endpoints.join('; ');
+            });
+        }
+        if (config.storage !== 'switched' || nodeCount < 1) return [];
+        const mapping = config.adapterMappingConfirmed ? config.adapterMapping :
+            (config.intent === 'custom' ? config.customIntents : null);
+        const portCount = parseInt(config.ports, 10) || 0;
+        const storagePorts = [];
+        for (let port = 1; port <= portCount; port++) {
+            const assignment = mapping ? mapping[port] :
+                (config.intent === 'all_traffic' || port > 2 || (portCount === 2 && port === 2) ? 'storage' : 'mgmt');
+            if (['storage', 'compute_storage', 'all'].includes(assignment)) storagePorts.push(port);
+        }
+        return config.customStorageSubnets.map((cidr, index) => {
+            const port = storagePorts[index];
+            if (!port) return '';
+            const addresses = Array.from({ length: nodeCount }, (_, nodeIndex) =>
+                nodeName(nodeIndex) + ': ' + (window.getStorageSubnetAddress(cidr, nodeIndex, nodeCount) || 'Invalid or missing subnet'));
+            return getPortCustomName(config, port, 'nic') + ' (' + cidr + '): ' + addresses.join(', ');
+        }).filter(Boolean);
+    }
+
     function buildStandaloneReportWordHtml(opts) {
         opts = opts || {};
         const inlineCss = opts.inlineCss || '';
@@ -1386,6 +1422,9 @@
                 md.push('| Storage Subnets | `' + validSubnets.join(', ') + '` |');
             }
         }
+        getStorageAdapterIpDetails(s).forEach(detail => {
+            md.push('| Storage Adapter IPs | ' + escapeMd(detail) + ' |');
+        });
         if (s.storagePoolConfiguration) {
             const spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
                 s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
@@ -1968,7 +2007,7 @@
      */
     function generateHostNetworkingDrawio(s) {
         if (!s || !s.ports || !s.intent) return '';
-        let ports = parseInt(s.ports, 10) || 0;
+        const ports = parseInt(s.ports, 10) || 0;
         if (ports <= 0) return '';
 
         const nAll = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
@@ -2042,15 +2081,10 @@
             for (let ai = 0; ai < ports; ai++) { mgmtPorts.push(ai + 1); }
         }
 
-        // For switchless topologies, override to canonical port layout matching ODIN SVG diagrams:
-        // Always 2 mgmt+compute ports + (n-1)*2 storage ports per node, regardless of user config.
-        // 2-node: 2 storage (4 total), 3-node: 4 storage (6 total), 4-node: 6 storage (8 total).
-        if (isSwitchless && n >= 2) {
-            const storCount = (n - 1) * 2;
-            ports = 2 + storCount;
-            mgmtPorts = [1, 2];
-            storPorts = [];
-            for (let sp = 3; sp <= ports; sp++) storPorts.push(sp);
+        const switchlessTopology = window.getSwitchlessStorageTopology(s);
+        if (switchlessTopology) {
+            mgmtPorts = switchlessTopology.managementPorts;
+            storPorts = switchlessTopology.storagePorts;
         }
 
         function getPortName(idx1) {
@@ -2297,9 +2331,7 @@
         }
 
         // --- Switchless storage mesh ---
-        if (isSwitchless && n >= 2) {
-            // Build switchless mesh edges with color-coded subnets, mirroring the ODIN SVG renderer.
-            // Each node-pair gets 2 dedicated subnets (dual-link).
+        if (switchlessTopology) {
             let subnetHues;
             if (n === 2) {
                 subnetHues = [210, 330];
@@ -2320,53 +2352,25 @@
                 return '#' + toHex(r) + toHex(g) + toHex(b);
             }
 
-            // Build connection mapping mirroring the SVG renderer.
-            // For each node-pair (i<j), 2 consecutive storage ports on each side.
-            let subnetCounter = 0;
-            for (let si = 0; si < n; si++) {
-                for (let sj = si + 1; sj < n; sj++) {
-                    // Peer order: how many peers of node si come before sj
-                    let peerOrderI = 0;
-                    for (let sm = 0; sm < n; sm++) {
-                        if (sm === si) continue;
-                        if (sm === sj) break;
-                        peerOrderI++;
-                    }
-                    // Peer order: how many peers of node sj come before si
-                    let peerOrderJ = 0;
-                    for (let sn2 = 0; sn2 < n; sn2++) {
-                        if (sn2 === sj) continue;
-                        if (sn2 === si) break;
-                        peerOrderJ++;
-                    }
-
-                    for (let link = 0; link < 2; link++) {
-                        const portIdxI = peerOrderI * 2 + link;
-                        const portIdxJ = peerOrderJ * 2 + link;
-                        const subnetNum = subnetCounter + 1;
-                        const hue = subnetHues[subnetCounter % subnetHues.length];
-                        const color = hslToHex(hue, 78, 62);
-
-                        const srcId = (storagePortIds[si] && storagePortIds[si][portIdxI]) ? storagePortIds[si][portIdxI] : null;
-                        const tgtId = (storagePortIds[sj] && storagePortIds[sj][portIdxJ]) ? storagePortIds[sj][portIdxJ] : null;
-
-                        if (srcId && tgtId) {
-                            // Compute orthogonal waypoints: down to lane, horizontal, up to target
-                            const srcPos = (storagePortAbsPos[si] && storagePortAbsPos[si][portIdxI]) ? storagePortAbsPos[si][portIdxI] : null;
-                            const tgtPos = (storagePortAbsPos[sj] && storagePortAbsPos[sj][portIdxJ]) ? storagePortAbsPos[sj][portIdxJ] : null;
-                            const laneY = nodesY + nodeH + 30 + subnetCounter * 22;
-                            const meshEdgeId = nextId();
-                            addEdge(meshEdgeId, srcId, tgtId,
-                                'endArrow=none;html=1;strokeColor=' + color + ';strokeWidth=2.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
-                            edges[edges.length - 1].label = 'Subnet ' + subnetNum;
-                            if (srcPos && tgtPos) {
-                                edges[edges.length - 1].points = [
-                                    { x: srcPos.x, y: laneY },
-                                    { x: tgtPos.x, y: laneY }
-                                ];
-                            }
-                        }
-                        subnetCounter++;
+            for (const link of switchlessTopology.links) {
+                const source = link.a;
+                const target = link.b;
+                const sourceId = storagePortIds[source.n] && storagePortIds[source.n][source.p];
+                const targetId = storagePortIds[target.n] && storagePortIds[target.n][target.p];
+                if (sourceId && targetId) {
+                    const sourcePosition = storagePortAbsPos[source.n][source.p];
+                    const targetPosition = storagePortAbsPos[target.n][target.p];
+                    const laneY = nodesY + nodeH + 30 + (link.subnet - 1) * 22;
+                    const color = hslToHex(subnetHues[(link.subnet - 1) % subnetHues.length], 78, 62);
+                    addEdge(nextId(), sourceId, targetId,
+                        'endArrow=none;html=1;strokeColor=' + color + ';strokeWidth=2.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
+                    const edge = edges[edges.length - 1];
+                    edge.label = 'Subnet ' + link.subnet + ' (' + getStorageSubnetCidr(s, link.subnet, '10.0.' + link.subnet + '.0/24') + ')';
+                    if (sourcePosition && targetPosition) {
+                        edge.points = [
+                            { x: sourcePosition.x, y: laneY },
+                            { x: targetPosition.x, y: laneY }
+                        ];
                     }
                 }
             }
@@ -2374,8 +2378,8 @@
 
         // Extend page height for switchless mesh routing area below nodes
         let pageH = nodesY + nodeH + 100;
-        if (isSwitchless && n >= 2) {
-            pageH = nodesY + nodeH + (n * (n - 1)) * 22 + 120;
+        if (switchlessTopology) {
+            pageH = nodesY + nodeH + switchlessTopology.links.length * 22 + 120;
         }
 
         // --- Build XML ---
@@ -5909,7 +5913,14 @@
                 return '<div style="color:var(--text-secondary);">Diagram is available for 2–4 node switchless scenarios only.</div>';
             }
 
-            var ports = parseInt(state.ports, 10) || 0;
+            const topology = window.getSwitchlessStorageTopology(state);
+            const managementPorts = topology.managementPorts;
+            const storagePorts = topology.storagePorts;
+            const diagramLinks = topology.links.map((link, index) => ({
+                ...link,
+                lane: index,
+                pair: getNodeLabel(link.a.n) + ' ↔ ' + getNodeLabel(link.b.n)
+            }));
 
             const slMgmtVnicH = 38;
             const slMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
@@ -5959,19 +5970,6 @@
                     return getPortCustomName(state, idx1Based, 'nic');
                 }
 
-                // Resolve actual port assignments from adapter mapping or defaults
-                let mgmtComputePorts2 = [1, 2];
-                let storagePorts2 = [3, 4];
-                if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
-                    mgmtComputePorts2 = [];
-                    storagePorts2 = [];
-                    for (let ami = 1; ami <= ports; ami++) {
-                        const amAssign = state.adapterMapping[ami] || 'pool';
-                        if (amAssign === 'storage') storagePorts2.push(ami);
-                        else mgmtComputePorts2.push(ami);
-                    }
-                }
-
                 function renderSetTeam2(nodeLeft, nodeTop) {
                     const setW = 220;
                     const setH = 62;
@@ -6000,8 +5998,8 @@
                         return t;
                     }
 
-                    out += nicTile(nic1X, nicY, getNicLabel2(mgmtComputePorts2[0] || 1), 0);
-                    out += nicTile(nic2X, nicY, getNicLabel2(mgmtComputePorts2[1] || 2), 1);
+                    out += nicTile(nic1X, nicY, getNicLabel2(managementPorts[0]), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel2(managementPorts[1]), 1);
                     return out;
                 }
 
@@ -6045,10 +6043,7 @@
                     + '2-node switchless uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1–SMB2), and uses <strong style="color:var(--text-primary);">two storage subnets</strong> between the pair.'
                     + '</div>';
 
-                const edges2 = [
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 }
-                ];
+                const edges2 = diagramLinks;
 
                 function pathBetween2Clean(a, b, busY, midX) {
                     return 'M ' + a.x + ' ' + a.y
@@ -6077,7 +6072,7 @@
                     for (let p2 = 0; p2 < 2; p2++) {
                         const tr2 = storageTileRect2(i2, p2);
                         // Use actual storage port indices from adapter mapping
-                        const lbl2 = getNicLabel2(storagePorts2[p2] || (p2 + 3));
+                        const lbl2 = getNicLabel2(storagePorts[p2]);
                         // Center text vertically if label is 11 characters or less, otherwise stagger
                         const textY2 = (lbl2.length <= 11) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -6190,8 +6185,8 @@
                             return t;
                         }
 
-                        out += nicTile(nic1X, nicY, getNicLabelS(1), 0);
-                        out += nicTile(nic2X, nicY, getNicLabelS(2), 1);
+                        out += nicTile(nic1X, nicY, getNicLabelS(managementPorts[0]), 0);
+                        out += nicTile(nic2X, nicY, getNicLabelS(managementPorts[1]), 1);
                         return out;
                     }
 
@@ -6230,14 +6225,7 @@
                         + '3-node switchless (single-link) uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1–SMB2), and uses <strong style="color:var(--text-primary);">three storage subnets</strong> (one per node-pair).'
                         + '</div>';
 
-                    // Full-mesh single-link mapping:
-                    // - Each node connects to both peers with a single link.
-                    // - With 2 ports per node, each node dedicates one port per peer.
-                    const edgesS = [
-                        { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
-                        { subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 1 },
-                        { subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 }, pair: 'Node2↔Node3', lane: 2 }
-                    ];
+                    const edgesS = diagramLinks;
 
                     function pathBetweenS(a, b, busY, midX) {
                         return 'M ' + a.x + ' ' + a.y
@@ -6265,8 +6253,7 @@
 
                         for (let pS = 0; pS < 2; pS++) {
                             const trS = storageTileRectS(iS, pS);
-                            // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                            const labelS = getNicLabelS(pS + 3);
+                            const labelS = getNicLabelS(storagePorts[pS]);
                             // Center text vertically if label is 11 characters or less, otherwise stagger
                             const textYS = (labelS.length <= 11) ? (trS.y + 23) : ((pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28));
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -6402,8 +6389,8 @@
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
-                    out += nicTile(nic1X, nicY, getNicLabel(1), 0);
-                    out += nicTile(nic2X, nicY, getNicLabel(2), 1);
+                    out += nicTile(nic1X, nicY, getNicLabel(managementPorts[0]), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel(managementPorts[1]), 1);
                     return out;
                 }
 
@@ -6433,21 +6420,7 @@
                     return 'hsla(' + h + ', 78%, 62%, 0.95)';
                 }
 
-                // A clear, consistent mapping (conceptual) between ports and the 6 storage subnets.
-                // - Two subnets per node-pair.
-                // - Numbering aligns to the 4-node reference pattern numbering style:
-                //   1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
-                const edges = [
-                    // Node1 <-> Node2 (two lanes)
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
-                    // Node1 <-> Node3 (two lanes)
-                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 2 },
-                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1↔Node3', lane: 3 },
-                    // Node2 <-> Node3 (two lanes)
-                    { subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2↔Node3', lane: 4 },
-                    { subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2↔Node3', lane: 5 }
-                ];
+                const edges = diagramLinks;
 
                 function pathBetween(a, b, busY, midX) {
                     // Route via a dedicated lane (busY) so each subnet is readable at first sight.
@@ -6486,8 +6459,7 @@
 
                     for (let p3 = 0; p3 < 4; p3++) {
                         const tr = storageTileRect(i3, p3);
-                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        const label = getNicLabel(p3 + 3);
+                        const label = getNicLabel(storagePorts[p3]);
                         // Center text vertically if label is 11 characters or less, otherwise stagger
                         const textY3 = (label.length <= 11) ? (tr.y + 23) : ((p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28));
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -6607,8 +6579,8 @@
                         return t;
                     }
 
-                    out += nicTile(nic1X, nicY, getNicLabel4(1), 0);
-                    out += nicTile(nic2X, nicY, getNicLabel4(2), 1);
+                    out += nicTile(nic1X, nicY, getNicLabel4(managementPorts[0]), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel4(managementPorts[1]), 1);
                     return out;
                 }
 
@@ -6689,28 +6661,7 @@
                     return 'hsla(' + h + ', 78%, 62%, 0.95)';
                 }
 
-                // Port/subnet mapping: two subnets per node-pair.
-                // Each node has 3 peers; dual-link means 6 RDMA ports and each SMB port maps to exactly one peer.
-                const edges4 = [
-                    // Node1 <-> Node2
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
-                    // Node1 <-> Node3
-                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 2 },
-                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1↔Node3', lane: 3 },
-                    // Node1 <-> Node4
-                    { subnet: 5, a: { n: 0, p: 4 }, b: { n: 3, p: 0 }, pair: 'Node1↔Node4', lane: 4 },
-                    { subnet: 6, a: { n: 0, p: 5 }, b: { n: 3, p: 1 }, pair: 'Node1↔Node4', lane: 5 },
-                    // Node2 <-> Node3
-                    { subnet: 7, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2↔Node3', lane: 6 },
-                    { subnet: 8, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2↔Node3', lane: 7 },
-                    // Node2 <-> Node4
-                    { subnet: 9, a: { n: 1, p: 4 }, b: { n: 3, p: 2 }, pair: 'Node2↔Node4', lane: 8 },
-                    { subnet: 10, a: { n: 1, p: 5 }, b: { n: 3, p: 3 }, pair: 'Node2↔Node4', lane: 9 },
-                    // Node3 <-> Node4
-                    { subnet: 11, a: { n: 2, p: 4 }, b: { n: 3, p: 4 }, pair: 'Node3↔Node4', lane: 10 },
-                    { subnet: 12, a: { n: 2, p: 5 }, b: { n: 3, p: 5 }, pair: 'Node3↔Node4', lane: 11 }
-                ];
+                const edges4 = diagramLinks;
 
                 function pathBetween4Clean(a, b, busY, midX) {
                     // Clean orthogonal routing:
@@ -6750,8 +6701,7 @@
 
                     for (let p4 = 0; p4 < 6; p4++) {
                         const tr4 = storageTileRect4(i4, p4);
-                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        const lbl4 = getNicLabel4(p4 + 3);
+                        const lbl4 = getNicLabel4(storagePorts[p4]);
                         // Center text vertically if label is 11 characters or less, otherwise stagger
                         const textY4 = (lbl4.length <= 11) ? (tr4.y + 23) : ((p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28));
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -7992,117 +7942,9 @@
             const validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
             if (validSubnets.length > 0) {
                 hostNetworkingRows += row('Storage Subnets', validSubnets.join(', '), true);
-                // Calculate and display storage adapter IPs for each node
-                const nodeCount = parseInt(s.nodes, 10) || 0;
-                if (nodeCount > 0) {
-                    const storageIpDetails = [];
-
-                    // Helper function to get subnet prefix from CIDR
-                    const getSubnetPrefix = function(cidr) {
-                        const cidrParts = String(cidr).trim().split('/');
-                        if (cidrParts.length >= 1) {
-                            const ipParts = cidrParts[0].split('.');
-                            if (ipParts.length === 4) {
-                                return ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
-                            }
-                        }
-                        return null;
-                    };
-
-                    // Helper to get node name
-                    const getNodeName = function(nodeIdx) {
-                        return (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name)
-                            ? s.nodeSettings[nodeIdx].name : ('node' + (nodeIdx + 1));
-                    };
-
-                    if (s.storage === 'switched') {
-                        // For switched storage, show IPs from the first two subnets
-                        // All nodes share the same two subnets
-                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        for (let subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
-                            var prefix = getSubnetPrefix(validSubnets[subnetIdx]);
-                            if (prefix) {
-                                const adapterName = getPortCustomName(s, subnetIdx + 3, 'nic');
-                                var nodeIps = [];
-                                for (let nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-                                    nodeIps.push(getNodeName(nodeIdx) + ': ' + prefix + '.' + (nodeIdx + 2));
-                                }
-                                storageIpDetails.push(adapterName + ': ' + nodeIps.join(', '));
-                            }
-                        }
-                    } else if (s.storage === 'switchless') {
-                        // For switchless storage, organize by SMB adapter like the ARM template
-                        // Each SMB adapter shows which node gets which IP from which subnet
-
-                        if (nodeCount === 2) {
-                            // 2-node switchless: 2 SMB adapters, 2 subnets
-                            // SMB1: both nodes use Subnet1, SMB2: both nodes use Subnet2
-                            for (var smbIdx = 0; smbIdx < 2 && smbIdx < validSubnets.length; smbIdx++) {
-                                var prefix = getSubnetPrefix(validSubnets[smbIdx]);
-                                if (prefix) {
-                                    var nodeIps = [];
-                                    nodeIps.push(getNodeName(0) + ': ' + prefix + '.2');
-                                    nodeIps.push(getNodeName(1) + ': ' + prefix + '.3');
-                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                                    var smbName = getPortCustomName(s, smbIdx + 3, 'nic');
-                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
-                                }
-                            }
-                        } else if (nodeCount === 3) {
-                            // 3-node switchless dual-link: 4 SMB adapters, 6 subnets
-                            // Subnet pairs: 1-2 (Node1↔Node2), 3-4 (Node1↔Node3), 5-6 (Node2↔Node3)
-                            const subnetPairs3 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [2, 3], 6: [2, 3] };
-                            const nodeToSubnetBySmb3 = { 1: [1, 2, 3, 4], 2: [1, 2, 5, 6], 3: [3, 4, 5, 6] };
-
-                            for (var smbIdx = 1; smbIdx <= 4; smbIdx++) {
-                                var nodeIps = [];
-                                for (var nodeNum = 1; nodeNum <= 3; nodeNum++) {
-                                    var subnets = nodeToSubnetBySmb3[nodeNum];
-                                    var subnetNum = subnets[smbIdx - 1];
-                                    var pair = subnetPairs3[subnetNum];
-                                    var hostOctet = (nodeNum === pair[0]) ? 2 : 3;
-                                    var prefix = getSubnetPrefix(validSubnets[subnetNum - 1]);
-                                    if (prefix) {
-                                        nodeIps.push(getNodeName(nodeNum - 1) + ': ' + prefix + '.' + hostOctet);
-                                    }
-                                }
-                                if (nodeIps.length > 0) {
-                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                                    var smbName = getPortCustomName(s, smbIdx + 2, 'nic');
-                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
-                                }
-                            }
-                        } else if (nodeCount === 4) {
-                            // 4-node switchless dual-link: 6 SMB adapters, 12 subnets
-                            const subnetPairs4 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [1, 4], 6: [1, 4],
-                                7: [2, 3], 8: [2, 3], 9: [2, 4], 10: [2, 4], 11: [3, 4], 12: [3, 4] };
-                            const nodeToSubnetBySmb4 = { 1: [1, 2, 3, 4, 5, 6], 2: [1, 2, 7, 8, 9, 10],
-                                3: [3, 4, 7, 8, 11, 12], 4: [5, 6, 9, 10, 11, 12] };
-
-                            for (var smbIdx = 1; smbIdx <= 6; smbIdx++) {
-                                var nodeIps = [];
-                                for (var nodeNum = 1; nodeNum <= 4; nodeNum++) {
-                                    var subnets = nodeToSubnetBySmb4[nodeNum];
-                                    var subnetNum = subnets[smbIdx - 1];
-                                    var pair = subnetPairs4[subnetNum];
-                                    var hostOctet = (nodeNum === pair[0]) ? 2 : 3;
-                                    var prefix = getSubnetPrefix(validSubnets[subnetNum - 1]);
-                                    if (prefix) {
-                                        nodeIps.push(getNodeName(nodeNum - 1) + ': ' + prefix + '.' + hostOctet);
-                                    }
-                                }
-                                if (nodeIps.length > 0) {
-                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                                    var smbName = getPortCustomName(s, smbIdx + 2, 'nic');
-                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
-                                }
-                            }
-                        }
-                    }
-                    if (storageIpDetails.length > 0) {
-                        hostNetworkingRows += row('Storage Adapter IPs', storageIpDetails.join('; '), true);
-                    }
-                }
+                getStorageAdapterIpDetails(s).forEach(detail => {
+                    hostNetworkingRows += row('Storage Adapter IPs', detail, true);
+                });
             }
         }
         if (s.storagePoolConfiguration) {

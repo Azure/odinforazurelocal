@@ -606,6 +606,9 @@ function computeWizardProgress() {
         add('Storage Connectivity', Boolean(state.storage));
         add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
         add('Traffic Intent', Boolean(state.intent));
+        if (state.storageAutoIp === 'disabled') {
+            add('Storage Subnets', state.customStorageSubnetsConfirmed && getCustomStorageSubnetValidation().ready);
+        }
     }
     add('Outbound Connectivity', Boolean(state.outbound));
     add('Arc Gateway', Boolean(state.arc));
@@ -881,6 +884,14 @@ function getReportReadiness() {
     if (!state.ports) missing.push('Ports');
     if (!state.storagePoolConfiguration) missing.push('Storage Pool Configuration');
     if (!state.intent) missing.push('Traffic Intent');
+    if (state.storageAutoIp === 'disabled') {
+        const subnetValidation = getCustomStorageSubnetValidation();
+        subnetValidation.errors.forEach((error, index) => {
+            if (error) missing.push('Storage Subnet ' + (index + 1) + ': ' + error);
+        });
+        if (!subnetValidation.requiredCount) missing.push('Storage Subnets');
+        if (!state.customStorageSubnetsConfirmed) missing.push('Confirm Storage Subnets');
+    }
     if (!state.outbound) missing.push('Outbound Connectivity');
     if (!state.arc) missing.push('Azure Arc Gateway');
     if (!state.proxy) missing.push('Proxy');
@@ -1841,27 +1852,6 @@ function generateArmParameters() {
             return (typeof getPortDisplayName === 'function') ? getPortDisplayName(nicIdx1Based) : `Port ${nicIdx1Based}`;
         };
 
-        /**
-         * Get custom storage adapter name for storageNetworkList.
-         * For switchless: uses ports after mgmt/compute (ports 3, 4, 5, 6, ...)
-         * For switched: uses the specified storage port number
-         * @param {number} smbIdx1Based - 1-based SMB adapter index (1, 2, 3, ...)
-         * @param {number} storagePortOffset - For switchless, the offset from port 3 (default 2 for ports 3+)
-         * @returns {string} The adapter name for ARM template
-         */
-        const armAdapterNameForSmb = (smbIdx1Based, storagePortOffset = 2) => {
-            const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
-            // For switchless storage, SMB adapters map to ports after mgmt/compute (ports 3, 4, ...)
-            // For switched storage, the smbIdx directly corresponds to a port number
-            const portIdx = storagePortOffset + smbIdx1Based - 1; // 0-based index in portConfig
-            const pc = cfg[portIdx];
-            if (pc && pc.customName && pc.customName.trim()) {
-                return pc.customName.trim();
-            }
-            const portIdx1Based = portIdx + 1;
-            return (typeof getPortDisplayName === 'function') ? getPortDisplayName(portIdx1Based) : `Port ${portIdx1Based}`;
-        };
-
         const sanitizeIntentName = (raw) => {
             const s = String(raw || '').trim();
             if (!s) return 'Intent';
@@ -1989,207 +1979,38 @@ function generateArmParameters() {
             return defaultSubnet;
         };
 
-        // Helper to extract network prefix and calculate IP from custom CIDR or default
-        // defaultThirdOctet should be a number (e.g., 1, 2, 3) used to construct 10.0.{n}.0/24
         const getSubnetInfo = (subnetIndex, defaultThirdOctet) => {
             const defaultCidr = `10.0.${defaultThirdOctet}.0/24`;
-            const rawCidr = getCustomSubnetOrDefault(subnetIndex, defaultCidr);
-            // Ensure we are working with a string and trim whitespace
-            let cidr = (typeof rawCidr === 'string' ? rawCidr : defaultCidr).trim();
-
-            // Validate CIDR structure: "<ip>/<prefix>", where <ip> has 4 dot-separated numeric octets
-            const parts = cidr.split('/');
-            let ipParts = [];
-            let useDefault = false;
-
-            if (parts.length !== 2) {
-                useDefault = true;
-            } else {
-                ipParts = parts[0].split('.');
-                if (ipParts.length !== 4) {
-                    useDefault = true;
-                } else if (ipParts.some(p => p === '' || Number.isNaN(Number(p)))) {
-                    useDefault = true;
-                }
-            }
-
-            if (useDefault) {
-                cidr = defaultCidr;
-                const defaultParts = cidr.split('/');
-                ipParts = defaultParts[0].split('.');
-            }
-
-            const prefix = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
-            const mask = cidrToSubnetMask(cidr) || '255.255.255.0';
-            return { prefix, mask, cidr };
+            const cidr = getCustomSubnetOrDefault(subnetIndex, defaultCidr);
+            return window.getIpv4SubnetInfo(cidr);
         };
 
         const storageNetworkList = (() => {
-            // Special-case: 3-node switchless requires explicit storage subnet/IP assignment.
-            // Use the same example subnet numbering shown in the report:
-            // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
-            if (state.storage === 'switchless' && nodeCount === 3) {
-                const vlanId = (storageVlans[0] !== null && storageVlans[0] !== undefined) ? String(storageVlans[0]) : 'REPLACE_WITH_STORAGE_VLAN_1';
-
-                const subnetPairs = {
-                    1: [1, 2],
-                    2: [1, 2],
-                    3: [1, 3],
-                    4: [1, 3],
-                    5: [2, 3],
-                    6: [2, 3]
-                };
-
-                // For each node (1..3), map SMB1..SMB4 to the correct subnet number.
-                const nodeToSubnetBySmb = {
-                    1: [1, 2, 3, 4],
-                    2: [1, 2, 5, 6],
-                    3: [3, 4, 5, 6]
-                };
-
-                const nodeNames = [
-                    getNodeNameForArm(0),
-                    getNodeNameForArm(1),
-                    getNodeNameForArm(2)
-                ];
-
-                // Get subnet info for each of the 6 subnets (custom or default)
-                const subnetInfoMap = {};
-                for (let i = 1; i <= 6; i++) {
-                    subnetInfoMap[i] = getSubnetInfo(i - 1, i);
-                }
-
-                const makeIpv4 = (subnetNumber, hostOctet) => {
-                    const info = subnetInfoMap[subnetNumber];
-                    return info ? `${info.prefix}.${hostOctet}` : `10.0.${subnetNumber}.${hostOctet}`;
-                };
-                const getSubnetMask = (subnetNumber) => {
-                    const info = subnetInfoMap[subnetNumber];
-                    return info ? info.mask : '255.255.255.0';
-                };
-                const hostOctetForNodeInSubnet = (subnetNumber, nodeNumber) => {
-                    const pair = subnetPairs[subnetNumber];
-                    if (!pair) return null;
-                    // Lower-numbered node gets .2, higher gets .3.
-                    if (nodeNumber === pair[0]) return 2;
-                    if (nodeNumber === pair[1]) return 3;
-                    return null;
-                };
-
-                const list = [];
-                for (let smbIdx = 1; smbIdx <= 4; smbIdx++) {
-                    const storageAdapterIPInfo = [];
-                    for (let nodeNumber = 1; nodeNumber <= 3; nodeNumber++) {
-                        const subnets = nodeToSubnetBySmb[nodeNumber];
-                        const subnetNumber = subnets ? subnets[smbIdx - 1] : null;
-                        const hostOctet = subnetNumber ? hostOctetForNodeInSubnet(subnetNumber, nodeNumber) : null;
-                        storageAdapterIPInfo.push({
-                            physicalNode: nodeNames[nodeNumber - 1] || `node${nodeNumber}`,
-                            ipv4Address: (subnetNumber && hostOctet) ? makeIpv4(subnetNumber, hostOctet) : `REPLACE_WITH_NODE_${nodeNumber}_SMB${smbIdx}_IP`,
-                            subnetMask: subnetNumber ? getSubnetMask(subnetNumber) : '255.255.255.0'
-                        });
-                    }
-
-                    list.push({
-                        name: `StorageNetwork${smbIdx}`,
-                        networkAdapterName: armAdapterNameForSmb(smbIdx, 2),
-                        vlanId: vlanId,
-                        storageAdapterIPInfo: storageAdapterIPInfo
+            const topology = window.getSwitchlessStorageTopology(state);
+            if (topology && (nodeCount > 2 || state.storageAutoIp === 'disabled')) {
+                return topology.storagePorts.map((port, storageIndex) => {
+                    const vlanIndex = nodeCount === 2 ? storageIndex : 0;
+                    const vlan = storageVlans[vlanIndex];
+                    const storageAdapterIPInfo = Array.from({ length: nodeCount }, (_, nodeIndex) => {
+                        const link = topology.links.find(candidate =>
+                            (candidate.a.n === nodeIndex && candidate.a.p === storageIndex) ||
+                            (candidate.b.n === nodeIndex && candidate.b.p === storageIndex));
+                        const subnet = link ? getSubnetInfo(link.subnet - 1, link.subnet) : null;
+                        const hostIndex = link && link.a.n === nodeIndex ? 0 : 1;
+                        const address = subnet ? window.getStorageSubnetAddress(subnet.cidr, hostIndex, 2) : null;
+                        return {
+                            physicalNode: getNodeNameForArm(nodeIndex),
+                            ipv4Address: address || `REPLACE_WITH_NODE_${nodeIndex + 1}_STORAGE_${storageIndex + 1}_IP`,
+                            subnetMask: subnet ? subnet.subnetMask : 'REPLACE_WITH_STORAGE_SUBNET_MASK'
+                        };
                     });
-                }
-
-                return list;
-            }
-
-            // Special-case: 4-node switchless requires explicit storage subnet/IP assignment.
-            // Use the same example networks shown in the report (based on Microsoft Learn guidance)
-            // so the generated parameters file is complete and matches the reference pattern.
-            if (state.storage === 'switchless' && nodeCount === 4) {
-                const vlanId = (storageVlans[0] !== null && storageVlans[0] !== undefined) ? String(storageVlans[0]) : 'REPLACE_WITH_STORAGE_VLAN_1';
-
-                // Subnet pairs (two subnets per node pair).
-                const subnetPairs = {
-                    1: [1, 2],
-                    2: [1, 2],
-                    3: [1, 3],
-                    4: [1, 3],
-                    5: [1, 4],
-                    6: [1, 4],
-                    7: [2, 3],
-                    8: [2, 3],
-                    9: [2, 4],
-                    10: [2, 4],
-                    11: [3, 4],
-                    12: [3, 4]
-                };
-
-                // For each node (1..4), map SMB1..SMB6 to the correct subnet number.
-                // This mirrors the wiring/subnet mapping in the Microsoft Learn 4-node switchless dual-link reference.
-                const nodeToSubnetBySmb = {
-                    1: [1, 2, 3, 4, 5, 6],
-                    2: [1, 2, 7, 8, 9, 10],
-                    3: [3, 4, 7, 8, 11, 12],
-                    4: [5, 6, 9, 10, 11, 12]
-                };
-
-                const nodeNames = [
-                    getNodeNameForArm(0),
-                    getNodeNameForArm(1),
-                    getNodeNameForArm(2),
-                    getNodeNameForArm(3)
-                ];
-
-                // Build subnet info map for all 12 subnets (custom or default)
-                const subnetInfoMap = {};
-                for (let i = 1; i <= 12; i++) {
-                    subnetInfoMap[i] = getSubnetInfo(i - 1, i);
-                }
-
-                const makeIpv4 = (subnetNumber, hostOctet) => {
-                    const subnetInfo = subnetInfoMap[subnetNumber];
-                    if (!subnetInfo || !subnetInfo.prefix) {
-                        // Missing or invalid subnet info; return fallback
-                        return `10.0.${subnetNumber}.${hostOctet}`;
-                    }
-                    return `${subnetInfo.prefix}.${hostOctet}`;
-                };
-                const getSubnetMask = (subnetNumber) => {
-                    const subnetInfo = subnetInfoMap[subnetNumber];
-                    // Fall back to a default mask if subnet info is missing or malformed
-                    return (subnetInfo && subnetInfo.mask) ? subnetInfo.mask : '255.255.255.0';
-                };
-                const hostOctetForNodeInSubnet = (subnetNumber, nodeNumber) => {
-                    const pair = subnetPairs[subnetNumber];
-                    if (!pair) return null;
-                    // Lower-numbered node gets .2, higher gets .3 (matches Learn example).
-                    if (nodeNumber === pair[0]) return 2;
-                    if (nodeNumber === pair[1]) return 3;
-                    return null;
-                };
-
-                const list = [];
-                for (let smbIdx = 1; smbIdx <= 6; smbIdx++) {
-                    const storageAdapterIPInfo = [];
-                    for (let nodeNumber = 1; nodeNumber <= 4; nodeNumber++) {
-                        const subnets = nodeToSubnetBySmb[nodeNumber];
-                        const subnetNumber = subnets ? subnets[smbIdx - 1] : null;
-                        const hostOctet = subnetNumber ? hostOctetForNodeInSubnet(subnetNumber, nodeNumber) : null;
-                        storageAdapterIPInfo.push({
-                            physicalNode: nodeNames[nodeNumber - 1] || `node${nodeNumber}`,
-                            ipv4Address: (subnetNumber && hostOctet) ? makeIpv4(subnetNumber, hostOctet) : `REPLACE_WITH_NODE_${nodeNumber}_SMB${smbIdx}_IP`,
-                            subnetMask: subnetNumber ? getSubnetMask(subnetNumber) : '255.255.255.0'
-                        });
-                    }
-
-                    list.push({
-                        name: `StorageNetwork${smbIdx}`,
-                        networkAdapterName: armAdapterNameForSmb(smbIdx, 2),
-                        vlanId: vlanId,
-                        storageAdapterIPInfo: storageAdapterIPInfo
-                    });
-                }
-
-                return list;
+                    return {
+                        name: `StorageNetwork${storageIndex + 1}`,
+                        networkAdapterName: armAdapterNameForNic(port),
+                        vlanId: vlan !== null && vlan !== undefined ? String(vlan) : `REPLACE_WITH_STORAGE_VLAN_${vlanIndex + 1}`,
+                        storageAdapterIPInfo
+                    };
+                });
             }
 
             const list = [];
@@ -2205,8 +2026,8 @@ function generateArmParameters() {
                 for (let i = 0; i < nodeCount; i++) {
                     adapterInfo.push({
                         physicalNode: getNodeNameForArm(i),
-                        ipv4Address: `${subnetInfo.prefix}.${i + 2}`,
-                        subnetMask: subnetInfo.mask
+                        ipv4Address: (subnetInfo && window.getStorageSubnetAddress(subnetInfo.cidr, i, nodeCount)) || `REPLACE_WITH_NODE_${i + 1}_STORAGE_IP`,
+                        subnetMask: subnetInfo ? subnetInfo.subnetMask : 'REPLACE_WITH_STORAGE_SUBNET_MASK'
                     });
                 }
                 return adapterInfo;
@@ -2218,7 +2039,7 @@ function generateArmParameters() {
                 const vlan = storageVlans[idx];
                 const network = {
                     name: `StorageNetwork${idx + 1}`,
-                    networkAdapterName: nic ? armAdapterNameForSmb(idx + 1, nic - 1 - idx) : `REPLACE_WITH_STORAGE_ADAPTER_${idx + 1}`,
+                    networkAdapterName: nic ? armAdapterNameForNic(nic) : `REPLACE_WITH_STORAGE_ADAPTER_${idx + 1}`,
                     vlanId: (vlan !== null && vlan !== undefined) ? String(vlan) : `REPLACE_WITH_STORAGE_VLAN_${idx + 1}`
                 };
                 if (includeStorageAdapterIPInfo) {
@@ -2239,22 +2060,7 @@ function generateArmParameters() {
             ensureIntentOverrideDefaults();
 
             const getStorageAdapterNamesForIntent = (groupNics) => {
-                // Storage intent adapters in the ARM template.
-                // - Switchless: virtual adapters mapped to ports after mgmt/compute (ports 3, 4, ...)
-                // - Switched: use the port display names based on assigned NIC numbers.
-                if (state.storage === 'switchless') {
-                    const n = nodeCount;
-                    const smbCount = (Number.isFinite(n) && n > 1) ? (2 * (n - 1)) : 2;
-                    // Storage ports start after the management/compute ports (typically port 3+)
-                    return Array.from({ length: smbCount }, (_, i) => {
-                        return armAdapterNameForSmb(i + 1, 2);
-                    });
-                }
-
-                // Switched: use armAdapterNameForSmb with port number offset
-                return (Array.isArray(groupNics) ? groupNics : []).map(nicNum => {
-                    return armAdapterNameForSmb(1, nicNum - 1);
-                });
+                return (Array.isArray(groupNics) ? groupNics : []).map(armAdapterNameForNic);
             };
 
             const buildAdapterPropertyOverrides = (groupKey, groupNicNumbers) => {
@@ -6120,16 +5926,9 @@ function ensureDefaultOverridesForGroups(groups) {
 
 // Calculate how many storage subnets are required based on configuration
 function getRequiredStorageSubnetCount() {
-    const nodeCount = parseInt(state.nodes, 10) || 0;
-
     if (state.storage === 'switchless') {
-        // 2-node switchless: 2 subnets
-        if (nodeCount === 2) return 2;
-        // 3-node switchless: 6 subnets (one per node pair link)
-        if (nodeCount === 3) return 6;
-        // 4-node switchless: 12 subnets
-        if (nodeCount === 4) return 12;
-        return 0;
+        const topology = window.getSwitchlessStorageTopology(state);
+        return topology ? topology.links.length : 0;
     }
 
     if (state.storage === 'switched') {
@@ -6138,6 +5937,15 @@ function getRequiredStorageSubnetCount() {
     }
 
     return 0;
+}
+
+function getCustomStorageSubnetValidation() {
+    const requiredCount = getRequiredStorageSubnetCount();
+    const cidrs = Array.from({ length: requiredCount }, (_, index) =>
+        (Array.isArray(state.customStorageSubnets) && state.customStorageSubnets[index]) || '');
+    const hostCount = state.storage === 'switchless' ? 2 : Math.max(1, parseInt(state.nodes, 10) || 0);
+    const errors = window.getStorageSubnetErrors(cidrs, hostCount);
+    return { requiredCount, errors, ready: requiredCount > 0 && errors.every(error => !error) };
 }
 
 // Update the custom storage subnets UI
@@ -6188,14 +5996,17 @@ function updateCustomStorageSubnetsUI() {
 
         html += `
             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                <label style="font-weight: 600; color: var(--text-primary);">${label}</label>
+              <label for="storage-subnet-${i}" style="font-weight: 600; color: var(--text-primary);">${label}</label>
                 <input type="text"
+                  id="storage-subnet-${i}"
                        class="custom-storage-subnet-input"
                        data-subnet-index="${i}"
+                  aria-describedby="storage-subnet-error-${i}"
                        value="${escapeHtml(value)}"
                        placeholder="${placeholder}"
                        style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace;"
                        ${eventHandler} />
+              <span id="storage-subnet-error-${i}" aria-live="polite" style="color: var(--accent-red); font-size: 0.85rem;"></span>
             </div>
         `;
     }
@@ -6208,6 +6019,7 @@ function updateCustomStorageSubnetsUI() {
 
 // Toggle confirmation state for custom storage subnets
 function toggleCustomStorageSubnetsConfirmed() {
+    if (!state.customStorageSubnetsConfirmed && !getCustomStorageSubnetValidation().ready) return;
     state.customStorageSubnetsConfirmed = !state.customStorageSubnetsConfirmed;
     updateUI();
 }
@@ -6216,8 +6028,10 @@ function toggleCustomStorageSubnetsConfirmed() {
 function updateCustomStorageSubnetsConfirmButton() {
     const confirmBtn = document.getElementById('custom-storage-subnets-confirm-btn');
     const confirmStatus = document.getElementById('custom-storage-subnets-confirm-status');
+    const validation = getCustomStorageSubnetValidation();
+    if (!validation.ready) state.customStorageSubnetsConfirmed = false;
     const confirmed = state.customStorageSubnetsConfirmed;
-    const requiredCount = getRequiredStorageSubnetCount();
+    const requiredCount = validation.requiredCount;
 
     // Check if all required subnets have values and are valid CIDR format
     const subnetsToCheck = Array.isArray(state.customStorageSubnets)
@@ -6225,7 +6039,7 @@ function updateCustomStorageSubnetsConfirmButton() {
         : [];
     const allFilled = subnetsToCheck.length >= requiredCount &&
                       subnetsToCheck.every(s => s && s.trim().length > 0);
-    const allValid = allFilled && subnetsToCheck.every(s => isValidCidrFormat(s));
+    const allValid = validation.ready;
 
     if (confirmBtn) {
         if (confirmBtn.dataset && confirmBtn.dataset.bound !== '1') {
@@ -6245,7 +6059,7 @@ function updateCustomStorageSubnetsConfirmButton() {
             confirmStatus.textContent = '✓ Confirmed';
             confirmStatus.style.color = 'var(--accent-blue)';
         } else if (allFilled && !allValid) {
-            confirmStatus.textContent = 'Fix invalid CIDR format';
+            confirmStatus.textContent = 'Fix storage subnet errors';
             confirmStatus.style.color = 'var(--accent-red, #ef4444)';
         } else {
             confirmStatus.textContent = allFilled ? 'Click to confirm' : 'Enter all subnet values';
@@ -6256,6 +6070,13 @@ function updateCustomStorageSubnetsConfirmButton() {
     // Disable/enable inputs based on confirmation state
     const inputs = document.querySelectorAll('.custom-storage-subnet-input');
     inputs.forEach(input => {
+        const index = Number(input.dataset.subnetIndex);
+        const error = input.value.trim() ? (validation.errors[index] || '') : '';
+        input.setAttribute('aria-invalid', error ? 'true' : 'false');
+        input.title = error;
+        input.style.borderColor = error ? 'var(--accent-red)' : 'var(--glass-border)';
+        const message = document.getElementById('storage-subnet-error-' + index);
+        if (message) message.textContent = error;
         input.disabled = confirmed;
         input.style.opacity = confirmed ? '0.7' : '1';
     });
@@ -6678,6 +6499,8 @@ function updateStepIndicators() {
             if (!state.intent) return false;
             // For custom intent, adapter mapping must be confirmed
             if (state.intent === 'custom' && !state.customIntentConfirmed) return false;
+            if (state.storageAutoIp === 'disabled' &&
+                (!state.customStorageSubnetsConfirmed || !getCustomStorageSubnetValidation().ready)) return false;
             return true;
         } },
         { id: 'step-7', validation: () => state.outbound !== null },
@@ -12809,20 +12632,10 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     const mgmtVnicH = 38;
     const vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
 
-    // Determine mgmt/compute vs storage port assignments
-    let mgmtPorts = [1, 2];
-    let storagePorts = [];
-    if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
-        mgmtPorts = [];
-        storagePorts = [];
-        for (let ami = 1; ami <= portCount; ami++) {
-            const amAssign = state.adapterMapping[ami] || 'pool';
-            if (amAssign === 'storage') storagePorts.push(ami);
-            else mgmtPorts.push(ami);
-        }
-    } else {
-        for (let si = 3; si <= portCount; si++) storagePorts.push(si);
-    }
+    const topology = window.getSwitchlessStorageTopology({ ...state, ports: portCount, nodes: nodeCount });
+    if (!topology) return;
+    const mgmtPorts = topology.managementPorts;
+    const storagePorts = topology.storagePorts;
     const storagePerNode = storagePorts.length;
 
     function getNodeLabel(idx) {
@@ -12849,28 +12662,9 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     const svgW = n * nodeW + (n - 1) * nodeGap + 100;
     const nodeY = 90;
 
-    // Subnet edges
-    const edges = [];
-    let subnetNum = 1;
+    const edges = topology.links;
     const linkMode = state.switchlessLinkMode || 'dual_link';
-    const linksPerPair = (n === 3 && linkMode === 'single_link') ? 1 : 2;
-
-    // Build port counters per node (which storage port index connects to which peer)
-    const portCounters = [];
-    for (let pc = 0; pc < n; pc++) portCounters.push(0);
-
-    for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-            for (let lk = 0; lk < linksPerPair; lk++) {
-                edges.push({
-                    subnet: subnetNum++,
-                    a: { n: i, p: portCounters[i]++ },
-                    b: { n: j, p: portCounters[j]++ }
-                });
-            }
-        }
-    }
-    const totalSubnets = subnetNum - 1;
+    const totalSubnets = edges.length;
 
     // Subnet lane area
     const laneGap = 16;
