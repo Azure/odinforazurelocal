@@ -220,28 +220,105 @@ function longToIp(long) {
     ].join('.');
 }
 
+function getIpv4SubnetInfo(cidr) {
+    if (typeof cidr !== 'string') return null;
+    const match = cidr.trim().match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+    if (!match) return null;
+    const address = ipv4ToInt(match[1]);
+    const prefix = Number(match[2]);
+    if (address === null || prefix > 32) return null;
+    const mask = prefixToMask(prefix);
+    const network = (address & mask) >>> 0;
+    const size = Math.pow(2, 32 - prefix);
+    return {
+        address,
+        network,
+        broadcast: network + size - 1,
+        size,
+        prefix,
+        subnetMask: intToIpv4(mask),
+        cidr: intToIpv4(network) + '/' + prefix
+    };
+}
+
+function getStorageSubnetAddress(cidr, hostIndex, hostCount) {
+    const subnet = getIpv4SubnetInfo(cidr);
+    if (!subnet || subnet.address !== subnet.network ||
+        !Number.isInteger(hostIndex) || !Number.isInteger(hostCount) ||
+        hostIndex < 0 || hostCount < 1 || hostIndex >= hostCount ||
+        hostCount > subnet.size - 2) return null;
+    const firstOffset = hostCount + 1 <= subnet.size - 2 ? 2 : 1;
+    return intToIpv4(subnet.network + firstOffset + hostIndex);
+}
+
+function getStorageSubnetErrors(cidrs, hostCount) {
+    const subnets = cidrs.map(getIpv4SubnetInfo);
+    const errors = subnets.map((subnet, index) => {
+        if (!cidrs[index] || !String(cidrs[index]).trim()) return 'Enter a storage subnet';
+        if (!subnet) return 'Invalid IPv4 CIDR format';
+        if (subnet.address !== subnet.network) return 'Use the network address: ' + subnet.cidr;
+        if (!Number.isInteger(hostCount) || hostCount < 1 || subnet.size - 2 < hostCount) {
+            return 'Subnet needs at least ' + hostCount + ' usable host addresses';
+        }
+        return '';
+    });
+    for (let current = 0; current < subnets.length; current++) {
+        if (!subnets[current]) continue;
+        for (let previous = 0; previous < current; previous++) {
+            if (!subnets[previous]) continue;
+            if (subnets[current].network <= subnets[previous].broadcast &&
+                subnets[previous].network <= subnets[current].broadcast) {
+                if (!errors[current]) errors[current] = 'Overlaps Storage Subnet ' + (previous + 1);
+                if (!errors[previous]) errors[previous] = 'Overlaps Storage Subnet ' + (current + 1);
+            }
+        }
+    }
+    return errors;
+}
+
+function getSwitchlessStorageTopology(config) {
+    const nodeCount = parseInt(config && config.nodes, 10);
+    if (!config || config.storage !== 'switchless' || !Number.isInteger(nodeCount) ||
+        nodeCount < 2 || nodeCount > 4) return null;
+    const portCount = parseInt(config.ports, 10) || 0;
+    const managementPorts = [];
+    const storagePorts = [];
+    const hasMapping = config.adapterMappingConfirmed && config.adapterMapping &&
+        Object.keys(config.adapterMapping).length > 0;
+    for (let port = 1; port <= portCount; port++) {
+        const assignment = hasMapping ? config.adapterMapping[port] : (port <= 2 ? 'mgmt_compute' : 'storage');
+        if (assignment === 'storage') storagePorts.push(port);
+        else if (assignment === 'mgmt_compute' || assignment === 'mgmt') managementPorts.push(port);
+    }
+    const linksPerPair = nodeCount === 3 && config.switchlessLinkMode === 'single_link' ? 1 : 2;
+    const portCounters = Array(nodeCount).fill(0);
+    const links = [];
+    for (let firstNode = 0; firstNode < nodeCount; firstNode++) {
+        for (let secondNode = firstNode + 1; secondNode < nodeCount; secondNode++) {
+            for (let link = 0; link < linksPerPair; link++) {
+                links.push({
+                    subnet: links.length + 1,
+                    a: { n: firstNode, p: portCounters[firstNode]++ },
+                    b: { n: secondNode, p: portCounters[secondNode]++ }
+                });
+            }
+        }
+    }
+    return { managementPorts, storagePorts, links };
+}
+
 /**
- * Increment the 3rd octet of a CIDR and return the new CIDR
+ * Advance a CIDR by subnet-sized blocks (retains the legacy helper name)
  * @param {string} cidr - Original CIDR
- * @param {number} increment - Amount to increment
+ * @param {number} increment - Number of subnets to advance
  * @returns {string|null} New CIDR or null if would exceed valid range
  */
 function incrementCidrThirdOctet(cidr, increment) {
-    if (!isValidCidrFormat(cidr)) return null;
-
-    const trimmed = cidr.trim();
-    const parts = trimmed.split('/');
-    const ip = parts[0];
-    const prefix = parts[1];
-    const octets = ip.split('.');
-
-    const thirdOctet = parseInt(octets[2], 10);
-    const newThirdOctet = thirdOctet + increment;
-
-    // Check if new octet would exceed valid range
-    if (newThirdOctet > 255 || newThirdOctet < 0) return null;
-
-    return `${octets[0]}.${octets[1]}.${newThirdOctet}.${octets[3]}/${prefix}`;
+    const subnet = getIpv4SubnetInfo(cidr);
+    if (!subnet || subnet.address !== subnet.network || !Number.isInteger(increment)) return null;
+    const network = subnet.network + increment * subnet.size;
+    if (network < 0 || network + subnet.size - 1 > 0xFFFFFFFF) return null;
+    return intToIpv4(network) + '/' + subnet.prefix;
 }
 
 /**

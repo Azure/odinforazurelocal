@@ -982,10 +982,79 @@
                 'Increment by 10', '10.0.11.0/24', incrementCidrThirdOctet('10.0.1.0/24', 10)),
             assert(incrementCidrThirdOctet('10.0.254.0/24', 1) === '10.0.255.0/24', 
                 'Increment to 255', '10.0.255.0/24', incrementCidrThirdOctet('10.0.254.0/24', 1)),
-            assert(incrementCidrThirdOctet('10.0.255.0/24', 1) === null, 
-                'Overflow returns null', null, incrementCidrThirdOctet('10.0.255.0/24', 1)),
+            assert(incrementCidrThirdOctet('10.0.255.0/24', 1) === '10.1.0.0/24',
+                'Carry into the second octet', '10.1.0.0/24', incrementCidrThirdOctet('10.0.255.0/24', 1)),
+            assert(incrementCidrThirdOctet('255.255.255.0/24', 1) === null,
+                'IPv4 overflow returns null', null, incrementCidrThirdOctet('255.255.255.0/24', 1)),
             assert(incrementCidrThirdOctet('invalid', 1) === null, 
                 'Invalid CIDR returns null', null, incrementCidrThirdOctet('invalid', 1))
+        ]);
+
+        testSuite('Issue #290: CIDR-aware storage allocation', 'utils.js', [
+            assert(incrementCidrThirdOctet('192.0.2.0/30', 1) === '192.0.2.4/30',
+                '/30 advances four addresses'),
+            assert(incrementCidrThirdOctet('192.0.2.0/30', 11) === '192.0.2.44/30',
+                'Twelve four-node link subnets stay consecutive'),
+            assert(incrementCidrThirdOctet('192.0.2.0/25', 1) === '192.0.2.128/25',
+                '/25 advances half an octet'),
+            assert(incrementCidrThirdOctet('192.0.2.0/23', 1) === '192.0.4.0/23',
+                '/23 advances two third-octet values'),
+            assert(incrementCidrThirdOctet('192.0.2.252/30', 1) === '192.0.3.0/30',
+                '/30 carries across an octet boundary'),
+            assert(incrementCidrThirdOctet('192.0.2.1/30', 1) === null,
+                'Unaligned networks are not auto-filled'),
+            assert(getIpv4SubnetInfo('192.0.2.0/30garbage') === null,
+                'Reject a malformed prefix'),
+            assert(getStorageSubnetAddress('192.0.2.4/30', 0, 2) === '192.0.2.5',
+                '/30 first endpoint uses the first usable host'),
+            assert(getStorageSubnetAddress('192.0.2.4/30', 1, 2) === '192.0.2.6',
+                '/30 second endpoint avoids the broadcast address'),
+            assert(getStorageSubnetAddress('192.0.2.128/25', 1, 2) === '192.0.2.131',
+                'Endpoint addresses retain the subnet fourth octet'),
+            assert(getStorageSubnetAddress('192.0.2.0/24', 0, 2) === '192.0.2.2' &&
+                getStorageSubnetAddress('192.0.2.0/24', 1, 2) === '192.0.2.3',
+                'Preserve existing /24 endpoint offsets'),
+            assert(getStorageSubnetAddress('192.0.2.0/30', 2, 3) === null,
+                'Reject a subnet without capacity for all hosts'),
+            assert(getStorageSubnetAddress('192.0.2.0/31', 0, 2) === null &&
+                getStorageSubnetAddress('192.0.2.0/32', 0, 2) === null,
+                'Reject storage networks without two ordinary usable hosts'),
+            assert(getStorageSubnetErrors(['192.0.2.0/30', '192.0.2.4/30'], 2).every(error => !error),
+                'Adjacent /30 networks do not overlap'),
+            assert(getStorageSubnetErrors(['192.0.2.0/25', '192.0.2.4/30'], 2).every(Boolean),
+                'Flag both overlapping subnet inputs'),
+            assert(getStorageSubnetErrors(['192.0.2.0/30', '192.0.2.0/30'], 2).every(Boolean),
+                'Reject duplicate subnets'),
+            assert(Boolean(getStorageSubnetErrors(['192.0.2.0/30'], 3)[0]),
+                'Switched subnets must accommodate every node'),
+            assert(Boolean(getStorageSubnetErrors(['192.0.2.5/30'], 2)[0]),
+                'Flag non-network addresses')
+        ]);
+
+        testSuite('Issues #289/#290: Switchless topology', 'utils.js', [
+            ...[
+                { nodes: '2', ports: '4', links: 2, storage: 2 },
+                { nodes: '3', ports: '4', switchlessLinkMode: 'single_link', links: 3, storage: 2 },
+                { nodes: '3', ports: '6', switchlessLinkMode: 'dual_link', links: 6, storage: 4 },
+                { nodes: '4', ports: '8', links: 12, storage: 6 }
+            ].map(config => {
+                const topology = getSwitchlessStorageTopology({ ...config, storage: 'switchless' });
+                const endpoints = topology.links.flatMap(link => [link.a, link.b]);
+                return assert(topology.links.length === config.links &&
+                    topology.storagePorts.length === config.storage &&
+                    new Set(endpoints.map(endpoint => endpoint.n + ':' + endpoint.p)).size === config.links * 2,
+                    config.nodes + '-node ' + (config.switchlessLinkMode || 'dual_link') + ' maps every storage NIC to one link');
+            }),
+            (() => {
+                const topology = getSwitchlessStorageTopology({
+                    storage: 'switchless', nodes: '4', ports: '8', adapterMappingConfirmed: true,
+                    adapterMapping: { 1: 'storage', 2: 'storage', 3: 'mgmt_compute', 4: 'mgmt_compute',
+                        5: 'storage', 6: 'storage', 7: 'storage', 8: 'storage' }
+                });
+                return assert(topology.managementPorts.join(',') === '3,4' &&
+                    topology.storagePorts.join(',') === '1,2,5,6,7,8',
+                    'Honor confirmed non-default NIC assignments');
+            })()
         ]);
 
         // ========================================================================
@@ -2378,6 +2447,43 @@
             })()
         ]);
 
+        testSuite('Issue #290: ARM storage-mask import', 'script.js', [
+            (() => {
+                const imported = parseArmTemplateToState({
+                    $schema: 'https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#',
+                    parameters: {
+                        enableStorageAutoIp: { value: false },
+                        storageNetworkList: { value: [{
+                            networkAdapterName: 'Demo-NIC-1',
+                            storageAdapterIPInfo: [
+                                { physicalNode: 'demo1', ipv4Address: '198.51.100.5', subnetMask: '255.255.255.252' },
+                                { physicalNode: 'demo2', ipv4Address: '198.51.100.6', subnetMask: '255.255.255.252' },
+                                { physicalNode: 'demo3', ipv4Address: '198.51.100.130', subnetMask: '255.255.255.128' }
+                            ]
+                        }] }
+                    }
+                });
+                return assert(imported.customStorageSubnets.join(',') === '198.51.100.4/30,198.51.100.128/25',
+                    'Read every adapter entry, deduplicate shared networks, and preserve /30 and /25 prefixes');
+            })(),
+            (() => {
+                const imported = parseArmTemplateToState({
+                    $schema: 'https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#',
+                    parameters: {
+                        enableStorageAutoIp: { value: false },
+                        storageNetworkList: { value: [{
+                            networkAdapterName: 'Demo-NIC-1',
+                            storageAdapterIPInfo: [
+                                { physicalNode: 'demo1', ipv4Address: '198.51.100.5', subnetMask: '255.0.255.0' }
+                            ]
+                        }] }
+                    }
+                });
+                return assert(imported.customStorageSubnets.length === 0 && !imported.customStorageSubnetsConfirmed,
+                    'Reject a non-contiguous mask instead of silently importing /24');
+            })()
+        ]);
+
         // Test: parseArmTemplateToState - Security settings
         testSuite('parseArmTemplateToState() - Security Settings', 'script.js', [
             (function() {
@@ -3266,6 +3372,106 @@
                     Object.assign(state, origState);
                     window.open = origOpen;
                     return assert(false, 'ARM generation did not throw', 'no error', e.message);
+                }
+            })()
+        ]);
+
+        testSuite('Issues #289/#290: Designer and ARM switchless output', 'script.js', [
+            ...[
+                { nodes: 2, ports: 4, linkMode: 'dual_link', subnets: 2 },
+                { nodes: 3, ports: 4, linkMode: 'single_link', subnets: 3 },
+                { nodes: 3, ports: 6, linkMode: 'dual_link', subnets: 6 },
+                { nodes: 4, ports: 8, linkMode: 'dual_link', subnets: 12 }
+            ].map(config => {
+                const originalState = JSON.parse(JSON.stringify(state));
+                const originalOpen = window.open;
+                const originalPayload = localStorage.getItem('azloc_arm_payload');
+                try {
+                    Object.assign(state, getInitialWizardState(), {
+                        scenario: 'connected', architecture: 'hyperconverged', region: 'eastus',
+                        localInstanceRegion: 'East US', scale: 'low_capacity', nodes: String(config.nodes),
+                        ports: String(config.ports), storage: 'switchless', storagePoolConfiguration: 'Express',
+                        intent: 'mgmt_compute', storageAutoIp: 'disabled', switchlessLinkMode: config.linkMode,
+                        witnessType: 'Cloud', ip: 'static', infraGateway: '192.0.2.1',
+                        outbound: 'public', proxy: 'no_proxy', arc: 'no_arc', privateEndpoints: 'no_pe',
+                        infra: { start: '192.0.2.100', end: '192.0.2.105' }, infraCidr: '192.0.2.0/24',
+                        infraVlan: 'default', activeDirectory: 'local_identity', localDnsZone: 'example.test',
+                        dnsServers: ['192.0.2.1'], securityConfiguration: 'recommended', sdnEnabled: 'no',
+                        portConfigConfirmed: true, adapterMappingConfirmed: true,
+                        portConfig: Array.from({ length: config.ports }, (_, index) => ({
+                            speed: '25GbE', rdma: index !== 2 && index !== 3,
+                            rdmaMode: index !== 2 && index !== 3 ? 'RoCEv2' : 'Disabled', customName: 'Test-NIC-' + (index + 1)
+                        })),
+                        nodeSettings: Array.from({ length: config.nodes }, (_, index) => ({
+                            name: 'demo-node' + (index + 1), ipCidr: '192.0.2.' + (index + 10) + '/24'
+                        })),
+                        adapterMapping: Object.fromEntries(Array.from({ length: config.ports }, (_, index) =>
+                            [index + 1, index === 2 || index === 3 ? 'mgmt_compute' : 'storage']))
+                    });
+                    window.open = function() {};
+                    updateCustomStorageSubnet(0, '198.51.100.0/30');
+                    const autoFilled = state.customStorageSubnets.length === config.subnets &&
+                        state.customStorageSubnets[config.subnets - 1] === '198.51.100.' + ((config.subnets - 1) * 4) + '/30';
+                    state.customStorageSubnetsConfirmed = true;
+                    localStorage.removeItem('azloc_arm_payload');
+                    generateArmParameters();
+                    const payload = JSON.parse(localStorage.getItem('azloc_arm_payload') || 'null');
+                    const parameters = payload && payload.parametersFile.parameters;
+                    const networks = parameters && parameters.storageNetworkList.value;
+                    if (!networks) return assert(false, 'ARM generated for ' + config.nodes + '-node ' + config.linkMode,
+                        'Ready configuration', getArmReadiness().missing.join('; '));
+                    const topology = getSwitchlessStorageTopology(state);
+                    const intent = parameters.intentList.value.find(item => item.trafficType.includes('Storage'));
+                    const expectedNames = topology.storagePorts.map(port => 'Test-NIC-' + port);
+                    const adapterNamesMatch = networks.map(network => network.networkAdapterName).join(',') === expectedNames.join(',') &&
+                        intent.adapter.join(',') === expectedNames.join(',');
+                    const addresses = [];
+                    let endpointsMatch = true;
+                    for (const link of topology.links) {
+                        [link.a, link.b].forEach((endpoint, hostIndex) => {
+                            const address = networks[endpoint.p].storageAdapterIPInfo.find(info =>
+                                info.physicalNode === 'demo-node' + (endpoint.n + 1));
+                            const expected = '198.51.100.' + ((link.subnet - 1) * 4 + hostIndex + 1);
+                            endpointsMatch = endpointsMatch && address.ipv4Address === expected && address.subnetMask === '255.255.255.252';
+                            addresses.push(address.ipv4Address);
+                        });
+                    }
+                    const imported = parseArmTemplateToState(payload.parametersFile);
+                    const roundTripMatches = imported.customStorageSubnetsConfirmed &&
+                        JSON.stringify(imported.customStorageSubnets) === JSON.stringify(state.customStorageSubnets);
+                    state.customStorageSubnets.reverse();
+                    generateArmParameters();
+                    const reorderedArm = JSON.parse(localStorage.getItem('azloc_arm_payload')).parametersFile;
+                    reorderedArm.parameters.storageNetworkList.value.reverse().forEach(network => network.storageAdapterIPInfo.reverse());
+                    const reorderedImport = parseArmTemplateToState(reorderedArm);
+                    const manualOrderMatches = reorderedImport.customStorageSubnetsConfirmed &&
+                        JSON.stringify(reorderedImport.customStorageSubnets) === JSON.stringify(state.customStorageSubnets);
+                    return assert(autoFilled && adapterNamesMatch && endpointsMatch && new Set(addresses).size === config.subnets * 2 &&
+                        roundTripMatches && manualOrderMatches,
+                        config.nodes + '-node ' + config.linkMode + ': autofill, mapped NICs, /30 endpoints, and ARM import round trip agree');
+                } finally {
+                    Object.assign(state, originalState);
+                    window.open = originalOpen;
+                    if (originalPayload === null) localStorage.removeItem('azloc_arm_payload');
+                    else localStorage.setItem('azloc_arm_payload', originalPayload);
+                }
+            }),
+            (() => {
+                const originalState = JSON.parse(JSON.stringify(state));
+                try {
+                    Object.assign(state, { storage: 'switchless', nodes: '4', ports: '8', storageAutoIp: 'disabled',
+                        customStorageSubnets: ['', '203.0.113.0/30'], customStorageSubnetsConfirmed: true });
+                    updateCustomStorageSubnet(0, '198.51.100.0/30');
+                    const manualPreserved = state.customStorageSubnets[1] === '203.0.113.0/30';
+                    state.customStorageSubnets[1] = state.customStorageSubnets[0];
+                    state.customStorageSubnetsConfirmed = true;
+                    const blocked = getReportReadiness().missing.some(message => message.includes('Overlaps Storage Subnet')) &&
+                        getArmReadiness().missing.some(message => message.includes('Overlaps Storage Subnet'));
+                    state.customStorageSubnets[1] = '203.0.113.0/30';
+                    return assert(manualPreserved && blocked && getCustomStorageSubnetValidation().ready,
+                        'Manual subnets survive autofill; stale confirmation cannot bypass overlap; correction recovers');
+                } finally {
+                    Object.assign(state, originalState);
                 }
             })()
         ]);
