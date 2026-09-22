@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Azure Local ARM deployment sequence ([#295](https://github.com/Azure/odinforazurelocal/issues/295))** - Clarify that ARM validation and What-If are preflight checks, not Azure Local Validate mode. The ARM page now provides separate Validate and Deploy parameter files, while generated PowerShell, Azure CLI, Azure DevOps, and GitHub workflows perform two explicitly selected resource deployments and verify the Validate-created cluster before Deploy.
 - **Development dependency security** - Raise the `js-yaml` override to `>=4.3.2 <5.0.0` and update the lockfile to fix the high-severity empty-merge-source CPU limit bypass (GHSA-2883-xcg3-v3hh). This is development tooling only; no runtime dependency or audit exception is added.
 - **ARM storage subnet round trips ([#290](https://github.com/Azure/odinforazurelocal/issues/290))** - Import every storage adapter endpoint, preserve CIDR masks including /30, and reconstruct subnet order from node/NIC link identities. Generated ARM files retain all switchless link subnets and manual addressing order when imported back into Designer.
 - **Switchless NIC assignments preserved ([#289](https://github.com/Azure/odinforazurelocal/issues/289))** - Cluster Design Document diagrams, storage address listings, and SVG/draw.io downloads now use the confirmed management/storage adapter assignments and custom NIC names. ARM storage networks and intents use the same assignments.

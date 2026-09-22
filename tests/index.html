@@ -123,6 +123,7 @@
     <script src="../js/header-branding.js"></script>
     <script src="../js/disaggregated.js"></script>
     <script src="../js/script.js"></script>
+    <script src="../arm/deployment-workflow.js"></script>
     <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
     <script>window.__SIZER_TEST_MODE__ = true;</script>
     <script src="../sizer/sizer.js"></script>
@@ -214,6 +215,100 @@
             document.getElementById('fail-count').textContent = failCount;
             document.getElementById('total-count').textContent = totalCount;
         }
+
+        // ========================================================================
+        // ARM DEPLOYMENT WORKFLOW TESTS
+        // ========================================================================
+        sectionHeader('ARM deployment workflow - Validate then Deploy');
+
+        testSuite('Phase-specific parameters', 'arm/deployment-workflow.js', [
+            (function() {
+                const source = {
+                    parameters: {
+                        deploymentMode: { value: 'Validate' },
+                        clusterName: { value: 'cluster01' }
+                    }
+                };
+                const deploy = ArmDeploymentWorkflow.parametersForMode(source, 'Deploy');
+                return assert(deploy.parameters.deploymentMode.value === 'Deploy' &&
+                    source.parameters.deploymentMode.value === 'Validate' && deploy !== source,
+                    'Deploy download changes a clone without mutating displayed parameters',
+                    'Deploy clone / Validate source',
+                    deploy.parameters.deploymentMode.value + ' clone / ' + source.parameters.deploymentMode.value + ' source');
+            })(),
+            (function() {
+                let message = '';
+                try {
+                    ArmDeploymentWorkflow.parametersForMode({ parameters: {} }, 'Preview');
+                } catch (error) {
+                    message = error.message;
+                }
+                return assert(message === 'Deployment mode must be Validate or Deploy.',
+                    'Unsupported deployment phases fail closed',
+                    'Deployment mode must be Validate or Deploy.', message);
+            })()
+        ]);
+
+        testSuite('Local deployment scripts', 'arm/deployment-workflow.js', [
+            (function() {
+                const script = ArmDeploymentWorkflow.buildPowerShellScript({
+                    tenantId: '', subscriptionId: 'subscription',
+                    resourceGroupName: 'resource-group', deploymentName: 'deployment'
+                });
+                const valid = script.includes("[ValidateSet('Validate', 'Deploy')]") &&
+                    script.includes('azurelocal-parameters-$($DeploymentMode.ToLowerInvariant()).json') &&
+                    script.includes('Get-AzResource @clusterLookup') &&
+                    script.includes('New-AzResourceGroupDeployment @deploymentParameters') &&
+                    !script.includes('New-AzResourceGroupDeployment \\');
+                return assert(valid,
+                    'PowerShell uses explicit phases, phase files, a cluster guard, and splatting',
+                    true, valid);
+            })(),
+            (function() {
+                const script = ArmDeploymentWorkflow.buildAzureCliScript({
+                    tenantId: '', subscriptionId: 'subscription',
+                    resourceGroupName: 'resource-group', deploymentName: 'deployment'
+                });
+                const valid = script.includes('DEPLOYMENT_MODE="${1:-Validate}"') &&
+                    script.includes('azurelocal-parameters-${DEPLOYMENT_MODE,,}.json') &&
+                    script.includes("--resource-type 'Microsoft.AzureStackHCI/clusters'") &&
+                    script.includes('az deployment group what-if') &&
+                    script.includes('az deployment group create') &&
+                    !script.includes('az deployment group validate');
+                return assert(valid,
+                    'Azure CLI separates ARM preflight from both real deployment phases',
+                    true, valid);
+            })()
+        ]);
+
+        testSuite('CI deployment workflows', 'arm/deployment-workflow.js', [
+            (function() {
+                const pipeline = ArmDeploymentWorkflow.buildAzureDevOpsPipeline();
+                const createCount = (pipeline.match(/az deployment group create/g) || []).length;
+                const valid = pipeline.includes('trigger: none') &&
+                    pipeline.includes("default: Validate") &&
+                    pipeline.includes('azurelocal-parameters-validate.json') &&
+                    pipeline.includes('azurelocal-parameters-deploy.json') &&
+                    pipeline.includes("Microsoft.AzureStackHCI/clusters") &&
+                    createCount === 2 && !pipeline.includes('az deployment group validate');
+                return assert(valid,
+                    'Azure DevOps exposes manual Validate and Deploy resource deployments',
+                    true, valid);
+            })(),
+            (function() {
+                const workflow = ArmDeploymentWorkflow.buildGitHubWorkflow();
+                const createCount = (workflow.match(/az deployment group create/g) || []).length;
+                const valid = workflow.includes('workflow_dispatch:') &&
+                    !workflow.includes('  push:') && !workflow.includes('  pull_request:') &&
+                    workflow.includes('azurelocal-parameters-validate.json') &&
+                    workflow.includes('azurelocal-parameters-deploy.json') &&
+                    workflow.includes("Microsoft.AzureStackHCI/clusters") &&
+                    createCount === 2 && !workflow.includes('az deployment group validate');
+                return assert(valid,
+                    'GitHub Actions requires a manually selected real deployment phase',
+                    true, valid);
+            })()
+        ]);
 
         // ========================================================================
         // S2D CALC TESTS
@@ -1663,7 +1758,8 @@
             
             // Test ARM page
             const armValidation = await validateHtmlPage('../arm/arm.html', 'ARM Page', [
-                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container'
+                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container',
+                '#deployment-phase-guidance', '#download-validate-parameters-btn', '#download-deploy-parameters-btn'
             ]);
             
             armResults.push(assert(armValidation.success, 'ARM page loads without errors', true, armValidation.success ? true : armValidation.error));
@@ -1683,6 +1779,20 @@
                 const headerLink = armValidation.doc.querySelector('.page-header-logo');
                 const headerHref = headerLink ? headerLink.getAttribute('href') : null;
                 armResults.push(assert(headerHref === '../', 'ARM header link correct', '../', headerHref));
+
+                const guidance = armValidation.doc.querySelector('#deployment-phase-guidance');
+                const guidanceText = guidance ? guidance.textContent : '';
+                armResults.push(assert(guidanceText.includes('do not replace') && guidanceText.includes('deploymentMode=Validate'),
+                    'ARM page distinguishes preflight from Azure Local Validate mode',
+                    true, guidanceText.trim()));
+
+                const scriptSources = Array.from(armValidation.doc.querySelectorAll('script[src]'))
+                    .map(function(script) { return script.getAttribute('src'); });
+                const workflowIndex = scriptSources.indexOf('deployment-workflow.js');
+                const armScriptIndex = scriptSources.indexOf('arm.js');
+                armResults.push(assert(workflowIndex >= 0 && armScriptIndex > workflowIndex,
+                    'ARM workflow helper loads before arm.js',
+                    'deployment-workflow.js before arm.js', scriptSources.join(', ')));
             }
             
             testSuite('ARM Page Validation', 'arm/arm.html', armResults);
