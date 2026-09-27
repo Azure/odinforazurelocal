@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **HVTools (Hyper-V) import ([#299](https://github.com/Azure/odinforazurelocal/issues/299))** - The Sizer **RVTools / HVTools** import now accepts [HVTools](https://github.com/michaelmsonne/HVTools) "export all" `.xlsx` workbooks and VM Overview `.json` exports. It detects the source automatically, sizes memory from the larger of each VM's startup and assigned memory, and maps provisioned and in-use storage from virtual disk sizes, plus source clusters from host data. JSON exports have no virtual disk sizes, so they use in-use storage only. Everything is processed in the browser, and host details, disk paths, licensing data, and export user names are ignored.
+
 ### Fixed
 
 - **Azure Local ARM deployment sequence ([#295](https://github.com/Azure/odinforazurelocal/issues/295))** - Clarify that ARM validation and What-If are preflight checks, not Azure Local Validate mode. The ARM page now provides separate Validate and Deploy parameter files, while generated PowerShell, Azure CLI, Azure DevOps, and GitHub workflows perform two explicitly selected resource deployments and verify the Validate-created cluster before Deploy.

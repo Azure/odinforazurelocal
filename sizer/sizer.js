@@ -9189,6 +9189,149 @@ function buildGroupedWorkloads(rows, storageKey) {
 }
 
 // ============================================================================
+// HVTools import (issue #299) — pure detection + normalization helpers
+// ============================================================================
+// HVTools (Hyper-V) exports reuse RVTools-style sheet names with different
+// columns. Rows are normalized into the vInfo shape transformRVToolsRows()
+// consumes, so grouping, cluster selection, and totals are shared. Only sizing
+// fields are read; host details, paths, notes, and export user are ignored.
+
+const MAX_HVTOOLS_VMS = 10000;
+
+// HVTools writes numbers as locale-formatted strings ("12.50" or "12,50").
+// Its decimals always use two places and integers carry no digit grouping,
+// so a single comma is treated as the decimal separator.
+function hvtoolsParseNumber(value) {
+    if (typeof value === 'number') return isFinite(value) && value > 0 ? value : 0;
+    let s = String(value === undefined || value === null ? '' : value).replace(/[\s\u00a0']/g, '');
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma !== -1 && lastDot !== -1) {
+        s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+    } else if (lastComma !== -1) {
+        s = s.indexOf(',') === lastComma ? s.replace(',', '.') : s.replace(/,/g, '');
+    }
+    const n = Number(s);
+    return isFinite(n) && n > 0 ? n : 0;
+}
+
+// Trimmed text with HVTools' "no value" placeholders mapped to ''.
+function hvtoolsText(value) {
+    const s = String(value === undefined || value === null ? '' : value).trim();
+    return /^(n\/a|cluster detected|none|-)$/i.test(s) ? '' : s;
+}
+
+function hvtoolsIsYes(value) {
+    return /^(yes|true)$/i.test(String(value === undefined || value === null ? '' : value).trim());
+}
+
+function hvtoolsHasVMColumns(rows) {
+    return Array.isArray(rows) && rows.length > 0 && !!rows[0] && typeof rows[0] === 'object'
+        && Object.prototype.hasOwnProperty.call(rows[0], 'VM Name')
+        && Object.prototype.hasOwnProperty.call(rows[0], 'CPU Count');
+}
+
+// HVTools "export all" workbooks carry a vMetaData sheet with an
+// "HVTools version" column; vInfo columns are the fallback signature.
+function isHVToolsWorkbookSheets(sheets) {
+    if (!sheets) return false;
+    const meta = sheets.vMetaData;
+    if (Array.isArray(meta) && meta[0] && typeof meta[0] === 'object'
+        && Object.prototype.hasOwnProperty.call(meta[0], 'HVTools version')) return true;
+    return hvtoolsHasVMColumns(sheets.vInfo);
+}
+
+// HVTools VM Overview JSON export: { ExportInfo, VMData: [...], VMGroups }.
+function isHVToolsJSONPayload(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !Array.isArray(payload.VMData)) return false;
+    const info = payload.ExportInfo;
+    const appVersion = info && typeof info === 'object' ? String(info.ApplicationVersion || '') : '';
+    return /hvtools/i.test(appVersion) || hvtoolsHasVMColumns(payload.VMData);
+}
+
+// source = { vInfo: rows, vDisks?: rows, vHosts?: rows } (JSON VMData maps to
+// vInfo). Returns { vInfo, source: 'hvtools', hasProvisioned, warnings } where
+// vInfo rows use the RVTools field names. Memory is the larger of startup and
+// assigned memory. Provisioned storage needs vDisks (Max Size); without it both
+// storage figures fall back to vInfo Total Disk, which is the disk files' size.
+function normalizeHVToolsSheets(source) {
+    const result = { vInfo: null, source: 'hvtools', hasProvisioned: false, warnings: [] };
+    const rows = source && source.vInfo;
+    if (!Array.isArray(rows)) {
+        result.warnings.push('missing-vinfo');
+        return result;
+    }
+    if (rows.length > MAX_HVTOOLS_VMS) {
+        result.warnings.push('too-many-vms');
+        return result;
+    }
+
+    const hostCluster = {};
+    (Array.isArray(source.vHosts) ? source.vHosts : []).forEach(function(h) {
+        if (!h || typeof h !== 'object') return;
+        const host = hvtoolsText(h['Host Name']).toLowerCase();
+        const cluster = hvtoolsText(h['Cluster Name']);
+        if (host && cluster) {
+            hostCluster[host] = cluster;
+            hostCluster[host.split('.')[0]] = cluster;
+        }
+    });
+
+    const vDisks = Array.isArray(source.vDisks) ? source.vDisks : null;
+    const disks = {};
+    const seenShared = {};
+    (vDisks || []).forEach(function(d) {
+        if (!d || typeof d !== 'object') return;
+        const id = hvtoolsText(d['VM ID']).toLowerCase();
+        const name = hvtoolsText(d['VM Name']).toLowerCase();
+        const key = id ? 'id:' + id : (name ? 'name:' + name : '');
+        if (!key) return;
+        // A shared VHDX attached to several guest-cluster VMs is counted once.
+        if (hvtoolsIsYes(d.Shared)) {
+            const sharedKey = hvtoolsText(d['Disk Identifier']) || hvtoolsText(d['Disk Path']);
+            if (sharedKey) {
+                if (seenShared[sharedKey]) return;
+                seenShared[sharedKey] = true;
+            }
+        }
+        if (!disks[key]) disks[key] = { maxGB: 0, fileGB: 0, cluster: '', host: '' };
+        const entry = disks[key];
+        entry.maxGB += hvtoolsParseNumber(d['Max Size (GB)']);
+        entry.fileGB += hvtoolsParseNumber(d['File Size (GB)']);
+        if (!entry.cluster) entry.cluster = hvtoolsText(d['Cluster Name']);
+        if (!entry.host) entry.host = hvtoolsText(d['Current Host']);
+    });
+    result.hasProvisioned = !!vDisks;
+    if (!vDisks) result.warnings.push('no-provisioned-storage');
+
+    const vInfo = [];
+    rows.forEach(function(r) {
+        if (!r || typeof r !== 'object' || hvtoolsIsYes(r['Is Deleted'])) return;
+        const name = String(r['VM Name'] === undefined || r['VM Name'] === null ? '' : r['VM Name']).trim();
+        const id = hvtoolsText(r['VM Id']).toLowerCase();
+        const disk = (id && disks['id:' + id]) || (name && disks['name:' + name.toLowerCase()]) || null;
+        const totalGB = hvtoolsParseNumber(r['Total Disk (GB)']);
+        const host = hvtoolsText(r['Owner Node']) || (disk ? disk.host : '');
+        const hostKey = host.toLowerCase();
+        const cluster = hostCluster[hostKey] || hostCluster[hostKey.split('.')[0]] || (disk ? disk.cluster : '');
+        const state = String(r.State === undefined || r.State === null ? '' : r.State).trim();
+        vInfo.push({
+            VM: name,
+            Powerstate: /^off/i.test(state) ? 'poweredOff' : 'poweredOn',
+            Template: false,
+            CPUs: Math.round(hvtoolsParseNumber(r['CPU Count'])),
+            Memory: Math.max(hvtoolsParseNumber(r['Memory Startup (MB)']), hvtoolsParseNumber(r['Memory Assigned (MB)'])),
+            'Provisioned MiB': (disk && disk.maxGB > 0 ? disk.maxGB : totalGB) * 1024,
+            'In Use MiB': (disk && disk.fileGB > 0 ? disk.fileGB : totalGB) * 1024,
+            Cluster: cluster,
+            Host: host
+        });
+    });
+    result.vInfo = vInfo;
+    return result;
+}
+
+// ============================================================================
 // Azure Migrate collector import (issue #274) — pure transform helpers
 // ============================================================================
 
@@ -10431,13 +10574,19 @@ function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
     if (applyBtn) applyBtn.style.display = 'none';
     _rvtoolsSheets = null;
 
-    if (!/\.xlsx$/i.test(file.name)) {
-        _showRVToolsError('Please select an RVTools .xlsx export (the "all" workbook).');
+    const isJSON = /\.json$/i.test(file.name);
+    if (!isJSON && !/\.xlsx$/i.test(file.name)) {
+        _showRVToolsError('Please select an RVTools .xlsx "all" workbook, an HVTools .xlsx "export all" workbook, or an HVTools VM export .json file.');
         return;
     }
 
     const status = document.getElementById('rvtools-status');
     if (status) { status.textContent = 'Reading "' + file.name + '"…'; status.style.display = ''; }
+
+    if (isJSON) {
+        handleHVToolsJSONFile(file);
+        return;
+    }
 
     ensureSheetJSLoaded().then(function() {
         const reader = new FileReader();
@@ -10445,10 +10594,16 @@ function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = window.XLSX.read(data, { type: 'array' });
-                _rvtoolsSheets = extractRVToolsSheets(workbook);
+                const sheets = extractRVToolsSheets(workbook);
+                if (isHVToolsWorkbookSheets(sheets)) {
+                    _rvtoolsSheets = normalizeHVToolsSheets(sheets);
+                    if (!_showHVToolsNormalizeError(_rvtoolsSheets)) renderRVToolsPreview(transformRVToolsRows(_rvtoolsSheets, {}));
+                    return;
+                }
+                _rvtoolsSheets = { vInfo: sheets.vInfo, vCluster: sheets.vCluster, vHost: sheets.vHost };
                 const result = transformRVToolsRows(_rvtoolsSheets, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: false });
                 if (result.warnings.indexOf('missing-vinfo') !== -1) {
-                    _showRVToolsError('Could not find a "vInfo" sheet in this workbook. Export the full RVTools "all" workbook (it must include the vInfo tab).');
+                    _showRVToolsError('Could not find a "vInfo" sheet in this workbook. Export the full RVTools "all" workbook or the HVTools "export all" workbook (it must include the vInfo tab).');
                     _rvtoolsSheets = null;
                     return;
                 }
@@ -10471,8 +10626,59 @@ function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
     });
 }
 
+// Surface HVTools normalization failures. Returns true when an error was shown
+// (and the held sheets discarded); otherwise hides the reading status.
+function _showHVToolsNormalizeError(normalized) {
+    let msg = '';
+    if (normalized.warnings.indexOf('missing-vinfo') !== -1) {
+        msg = 'Could not find VM data in this HVTools export. Use the HVTools "export all" workbook or the VM Overview JSON export.';
+    } else if (normalized.warnings.indexOf('too-many-vms') !== -1) {
+        msg = 'This HVTools export contains more than ' + MAX_HVTOOLS_VMS.toLocaleString('en-US') + ' VMs. Export fewer VMs (for example one cluster at a time) and try again.';
+    } else if (!normalized.vInfo.length) {
+        msg = 'This HVTools export does not contain any VMs.';
+    }
+    if (msg) {
+        _rvtoolsSheets = null;
+        _showRVToolsError(msg);
+        return true;
+    }
+    const status = document.getElementById('rvtools-status');
+    if (status) status.style.display = 'none';
+    return false;
+}
+
+// HVTools VM Overview JSON export. Parsed in-browser; only VMData is read.
+function handleHVToolsJSONFile(file) {
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+        _showRVToolsError('This JSON file is larger than ' + Math.round(MAX_IMPORT_FILE_BYTES / (1024 * 1024)) + ' MB. Export fewer VMs and try again.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        let payload;
+        try {
+            payload = JSON.parse(e.target.result);
+        } catch (parseErr) {
+            _showRVToolsError('This file is not valid JSON. Select the JSON file produced by the HVTools VM Overview export.');
+            return;
+        }
+        if (!isHVToolsJSONPayload(payload)) {
+            _showRVToolsError('This JSON file is not an HVTools VM export. Select the JSON file produced by the HVTools VM Overview export.');
+            return;
+        }
+        _rvtoolsSheets = normalizeHVToolsSheets({ vInfo: payload.VMData });
+        if (!_showHVToolsNormalizeError(_rvtoolsSheets)) renderRVToolsPreview(transformRVToolsRows(_rvtoolsSheets, {}));
+    };
+    reader.onerror = function() {
+        _showRVToolsError('Could not read the file from disk. Please try again.');
+        _rvtoolsSheets = null;
+    };
+    reader.readAsText(file);
+}
+
 // Pull the sheets we care about out of a SheetJS workbook as row-object arrays.
-// Sheet names are matched case-insensitively (vInfo / vCluster / vHost).
+// Sheet names are matched case-insensitively: vInfo / vCluster / vHost for
+// RVTools, plus vDisks / vHosts / vMetaData for HVTools.
 function extractRVToolsSheets(workbook) {
     function sheetRows(target) {
         const match = workbook.SheetNames.filter(function(n) {
@@ -10484,7 +10690,10 @@ function extractRVToolsSheets(workbook) {
     return {
         vInfo: sheetRows('vinfo'),
         vCluster: sheetRows('vcluster'),
-        vHost: sheetRows('vhost')
+        vHost: sheetRows('vhost'),
+        vDisks: sheetRows('vdisks'),
+        vHosts: sheetRows('vhosts'),
+        vMetaData: sheetRows('vmetadata')
     };
 }
 
@@ -10578,7 +10787,9 @@ function renderRVToolsPreview(result, keepSelection) {
     // null) start with nothing selected rather than auto-selecting the first
     // cluster, so the user is never stuck with a default they can't clear.
     const selectedClusters = prev ? (prev.clusters || []) : [];
-    const storageSource = prev ? prev.storageSource : 'provisioned';
+    const hvtools = !!(_rvtoolsSheets && _rvtoolsSheets.source === 'hvtools');
+    const provisionedAvailable = !hvtools || !!_rvtoolsSheets.hasProvisioned;
+    const storageSource = !provisionedAvailable ? 'inuse' : (prev ? prev.storageSource : 'provisioned');
     const mode = prev ? prev.mode : 'per-vm';
     const includePoweredOff = prev ? prev.includePoweredOff : false;
 
@@ -10592,6 +10803,11 @@ function renderRVToolsPreview(result, keepSelection) {
 
     const t = result.totals;
     let html = '';
+    if (hvtools) {
+        html += '<div class="rvtools-source-note">Detected an <strong>HVTools (Hyper-V)</strong> export. Memory uses each VM\'s startup or assigned memory, whichever is larger.'
+            + (provisionedAvailable ? '' : ' This JSON export has no virtual disk sizes, so storage uses the current size of each VM\'s disk files. Use the HVTools "export all" workbook for provisioned sizes.')
+            + '</div>';
+    }
     html += '<div class="rvtools-totals">Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
         + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
         + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
@@ -10624,7 +10840,7 @@ function renderRVToolsPreview(result, keepSelection) {
         + '<label><input type="radio" name="rvtools-mode" value="grouped"' + (mode === 'grouped' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> One entry per VM size <span style="color: var(--text-secondary);">(grouped)</span></label>'
         + '</fieldset>'
         + '<fieldset><legend>Storage figure</legend>'
-        + '<label><input type="radio" name="rvtools-storage" value="provisioned"' + (storageSource === 'provisioned' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Provisioned</label>'
+        + '<label><input type="radio" name="rvtools-storage" value="provisioned"' + (storageSource === 'provisioned' ? ' checked' : '') + (provisionedAvailable ? '' : ' disabled') + ' onchange="refreshRVToolsPreview()"> Provisioned</label>'
         + '<label><input type="radio" name="rvtools-storage" value="inuse"' + (storageSource === 'inuse' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> In use</label>'
         + '</fieldset>'
         + '<label><input type="checkbox" id="rvtools-powered-off"' + (includePoweredOff ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Include powered-off VMs</label>'
@@ -10722,6 +10938,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
         impStorageGB += (w.storage || 0) * c;
     });
 
+    const sourceName = _rvtoolsSheets.source === 'hvtools' ? 'HVTools' : 'RVTools';
     _rvtoolsSheets = null;
     closeImportModal();
     renderWorkloads();
@@ -10730,6 +10947,8 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     // Post-import overlay (mirrors the Azure Local JSON import experience) —
     // richer than a toast, so we can surface totals, the growth default, and
     // the estimate caveats. Issue #230.
+    const title = document.getElementById('rvtools-post-import-title');
+    if (title) title.textContent = sourceName + ' Import Complete';
     const summary = document.getElementById('rvtools-post-import-summary');
     if (summary) {
         const modeLabel = opts.mode === 'per-vm' ? 'one workload per VM' : 'grouped by VM size';
@@ -10740,7 +10959,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
             : 'source cluster <strong>"' + escapeHtml(clusterLabel) + '"</strong>';
         summary.innerHTML = 'Imported <strong>' + importedCount + '</strong> workload' + (importedCount !== 1 ? 's' : '')
             + ' (<strong>' + impVms + '</strong> VM' + (impVms !== 1 ? 's' : '') + ', ' + modeLabel + ')'
-            + ' from ' + sourceLabel + '.'
+            + ' from ' + sourceLabel + ' (' + sourceName + ').'
             + '<br>Totals: <strong>' + impVcpus + '</strong> vCPU, <strong>' + impMemGB + '</strong> GB RAM, <strong>'
             + (impStorageGB / 1000).toFixed(2) + '</strong> TB ' + storageLabel + ' storage.'
             + (growthApplied
@@ -11330,7 +11549,7 @@ const sizerOnboardingSteps = [
             { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, AVD, GHEL, SQL, Foundry, and File Server workloads with CPU, memory, and storage needs' },
             { icon: '⚖️', title: 'Deployment Types', text: 'Single Node, Hyperconverged, Rack-Aware Cluster, Disaggregated Storage, or ALDO Management Cluster' },
             { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time as you add workloads' },
-            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved locally — export/import JSON, or create workloads from Azure Migrate and RVTools exports' }
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved locally — export/import JSON, or create workloads from Azure Migrate, RVTools, and HVTools exports' }
         ]
     },
     {
@@ -11339,7 +11558,7 @@ const sizerOnboardingSteps = [
         description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
         features: [
             { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Single Node, Hyperconverged, Rack-Aware, Disaggregated, or ALDO Management — each with its own constraints' },
-            { icon: '2️⃣', title: 'Add Workloads', text: 'Use the workload buttons (VM, AKS, AVD, SQL, GHEL, Foundry, File Server) to define your scenarios — or import from Azure Migrate or RVTools' },
+            { icon: '2️⃣', title: 'Add Workloads', text: 'Use the workload buttons (VM, AKS, AVD, SQL, GHEL, Foundry, File Server) to define your scenarios — or import from Azure Migrate, RVTools, or HVTools' },
             { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends machine count, cores per machine, memory, and disks to fit your workloads' },
             { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config and pick matching hardware (opens in a new tab)' }
         ]
@@ -11354,7 +11573,7 @@ const sizerOnboardingSteps = [
             { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 compute machines, no S2D local storage' },
             { icon: '📦', title: 'Multi-Instance Scale-Out', text: 'Model multiple identical instances (rooms, sites, regions) and see total racks, machines, power, and cost' },
             { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support and a full hardware bill of materials' },
-            { icon: '📥', title: 'Estate Imports', text: 'Turn Azure Migrate collector ZIPs or RVTools Excel exports into grouped or per-machine VM workloads' }
+            { icon: '📥', title: 'Estate Imports', text: 'Turn Azure Migrate collector ZIPs, VMware RVTools workbooks, or Hyper-V HVTools exports into grouped or per-machine VM workloads' }
         ]
     }
 ];

@@ -13258,6 +13258,176 @@
         })());
 
         // ========================================================================
+        // HVTools (Hyper-V) Import (Issue #299)
+        // ========================================================================
+        sectionHeader('HVTools (Hyper-V) Import (Issue #299)');
+
+        // Synthetic HVTools fixture (fake VM/host/cluster names, no real data).
+        // Values are strings, as HVTools writes them, in both decimal styles.
+        function hvtVInfo() {
+            return [
+                { 'VM Name': 'web-01', 'VM Id': 'id-1', State: 'Running', 'CPU Count': '4', 'Memory Assigned (MB)': '8192', 'Memory Startup (MB)': '4096', 'Total Disk (GB)': '20,00', 'Owner Node': 'hv-node-01', 'Is Deleted': 'No' },
+                { 'VM Name': 'web-02', 'VM Id': 'id-2', State: 'Saved', 'CPU Count': '4', 'Memory Assigned (MB)': '0', 'Memory Startup (MB)': '8192', 'Total Disk (GB)': '10.00', 'Owner Node': 'HV-NODE-02.example.test', 'Is Deleted': 'No' },
+                { 'VM Name': 'sql-01', 'VM Id': 'id-3', State: 'Running', 'CPU Count': '8', 'Memory Assigned (MB)': '32768', 'Memory Startup (MB)': '32768', 'Total Disk (GB)': '100,00', 'Owner Node': 'hv-node-01', 'Is Deleted': 'No' },
+                { 'VM Name': 'old-01', 'VM Id': 'id-4', State: 'Off', 'CPU Count': '2', 'Memory Assigned (MB)': '0', 'Memory Startup (MB)': '2048', 'Total Disk (GB)': '5,00', 'Owner Node': 'hv-solo-01', 'Is Deleted': 'No' },
+                { 'VM Name': 'gone-01', 'VM Id': 'id-5', State: 'Running', 'CPU Count': '16', 'Memory Assigned (MB)': '65536', 'Memory Startup (MB)': '65536', 'Total Disk (GB)': '900,00', 'Owner Node': 'hv-node-01', 'Is Deleted': 'Yes' }
+            ];
+        }
+        function hvtWorkbook() {
+            return {
+                vInfo: hvtVInfo(),
+                vHosts: [
+                    { 'Host Name': 'hv-node-01', 'Cluster Name': 'HVClusterA' },
+                    { 'Host Name': 'hv-node-02', 'Cluster Name': 'HVClusterA' },
+                    { 'Host Name': 'hv-solo-01', 'Cluster Name': 'N/A' }
+                ],
+                vDisks: [
+                    { 'VM Name': 'web-01', 'VM ID': 'id-1', 'Max Size (GB)': '127,00', 'File Size (GB)': '20,00', Shared: 'No' },
+                    { 'VM Name': 'web-01', 'VM ID': 'id-1', 'Max Size (GB)': '50.00', 'File Size (GB)': '5.00', Shared: 'No' },
+                    { 'VM Name': 'web-02', 'VM ID': 'id-2', 'Max Size (GB)': '127.00', 'File Size (GB)': '10.00', Shared: 'No' },
+                    { 'VM Name': 'sql-01', 'VM ID': 'id-3', 'Max Size (GB)': '500,00', 'File Size (GB)': '100,00', Shared: 'No' },
+                    { 'VM Name': 'sql-01', 'VM ID': 'id-3', 'Max Size (GB)': '1000,00', 'File Size (GB)': '1000,00', Shared: 'Yes', 'Disk Identifier': 'shared-disk-1' },
+                    { 'VM Name': 'web-02', 'VM ID': 'id-2', 'Max Size (GB)': '1000,00', 'File Size (GB)': '1000,00', Shared: 'Yes', 'Disk Identifier': 'shared-disk-1' }
+                ],
+                vMetaData: [{ 'HVTools major version': '1.0', 'HVTools version': '1.0.0.0', Server: 'hv-node-01' }]
+            };
+        }
+        function hvtRow(norm, name) {
+            return norm.vInfo.filter(function (r) { return r.VM === name; })[0];
+        }
+
+        testSuite('HVTools: number parsing & detection', 'sizer.js', (() => {
+            var results = [];
+            results.push(assert(hvtoolsParseNumber('12.50') === 12.5 && hvtoolsParseNumber('12,50') === 12.5,
+                'hvtoolsParseNumber accepts "12.50" and "12,50"', 12.5, hvtoolsParseNumber('12,50')));
+            results.push(assert(hvtoolsParseNumber('1.234,56') === 1234.56 && hvtoolsParseNumber('1,234.56') === 1234.56,
+                'hvtoolsParseNumber handles grouped comma- and dot-decimal values', 1234.56, hvtoolsParseNumber('1.234,56')));
+            results.push(assert(hvtoolsParseNumber('') === 0 && hvtoolsParseNumber('abc') === 0 && hvtoolsParseNumber('-5') === 0 && hvtoolsParseNumber(undefined) === 0,
+                'hvtoolsParseNumber returns 0 for blank, non-numeric, and negative values', 0, hvtoolsParseNumber('abc')));
+
+            results.push(assert(isHVToolsWorkbookSheets(hvtWorkbook()) === true,
+                'Workbook with vMetaData "HVTools version" is detected as HVTools', true, isHVToolsWorkbookSheets(hvtWorkbook())));
+            results.push(assert(isHVToolsWorkbookSheets({ vInfo: hvtVInfo() }) === true,
+                'Workbook with HVTools vInfo columns is detected without vMetaData', true, isHVToolsWorkbookSheets({ vInfo: hvtVInfo() })));
+            results.push(assert(isHVToolsWorkbookSheets({ vInfo: rvtFixture() }) === false,
+                'RVTools workbook is not detected as HVTools', false, isHVToolsWorkbookSheets({ vInfo: rvtFixture() })));
+            results.push(assert(isHVToolsJSONPayload({ ExportInfo: { ApplicationVersion: 'HVTools 1.0.0.0' }, VMData: [] }) === true,
+                'HVTools JSON detected by ExportInfo.ApplicationVersion', true, isHVToolsJSONPayload({ ExportInfo: { ApplicationVersion: 'HVTools 1.0.0.0' }, VMData: [] })));
+            results.push(assert(isHVToolsJSONPayload({ VMData: hvtVInfo() }) === true,
+                'HVTools JSON detected by VMData columns', true, isHVToolsJSONPayload({ VMData: hvtVInfo() })));
+            results.push(assert(isHVToolsJSONPayload({ workloads: [] }) === false && isHVToolsJSONPayload([]) === false && isHVToolsJSONPayload(null) === false,
+                'Non-HVTools JSON is rejected', false, isHVToolsJSONPayload({ workloads: [] })));
+            return results;
+        })());
+
+        testSuite('HVTools: workbook normalization', 'sizer.js', (() => {
+            var results = [];
+            var norm = normalizeHVToolsSheets(hvtWorkbook());
+            results.push(assert(norm.source === 'hvtools' && norm.hasProvisioned === true && norm.warnings.length === 0,
+                'Workbook with vDisks → source hvtools, provisioned available, no warnings', true,
+                norm.source === 'hvtools' && norm.hasProvisioned === true && norm.warnings.length === 0));
+            results.push(assert(norm.vInfo.length === 4 && !hvtRow(norm, 'gone-01'),
+                'Rows marked Is Deleted are skipped', 4, norm.vInfo.length));
+
+            var web1 = hvtRow(norm, 'web-01');
+            var web2 = hvtRow(norm, 'web-02');
+            var sql1 = hvtRow(norm, 'sql-01');
+            var old1 = hvtRow(norm, 'old-01');
+            results.push(assert(web1.Memory === 8192 && web2.Memory === 8192,
+                'Memory is the larger of startup and assigned memory', 8192, web1.Memory + '/' + web2.Memory));
+            results.push(assert(web1.CPUs === 4 && sql1.CPUs === 8,
+                'CPU Count maps to CPUs', '4/8', web1.CPUs + '/' + sql1.CPUs));
+            results.push(assert(web1['Provisioned MiB'] === 177 * 1024 && web1['In Use MiB'] === 25 * 1024,
+                'Multiple vDisks rows are summed per VM (177 GB provisioned, 25 GB used)', '177/25',
+                (web1['Provisioned MiB'] / 1024) + '/' + (web1['In Use MiB'] / 1024)));
+            results.push(assert(sql1['Provisioned MiB'] === 1500 * 1024 && web2['Provisioned MiB'] === 127 * 1024,
+                'Shared disks are counted once', '1500/127',
+                (sql1['Provisioned MiB'] / 1024) + '/' + (web2['Provisioned MiB'] / 1024)));
+            results.push(assert(old1['Provisioned MiB'] === 5 * 1024 && old1['In Use MiB'] === 5 * 1024,
+                'VM without vDisks rows falls back to Total Disk (GB)', 5, old1['Provisioned MiB'] / 1024));
+            results.push(assert(web1.Cluster === 'HVClusterA' && web2.Cluster === 'HVClusterA',
+                'Owner Node maps to vHosts cluster, including FQDN and case differences', 'HVClusterA', web2.Cluster));
+            results.push(assert(old1.Cluster === '',
+                'Standalone host (Cluster Name "N/A") has no cluster', '', old1.Cluster));
+            results.push(assert(web2.Powerstate === 'poweredOn' && old1.Powerstate === 'poweredOff',
+                'Saved VMs are powered on; Off VMs are powered off', 'poweredOn/poweredOff', web2.Powerstate + '/' + old1.Powerstate));
+
+            var r = transformRVToolsRows(norm, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: false });
+            results.push(assert(r.clusters.length === 1 && r.clusters[0].name === 'HVClusterA' && r.totals.vmCount === 3,
+                'Default transform → 3 VMs in HVClusterA (Off VM excluded)', 3, r.totals.vmCount));
+            results.push(assert(r.totals.vcpus === 16 && r.totals.memoryGB === 48 && r.totals.storageGB === 1804,
+                'Totals → 16 vCPU, 48 GB RAM, 1804 GB provisioned', '16/48/1804',
+                r.totals.vcpus + '/' + r.totals.memoryGB + '/' + r.totals.storageGB));
+            var inUse = transformRVToolsRows(norm, { mode: 'grouped', storageSource: 'inuse', includePoweredOff: false });
+            results.push(assert(inUse.totals.storageGB === 1135,
+                'In-use storage → 1135 GB', 1135, inUse.totals.storageGB));
+            var withOff = transformRVToolsRows(norm, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: true });
+            results.push(assert(withOff.totals.vmCount === 4 && withOff.clusters.some(function (c) { return c.name === '(no cluster)'; }),
+                'Including powered-off VMs adds the standalone VM as (no cluster)', 4, withOff.totals.vmCount));
+
+            var grouped = transformRVToolsRows(norm, { mode: 'grouped', storageSource: 'provisioned', clusters: ['HVClusterA'] });
+            var groupedNames = grouped.workloads.map(function (w) { return w.name; }).join('|');
+            results.push(assert(!/web-0|sql-0/.test(groupedNames),
+                'Grouped mode never uses VM names', true, !/web-0|sql-0/.test(groupedNames)));
+            var perVm = transformRVToolsRows(norm, { mode: 'per-vm', storageSource: 'provisioned', clusters: ['HVClusterA'] });
+            results.push(assert(perVm.workloads.length === 3 && perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 1500; }),
+                'Per-VM mode labels workloads with VM names and mapped sizes', true,
+                perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 1500; })));
+            return results;
+        })());
+
+        testSuite('HVTools: JSON export & limits', 'sizer.js', (() => {
+            var results = [];
+            var norm = normalizeHVToolsSheets({ vInfo: hvtVInfo() });
+            results.push(assert(norm.hasProvisioned === false && norm.warnings.indexOf('no-provisioned-storage') !== -1,
+                'JSON export (no vDisks) → provisioned unavailable with warning', false, norm.hasProvisioned));
+            var r = transformRVToolsRows(norm, { mode: 'grouped', storageSource: 'provisioned' });
+            results.push(assert(r.totals.storageGB === 130 && r.clusters.length === 1 && r.clusters[0].name === '(no cluster)',
+                'JSON export → storage from Total Disk (130 GB), no cluster names', '130/(no cluster)',
+                r.totals.storageGB + '/' + (r.clusters[0] && r.clusters[0].name)));
+
+            var tooMany = [];
+            for (var i = 0; i <= MAX_HVTOOLS_VMS; i++) tooMany.push({ 'VM Name': 'vm', 'CPU Count': '1' });
+            var big = normalizeHVToolsSheets({ vInfo: tooMany });
+            results.push(assert(big.vInfo === null && big.warnings.indexOf('too-many-vms') !== -1,
+                'More than MAX_HVTOOLS_VMS rows are rejected', 'too-many-vms', big.warnings.join(',')));
+            var missing = normalizeHVToolsSheets({});
+            results.push(assert(missing.vInfo === null && missing.warnings.indexOf('missing-vinfo') !== -1,
+                'Missing VM rows → missing-vinfo warning', 'missing-vinfo', missing.warnings.join(',')));
+            return results;
+        })());
+
+        testSuite('HVTools: preview disables provisioned storage for JSON exports', 'sizer.js', (() => {
+            var results = [];
+            var preview = document.createElement('div');
+            preview.id = 'rvtools-preview';
+            document.body.appendChild(preview);
+            var applyBtn = document.createElement('button');
+            applyBtn.id = 'rvtools-apply-btn';
+            document.body.appendChild(applyBtn);
+
+            window._rvtoolsSheets = normalizeHVToolsSheets({ vInfo: hvtVInfo() });
+            renderRVToolsPreview(transformRVToolsRows(window._rvtoolsSheets, {}));
+            var prov = preview.querySelector('input[name="rvtools-storage"][value="provisioned"]');
+            var inuse = preview.querySelector('input[name="rvtools-storage"][value="inuse"]');
+            results.push(assert(!!prov && prov.disabled && !!inuse && inuse.checked,
+                'JSON export preview → Provisioned disabled, In use selected', true, !!prov && prov.disabled && !!inuse && inuse.checked));
+            results.push(assert(/HVTools \(Hyper-V\)/.test(preview.textContent),
+                'Preview identifies the HVTools source', true, /HVTools \(Hyper-V\)/.test(preview.textContent)));
+
+            window._rvtoolsSheets = normalizeHVToolsSheets(hvtWorkbook());
+            renderRVToolsPreview(transformRVToolsRows(window._rvtoolsSheets, {}));
+            prov = preview.querySelector('input[name="rvtools-storage"][value="provisioned"]');
+            results.push(assert(!!prov && !prov.disabled && prov.checked,
+                'Workbook preview → Provisioned enabled and selected', true, !!prov && !prov.disabled && prov.checked));
+
+            window._rvtoolsSheets = null;
+            preview.parentNode.removeChild(preview);
+            applyBtn.parentNode.removeChild(applyBtn);
+            return results;
+        })());
+
+        // ========================================================================
         // IMPORT HARDENING (#237) — Sizer applyImportedSizerState() guards
         // ========================================================================
         // The dangerous-key strip and workloads[] shape validation run at the very
