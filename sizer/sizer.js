@@ -9193,8 +9193,11 @@ function buildGroupedWorkloads(rows, storageKey) {
 // ============================================================================
 // HVTools (Hyper-V) exports reuse RVTools-style sheet names with different
 // columns. Rows are normalized into the vInfo shape transformRVToolsRows()
-// consumes, so grouping, cluster selection, and totals are shared. Only sizing
-// fields are read; host details, paths, notes, and export user are ignored.
+// consumes, so grouping, cluster selection, and totals are shared. The
+// normalized rows keep only sizing fields plus VM, host, and cluster names.
+// Disk identifiers (or disk paths when no identifier exists) are used
+// transiently in browser memory to deduplicate shared disks and are discarded.
+// Nothing is persisted or transmitted.
 
 const MAX_HVTOOLS_VMS = 10000;
 
@@ -9287,6 +9290,7 @@ function normalizeHVToolsSheets(source) {
         const key = id ? 'id:' + id : (name ? 'name:' + name : '');
         if (!key) return;
         // A shared VHDX attached to several guest-cluster VMs is counted once.
+        // The identifier or path is only a transient in-memory dedupe key.
         if (hvtoolsIsYes(d.Shared)) {
             const sharedKey = hvtoolsText(d['Disk Identifier']) || hvtoolsText(d['Disk Path']);
             if (sharedKey) {

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **HVTools (Hyper-V) import ([#299](https://github.com/Azure/odinforazurelocal/issues/299))** - The Sizer **RVTools / HVTools** import now accepts [HVTools](https://github.com/michaelmsonne/HVTools) "export all" `.xlsx` workbooks and VM Overview `.json` exports. It detects the source automatically, sizes memory from the larger of each VM's startup and assigned memory, and maps provisioned and in-use storage from virtual disk sizes, plus source clusters from host data. JSON exports have no virtual disk sizes, so they use in-use storage only. Everything is processed in the browser, and host details, disk paths, licensing data, and export user names are ignored.
+- **HVTools (Hyper-V) import ([#299](https://github.com/Azure/odinforazurelocal/issues/299))** - The Sizer **RVTools / HVTools** import now accepts [HVTools](https://github.com/michaelmsonne/HVTools) "export all" `.xlsx` workbooks and VM Overview `.json` exports. It detects the source automatically, sizes memory from the larger of each VM's startup and assigned memory, and maps provisioned and in-use storage from virtual disk sizes, plus source clusters from host data. JSON exports have no virtual disk sizes, so they use in-use storage only. Everything is processed in the browser and nothing is transmitted: host and cluster names are used only in memory to group VMs, HVTools disk identifiers or paths only to count shared disks once, and licensing data and export user names are never read.
 
 ### Fixed
 
