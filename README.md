@@ -37,7 +37,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 ### Core Functionality
 - **Azure Local Designer**: Guided planning for connected, disconnected, multi-rack, and Microsoft 365 Local deployments, with hyperconverged and disaggregated architecture paths
 - **Workload-Based Hardware Sizer**: Size Azure Local infrastructure for VMs, AKS Arc, AVD, Foundry Local, Agentic Retrieval, AI Video Indexer, and GitHub Enterprise Local workloads
-- **Discovered-Estate Import**: Import VMware RVTools workbooks or Azure Migrate collector ZIP files to create grouped or per-machine Sizer workloads entirely in the browser
+- **Discovered-Estate Import**: Import VMware RVTools workbooks, Hyper-V HVTools exports, or Azure Migrate collector ZIP files to create grouped or per-machine Sizer workloads entirely in the browser
 - **Storage Spaces Direct Calculator**: Model maximum volume size, storage-pool consumption, resiliency, provisioning, and single-tier or tiered disk configurations
 - **Network and Switch Planning**: Design traffic intents, VLANs, IP ranges, RDMA, switched and switchless storage, external SAN connectivity, and Clos fabrics; generate and validate Cisco NX-OS and Dell OS10 configurations
 - **Architecture Knowledge Tools**: Explore outbound-connectivity guidance, interactive AzLoFlows diagrams, and Microsoft Sovereign Private Clouds reference architectures
@@ -70,7 +70,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 2. **Unsure about hardware? Start with the Sizer**:
    - Open the **ODIN Sizer** from the main page or navigate to `sizer/index.html`
-   - Add workloads directly, import a VMware RVTools workbook, or import an Azure Migrate collector ZIP
+   - Add workloads directly, import a VMware RVTools workbook or Hyper-V HVTools export, or import an Azure Migrate collector ZIP
    - Configure deployment type, resiliency, hardware assumptions, and growth headroom
    - Review the recommended hardware (CPU, memory, storage, GPUs, power, and rack space)
    - Click **Configure in Designer** to transfer the sizing results into the Designer wizard automatically
@@ -210,7 +210,7 @@ Disaggregated deployments use a separate intent model with external SAN storage 
 
 | Tool | Purpose |
 |------|---------|
-| **ODIN Sizer** | Workload-driven sizing for VMs, AKS Arc, AVD, Foundry Local, Agentic Retrieval, AI Video Indexer, and GitHub Enterprise Local. Supports RVTools and Azure Migrate imports, growth modelling, hardware recommendations, and 3D rack visualization. |
+| **ODIN Sizer** | Workload-driven sizing for VMs, AKS Arc, AVD, Foundry Local, Agentic Retrieval, AI Video Indexer, and GitHub Enterprise Local. Supports RVTools, HVTools, and Azure Migrate imports, growth modelling, hardware recommendations, and 3D rack visualization. |
 | **S2D Calculator** | Plans maximum supported volume size and storage-pool consumption for Azure Local and Windows Server single-tier or tiered configurations. |
 | **Switch Config Generator** | Generates example ToR / BMC / border switch configurations for Cisco NX-OS and Dell OS10, with rack-aware support and infrastructure token replacement. |
 | **QoS Validator** | Validates a pasted `show running-config` (Cisco) or `show running-configuration` (Dell OS10) against Azure Local QoS requirements (PFC, ETS, ECN, MTU 9216, system QoS policy, interface-level PFC/trunking). |

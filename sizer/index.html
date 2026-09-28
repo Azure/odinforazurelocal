@@ -65,8 +65,8 @@
                             <button class="btn btn-secondary btn-sm" onclick="openImportModal('azure-migrate')" title="Import discovered workloads from an Azure Migrate collector export">
                                 ☁️ Azure Migrate
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="openImportModal('rvtools')" title="Import your VMware inventory from an RVTools Excel export">
-                                📊 RVTools
+                            <button class="btn btn-secondary btn-sm" onclick="openImportModal('rvtools')" title="Import your VMware (RVTools) or Hyper-V (HVTools) inventory export">
+                                📊 RVTools / HVTools
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
                                 📤 Export
@@ -931,8 +931,8 @@
                     <button class="btn btn-secondary" onclick="openImportModal('azure-migrate')" title="Import discovered workloads from an Azure Migrate collector export">
                         ☁️ Azure Migrate
                     </button>
-                    <button class="btn btn-secondary" onclick="openImportModal('rvtools')" title="Import your VMware inventory from an RVTools Excel export">
-                        📊 RVTools
+                    <button class="btn btn-secondary" onclick="openImportModal('rvtools')" title="Import your VMware (RVTools) or Hyper-V (HVTools) inventory export">
+                        📊 RVTools / HVTools
                     </button>
                 </div>
             </div>
@@ -1110,7 +1110,7 @@
                 <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary">📤 Sizer Configuration</button>
                 <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary">☁️ Azure Local Instance</button>
                 <button id="import-tab-azure-migrate" onclick="switchImportTab('azure-migrate')" class="onboarding-btn onboarding-btn-secondary">☁️ Azure Migrate</button>
-                <button id="import-tab-rvtools" onclick="switchImportTab('rvtools')" class="onboarding-btn onboarding-btn-secondary">📊 RVTools</button>
+                <button id="import-tab-rvtools" onclick="switchImportTab('rvtools')" class="onboarding-btn onboarding-btn-secondary">📊 RVTools / HVTools</button>
             </div>
 
             <!-- Tab 1: Sizer Config Import -->
@@ -1180,24 +1180,24 @@
                 </div>
             </div>
 
-            <!-- Tab 4: RVTools Excel Import (issue #230) -->
+            <!-- Tab 4: RVTools / HVTools Import (issues #230, #299) -->
             <div id="import-panel-rvtools" style="display: none;">
                 <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
                     <div class="onboarding-feature">
                         <span class="onboarding-feature-icon">📊</span>
                         <div class="onboarding-feature-text">
-                            <strong>Import your VMware inventory from an RVTools export</strong>
-                            Select the RVTools <code>.xlsx</code> "all" export. ODIN reads the <code>vInfo</code> sheet (and, if present, <code>vCluster</code> / <code>vHost</code> for context), detects your source clusters, and turns the chosen cluster's VMs into Sizer workloads.
+                            <strong>Import your VMware or Hyper-V inventory</strong>
+                            Select an RVTools <code>.xlsx</code> "all" export (VMware), or an HVTools "export all" <code>.xlsx</code> workbook or VM Overview <code>.json</code> export (Hyper-V). ODIN detects the source, reads the <code>vInfo</code> VM data (and, if present, host and virtual disk sheets for context), detects your source clusters, and turns the chosen cluster's VMs into Sizer workloads.
                         </div>
                     </div>
                 </div>
                 <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px; margin-bottom: 12px;">
                     <span>🔒</span>
-                    <span><strong>Privacy:</strong> All processing is performed entirely in your browser. Only aggregate VM counts, VM names, and per-VM CPU / RAM / storage values are read (VM names are used purely to label the workload rows). Hostnames, IP/MAC addresses, OS strings, datacenter / cluster names, datastore names, tags, custom attributes and annotations are <strong>never read or stored</strong>. If you'd prefer VM names are not read at all, choose the <em>one entry per VM size</em> option. No data is transmitted to any external service.</span>
+                    <span><strong>Privacy:</strong> All processing is performed entirely in your browser, and nothing is transmitted to any external service. VM names and per-VM CPU / RAM / storage values are read to build workloads (VM names label workload rows only in the <em>one workload per VM</em> option). Host and cluster names are used in browser memory to group VMs by source cluster, and HVTools disk identifiers or paths are used only to count shared disks once. None of these are persisted except the target cluster name you choose. IP/MAC addresses, OS strings, datastore names, licensing details, export user names, tags, custom attributes and annotations are <strong>never read</strong>. If you'd prefer VM names are not used at all, choose the <em>one entry per VM size</em> option.</span>
                 </div>
                 <div style="text-align: center;">
-                    <button class="onboarding-btn onboarding-btn-primary" onclick="triggerRVToolsFilePicker()">Select RVTools .xlsx File</button>
-                    <input type="file" id="rvtools-file" accept=".xlsx" style="display: none;" onchange="handleRVToolsFile(event)" aria-label="RVTools Excel file">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="triggerRVToolsFilePicker()">Select RVTools or HVTools File</button>
+                    <input type="file" id="rvtools-file" accept=".xlsx,.json" style="display: none;" onchange="handleRVToolsFile(event)" aria-label="RVTools or HVTools export file">
                 </div>
                 <div id="rvtools-status" style="display: none; margin-top: 12px; text-align: center; font-size: 12px; color: var(--text-secondary);"></div>
                 <div id="rvtools-error" style="display: none; margin-top: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
@@ -1290,11 +1290,11 @@
         </div>
     </div>
 
-    <!-- Post-Import Instructions Modal (shown after an RVTools Excel import) -->
+    <!-- Post-Import Instructions Modal (shown after an RVTools or HVTools import) -->
     <div class="onboarding-overlay" id="rvtools-post-import-overlay" style="display: none;">
         <div class="onboarding-card" style="max-width: 760px;">
             <div class="onboarding-icon">📊</div>
-            <h2 class="onboarding-title">RVTools Import Complete</h2>
+            <h2 class="onboarding-title" id="rvtools-post-import-title">RVTools Import Complete</h2>
             <p class="onboarding-description" id="rvtools-post-import-summary"></p>
 
             <div class="onboarding-features">
@@ -1309,14 +1309,14 @@
                     <span class="onboarding-feature-icon">💾</span>
                     <div class="onboarding-feature-text">
                         <strong>Set Your Storage</strong>
-                        RVTools reports VMs' virtual hard disk usage, not your source cluster's physical storage size. Check the storage configuration, (data disk count, disk size, and storage type (NVMe, SSD)), to ensure these match your current and future workload storage requirements.
+                        RVTools and HVTools report VMs' virtual hard disk usage, not your source cluster's physical storage size. Check the storage configuration, (data disk count, disk size, and storage type (NVMe, SSD)), to ensure these match your current and future workload storage requirements.
                     </div>
                 </div>
                 <div class="onboarding-feature">
                     <span class="onboarding-feature-icon">🔢</span>
                     <div class="onboarding-feature-text">
                         <strong>Estimates, Not a Quote</strong>
-                        Imported workloads are derived from the RVTools snapshot (templates excluded; powered-off VMs only if you opted in). If the source VMs' requirements change, import updated workload data again, before relying on the cluster sizing examples.
+                        Imported workloads are derived from the RVTools or HVTools snapshot (templates excluded; powered-off VMs only if you opted in). If the source VMs' requirements change, import updated workload data again, before relying on the cluster sizing examples.
                     </div>
                 </div>
                 <div class="onboarding-feature">
