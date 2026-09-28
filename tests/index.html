@@ -13340,9 +13340,12 @@
             results.push(assert(web1['Provisioned MiB'] === 177 * 1024 && web1['In Use MiB'] === 25 * 1024,
                 'Multiple vDisks rows are summed per VM (177 GB provisioned, 25 GB used)', '177/25',
                 (web1['Provisioned MiB'] / 1024) + '/' + (web1['In Use MiB'] / 1024)));
-            results.push(assert(sql1['Provisioned MiB'] === 1500 * 1024 && web2['Provisioned MiB'] === 127 * 1024,
-                'Shared disks are counted once', '1500/127',
+            results.push(assert(sql1['Provisioned MiB'] === 500 * 1024 && web2['Provisioned MiB'] === 127 * 1024
+                && sql1._sharedDisks.length === 1 && web2._sharedDisks.length === 1 && sql1._sharedDisks[0].key === web2._sharedDisks[0].key,
+                'Shared disks stay off the base size and are recorded on every attachment under one opaque id', '500/127',
                 (sql1['Provisioned MiB'] / 1024) + '/' + (web2['Provisioned MiB'] / 1024)));
+            results.push(assert(!/shared-disk-1/.test(JSON.stringify(norm.vInfo)),
+                'Shared-disk identifiers are replaced by opaque ids on normalized rows', false, /shared-disk-1/.test(JSON.stringify(norm.vInfo))));
             results.push(assert(old1['Provisioned MiB'] === 5 * 1024 && old1['In Use MiB'] === 5 * 1024,
                 'VM without vDisks rows falls back to Total Disk (GB)', 5, old1['Provisioned MiB'] / 1024));
             results.push(assert(web1.Cluster === 'HVClusterA' && web2.Cluster === 'HVClusterA',
@@ -13370,9 +13373,87 @@
             results.push(assert(!/web-0|sql-0/.test(groupedNames),
                 'Grouped mode never uses VM names', true, !/web-0|sql-0/.test(groupedNames)));
             var perVm = transformRVToolsRows(norm, { mode: 'per-vm', storageSource: 'provisioned', clusters: ['HVClusterA'] });
-            results.push(assert(perVm.workloads.length === 3 && perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 1500; }),
+            var perVmStorage = perVm.workloads.reduce(function (s, w) { return s + w.storage; }, 0);
+            results.push(assert(perVm.workloads.length === 3 && perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 500; }),
                 'Per-VM mode labels workloads with VM names and mapped sizes', true,
-                perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 1500; })));
+                perVm.workloads.some(function (w) { return w.name === 'sql-01' && w.memory === 32 && w.storage === 500; })));
+            results.push(assert(perVmStorage === 1804,
+                'Per-VM workloads count the shared disk once (1804 GB total)', 1804, perVmStorage));
+            return results;
+        })());
+
+        testSuite('HVTools: format validation & shared-disk counting after filtering', 'sizer.js', (() => {
+            var results = [];
+            var meta = [{ 'HVTools version': '1.0.0.0' }];
+            var renamed = normalizeHVToolsSheets({ vInfo: [{ Name: 'web-01', vCPUs: '4' }], vMetaData: meta });
+            results.push(assert(isHVToolsWorkbookSheets({ vInfo: [{ Name: 'web-01' }], vMetaData: meta }) === true
+                && renamed.vInfo === null && renamed.warnings.indexOf('unsupported-format') !== -1,
+                'Workbook detected by vMetaData but missing VM columns → unsupported-format', 'unsupported-format', renamed.warnings.join(',')));
+            var jsonRows = [{ 'VM Name': 'web-01', 'Memory Startup (MB)': '4096' }];
+            var badJson = normalizeHVToolsSheets({ vInfo: jsonRows });
+            results.push(assert(isHVToolsJSONPayload({ ExportInfo: { ApplicationVersion: 'HVTools 1.0.0.0' }, VMData: jsonRows }) === true
+                && badJson.vInfo === null && badJson.warnings.indexOf('unsupported-format') !== -1,
+                'JSON detected by ApplicationVersion but missing CPU Count → unsupported-format', 'unsupported-format', badJson.warnings.join(',')));
+            var emptyOk = normalizeHVToolsSheets({ vInfo: [], vMetaData: meta });
+            results.push(assert(Array.isArray(emptyOk.vInfo) && emptyOk.vInfo.length === 0 && emptyOk.warnings.indexOf('unsupported-format') === -1,
+                'Empty HVTools vInfo is not a format error (reported as no VMs)', 0, emptyOk.vInfo && emptyOk.vInfo.length));
+
+            function sharedDisk(vmId, gb) {
+                return { 'VM ID': vmId, 'Max Size (GB)': String(gb), 'File Size (GB)': String(gb), Shared: 'Yes', 'Disk Identifier': 'guest-cluster-disk' };
+            }
+            function baseDisk(vmId, gb) {
+                return { 'VM ID': vmId, 'Max Size (GB)': String(gb), 'File Size (GB)': String(gb), Shared: 'No' };
+            }
+            function vm(name, id, state, host) {
+                return { 'VM Name': name, 'VM Id': id, State: state, 'CPU Count': '2', 'Memory Startup (MB)': '4096', 'Owner Node': host };
+            }
+            var hosts = [{ 'Host Name': 'hv-x1', 'Cluster Name': 'ClusterX' }, { 'Host Name': 'hv-y1', 'Cluster Name': 'ClusterY' }];
+
+            // First attachment belongs to a VM not exported in vInfo.
+            var absent = normalizeHVToolsSheets({
+                vInfo: [vm('node-b', 'id-b', 'Running', 'hv-x1')],
+                vHosts: hosts,
+                vDisks: [sharedDisk('id-missing', 100), sharedDisk('id-b', 100), baseDisk('id-b', 20)]
+            });
+            var absentTotal = transformRVToolsRows(absent, { storageSource: 'provisioned' }).totals.storageGB;
+            results.push(assert(absentTotal === 120,
+                'Shared disk first attached to a VM absent from vInfo is still counted (120 GB)', 120, absentTotal));
+
+            // First attachment belongs to a powered-off VM.
+            var offFirst = normalizeHVToolsSheets({
+                vInfo: [vm('node-a', 'id-a', 'Off', 'hv-x1'), vm('node-b', 'id-b', 'Running', 'hv-x1')],
+                vHosts: hosts,
+                vDisks: [sharedDisk('id-a', 100), baseDisk('id-a', 10), sharedDisk('id-b', 100), baseDisk('id-b', 20)]
+            });
+            var offDefault = transformRVToolsRows(offFirst, { storageSource: 'provisioned', mode: 'per-vm' });
+            var offIncluded = transformRVToolsRows(offFirst, { storageSource: 'provisioned', mode: 'per-vm', includePoweredOff: true });
+            results.push(assert(offDefault.totals.storageGB === 120 && offDefault.workloads[0].storage === 120,
+                'Shared disk first attached to a powered-off VM is counted on the running VM (120 GB)', 120, offDefault.totals.storageGB));
+            results.push(assert(offIncluded.totals.storageGB === 130,
+                'Including the powered-off VM still counts the shared disk once (130 GB)', 130, offIncluded.totals.storageGB));
+
+            // Shared disk spans two source clusters.
+            var split = normalizeHVToolsSheets({
+                vInfo: [vm('node-a', 'id-a', 'Running', 'hv-x1'), vm('node-b', 'id-b', 'Running', 'hv-y1')],
+                vHosts: hosts,
+                vDisks: [sharedDisk('id-a', 100), baseDisk('id-a', 10), sharedDisk('id-b', 100), baseDisk('id-b', 20)]
+            });
+            var splitAll = transformRVToolsRows(split, { storageSource: 'provisioned', mode: 'per-vm' });
+            var clusterX = splitAll.clusters.filter(function (c) { return c.name === 'ClusterX'; })[0];
+            var clusterY = splitAll.clusters.filter(function (c) { return c.name === 'ClusterY'; })[0];
+            results.push(assert(clusterX.storageGB === 110 && clusterY.storageGB === 120 && splitAll.totals.storageGB === 130,
+                'Per-cluster storage includes the shared disk; the overall total counts it once', '110/120/130',
+                clusterX.storageGB + '/' + clusterY.storageGB + '/' + splitAll.totals.storageGB));
+            function workloadStorage(r) { return r.workloads.reduce(function (s, w) { return s + w.storage * w.count; }, 0); }
+            var onlyY = transformRVToolsRows(split, { storageSource: 'provisioned', mode: 'per-vm', clusters: ['ClusterY'] });
+            var both = transformRVToolsRows(split, { storageSource: 'provisioned', mode: 'per-vm', clusters: ['ClusterX', 'ClusterY'] });
+            results.push(assert(workloadStorage(onlyY) === 120 && workloadStorage(both) === 130,
+                'Selecting only the second cluster keeps the shared disk; consolidating both counts it once', '120/130',
+                workloadStorage(onlyY) + '/' + workloadStorage(both)));
+
+            var rvt = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'provisioned', mode: 'grouped', includePoweredOff: false });
+            results.push(assert(rvt.totals.storageGB === 780,
+                'RVTools totals unchanged by shared-disk handling (780 GB)', 780, rvt.totals.storageGB));
             return results;
         })());
 

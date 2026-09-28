@@ -9079,18 +9079,23 @@ function transformRVToolsRows(sheets, options) {
         const cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
             ? '(no cluster)' : String(row.Cluster);
         if (!byCluster[cname]) {
-            byCluster[cname] = { name: cname, vmCount: 0, vcpus: 0, memoryGB: 0, storageGB: 0, hosts: {} };
+            byCluster[cname] = { name: cname, vmCount: 0, vcpus: 0, memoryGB: 0, rows: [], hosts: {} };
             clusterOrder.push(cname);
         }
         const c = byCluster[cname];
         c.vmCount += 1;
         c.vcpus += parseInt(row.CPUs, 10) || 0;
         c.memoryGB += rvtoolsMiBToGB(row.Memory);
-        c.storageGB += rvtoolsMiBToGB(row[storageKey]);
+        c.rows.push(row);
         if (row.Host !== undefined && row.Host !== null && row.Host !== '') {
             c.hosts[String(row.Host)] = true;
         }
     });
+    function sumStorageGB(rows) {
+        return applyRVToolsSharedDisks(rows, storageKey).reduce(function(s, row) {
+            return s + rvtoolsMiBToGB(row[storageKey]);
+        }, 0);
+    }
     const clusters = clusterOrder.map(function(name) {
         const c = byCluster[name];
         return {
@@ -9098,7 +9103,7 @@ function transformRVToolsRows(sheets, options) {
             vmCount: c.vmCount,
             vcpus: c.vcpus,
             memoryGB: c.memoryGB,
-            storageGB: c.storageGB,
+            storageGB: sumStorageGB(c.rows),
             hostCount: Object.keys(c.hosts).length
         };
     });
@@ -9114,7 +9119,7 @@ function transformRVToolsRows(sheets, options) {
         vmCount: included.length,
         vcpus: clusters.reduce(function(s, c) { return s + c.vcpus; }, 0),
         memoryGB: clusters.reduce(function(s, c) { return s + c.memoryGB; }, 0),
-        storageGB: clusters.reduce(function(s, c) { return s + c.storageGB; }, 0)
+        storageGB: sumStorageGB(included)
     };
 
     // Rows that become workloads: VMs from the selected cluster(s). Two or more
@@ -9129,9 +9134,10 @@ function transformRVToolsRows(sheets, options) {
         })
         : included;
 
+    const importRows = applyRVToolsSharedDisks(workloadRows, storageKey);
     const workloads = mode === 'per-vm'
-        ? buildPerVMWorkloads(workloadRows, storageKey)
-        : buildGroupedWorkloads(workloadRows, storageKey);
+        ? buildPerVMWorkloads(importRows, storageKey)
+        : buildGroupedWorkloads(importRows, storageKey);
 
     return { clusters: clusters, workloads: workloads, totals: totals, warnings: warnings };
 }
@@ -9195,9 +9201,9 @@ function buildGroupedWorkloads(rows, storageKey) {
 // columns. Rows are normalized into the vInfo shape transformRVToolsRows()
 // consumes, so grouping, cluster selection, and totals are shared. The
 // normalized rows keep only sizing fields plus VM, host, and cluster names.
-// Disk identifiers (or disk paths when no identifier exists) are used
-// transiently in browser memory to deduplicate shared disks and are discarded.
-// Nothing is persisted or transmitted.
+// Disk identifiers (or disk paths when no identifier exists) are used only as
+// transient lookup keys and replaced by opaque ids on the normalized rows.
+// Nothing is transmitted.
 
 const MAX_HVTOOLS_VMS = 10000;
 
@@ -9254,9 +9260,12 @@ function isHVToolsJSONPayload(payload) {
 
 // source = { vInfo: rows, vDisks?: rows, vHosts?: rows } (JSON VMData maps to
 // vInfo). Returns { vInfo, source: 'hvtools', hasProvisioned, warnings } where
-// vInfo rows use the RVTools field names. Memory is the larger of startup and
-// assigned memory. Provisioned storage needs vDisks (Max Size); without it both
-// storage figures fall back to vInfo Total Disk, which is the disk files' size.
+// vInfo rows use the RVTools field names, plus optional _sharedDisks entries
+// that transformRVToolsRows() counts once per imported VM set. Memory is the
+// larger of startup and assigned memory. Provisioned storage needs vDisks (Max
+// Size); without it both storage figures fall back to vInfo Total Disk, which
+// is the disk files' size. Rows without the VM Name / CPU Count columns are
+// rejected as 'unsupported-format'.
 function normalizeHVToolsSheets(source) {
     const result = { vInfo: null, source: 'hvtools', hasProvisioned: false, warnings: [] };
     const rows = source && source.vInfo;
@@ -9266,6 +9275,17 @@ function normalizeHVToolsSheets(source) {
     }
     if (rows.length > MAX_HVTOOLS_VMS) {
         result.warnings.push('too-many-vms');
+        return result;
+    }
+    // Detection can succeed on vMetaData or ExportInfo alone, so require the
+    // VM columns on every row rather than fabricating zero-sized VMs.
+    const unsupported = rows.some(function(r) {
+        return !r || typeof r !== 'object'
+            || !Object.prototype.hasOwnProperty.call(r, 'VM Name')
+            || !Object.prototype.hasOwnProperty.call(r, 'CPU Count');
+    });
+    if (unsupported) {
+        result.warnings.push('unsupported-format');
         return result;
     }
 
@@ -9282,26 +9302,30 @@ function normalizeHVToolsSheets(source) {
 
     const vDisks = Array.isArray(source.vDisks) ? source.vDisks : null;
     const disks = {};
-    const seenShared = {};
+    const sharedIds = {};
+    let sharedCount = 0;
     (vDisks || []).forEach(function(d) {
         if (!d || typeof d !== 'object') return;
         const id = hvtoolsText(d['VM ID']).toLowerCase();
         const name = hvtoolsText(d['VM Name']).toLowerCase();
         const key = id ? 'id:' + id : (name ? 'name:' + name : '');
         if (!key) return;
-        // A shared VHDX attached to several guest-cluster VMs is counted once.
-        // The identifier or path is only a transient in-memory dedupe key.
-        if (hvtoolsIsYes(d.Shared)) {
-            const sharedKey = hvtoolsText(d['Disk Identifier']) || hvtoolsText(d['Disk Path']);
-            if (sharedKey) {
-                if (seenShared[sharedKey]) return;
-                seenShared[sharedKey] = true;
-            }
-        }
-        if (!disks[key]) disks[key] = { maxGB: 0, fileGB: 0, cluster: '', host: '' };
+        if (!disks[key]) disks[key] = { maxGB: 0, fileGB: 0, shared: {}, cluster: '', host: '' };
         const entry = disks[key];
-        entry.maxGB += hvtoolsParseNumber(d['Max Size (GB)']);
-        entry.fileGB += hvtoolsParseNumber(d['File Size (GB)']);
+        const maxGB = hvtoolsParseNumber(d['Max Size (GB)']);
+        const fileGB = hvtoolsParseNumber(d['File Size (GB)']);
+        // A shared VHDX attached to several guest-cluster VMs is recorded on
+        // every attachment under an opaque id (the identifier or path is only a
+        // transient lookup key) and counted once per imported VM set by
+        // applyRVToolsSharedDisks(), after power-state and cluster filtering.
+        const sharedKey = hvtoolsIsYes(d.Shared) ? (hvtoolsText(d['Disk Identifier']) || hvtoolsText(d['Disk Path'])) : '';
+        if (sharedKey) {
+            if (!sharedIds[sharedKey]) sharedIds[sharedKey] = 'shared-' + (++sharedCount);
+            entry.shared[sharedIds[sharedKey]] = { maxGB: maxGB, fileGB: fileGB };
+        } else {
+            entry.maxGB += maxGB;
+            entry.fileGB += fileGB;
+        }
         if (!entry.cluster) entry.cluster = hvtoolsText(d['Cluster Name']);
         if (!entry.host) entry.host = hvtoolsText(d['Current Host']);
     });
@@ -9319,20 +9343,55 @@ function normalizeHVToolsSheets(source) {
         const hostKey = host.toLowerCase();
         const cluster = hostCluster[hostKey] || hostCluster[hostKey.split('.')[0]] || (disk ? disk.cluster : '');
         const state = String(r.State === undefined || r.State === null ? '' : r.State).trim();
-        vInfo.push({
+        const shared = disk ? Object.keys(disk.shared).map(function(k) {
+            return { key: k, maxGB: disk.shared[k].maxGB, fileGB: disk.shared[k].fileGB };
+        }) : [];
+        const sharedMaxGB = shared.reduce(function(s, d) { return s + d.maxGB; }, 0);
+        const sharedFileGB = shared.reduce(function(s, d) { return s + d.fileGB; }, 0);
+        // Use vDisks sizes when they report anything for this VM; otherwise
+        // fall back to vInfo Total Disk (which then already covers every disk).
+        const useMax = !!disk && disk.maxGB + sharedMaxGB > 0;
+        const useFile = !!disk && disk.fileGB + sharedFileGB > 0;
+        const row = {
             VM: name,
             Powerstate: /^off/i.test(state) ? 'poweredOff' : 'poweredOn',
             Template: false,
             CPUs: Math.round(hvtoolsParseNumber(r['CPU Count'])),
             Memory: Math.max(hvtoolsParseNumber(r['Memory Startup (MB)']), hvtoolsParseNumber(r['Memory Assigned (MB)'])),
-            'Provisioned MiB': (disk && disk.maxGB > 0 ? disk.maxGB : totalGB) * 1024,
-            'In Use MiB': (disk && disk.fileGB > 0 ? disk.fileGB : totalGB) * 1024,
+            'Provisioned MiB': (useMax ? disk.maxGB : totalGB) * 1024,
+            'In Use MiB': (useFile ? disk.fileGB : totalGB) * 1024,
             Cluster: cluster,
             Host: host
-        });
+        };
+        if (shared.length) {
+            row._sharedDisks = shared.map(function(d) {
+                return { key: d.key, 'Provisioned MiB': useMax ? d.maxGB * 1024 : 0, 'In Use MiB': useFile ? d.fileGB * 1024 : 0 };
+            });
+        }
+        vInfo.push(row);
     });
     result.vInfo = vInfo;
     return result;
+}
+
+// Count each HVTools shared disk once within `rows`, adding it to the first
+// row that references it. Rows without _sharedDisks (all RVTools rows) are
+// returned unchanged, so RVTools totals are unaffected.
+function applyRVToolsSharedDisks(rows, storageKey) {
+    const seen = {};
+    return rows.map(function(row) {
+        if (!Array.isArray(row._sharedDisks) || !row._sharedDisks.length) return row;
+        let extra = 0;
+        row._sharedDisks.forEach(function(d) {
+            if (seen[d.key]) return;
+            seen[d.key] = true;
+            extra += Number(d[storageKey]) || 0;
+        });
+        if (!extra) return row;
+        const copy = Object.assign({}, row);
+        copy[storageKey] = (Number(row[storageKey]) || 0) + extra;
+        return copy;
+    });
 }
 
 // ============================================================================
@@ -10638,6 +10697,8 @@ function _showHVToolsNormalizeError(normalized) {
         msg = 'Could not find VM data in this HVTools export. Use the HVTools "export all" workbook or the VM Overview JSON export.';
     } else if (normalized.warnings.indexOf('too-many-vms') !== -1) {
         msg = 'This HVTools export contains more than ' + MAX_HVTOOLS_VMS.toLocaleString('en-US') + ' VMs. Export fewer VMs (for example one cluster at a time) and try again.';
+    } else if (normalized.warnings.indexOf('unsupported-format') !== -1) {
+        msg = 'This HVTools export does not have the expected VM columns ("VM Name" and "CPU Count"). Export again with HVTools without renaming or removing columns, then try again.';
     } else if (!normalized.vInfo.length) {
         msg = 'This HVTools export does not contain any VMs.';
     }
