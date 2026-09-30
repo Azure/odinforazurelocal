@@ -2,11 +2,6 @@
 
 const { spawnSync } = require('child_process');
 
-// Temporary dev-only exceptions where the configured npm feed has no patched
-// release. Keep these package-scoped and remove them when fixes are available.
-const allowedAdvisories = new Map([
-    ['https://github.com/advisories/GHSA-2v37-7h3g-55p8', new Set(['nanoid'])]
-]);
 const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
 const args = process.platform === 'win32'
     ? ['/d', '/s', '/c', 'npm audit --json']
@@ -31,7 +26,6 @@ try {
 }
 
 const blockingAdvisories = [];
-const allowedFindings = [];
 
 for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities || {})) {
     for (const finding of vulnerability.via || []) {
@@ -42,12 +36,7 @@ for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities 
             title: finding.title,
             url: finding.url
         };
-        const allowedPackages = allowedAdvisories.get(finding.url);
-        if (allowedPackages && allowedPackages.has(packageName)) {
-            allowedFindings.push(advisory);
-        } else {
-            blockingAdvisories.push(advisory);
-        }
+        blockingAdvisories.push(advisory);
     }
 }
 
@@ -59,8 +48,4 @@ if (blockingAdvisories.length > 0) {
     process.exit(1);
 }
 
-for (const finding of allowedFindings) {
-    console.warn(`Temporarily allowed: ${finding.packageName}: ${finding.title} (${finding.url})`);
-}
-
-console.log('No unapproved high or critical npm audit advisories found.');
+console.log('No high or critical npm audit advisories found.');
