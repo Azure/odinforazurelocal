@@ -716,6 +716,21 @@ function checkDesignerResponsiveContracts() {
 function checkSizerResponsiveContracts() {
     const sizerCss = fs.readFileSync(path.resolve(process.cwd(), 'sizer', 'sizer.css'), 'utf8').replace(/\r\n/g, '\n');
     const phoneLayout = `@media (max-width: 480px) {
+    .workload-card {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .workload-card-title {
+        flex-wrap: wrap;
+    }
+
+    .workload-card-actions {
+        grid-column: 2;
+        justify-self: end;
+    }
+
     .odin-tab-container {
         gap: 2px;
     }
@@ -737,7 +752,7 @@ function checkSizerResponsiveContracts() {
     }
 }`;
     if (sizerCss.includes(phoneLayout)) {
-        console.log('✅ Sizer responsive contracts OK: 5 phone layout rules scoped to 480px');
+        console.log('✅ Sizer responsive contracts OK: 8 phone layout rules scoped to 480px');
         return true;
     }
 

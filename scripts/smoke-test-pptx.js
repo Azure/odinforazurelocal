@@ -47,7 +47,19 @@ const SEED_PAYLOAD = {
                 'Advisory - single nodes provide no workload high-availability: Maintenance interrupts workloads.'
             ].concat(Array.from({ length: 48 }, (_, index) => 'Sizing recommendation ' + (index + 3)))
         },
-        sizerWorkloads: [{ type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 }]
+        sizerWorkloads: [
+            { type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 },
+            { type: 'foundry', name: 'Demo GPU inference', workerNodes: 2, workerProfile: 'recommended',
+                modelDeployments: 1, modelCacheStorageGB: 100, engine: 'vllm',
+                gpuType: 'l40s', gpuMode: 'dda', gpuWorkerVmSize: 'Standard_NC16_L40S_1',
+                gpuWorkerSummary: 'GPU workers: 2 x Standard_NC16_L40S_1 (16 vCPU / 64 GB RAM / 1 GPU / 48 GB VRAM per worker)',
+                totalVcpus: 46, totalMemoryGB: 156, totalStorageGB: 1100 },
+            { type: 'edgerag', name: 'Demo Agentic GPU pools', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                corpusGB: 100, gpuType: 'l40s', gpuMode: 'dda',
+                embeddingGpuVmSize: 'Standard_NC16_L40S_1', llmGpuVmSize: 'Standard_NC32_L40S_2',
+                gpuWorkerSummary: 'Embedding GPU workers: 2 x Standard_NC16_L40S_1 (16 vCPU / 64 GB RAM / 1 GPU / 48 GB VRAM per worker); Local LLM GPU worker: 1 x Standard_NC32_L40S_2 (32 vCPU / 128 GB RAM / 2 GPU / 96 GB VRAM per worker)',
+                totalVcpus: 100, totalMemoryGB: 376, totalStorageGB: 1850 }
+        ]
     }
 };
 
@@ -158,6 +170,9 @@ const SEED_PAYLOAD = {
                                     advisoryStyleCount: slideXml.reduce((count, text) => count + ((text.match(/val="B45309"/g) || []).length), 0),
                                     hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows')),
                                     hasReportScope: slideText.some(text => text.includes(window.__odinGetReportScopeNote().text)),
+                                    hasGpuWorkerSizes: window.__odinGetReportState().sizerWorkloads
+                                        .filter(w => w.gpuWorkerSummary).every(w =>
+                                            w.gpuWorkerSummary.split('; ').every(pool => slideText.some(text => text.includes(pool)))),
                                     hasBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
                                         slideText.some(text => text.includes(note))),
                                     hasSeparateBmcSlide: slideText.some(text => text.includes('OEM/BMC Proxy Bypass')
@@ -222,6 +237,7 @@ const SEED_PAYLOAD = {
         if (!result.hasWorkflowSubtitle || !result.hasReportScope) {
             throw new Error('Workflow subtitle or report scope statement is missing from the presentation');
         }
+        if (!result.hasGpuWorkerSizes) throw new Error('Supported GPU worker size details are missing from PowerPoint');
         if (!result.hasBmcGuidance || !result.hasBmcGuidanceLinks || !result.hasRenderedBmcGuidance || !result.bypassUnchanged) {
             throw new Error('OEM/BMC caveat must appear in HTML and PowerPoint with sources, without adding bypass ranges');
         }
@@ -265,7 +281,9 @@ const SEED_PAYLOAD = {
                             const present = guidance.notes.every(note => text.includes(note))
                                 && guidance.references.every(reference => content.includes(reference.url));
                             const absent = !text.includes(guidance.title) && !text.includes('Remote NDIS');
-                            resolve((expectGuidance ? present : absent) && text.includes(window.__odinGetReportScopeNote().text));
+                            const gpuSizesPresent = window.__odinGetReportState().sizerWorkloads
+                                .filter(w => w.gpuWorkerSummary).every(w => text.includes(w.gpuWorkerSummary));
+                            resolve((expectGuidance ? present : absent) && text.includes(window.__odinGetReportScopeNote().text) && gpuSizesPresent);
                         }).catch(reject).finally(() => {
                             clearTimeout(timeout);
                             HTMLAnchorElement.prototype.click = originalClick;

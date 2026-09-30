@@ -19,7 +19,7 @@
             "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
             "version": {
               "type": ["integer", "string"],
-              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 4), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 3 → 4 in v0.23.03 when Foundry Local moved to worker profiles and GitHub Enterprise Local gained feature allowances."
+              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 5), NOT a release/semver version. Version 5 adds supported GPU worker VM sizes for Foundry Local, Agentic Retrieval and Video Indexer. Compatible older GPU workloads migrate with a visible notice; unsupported combinations are rejected without replacing the current configuration."
             },
             "exportedAt": { "type": "string", "format": "date-time" },
             "url": { "type": "string", "description": "The Sizer page URL at export time." }
@@ -123,6 +123,11 @@
           "enum": ["vm", "aks", "avd", "foundry", "edgerag", "videoindexer", "ghel"]
         },
         "name": { "type": "string" },
+        "gpuDdaModel": { "type": "string", "description": "GPU model key. All GPU workloads in an instance must use the same physical model." },
+        "gpuDdaCount": { "type": "integer", "minimum": 1, "description": "For AI workloads, a compatibility mirror of the largest per-worker GPU count. Role-specific VM sizes determine actual demand." },
+        "gpuWorkerVmSize": { "type": "string", "description": "Required for DDA Foundry Local and Video Indexer: supported AKS Arc GPU VM SKU matching gpuDdaModel and meeting the chosen worker capacity floor. Determines CPU, RAM, GPUs and VRAM per worker." },
+        "embeddingGpuVmSize": { "type": "string", "description": "Required for Agentic Retrieval embedding workers (Combined/Knowledge). Supported AKS Arc GPU VM SKU, sized independently of the local LLM pool." },
+        "llmGpuVmSize": { "type": "string", "description": "Required for a local Agentic Retrieval LLM endpoint. Supported AKS Arc GPU VM SKU meeting the endpoint CPU, RAM and per-GPU VRAM floor. Adding several smaller GPUs does not satisfy a per-GPU VRAM minimum." },
         "gpuMode": {
           "type": ["string", "null"],
           "enum": ["none", "dda", null],

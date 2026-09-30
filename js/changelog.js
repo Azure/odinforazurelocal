@@ -91,6 +91,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Keyboard and print improvements</strong> &mdash; accessible Designer machine counts and Sizer rack toggles, visible info-tip focus, clean browser printing, and corrected ratio guidance.</li>
                         <li><strong>OEM/BMC proxy guidance</strong> &mdash; reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs.</li>
                         <li><strong>PowerPoint readability</strong> &mdash; dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.</li>
+                        <li><strong>Supported AI GPU worker sizes</strong> &mdash; Foundry Local and Video Indexer GPU workers use supported AKS Arc VM SKUs, with separate Agentic embedding and local-LLM selections. CPU, RAM, GPU count and VRAM follow the chosen sizes; compatible older GPU workloads migrate with an explicit notice. Capacity sizing is not an inference-performance guarantee.</li>
                     </ul>
                 </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">

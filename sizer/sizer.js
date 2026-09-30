@@ -8,7 +8,7 @@ const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 // Bumped 1 → 2 in v0.22.62: GitHub Enterprise Local (GHEL) became a
 // first-class workload type (tier + HA fields added to the export shape).
 // Bumped 3 → 4 in v0.23.03: Foundry worker/cache fields and GHEL feature flags.
-const SIZER_VERSION = 4;
+const SIZER_VERSION = 5;
 const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
 const MAX_AZURE_LOCAL_MACHINES = 64;
 const MAX_AZURE_LOCAL_EFFECTIVE_MACHINES = MAX_AZURE_LOCAL_MACHINES - 1;
@@ -725,12 +725,15 @@ function getGpuRequirementFields(workloadType) {
                 </select>
                 <div id="wl-gpu-dda-info" class="hint" style="margin-top: 4px;"></div>
             </div>
-            <div class="form-group">
+            <div class="form-group" ${['foundry', 'edgerag', 'videoindexer'].includes(workloadType) ? 'hidden' : ''}>
                 <label id="wl-gpu-dda-label">${ddaLabel}
                     <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
                 </label>
                 <input type="number" id="wl-gpu-dda-count" value="1" min="1" max="2" step="1">
             </div>
+            ${['foundry', 'edgerag', 'videoindexer'].includes(workloadType) ? `
+            <div id="wl-ai-gpu-sizes"></div>
+            <div class="hint">GPU worker CPU, memory, GPU count and VRAM come from the selected supported VM size, not the CPU-only profile. VRAM belongs to one worker; it is not pooled across workers. L4, L40, L40S and RTX Pro 6000 sizes are preview.</div>` : ''}
         </div>
         ${aksGpuVmSizeField}
         <div id="wl-gpu-p-fields" style="display: none;">
@@ -769,6 +772,7 @@ function toggleWorkloadGpuFields() {
     if (mode === 'dda' && !isAks) {
         populateDdaModels();
         populateDdaCountOptions();
+        populateAiGpuVmSizes();
     }
     // Populate GPU-P model and partition options
     if (mode === 'gpu-p') {
@@ -932,6 +936,7 @@ function onDdaModelChange() {
     }
     enforceGpuMaxPerNode();
     populateDdaCountOptions();
+    populateAiGpuVmSizes();
 }
 
 // Populate GPU-P model dropdown with models that support GPU-P
@@ -2988,6 +2993,8 @@ function checkForDesignerImport() {
 
         const payload = JSON.parse(raw);
         if (!payload || payload.source !== 'designer') return false;
+        const savedSizer = loadSizerState();
+        if (savedSizer?.data && !migrateAiGpuWorkloads(savedSizer.data)) return false;
 
         // Apply cluster type
         const clusterTypeSelect = document.getElementById('cluster-type');
@@ -3043,7 +3050,6 @@ function checkForDesignerImport() {
         }
 
         // Silently restore workloads from previously saved Sizer state (if any)
-        const savedSizer = loadSizerState();
         let restoredCount = 0;
         if (savedSizer && savedSizer.data) {
             const sd = savedSizer.data;
@@ -3158,6 +3164,7 @@ function resumeSizerState() {
     const saved = loadSizerState();
     if (!saved || !saved.data) return;
     const d = saved.data;
+    if (!migrateAiGpuWorkloads(d)) return;
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
@@ -3653,8 +3660,7 @@ function getEdgeRagCompatibleGpuType(llmEndpoint) {
     const profile = EDGERAG_LLM_PROFILES[llmEndpoint];
     const minVramGB = profile ? profile.minVramGB : 0;
     return Object.keys(AKS_GPU_VM_SIZES).find(function(gpuType) {
-        const model = GPU_MODELS[gpuType];
-        return model && model.vramGB >= minVramGB;
+        return AKS_GPU_VM_SIZES[gpuType].some(size => size.gpus === 1 && size.vramGB >= minVramGB);
     }) || '';
 }
 
@@ -3673,6 +3679,177 @@ function normalizeEdgeRagWorkload(w) {
 
 function edgeRagNeedsEmbeddingGpus(w) {
     return normalizeEdgeRagWorkload(w).deploymentMode !== 'agentic';
+}
+
+function getAiGpuWorkerRoles(w) {
+    if (w.gpuMode !== 'dda') return [];
+    if (w.type === 'foundry') {
+        normalizeFoundryWorkload(w);
+        const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
+        return [{
+            field: 'gpuWorkerVmSize', label: 'GPU workers', nodes: w.workerNodes,
+            vcpus: w.workerProfile === 'custom' ? w.customVcpus || 8 : profile.vcpus,
+            memoryGB: w.workerProfile === 'custom' ? w.customMemory || 32 : profile.memory, vramGB: 0
+        }];
+    }
+    if (w.type === 'videoindexer') {
+        const minimum = w.configuration === 'minimum';
+        const nodes = minimum ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+        return [{
+            field: 'gpuWorkerVmSize', label: 'GPU workers', nodes: nodes,
+            vcpus: (minimum ? VI_MIN_VCPU : VI_REC_VCPU) / nodes,
+            memoryGB: (minimum ? VI_MIN_MEM_GB : VI_REC_MEM_GB) / nodes, vramGB: 0
+        }];
+    }
+    if (w.type !== 'edgerag') return [];
+    normalizeEdgeRagWorkload(w);
+    const roles = [];
+    if (edgeRagNeedsEmbeddingGpus(w)) {
+        roles.push({
+            field: 'embeddingGpuVmSize', label: 'Embedding GPU workers', nodes: EDGERAG_EMBEDDING_GPU_NODES,
+            vcpus: EDGERAG_GPU_WORKER_VCPU, memoryGB: EDGERAG_GPU_WORKER_MEM_GB, vramGB: 0
+        });
+    }
+    const llm = EDGERAG_LLM_PROFILES[w.llmEndpoint];
+    if (llm.gpus) {
+        roles.push({
+            field: 'llmGpuVmSize', label: 'Local LLM GPU worker', nodes: 1,
+            vcpus: llm.vcpus, memoryGB: llm.memory, vramGB: llm.minVramGB
+        });
+    }
+    return roles;
+}
+
+function getCompatibleAiGpuSizes(w, role) {
+    // The published local-LLM VRAM floor is per GPU, not aggregate VM VRAM.
+    return (AKS_GPU_VM_SIZES[w.gpuDdaModel] || []).filter(size =>
+        size.vcpus >= role.vcpus && size.memoryGB >= role.memoryGB && size.vramGB / size.gpus >= role.vramGB);
+}
+
+function getAiGpuSizeError(w) {
+    for (const role of getAiGpuWorkerRoles(w)) {
+        if (!getCompatibleAiGpuSizes(w, role).some(size => size.name === w[role.field])) {
+            return {
+                code: 'ai-gpu-invalid-vm-size',
+                message: role.label + ': select a supported VM size for the chosen GPU model with at least ' +
+                    role.vcpus + ' vCPU, ' + role.memoryGB + ' GB memory and ' + role.vramGB +
+                    ' GB VRAM per GPU. Change the GPU model or configuration if no size is available.'
+            };
+        }
+    }
+    return null;
+}
+
+function getAiGpuWorkerPools(w) {
+    const error = getAiGpuSizeError(w);
+    if (error) throw new Error(error.message);
+    return getAiGpuWorkerRoles(w).map(role => ({
+        ...role, size: AKS_GPU_VM_SIZES[w.gpuDdaModel].find(size => size.name === w[role.field])
+    }));
+}
+
+function getAiGpuWorkerSummary(w) {
+    return getAiGpuWorkerPools(w).map(pool =>
+        pool.label + ': ' + pool.nodes + ' x ' + pool.size.name + ' (' + pool.size.vcpus +
+        ' vCPU / ' + pool.size.memoryGB + ' GB RAM / ' + pool.size.gpus + ' GPU / ' +
+        pool.size.vramGB + ' GB VRAM per worker)').join('; ');
+}
+
+function getAiGpuModalWorkload() {
+    const value = id => document.getElementById(id)?.value;
+    return {
+        type: currentModalType, gpuMode: value('wl-gpu-mode'), gpuDdaModel: value('wl-gpu-dda-model'),
+        workerProfile: value('foundry-model-class'), workerNodes: Number(value('foundry-worker-nodes')) || 1,
+        customVcpus: Number(value('foundry-custom-vcpus')), customMemory: Number(value('foundry-custom-memory')),
+        deploymentMode: value('edgerag-deployment-mode'), llmEndpoint: value('edgerag-llm-endpoint'),
+        configuration: value('vi-configuration')
+    };
+}
+
+function populateAiGpuVmSizes(savedWorkload) {
+    const container = document.getElementById('wl-ai-gpu-sizes');
+    if (!container) return;
+    const w = getAiGpuModalWorkload();
+    const roles = getAiGpuWorkerRoles(w);
+    const previous = {};
+    for (const role of roles) {
+        previous[role.field] = savedWorkload ? savedWorkload[role.field] : document.getElementById('wl-' + role.field)?.value;
+    }
+    container.replaceChildren();
+    for (const role of roles) {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        const label = document.createElement('label');
+        label.htmlFor = 'wl-' + role.field;
+        label.textContent = role.label + ' VM size';
+        const select = document.createElement('select');
+        select.id = label.htmlFor;
+        const sizes = getCompatibleAiGpuSizes(w, role);
+        if (!sizes.length) select.add(new Option('No compatible size - change GPU model or configuration', ''));
+        for (const size of sizes) {
+            select.add(new Option(size.name + ' - ' + size.vcpus + ' vCPU / ' + size.memoryGB +
+                ' GB RAM / ' + size.gpus + ' GPU / ' + size.vramGB + ' GB VRAM', size.name));
+        }
+        if (sizes.some(size => size.name === previous[role.field])) select.value = previous[role.field];
+        group.append(label, select);
+        container.appendChild(group);
+    }
+}
+
+// Preflight all loads before changing the UI or overwriting the saved configuration.
+function migrateAiGpuWorkloads(data) {
+    const migrated = [];
+    const notices = [];
+    if (data.workloads != null && !Array.isArray(data.workloads)) {
+        alert('Cannot load saved workloads: expected an array. The current configuration has not been changed.');
+        return false;
+    }
+    for (const original of data.workloads || []) {
+        if (!original || typeof original !== 'object' || Array.isArray(original)) {
+            alert('Cannot load an invalid saved workload. The current configuration has not been changed.');
+            return false;
+        }
+        const w = normalizeEdgeRagWorkload({ ...original });
+        const roles = getAiGpuWorkerRoles(w);
+        let changed = false;
+        if (roles.length && !w.gpuDdaModel) w.gpuDdaModel = data.gpuType;
+        for (const role of roles) {
+            if (w[role.field] == null) {
+                const minimumGpus = w.type === 'edgerag' ? 1 : w.gpuDdaCount || 1;
+                const size = getCompatibleAiGpuSizes(w, role).find(candidate => candidate.gpus >= minimumGpus);
+                if (size) {
+                    w[role.field] = size.name;
+                    changed = true;
+                }
+            }
+        }
+        const error = getAiGpuSizeError(w);
+        if (error) {
+            alert('Cannot load GPU workload "' + w.name + '". ' + error.message +
+                '\n\nThe current configuration has not been changed. Correct the saved workload and try again.');
+            return false;
+        }
+        if (roles.length) {
+            w.gpuDdaCount = Math.max(...getAiGpuWorkerPools(w).map(pool => pool.size.gpus));
+        }
+        if (changed) notices.push(w.name + ': ' + getAiGpuWorkerSummary(w));
+        migrated.push(w);
+    }
+    for (const w of migrated) {
+        if (!['foundry', 'edgerag', 'videoindexer'].includes(w.type)) continue;
+        const error = validateWorkloadBeforeSave(w, migrated.filter(other => other !== w));
+        if (error) {
+            alert('Cannot load workload "' + w.name + '". ' + error.message +
+                '\n\nThe current configuration has not been changed. Correct the saved workload and try again.');
+            return false;
+        }
+    }
+    data.workloads = migrated;
+    if (notices.length) {
+        alert('Older GPU workload estimates updated to supported AKS Arc VM sizes:\n\n' + notices.join('\n\n') +
+            '\n\nCPU, RAM and GPU estimates now use these sizes and may have increased. Review the selections before deployment. Saving retains them.');
+    }
+    return true;
 }
 
 // Video Indexer enabled by Arc fixed sizing constants. Video Indexer (Azure
@@ -4578,11 +4755,11 @@ function getFoundryModalContent() {
             <div class="form-row">
                 <div class="form-group">
                     <label>vCPUs per Worker</label>
-                    <input type="number" id="foundry-custom-vcpus" value="${customProfile.vcpus}" min="1" max="256">
+                    <input type="number" id="foundry-custom-vcpus" value="${customProfile.vcpus}" min="1" max="256" onchange="populateAiGpuVmSizes()">
                 </div>
                 <div class="form-group">
                     <label>Memory per Worker (GB)</label>
-                    <input type="number" id="foundry-custom-memory" value="${customProfile.memory}" min="1" max="2048">
+                    <input type="number" id="foundry-custom-memory" value="${customProfile.memory}" min="1" max="2048" onchange="populateAiGpuVmSizes()">
                 </div>
             </div>
         </div>
@@ -4642,6 +4819,7 @@ function updateFoundryClassDescription() {
         if (vcpusEl) vcpusEl.textContent = profile.vcpus;
         if (memEl) memEl.textContent = profile.memory + ' GB';
     }
+    populateAiGpuVmSizes();
 }
 
 // When the Foundry inference engine changes, force GPU mode if vLLM is selected
@@ -4749,10 +4927,10 @@ function updateEdgeRagConfiguration() {
             const noneOpt = gpuModeEl.querySelector('option[value="none"]');
             if (noneOpt) noneOpt.disabled = true;
             const gpuModelEl = document.getElementById('wl-gpu-dda-model');
-            const selectedGpu = gpuModelEl ? GPU_MODELS[gpuModelEl.value] : null;
             const llmProfile = llmEl ? EDGERAG_LLM_PROFILES[llmEl.value] : null;
             if (gpuModelEl && !gpuModelEl.disabled && llmProfile &&
-                (!selectedGpu || selectedGpu.vramGB < llmProfile.minVramGB) &&
+                !(AKS_GPU_VM_SIZES[gpuModelEl.value] || []).some(size =>
+                    size.vramGB / size.gpus >= llmProfile.minVramGB && size.vcpus >= llmProfile.vcpus && size.memoryGB >= llmProfile.memory) &&
                 !_manualFields.has('gpu-type') && !getLockedGpuType()) {
                 const compatibleGpuType = getEdgeRagCompatibleGpuType(llmEl.value);
                 if (compatibleGpuType && gpuModelEl.querySelector(`option[value="${compatibleGpuType}"]`)) {
@@ -4973,6 +5151,7 @@ function updateVideoIndexerConfiguration() {
     } else {
         descEl.textContent = `Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.`;
     }
+    populateAiGpuVmSizes();
 }
 
 // Toggle FSLogix size input visibility
@@ -5040,6 +5219,13 @@ function readWorkloadGpuFields() {
         if (aksVmSizeEl && aksVmSizeEl.value) {
             result.aksGpuVmSize = aksVmSizeEl.value;
         }
+        const aiWorkload = getAiGpuModalWorkload();
+        for (const role of getAiGpuWorkerRoles(aiWorkload)) {
+            result[role.field] = document.getElementById('wl-' + role.field)?.value || '';
+        }
+        if (getAiGpuWorkerRoles(aiWorkload).length && !getAiGpuSizeError({ ...aiWorkload, ...result })) {
+            result.gpuDdaCount = Math.max(...getAiGpuWorkerPools({ ...aiWorkload, ...result }).map(pool => pool.size.gpus));
+        }
     } else if (mode === 'gpu-p') {
         result.gpuPartition = document.getElementById('wl-gpu-p-partition').value || '1';
         const gpuPModelEl = document.getElementById('wl-gpu-p-model');
@@ -5092,11 +5278,11 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
         if (needsGpu && workload.gpuMode !== 'dda') {
             return { code: 'edgerag-gpu-required', message: 'This Agentic Retrieval configuration requires dedicated GPU capacity.' };
         }
-        const selectedGpu = GPU_MODELS[workload.gpuDdaModel];
-        if (llm.gpus > 0 && (!selectedGpu || selectedGpu.vramGB < llm.minVramGB)) {
+        const llmSize = (AKS_GPU_VM_SIZES[workload.gpuDdaModel] || []).find(size => size.name === workload.llmGpuVmSize);
+        if (llm.gpus > 0 && (!llmSize || llmSize.vramGB / llmSize.gpus < llm.minVramGB)) {
             return {
                 code: 'edgerag-llm-insufficient-vram',
-                message: llm.label + ' requires an NVIDIA GPU with at least ' + llm.minVramGB + ' GB VRAM.'
+                message: llm.label + ' requires a supported GPU VM size with at least ' + llm.minVramGB + ' GB VRAM per GPU.'
             };
         }
     }
@@ -5128,6 +5314,8 @@ function validateWorkloadBeforeSave(workload, otherWorkloads) {
             };
         }
     }
+    const aiSizeError = getAiGpuSizeError(workload);
+    if (aiSizeError) return aiSizeError;
     if (workload.gpuMode === 'dda') {
         const gpuType = getWorkloadGpuType(workload);
         const gpuModel = gpuType ? GPU_MODELS[gpuType] : null;
@@ -5475,7 +5663,7 @@ function editWorkload(id) {
         if (gpuModeEl) {
             gpuModeEl.value = w.gpuMode;
             toggleWorkloadGpuFields();
-            if (w.gpuMode === 'dda' && w.gpuDdaCount) {
+            if (w.gpuMode === 'dda') {
                 // Restore DDA model first (VM/AVD), then count options
                 if (w.gpuDdaModel) {
                     const ddaModelEl = document.getElementById('wl-gpu-dda-model');
@@ -5484,7 +5672,7 @@ function editWorkload(id) {
                         populateDdaCountOptions();
                     }
                 }
-                document.getElementById('wl-gpu-dda-count').value = w.gpuDdaCount;
+                document.getElementById('wl-gpu-dda-count').value = w.gpuDdaCount || 1;
                 // Restore AKS GPU VM size if present
                 if (w.aksGpuVmSize) {
                     const aksVmSizeEl = document.getElementById('wl-gpu-aks-vm-size');
@@ -5504,6 +5692,7 @@ function editWorkload(id) {
         }
     }
 
+    populateAiGpuVmSizes(w);
     if (submitBtn) submitBtn.textContent = 'Update Workload';
     modal.classList.add('active');
     overlay.classList.add('active');
@@ -5715,7 +5904,8 @@ function getWorkloadDetails(w) {
             const workers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
             const totVcpu = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
             const totMem = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
-            detail = `${workers} worker${workers > 1 ? 's' : ''} \u2022 ${isMin ? 'Minimum' : 'Recommended'} \u2022 ${totVcpu} vCPU / ${totMem} GB cluster-wide`;
+            detail = `${workers} worker${workers > 1 ? 's' : ''} \u2022 ${isMin ? 'Minimum' : 'Recommended'}`;
+            if (w.gpuMode !== 'dda') detail += ` \u2022 ${totVcpu} vCPU / ${totMem} GB cluster-wide`;
             break;
         }
         case 'ghel': {
@@ -5734,7 +5924,10 @@ function getWorkloadDetails(w) {
             return '';
     }
     // Append GPU info if configured
-    if (w.gpuMode === 'dda') {
+    const aiGpuSummary = getAiGpuWorkerSummary(w);
+    if (aiGpuSummary) {
+        detail += ' \u2022 ' + aiGpuSummary;
+    } else if (w.gpuMode === 'dda') {
         const gpuCount = w.gpuDdaCount || 1;
         detail += ` \u2022 DDA ${gpuCount} GPU${gpuCount > 1 ? 's' : ''}/unit`;
         if (w.aksGpuVmSize) detail += ` (${w.aksGpuVmSize})`;
@@ -5760,14 +5953,9 @@ function calculateWorkloadGpuRequirement(w) {
                     ? (w.userCount || 0)
                     : Math.ceil((w.userCount || 0) * ((w.concurrency || 100) / 100)));
             case 'foundry':
-                normalizeFoundryWorkload(w);
-                return ddaCount * w.workerNodes;
             case 'edgerag':
-                normalizeEdgeRagWorkload(w);
-                return (edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0) +
-                    EDGERAG_LLM_PROFILES[w.llmEndpoint].gpus;
             case 'videoindexer':
-                return ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
+                return getAiGpuWorkerPools(w).reduce((total, pool) => total + pool.nodes * pool.size.gpus, 0);
         }
     } else if (w.gpuMode === 'gpu-p') {
         const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
@@ -5785,6 +5973,7 @@ function calculateWorkloadGpuRequirement(w) {
 
 function calculateWorkloadRequirements(w) {
     let vcpus = 0, memory = 0, storage = 0;
+    const gpuPools = getAiGpuWorkerPools(w);
 
     switch (w.type) {
         case 'vm':
@@ -5840,8 +6029,10 @@ function calculateWorkloadRequirements(w) {
         case 'foundry': {
             normalizeFoundryWorkload(w);
             const profile = FOUNDRY_WORKER_PROFILES[w.workerProfile];
-            const workerVcpu = w.workerProfile === 'custom' ? (w.customVcpus || 8) : profile.vcpus;
-            const workerMem = w.workerProfile === 'custom' ? (w.customMemory || 32) : profile.memory;
+            const workerVcpu = gpuPools.length ? gpuPools[0].size.vcpus
+                : w.workerProfile === 'custom' ? (w.customVcpus || 8) : profile.vcpus;
+            const workerMem = gpuPools.length ? gpuPools[0].size.memoryGB
+                : w.workerProfile === 'custom' ? (w.customMemory || 32) : profile.memory;
             const cpVcpus = FOUNDRY_CP_NODES * FOUNDRY_CP_VCPU_PER_NODE;
             const cpMemory = FOUNDRY_CP_NODES * FOUNDRY_CP_MEM_PER_NODE;
             const cpStorage = FOUNDRY_CP_NODES * FOUNDRY_OS_DISK_GB;
@@ -5864,14 +6055,16 @@ function calculateWorkloadRequirements(w) {
             const cpuVcpus = EDGERAG_CPU_WORKER_NODES * EDGERAG_CPU_WORKER_VCPU;
             const cpuMemory = EDGERAG_CPU_WORKER_NODES * EDGERAG_CPU_WORKER_MEM_GB;
             const embeddingNodes = edgeRagNeedsEmbeddingGpus(w) ? EDGERAG_EMBEDDING_GPU_NODES : 0;
-            const gpuVcpus = embeddingNodes * EDGERAG_GPU_WORKER_VCPU;
-            const gpuMemory = embeddingNodes * EDGERAG_GPU_WORKER_MEM_GB;
+            const embeddingSize = gpuPools.find(pool => pool.field === 'embeddingGpuVmSize')?.size;
+            const llmSize = gpuPools.find(pool => pool.field === 'llmGpuVmSize')?.size;
+            const gpuVcpus = embeddingNodes * (embeddingSize ? embeddingSize.vcpus : EDGERAG_GPU_WORKER_VCPU);
+            const gpuMemory = embeddingNodes * (embeddingSize ? embeddingSize.memoryGB : EDGERAG_GPU_WORKER_MEM_GB);
             const llm = EDGERAG_LLM_PROFILES[w.llmEndpoint];
             const workerStorageOs = (EDGERAG_CPU_WORKER_NODES + embeddingNodes) * EDGERAG_OS_DISK_GB;
             const corpusGB = w.corpusGB || 100;
             const vectorDbStorage = Math.ceil(corpusGB * EDGERAG_VECTOR_DB_MULTIPLIER);
-            vcpus = cpVcpus + cpuVcpus + gpuVcpus + llm.vcpus;
-            memory = cpMemory + cpuMemory + gpuMemory + llm.memory;
+            vcpus = cpVcpus + cpuVcpus + gpuVcpus + (llmSize ? llmSize.vcpus : llm.vcpus);
+            memory = cpMemory + cpuMemory + gpuMemory + (llmSize ? llmSize.memoryGB : llm.memory);
             storage = cpStorage + workerStorageOs + llm.storage + vectorDbStorage;
             break;
         }
@@ -5883,8 +6076,8 @@ function calculateWorkloadRequirements(w) {
             //   Recommended: 2 workers (HA), 64 vCPU / 256 GB / 100 GB PV
             const isMin = w.configuration === 'minimum';
             const workerNodes = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
-            const workerVcpus = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
-            const workerMemory = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
+            const workerVcpus = gpuPools.length ? gpuPools[0].size.vcpus * workerNodes : isMin ? VI_MIN_VCPU : VI_REC_VCPU;
+            const workerMemory = gpuPools.length ? gpuPools[0].size.memoryGB * workerNodes : isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
             const pvStorage = isMin ? VI_MIN_STORAGE_GB : VI_REC_STORAGE_GB;
             const cpVcpus = VI_CP_NODES * VI_CP_VCPU_PER_NODE;
             const cpMemory = VI_CP_NODES * VI_CP_MEM_PER_NODE;
@@ -8232,6 +8425,8 @@ function exportSizerWord() {
             default:             typeLabel = w.type || 'Workload'; break;
         }
         workloadRows += '<tr><td>' + escapeHtmlSizer(w.name || typeLabel) + '</td><td>' + typeLabel + '</td><td>' + reqs.vcpus + '</td><td>' + reqs.memory + ' GB</td><td>' + (reqs.storage / 1000).toFixed(2) + ' TB</td></tr>';
+        const gpuWorkerSummary = getAiGpuWorkerSummary(w);
+        if (gpuWorkerSummary) workloadRows += '<tr><td colspan="5">' + escapeHtmlSizer(gpuWorkerSummary) + '</td></tr>';
     });
 
     // Read totals from the DOM
@@ -8722,6 +8917,11 @@ function selectRegionAndConfigure(region, cloud) {
                 gpuType: workloadGpu ? workloadGpu.type : null,
                 gpuLabel: workloadGpu ? workloadGpu.label : null
             };
+            const gpuWorkerSummary = getAiGpuWorkerSummary(w);
+            if (gpuWorkerSummary) {
+                entry.gpuWorkerSummary = gpuWorkerSummary;
+                for (const pool of getAiGpuWorkerPools(w)) entry[pool.field] = pool.size.name;
+            }
             // Type-specific details for the report
             switch (w.type) {
                 case 'vm':
@@ -8930,19 +9130,16 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                 } else if (w.type === 'foundry') {
                     const foundryReqs = calculateWorkloadRequirements(w);
                     normalizeFoundryWorkload(w);
-                    const foundryProfile = FOUNDRY_WORKER_PROFILES[w.workerProfile].name;
-                    const foundryDetail = w.workerNodes + ' worker(s) \u00b7 ' + foundryProfile + ' \u00b7 ' + w.modelDeployments + ' model deployment(s) \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    const foundryDetail = getWorkloadDetails(w);
                     rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'edgerag') {
                     const edgeragReqs = calculateWorkloadRequirements(w);
                     normalizeEdgeRagWorkload(w);
-                    const edgeragDetail = w.deploymentMode + ' \u00b7 ' + EDGERAG_LLM_PROFILES[w.llmEndpoint].label + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
+                    const edgeragDetail = getWorkloadDetails(w);
                     rows.push(['Workload', 'Agentic Retrieval', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'videoindexer') {
                     const viReqs = calculateWorkloadRequirements(w);
-                    const isMin = w.configuration === 'minimum';
-                    const viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
-                    const viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
+                    const viDetail = getWorkloadDetails(w);
                     rows.push(['Workload', 'AI Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 } else if (w.type === 'ghel') {
                     const ghelReqs = calculateWorkloadRequirements(w);
@@ -9059,7 +9256,7 @@ function loadSizerFromURL() {
         const data = JSON.parse(json);
         if (data && (data.clusterType || data.workloads)) {
             const shareName = data._shareName || '';
-            applyImportedSizerState(data);
+            if (applyImportedSizerState(data) === false) return false;
             // Clean URL after loading
             history.replaceState(null, '', window.location.pathname);
             // Dismiss any resume banner that may have been triggered
@@ -11218,7 +11415,7 @@ function handleSizerFileImport(event) {
             }
 
             // Apply via the same restore logic used by resumeSizerState
-            applyImportedSizerState(d);
+            if (applyImportedSizerState(d) === false) return;
 
             // Confirm success, mirroring the Azure Local Instance and RVTools
             // import flows (which both end with a success toast). Without this,
@@ -11285,6 +11482,7 @@ function applyImportedSizerState(d) {
             }
         }
     }
+    if (!migrateAiGpuWorkloads(d)) return false;
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';

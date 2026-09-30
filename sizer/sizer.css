@@ -966,6 +966,7 @@ header .header-description {
 .workload-card-details {
     font-size: 12px;
     color: var(--text-secondary);
+    overflow-wrap: anywhere;
 }
 
 .workload-card-actions {
@@ -2187,6 +2188,21 @@ header .header-description {
 }
 
 @media (max-width: 480px) {
+    .workload-card {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .workload-card-title {
+        flex-wrap: wrap;
+    }
+
+    .workload-card-actions {
+        grid-column: 2;
+        justify-self: end;
+    }
+
     .odin-tab-container {
         gap: 2px;
     }

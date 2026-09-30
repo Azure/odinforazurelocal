@@ -1394,7 +1394,7 @@
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
                     }
                 } else if (wl.type === 'foundry') {
-                    md.push('| Worker Profile | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
+                    md.push('| ' + (wl.gpuWorkerVmSize ? 'Worker capacity floor' : 'Worker Profile') + ' | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
                     md.push('| Worker Nodes | ' + (wl.workerNodes || 1) + ' |');
                     md.push('| Model Deployments | ' + (wl.modelDeployments || 1) + ' |');
                     md.push('| Cache per Deployment | ' + (wl.modelCacheStorageGB || 100) + ' GiB |');
@@ -1407,13 +1407,13 @@
                     const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
                     md.push('| Deployment Mode | ' + deploymentMode + ' |');
                     md.push('| CPU Workers | 3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each) |');
-                    md.push('| Embedding GPU Workers | ' + (wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16') + ' |');
+                    md.push('| Embedding GPU Workers | ' + (wl.deploymentMode === 'agentic' ? 'None' : '2 × ' + escapeMd(wl.embeddingGpuVmSize || 'NC8_A2 / NC8_A16 (legacy estimate)')) + ' |');
                     md.push('| Language Model Endpoint | ' + llmEndpoint + ' |');
                     md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMin = wl.configuration === 'minimum';
                     md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
-                    md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
+                    md.push('| ' + (wl.gpuWorkerVmSize ? 'Worker pool capacity floor' : 'Cluster-wide compute') + ' | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
                     md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
                 } else if (wl.type === 'ghel') {
                     md.push('| Topology | Primary + ' + (wl.replicas || 0) + ' replica(s) |');
@@ -1422,6 +1422,7 @@
                 }
                 const workloadGpu = formatSizerWorkloadGpu(wl);
                 if (workloadGpu) md.push('| GPU Type | ' + escapeMd(workloadGpu) + ' |');
+                if (wl.gpuWorkerSummary) md.push('| GPU worker VM sizes | ' + escapeMd(wl.gpuWorkerSummary) + ' |');
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
             }
@@ -8302,7 +8303,7 @@
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
                     }
                 } else if (wl.type === 'foundry') {
-                    sizerWorkloadsRows += row('Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
+                    sizerWorkloadsRows += row(wl.gpuWorkerVmSize ? 'Worker capacity floor' : 'Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
                     sizerWorkloadsRows += row('Worker Nodes', String(wl.workerNodes || 1));
                     sizerWorkloadsRows += row('Model Deployments', String(wl.modelDeployments || 1));
                     sizerWorkloadsRows += row('Cache per Deployment', (wl.modelCacheStorageGB || 100) + ' GiB');
@@ -8315,13 +8316,13 @@
                     const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
                     sizerWorkloadsRows += row('Deployment Mode', deploymentMode);
                     sizerWorkloadsRows += row('CPU Workers', '3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each)');
-                    sizerWorkloadsRows += row('Embedding GPU Workers', wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16');
+                    sizerWorkloadsRows += row('Embedding GPU Workers', wl.deploymentMode === 'agentic' ? 'None' : '2 × ' + (wl.embeddingGpuVmSize || 'NC8_A2 / NC8_A16 (legacy estimate)'));
                     sizerWorkloadsRows += row('Language Model Endpoint', llmEndpoint);
                     sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMinH = wl.configuration === 'minimum';
                     sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
-                    sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
+                    sizerWorkloadsRows += row(wl.gpuWorkerVmSize ? 'Worker pool capacity floor' : 'Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
                     sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
                 } else if (wl.type === 'ghel') {
                     sizerWorkloadsRows += row('Topology', 'Primary + ' + (wl.replicas || 0) + ' replica(s)');
@@ -8330,6 +8331,7 @@
                 }
                 const workloadGpu = formatSizerWorkloadGpu(wl);
                 if (workloadGpu) sizerWorkloadsRows += row('GPU Type', workloadGpu);
+                if (wl.gpuWorkerSummary) sizerWorkloadsRows += row('GPU worker VM sizes', wl.gpuWorkerSummary);
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
             }

@@ -1708,7 +1708,8 @@
             } else if (wl.type === 'videoindexer') {
                 const viIsMin = wl.configuration === 'minimum';
                 const viWorkers = viIsMin ? 1 : 2;
-                headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
+                headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended');
+                if (!wl.gpuWorkerVmSize) headline += ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
             } else if (wl.type === 'ghel') {
                 headline = 'Primary + ' + (wl.replicas || 0) + ' replica(s)';
                 if (wl.actions) headline += ' \u00b7 Actions';
@@ -1717,6 +1718,9 @@
                 headline = '\u2014';
             }
             bullets.push({ text: name + ' (' + typeLabel + ') \u2014 ' + headline, lvl: 1 });
+            if (wl.gpuWorkerSummary) {
+                String(wl.gpuWorkerSummary).split('; ').forEach(pool => bullets.push({ text: pool, lvl: 2 }));
+            }
             if (wl.gpuType) {
                 const gpuMode = wl.gpuMode === 'gpu-p' ? 'GPU-P' : wl.gpuMode === 'dda' ? 'DDA' : '';
                 const gpuLabel = wl.gpuLabel || wl.gpuType;

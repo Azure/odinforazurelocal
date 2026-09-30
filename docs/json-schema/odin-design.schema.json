@@ -210,7 +210,11 @@
             "properties": {
               "gpuMode": { "type": ["string", "null"], "enum": ["dda", "gpu-p", null] },
               "gpuType": { "type": ["string", "null"], "description": "Stable Sizer GPU model key." },
-              "gpuLabel": { "type": ["string", "null"], "description": "Display label for the GPU model." }
+              "gpuLabel": { "type": ["string", "null"], "description": "Display label for the GPU model." },
+              "gpuWorkerVmSize": { "type": "string", "description": "Foundry Local or Video Indexer supported GPU worker VM SKU." },
+              "embeddingGpuVmSize": { "type": "string", "description": "Agentic Retrieval embedding-worker GPU VM SKU." },
+              "llmGpuVmSize": { "type": "string", "description": "Agentic Retrieval local-LLM GPU VM SKU." },
+              "gpuWorkerSummary": { "type": "string", "description": "Sizer-generated worker counts, SKUs, vCPU, memory, GPU count and per-worker VRAM for report/export display. Not an inference-performance guarantee." }
             }
           }
         },

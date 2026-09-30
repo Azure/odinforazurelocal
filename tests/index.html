@@ -2407,6 +2407,76 @@
                     && formFields.every((field, index) => field.value === formValues[index])
                     && helpButton.getClientRects().length > 0,
                 'GPU Help dismissal restores link focus and preserves the open workload inputs', true, doc.activeElement.id));
+                const gpuResults = [];
+                const savedKeys = ['odinSizerState', 'odinSizerTimestamp', 'odinDesignerToSizer']
+                    .map(key => [key, localStorage.getItem(key)]);
+                const originalAlert = win.alert;
+                const notices = [];
+                win.alert = message => notices.push(message);
+                try {
+                    win.closeModal();
+                    const legacy = {
+                        ...win.getSizerState(), gpuType: 'l40s', gpuCount: '1', futureGrowth: '0', workloadIdCounter: 1,
+                        workloads: [{ id: 1, type: 'foundry', name: 'Demo legacy GPU', workerProfile: 'recommended',
+                            workerNodes: 2, modelDeployments: 1, modelCacheStorageGB: 100,
+                            gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 1 }]
+                    };
+                    win.applyImportedSizerState(structuredClone(legacy));
+                    const imported = win.getSizerState().workloads[0];
+                    gpuResults.push(assert(imported.gpuWorkerVmSize === 'Standard_NC16_L40S_1'
+                        && notices.length === 1 && doc.getElementById('total-vcpus').textContent === '46'
+                        && doc.getElementById('total-memory').textContent === '156 GB',
+                    'JSON import migrates old GPU workers and renders exact supported CPU/RAM totals', '46/156', imported));
+                    sizingFrame.style.width = '375px';
+                    await new Promise(resolve => win.requestAnimationFrame(resolve));
+                    const card = doc.querySelector('.workload-card');
+                    const details = Array.from(card.querySelectorAll('.workload-card-details'));
+                    gpuResults.push(assert(details.every(el => el.scrollWidth <= el.clientWidth)
+                        && card.querySelector('.workload-card-actions').getBoundingClientRect().top
+                            >= card.querySelector('.workload-card-content').getBoundingClientRect().bottom,
+                    'Long GPU SKU summaries wrap on phones without covering Edit/Clone/Delete', true,
+                    details.map(el => ({width: el.clientWidth, scroll: el.scrollWidth}))));
+                    const beforeInvalid = JSON.stringify(win.getSizerState());
+                    const invalid = structuredClone(legacy);
+                    invalid.workloads[0].gpuDdaCount = 4;
+                    const rejected = win.applyImportedSizerState(invalid) === false;
+                    gpuResults.push(assert(rejected && JSON.stringify(win.getSizerState()) === beforeInvalid,
+                        'Invalid GPU import leaves the current configuration unchanged', true, rejected));
+                    notices.length = 0;
+                    localStorage.setItem('odinSizerState', JSON.stringify({ version: 4, data: legacy }));
+                    win.checkForSavedSizerState();
+                    gpuResults.push(assert(notices.length === 0,
+                        'Showing the resume banner does not migrate before user consent', 0, notices.length));
+                    win.resumeSizerState();
+                    gpuResults.push(assert(notices.length === 1
+                        && win.getSizerState().workloads[0].gpuWorkerVmSize === 'Standard_NC16_L40S_1',
+                    'Resume uses the same visible GPU migration as JSON import', true, notices));
+                    const saved = JSON.parse(localStorage.getItem('odinSizerState'));
+                    win.resumeSizerState();
+                    gpuResults.push(assert(saved.version === 5 && notices.length === 1,
+                        'Saved version-5 selections resume without repeating the migration notice', true, saved.version));
+                    notices.length = 0;
+                    localStorage.setItem('odinSizerState', JSON.stringify({ version: 4, data: legacy }));
+                    localStorage.setItem('odinDesignerToSizer', JSON.stringify({
+                        source: 'designer', clusterType: 'standard', nodeCount: '4'
+                    }));
+                    win.history.replaceState({}, '', '?from=designer');
+                    const returned = win.checkForDesignerImport();
+                    gpuResults.push(assert(returned && notices.length === 1
+                        && win.getSizerState().workloads[0].gpuWorkerVmSize === 'Standard_NC16_L40S_1',
+                    'Designer return migrates the saved GPU workload before restoring it', true, returned));
+                    win.editWorkload(1);
+                    gpuResults.push(assert(doc.getElementById('wl-gpuWorkerVmSize').value === 'Standard_NC16_L40S_1',
+                        'Editing a restored workload retains its explicit GPU worker SKU', 'Standard_NC16_L40S_1',
+                        doc.getElementById('wl-gpuWorkerVmSize').value));
+                } finally {
+                    win.alert = originalAlert;
+                    savedKeys.forEach(([key, value]) => {
+                        if (value === null) localStorage.removeItem(key);
+                        else localStorage.setItem(key, value);
+                    });
+                }
+                testSuite('AI GPU import, resume and Designer return', 'sizer/sizer.js', gpuResults);
             } finally {
                 sizingFrame.remove();
                 if (savedGuidePreference === null) localStorage.removeItem(FOUNDRY_SIZING_HELP_KEY);
@@ -5853,34 +5923,37 @@
                 // GPU: DDA 1 GPU per worker × 4 workers = 4 GPUs
                 const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 4,
                             modelDeployments: 1, modelCacheStorageGB: 100, engine: 'vllm',
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                            gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 1, gpuWorkerVmSize: 'Standard_NC16_L40S_1' };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.gpus === 4, 'Foundry vLLM 4 workers × 1 GPU = 4 GPUs', 4, r.gpus);
             })()
         ]);
 
         testSuite('calculateWorkloadRequirements() - Agentic Retrieval', 'sizer.js', [
-            assert(getEdgeRagCompatibleGpuType('foundry-production') === 'a16',
+            assert(getEdgeRagCompatibleGpuType('foundry-production') === 'l40',
                 'Production Agentic Retrieval defaults to an AKS-supported GPU with at least 48 GB VRAM',
-                'a16', getEdgeRagCompatibleGpuType('foundry-production')),
+                'l40', getEdgeRagCompatibleGpuType('foundry-production')),
             (() => {
-                // CP 12 + CPU workers 24 + embedding workers 16 + LLM 16
+                // CP 12 + CPU workers 24 + L40 embedding workers 32 + LLM 16
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
-                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'l40', gpuDdaCount: 1,
+                            embeddingGpuVmSize: 'Standard_NC16_L40_1', llmGpuVmSize: 'Standard_NC16_L40_1' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.vcpus === 68, 'Combined + production LLM: 68 vCPUs', 68, r.vcpus);
+                return assert(r.vcpus === 84, 'Combined + production LLM: 84 vCPUs', 84, r.vcpus);
             })(),
             (() => {
-                // CP 24 + CPU workers 96 + embedding workers 32 + LLM 64
+                // CP 24 + CPU workers 96 + L40 embedding workers 128 + LLM 64
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
-                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'l40', gpuDdaCount: 1,
+                            embeddingGpuVmSize: 'Standard_NC16_L40_1', llmGpuVmSize: 'Standard_NC16_L40_1' };
                 const r = calculateWorkloadRequirements(w);
-                return assert(r.memory === 216, 'Combined + production LLM: 216 GB memory', 216, r.memory);
+                return assert(r.memory === 312, 'Combined + production LLM: 312 GB memory', 312, r.memory);
             })(),
             (() => {
                 // CP 600 + five worker OS disks 1000 + LLM 100 + vector DB 150
                 const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
-                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'l40', gpuDdaCount: 1,
+                            embeddingGpuVmSize: 'Standard_NC16_L40_1', llmGpuVmSize: 'Standard_NC16_L40_1' };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.storage === 1850, 'Combined + production LLM: 1850 GB storage', 1850, r.storage);
             })(),
@@ -5894,13 +5967,14 @@
             })(),
             (() => {
                 const w = { type: 'edgerag', deploymentMode: 'knowledge', llmEndpoint: 'foundry-minimum',
-                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'a16', gpuDdaCount: 1 };
+                            corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1,
+                            embeddingGpuVmSize: 'Standard_NC16_L4_1', llmGpuVmSize: 'Standard_NC16_L4_1' };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.gpus === 3, 'Knowledge + local LLM: 2 embedding GPUs + 1 LLM GPU', 3, r.gpus);
             })(),
             (() => {
                 const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 1000,
-                            gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 1 };
+                            gpuMode: 'dda', gpuDdaModel: 'a2', gpuDdaCount: 1, embeddingGpuVmSize: 'Standard_NC8_A2' };
                 const r = calculateWorkloadRequirements(w);
                 return assert(w.deploymentMode === 'combined' && w.llmEndpoint === 'external' && r.storage === 3100,
                     'Legacy payload maps to Combined + external LLM', 'combined/external/3100',
@@ -5908,7 +5982,7 @@
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
-                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4' });
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4', embeddingGpuVmSize: 'Standard_NC16_L4_1' });
                 return assert(err === null,
                     'Agentic Retrieval accepts AKS-supported L4 embedding GPUs', null, err);
             })(),
@@ -5961,10 +6035,106 @@
             (() => {
                 // GPU DDA with 1 GPU per worker × 2 workers (Recommended) = 2 GPUs
                 const w = { type: 'videoindexer', configuration: 'recommended',
-                            gpuMode: 'dda', gpuDdaCount: 1 };
+                            gpuMode: 'dda', gpuDdaCount: 1, gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC32_L40S_1' };
                 const r = calculateWorkloadRequirements(w);
                 return assert(r.gpus === 2, 'VI Recommended + 1 GPU/worker = 2 GPUs', 2, r.gpus);
             })()
+        ]);
+
+        testSuite('AI supported GPU worker sizes and migration', 'sizer.js', [
+            (() => {
+                const w = { type: 'foundry', workerProfile: 'recommended', workerNodes: 2,
+                    modelDeployments: 1, modelCacheStorageGB: 100, gpuMode: 'dda',
+                    gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1', gpuDdaCount: 99 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 46 && r.memory === 156 && r.storage === 1100 && r.gpus === 2,
+                    'Foundry uses two actual L40S SKUs, not CPU profiles or stale DDA count', '46/156/1100/2', r);
+            })(),
+            (() => {
+                const w = { type: 'edgerag', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                    corpusGB: 100, gpuMode: 'dda', gpuDdaModel: 'l40s',
+                    embeddingGpuVmSize: 'Standard_NC16_L40S_1', llmGpuVmSize: 'Standard_NC32_L40S_2' };
+                const r = calculateWorkloadRequirements(w);
+                const summary = getAiGpuWorkerSummary(w);
+                return assert(r.vcpus === 100 && r.memory === 376 && r.storage === 1850 && r.gpus === 4
+                    && summary.includes('2 x Standard_NC16_L40S_1') && summary.includes('1 x Standard_NC32_L40S_2'),
+                'Agentic independent embedding/LLM sizes drive all resource totals and summaries', '100/376/1850/4', r);
+            })(),
+            (() => {
+                const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'dda',
+                    gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC32_L40S_1' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 44 && r.memory === 152 && r.storage === 850 && r.gpus === 1,
+                    'Video minimum reserves the supported SKU RAM, not the lower CPU-only floor', '44/152/850/1', r);
+            })(),
+            (() => {
+                const w = { type: 'edgerag', deploymentMode: 'agentic', llmEndpoint: 'foundry-production',
+                    gpuMode: 'dda', gpuDdaModel: 'a16', llmGpuVmSize: 'Standard_NC32_A16' };
+                const error = validateWorkloadBeforeSave(w);
+                return assert(error?.code === 'edgerag-llm-insufficient-vram',
+                    'A16 board VRAM cannot substitute for the GPU VM SKU VRAM', 'edgerag-llm-insufficient-vram', error);
+            })(),
+            (() => {
+                const w = { type: 'edgerag', deploymentMode: 'agentic', llmEndpoint: 'foundry-minimum',
+                    gpuMode: 'dda', gpuDdaModel: 'l4', llmGpuVmSize: 'Standard_NC16_L4_2' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(validateWorkloadBeforeSave(w) === null && r.gpus === 2 && r.vcpus === 52 && r.memory === 184,
+                    'Two L4 GPUs on one supported worker each meet the minimum VRAM floor', '52/184/2', r);
+            })(),
+            (() => {
+                const error = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'agentic',
+                    llmEndpoint: 'foundry-production', gpuMode: 'dda', gpuDdaModel: 'l4',
+                    llmGpuVmSize: 'Standard_NC16_L4_2' });
+                return assert(error?.code === 'edgerag-llm-insufficient-vram',
+                    'Two 24 GB L4 GPUs cannot substitute for a production 48 GB-per-GPU requirement',
+                    'edgerag-llm-insufficient-vram', error);
+            })(),
+            (() => {
+                const w = { type: 'foundry', workerProfile: 'custom', customVcpus: 12, customMemory: 48,
+                    workerNodes: 2, gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC32_L40S_1' };
+                const gpu = calculateWorkloadRequirements(w);
+                w.gpuMode = 'none';
+                const cpu = calculateWorkloadRequirements(w);
+                return assert(gpu.vcpus === 78 && gpu.memory === 284 && cpu.vcpus === 38 && cpu.memory === 124 && cpu.gpus === 0,
+                    'GPU-to-CPU transition preserves the user-owned custom CPU profile', '78/284 -> 38/124/0', {gpu, cpu});
+            })(),
+            (() => {
+                const savedAlert = window.alert;
+                const notices = [];
+                window.alert = message => notices.push(message);
+                try {
+                    const data = { gpuType: 'l40s', workloads: [
+                        { type: 'foundry', name: 'Legacy inference', workerProfile: 'recommended', workerNodes: 2,
+                            gpuMode: 'dda', gpuDdaCount: 1 },
+                        { type: 'vm', name: 'CPU unchanged', count: 1, vcpus: 4, memory: 16, storage: 100, gpuMode: 'none' }
+                    ] };
+                    const cpuBefore = JSON.stringify(data.workloads[1]);
+                    const first = migrateAiGpuWorkloads(data);
+                    const second = migrateAiGpuWorkloads(data);
+                    const r = calculateWorkloadRequirements(data.workloads[0]);
+                    return assert(first && second && notices.length === 1 && notices[0].includes('Standard_NC16_L40S_1')
+                        && notices[0].includes('may have increased') && r.vcpus === 46 && r.memory === 156
+                        && JSON.stringify(data.workloads[1]) === cpuBefore,
+                    'Legacy migration supplies explicit SKUs once, reports changed estimates and leaves CPU workloads alone',
+                    true, { first, second, notices, r });
+                } finally { window.alert = savedAlert; }
+            })(),
+            ...[
+                { type: 'foundry', name: 'Too many GPUs per worker', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 4 },
+                { type: 'foundry', name: 'Wrong SKU model', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L4_1' },
+                { type: 'edgerag', name: 'Insufficient SKU VRAM', deploymentMode: 'combined', llmEndpoint: 'foundry-production', gpuMode: 'dda', gpuDdaModel: 'a16' }
+            ].map(w => {
+                const savedAlert = window.alert;
+                let message = '';
+                window.alert = text => { message = text; };
+                try {
+                    const data = { workloads: [w] };
+                    const before = JSON.stringify(data);
+                    const rejected = migrateAiGpuWorkloads(data) === false;
+                    return assert(rejected && JSON.stringify(data) === before && message.includes('has not been changed'),
+                        'Migration rejects ' + w.name + ' atomically with an actionable error', true, { rejected, message });
+                } finally { window.alert = savedAlert; }
+            })
         ]);
 
         testSuite('calculateWorkloadRequirements() - GitHub Enterprise Local', 'sizer.js', [
@@ -6851,7 +7021,7 @@
                     'AVD + DDA → no error (rule is AKS-only)', null, err);
             })(),
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' });
                 return assert(err === null,
                     'Foundry + DDA → no error (Foundry uses DDA path, not aksGpuVmSize)', null, err);
             })(),
@@ -6921,13 +7091,13 @@
             })(),
             // Validator: Foundry + DDA + AKS-supported GPU → OK
             (() => {
-                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 1 });
+                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuDdaCount: 1, gpuWorkerVmSize: 'Standard_NC16_L40S_1' });
                 return assert(err === null,
                     'Foundry + DDA + L40S → no error (L40S has AKS VM SKUs)', null, err);
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'edgerag', deploymentMode: 'combined',
-                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1 });
+                    llmEndpoint: 'external', gpuMode: 'dda', gpuDdaModel: 'l4', gpuDdaCount: 1, embeddingGpuVmSize: 'Standard_NC16_L4_1' });
                 return assert(err === null,
                     'Agentic Retrieval + DDA + L4 → no error (L4 has AKS VM SKUs)', null, err);
             })(),
@@ -6940,8 +7110,8 @@
             })(),
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'videoindexer', gpuMode: 'dda', gpuDdaModel: 't4', gpuDdaCount: 1 });
-                return assert(err === null,
-                    'Video Indexer + DDA + T4 → no error', null, err);
+                return assert(err?.code === 'ai-gpu-invalid-vm-size',
+                    'Video Indexer rejects T4 SKUs below its worker CPU/RAM floor', 'ai-gpu-invalid-vm-size', err);
             })(),
             // VM/AVD workloads use the Arc VM DDA support matrix.
             (() => {
@@ -6950,14 +7120,12 @@
                     'VM + DDA + A40 → blocks because Arc VM DDA does not support A40',
                     'arc-vm-dda-unsupported-gpu', err && err.code);
             })(),
-            // Validator should NOT trip when gpuDdaModel is missing (separate
-            // problem — the DDA dropdown defaults to one of the filtered set
-            // in the UI, so this path is mostly defensive).
+            // An AI GPU workload needs an explicit model and supported VM size.
             (() => {
                 const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda' });
-                return assert(err === null,
-                    'Foundry + DDA + no gpuDdaModel → no error (model-presence is enforced elsewhere)',
-                    null, err);
+                return assert(err && err.code === 'ai-gpu-invalid-vm-size',
+                    'Foundry + DDA without a GPU model and SKU is rejected',
+                    'ai-gpu-invalid-vm-size', err && err.code);
             })(),
             // Error message should name the unsupported GPU model and the workload.
             (() => {
@@ -7014,14 +7182,14 @@
             // No other workloads → no conflict possible
             (() => {
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, []);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }, []);
                 return assert(err === null,
                     'No other workloads → no conflict', null, err);
             })(),
             // otherWorkloads undefined → no conflict (back-compat with 1-arg call sites)
             (() => {
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' });
                 return assert(err === null,
                     'otherWorkloads omitted → no conflict (1-arg back-compat)', null, err);
             })(),
@@ -7029,14 +7197,14 @@
             (() => {
                 const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
                     'VM L40 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
                     'gpu-conflicts-with-locked-type', err && err.code);
             })(),
             // Symmetric: Foundry L40S first, then VM L40 → block
             (() => {
-                const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
+                const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }];
                 const err = validateWorkloadBeforeSave(
                     { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
@@ -7047,7 +7215,7 @@
             (() => {
                 const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }, others);
                 return assert(err === null,
                     'Both workloads use L40S → no conflict', null, err);
             })(),
@@ -7055,7 +7223,7 @@
             (() => {
                 const others = [{ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4', gpuWorkerVmSize: 'Standard_NC16_L4_1' }, others);
                 return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
                     'VM GPU-P A16 + Foundry DDA L4 → blocks (different GPU types)',
                     'gpu-conflicts-with-locked-type', err && err.code);
@@ -7064,7 +7232,7 @@
             (() => {
                 const others = [{ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'l4' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4', gpuWorkerVmSize: 'Standard_NC16_L4_1' }, others);
                 return assert(err === null,
                     'VM GPU-P L4 + Foundry DDA L4 → no conflict (same model)', null, err);
             })(),
@@ -7089,7 +7257,7 @@
             (() => {
                 const others = [{ type: 'vm', gpuMode: 'none' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }, others);
                 return assert(err === null,
                     'Other workload has no GPU → no conflict', null, err);
             })(),
@@ -7116,7 +7284,7 @@
             (() => {
                 const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'l40' }];
                 const err = validateWorkloadBeforeSave(
-                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s', gpuWorkerVmSize: 'Standard_NC16_L40S_1' }, others);
                 return assert(err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1,
                     'Error message names both GPU models (L40 and L40S)',
                     true, err && err.message.indexOf('L40') !== -1 && err.message.indexOf('L40S') !== -1);
