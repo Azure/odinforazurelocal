@@ -8271,7 +8271,7 @@ function exportSizerWord() {
     if (notesEl) {
         const items = notesEl.querySelectorAll('li');
         for (let i = 0; i < items.length; i++) {
-            notesHtml += '<li>' + items[i].textContent + '</li>';
+            notesHtml += '<li>' + escapeHtmlSizer(items[i].textContent) + '</li>';
         }
     }
 

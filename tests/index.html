@@ -1032,20 +1032,34 @@
                 { label: 'both', vcpus: 57, memory: 97, warnings: 2 },
                 { label: 'exact capacity', vcpus: 56, memory: 96, warnings: 0 },
                 { label: 'aggregate mode', vcpus: 57, memory: 97, warnings: 0, inputMode: 'total' }
-            ].map(scenario => {
+            ].flatMap(scenario => {
                 const saved = {
                     workloads, ratio: _vcpuRatioAutoEscalated, disks: _diskConsolidationInfo,
                     storageLimit: _storageLimitExceeded, exceeds: window._sizerVmExceedsNode,
-                    hadExceeds: Object.prototype.hasOwnProperty.call(window, '_sizerVmExceedsNode')
+                    hadExceeds: Object.prototype.hasOwnProperty.call(window, '_sizerVmExceedsNode'),
+                    hardware: getHardwareConfig, Blob: window.Blob, click: HTMLAnchorElement.prototype.click
                 };
                 const fixture = document.createElement('div');
                 fixture.innerHTML = '<input id="cluster-type" value="standard"><input id="vcpu-ratio" value="4">'
                     + '<input id="future-growth" value="0"><input id="size-for-5yr-growth" value="no">'
                     + '<span id="compute-percent">0</span><span id="memory-percent">0</span>'
                     + '<span id="storage-percent">0</span><span id="gpu-percent">0</span><ul id="sizing-notes"></ul>';
+                for (const id of [
+                    'node-count', 'resiliency', 'total-vcpus', 'total-memory', 'total-storage',
+                    'per-node-cores', 'per-node-memory', 'per-node-overhead', 'instance-hardware-subtitle',
+                    'instance-required-cores', 'instance-required-memory', 'instance-configured-cores',
+                    'instance-configured-memory', 'per-node-storage', 'per-node-usable',
+                    'storage-requirements-title', 'storage-requirements-note', 'per-node-storage-label'
+                ]) {
+                    const el = document.createElement('input');
+                    el.id = id;
+                    el.value = id === 'resiliency' ? '3way' : '3';
+                    el.textContent = '0';
+                    fixture.appendChild(el);
+                }
                 document.body.prepend(fixture);
                 try {
-                    const name = '<img src=x onerror="window.__placementXss=50"><svg onload="window.__placementXss=50">';
+                    const name = '<img src=x onerror="window.__placementXss=50"><svg onload="window.__placementXss=50"> & "quoted" &lt;b&gt;';
                     workloads = JSON.parse(JSON.stringify([{
                         id: 1, type: 'vm', name, inputMode: scenario.inputMode || 'per-vm', count: 1,
                         vcpus: scenario.vcpus, memory: scenario.memory, storage: 0, gpuMode: 'none'
@@ -1061,9 +1075,41 @@
                         && placement.every(li => li.textContent.includes(name))
                         && !notes.querySelector('img,svg,[onerror],[onload]')
                         && !!window._sizerVmExceedsNode === (scenario.warnings > 0);
-                    return assert(safe, scenario.label + ' preserves placement checks without executable imported markup',
+                    const placementResult = assert(safe, scenario.label + ' preserves placement checks without executable imported markup',
                         scenario.warnings + ' literal warnings; no injected elements', placement.length + ' warnings');
+                    const plainNote = document.createElement('li');
+                    plainNote.textContent = 'Ordinary note: CPU < 80% & memory > 20%; literal &lt;value&gt;.';
+                    notes.appendChild(plainNote);
+                    const expectedNotes = Array.from(notes.querySelectorAll('li'), li => li.textContent);
+                    let exportedHtml = '';
+                    let exportedType = '';
+                    hw.diskConfig = { isTiered: false, capacity: { count: 2, sizeGB: 3840, type: 'SSD' } };
+                    hw.coresPerSocket = 8;
+                    hw.sockets = 2;
+                    hw.storageConfig = 'all-flash';
+                    getHardwareConfig = () => hw;
+                    window.Blob = class extends saved.Blob {
+                        constructor(parts, options) {
+                            super(parts, options);
+                            exportedHtml = parts.join('');
+                            exportedType = this.type;
+                        }
+                    };
+                    HTMLAnchorElement.prototype.click = function() {};
+                    exportSizerWord();
+                    const exported = new DOMParser().parseFromString(exportedHtml, 'text/html');
+                    const exportedNotes = Array.from(exported.querySelectorAll('ul > li'), li => li.textContent);
+                    const safeExport = exportedType === 'application/msword;charset=utf-8'
+                        && JSON.stringify(exportedNotes) === JSON.stringify(expectedNotes)
+                        && !exported.querySelector('img,svg,[onerror],[onload]')
+                        && exported.querySelectorAll('table').length > 0;
+                    return [placementResult, assert(safeExport,
+                        scenario.label + ' Word export keeps every sizing note literal without double-encoding or injected markup',
+                        expectedNotes, exportedNotes)];
                 } finally {
+                    getHardwareConfig = saved.hardware;
+                    window.Blob = saved.Blob;
+                    HTMLAnchorElement.prototype.click = saved.click;
                     _clearVmExceedsToast();
                     workloads = saved.workloads;
                     _vcpuRatioAutoEscalated = saved.ratio;
