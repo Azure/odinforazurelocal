@@ -80,5 +80,12 @@ or XML checks do not prove that PowerPoint opens without repair or clipping.
   and repository-relative paths.
 - Keep required manual validation explicit. Do not describe the release as fully
   validated while required checks are failed, blocked, or not run.
-- Push only after the gates pass. The author merges manually; do not enable
-  auto-merge.
+- Push only after the gates pass.
+- **Only a human may merge a pull request.** AI assistants and automation must
+  never merge PRs, invoke merge commands or APIs, or enable auto-merge.
+  Passing checks, approvals, or a request to prepare/finish a release do not
+  authorize an agent to merge.
+- Agents may prepare commits, push `Release`, address reviews, record validation
+  evidence, and mark a PR ready when authorized. Stop at the readiness handoff:
+  report outstanding blockers or that the PR is ready for the human author's
+  manual merge. Never treat "ready" as permission to merge.
