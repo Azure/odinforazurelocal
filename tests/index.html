@@ -2635,6 +2635,48 @@
                 'All machine counts use native buttons with selected-state semantics', 17, chips.length));
             }
             testSuite('Designer Machine Count Accessibility', 'index.html', machineResults);
+
+            const managementResults = [];
+            const managementFrame = document.createElement('iframe');
+            const savedDesignerState = localStorage.getItem('azureLocalWizardState');
+            const managementLoaded = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Disconnected management fixture timed out')), 15000);
+                managementFrame.onload = () => { clearTimeout(timeout); resolve(); };
+            });
+            managementFrame.src = '../index.html';
+            document.body.appendChild(managementFrame);
+            try {
+                await managementLoaded;
+                const win = managementFrame.contentWindow;
+                const doc = managementFrame.contentDocument;
+                win.selectOption('scenario', 'disconnected');
+                win.selectOption('architecture', 'hyperconverged');
+                win.selectDisconnectedOption('clusterRole', 'management');
+                win.updateAutonomousCloudFqdn('cloud.example.test');
+                win.confirmFqdn();
+                for (const cloud of ['azure_commercial', 'azure_government', 'azure_commercial']) {
+                    win.selectOption('region', cloud);
+                    const three = doc.querySelector('#step-3 .node-chip[onclick*="\'3\'"]');
+                    const summary = doc.getElementById('summary-content').textContent;
+                    managementResults.push(assert(three.classList.contains('selected') && !three.disabled
+                        && /Nodes\s*3/.test(summary) && /node3/.test(summary),
+                    'Management cloud transition renders fixed three nodes immediately: ' + cloud,
+                    true, JSON.stringify({ selected: three.classList.contains('selected'), disabled: three.disabled, summary })));
+                }
+                win.selectDisconnectedOption('clusterRole', 'workload');
+                win.updateAutonomousCloudFqdn('workloads.example.test');
+                win.confirmFqdn();
+                win.selectOption('nodes', '1');
+                const one = doc.querySelector('#step-3 .node-chip[onclick*="\'1\'"]');
+                managementResults.push(assert(one.classList.contains('selected') && !one.disabled
+                    && /Nodes\s*1/.test(doc.getElementById('summary-content').textContent),
+                'Workload role remains selectable at one node after management transitions', true, one.className));
+            } finally {
+                managementFrame.remove();
+                if (savedDesignerState === null) localStorage.removeItem('azureLocalWizardState');
+                else localStorage.setItem('azureLocalWizardState', savedDesignerState);
+            }
+            testSuite('Disconnected management render ordering', 'js/disconnected.js', managementResults);
             
             // Update summary after async tests complete
             updateTestSummary();
