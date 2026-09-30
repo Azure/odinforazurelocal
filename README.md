@@ -71,6 +71,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Safer warnings and deployment automation** — prevent HTML injection in Sizer placement warnings; choose a Designer-aligned Azure region or Custom code for generated automation and create missing resource groups before Validate preflight. ARM Help uses the familiar ODIN splash-screen layout.
 - **Keyboard and print improvements** — accessible Designer machine counts and Sizer rack toggles, visible info-tip focus, clean browser printing, and corrected ratio guidance.
 - **OEM/BMC proxy guidance** — reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs.
+- **PowerPoint readability** — dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.
 
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 

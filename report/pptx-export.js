@@ -161,6 +161,11 @@
             customExtract: extractProxyConfiguration
         },
         {
+            title: 'OEM/BMC Proxy Bypass',
+            match: [],
+            customExtract: extractBmcProxyGuidance
+        },
+        {
             // Private Endpoints follow-up slide: one bullet per selected PE
             // service (name + FQDN), scraped from the rendered Outbound block.
             title: 'Private Endpoints',
@@ -1031,7 +1036,13 @@
             // Infrastructure Network slide for the subnet utilisation bar).
             if (extracted.footerSvgString) {
                 return rasterizeSvgString(extracted.footerSvgString).then(function(raster) {
-                    return buildBulletsWithFooterSlide(plan, ec, raster);
+                    const firstPage = buildBulletsWithFooterSlide(plan, Object.assign({}, ec, {
+                        bullets: ec.bullets.slice(0, 8)
+                    }), raster);
+                    if (ec.bullets.length <= 8) return firstPage;
+                    return [firstPage, buildTextSectionSlide({
+                        title: plan.title + ' (continued)'
+                    }, Object.assign({}, ec, { bullets: ec.bullets.slice(8) }))];
                 });
             }
             // Body SVG: full-width SVG renders the entire content area (no
@@ -1340,18 +1351,6 @@
         bullets.push({ text: 'Ensure node, cluster and infrastructure IPs/subnets are bypassed so internal traffic does not hit the proxy.', lvl: 1 });
 
         const links = [];
-        const bmcGuidance = window.__odinGetBmcProxyGuidance();
-        bullets.push({ text: bmcGuidance.title, lvl: 1 });
-        bmcGuidance.notes.forEach(function(note) {
-            bullets.push({ text: note, lvl: 1 });
-        });
-        bmcGuidance.references.forEach(function(reference, index) {
-            const rid = 101 + index;
-            bullets.push({ text: reference.title, lvl: 1, runs: [
-                { text: reference.title, color: '93C5FD', linkRid: rid }
-            ] });
-            links.push({ rid: rid, url: reference.url });
-        });
         if (s.arc === 'arc_gateway') {
             const arcGwUrl = 'https://learn.microsoft.com/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal';
             bullets.push({
@@ -1370,6 +1369,25 @@
             sources: ['Outbound, Arc, Proxy & Private Endpoints'],
             links: links
         };
+    }
+
+    function extractBmcProxyGuidance() {
+        const s = window.__odinGetReportState();
+        if (!s || s.proxy !== 'proxy') return null;
+        const guidance = window.__odinGetBmcProxyGuidance();
+        const bullets = [{ text: guidance.title, lvl: 1 }];
+        const links = [];
+        guidance.notes.forEach(function(note) {
+            bullets.push({ text: note, lvl: 1 });
+        });
+        guidance.references.forEach(function(reference, index) {
+            const rid = 101 + index;
+            bullets.push({ text: reference.title, lvl: 1, runs: [
+                { text: reference.title, color: '93C5FD', linkRid: rid }
+            ] });
+            links.push({ rid: rid, url: reference.url });
+        });
+        return { bullets: bullets, sources: ['OEM/BMC proxy bypass guidance'], links: links };
     }
 
     // Private Endpoints slide: per-PE name + Private Link FQDN + the most

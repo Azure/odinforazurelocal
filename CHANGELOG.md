@@ -25,6 +25,7 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Fixed
 
+- **PowerPoint native layout validation** - Give OEM/BMC proxy guidance its own slide and continue infrastructure planning notes on a separate slide when needed, preventing text from clipping or colliding with diagrams and footers in native PowerPoint.
 - **Release dependency audit** - Update the development-only `brace-expansion` selector overrides to 1.1.21 and 5.0.12 to cover recursive nested-group and comma-list denial-of-service advisories. Require patched `nanoid` 3.3.17 or newer within 3.x and remove its temporary audit exception now that the fixed release is available.
 - **Report and ARM responsive Help** - Keep every report action and the longer ARM title inside their headers on mobile and tablet screens. Preserve readable Help headings when the report uses Print Friendly mode.
 - **OEM/BMC proxy bypass guidance ([#186](https://github.com/Azure/odinforazurelocal/issues/186))** - Add a report caveat, also included in Word, Markdown, and PowerPoint, requiring users to review OEM-specific host-to-BMC endpoints used by Solution Builder Extensions. Distinguish USB passthrough/Remote NDIS endpoints from external OOB management addresses and explain wildcard versus CIDR exclusion syntax with Microsoft and Dell references. This is a documented manual workaround: no automatic bypass entries, new BMC address inputs, or configurable BMC-switch diagrams are introduced.

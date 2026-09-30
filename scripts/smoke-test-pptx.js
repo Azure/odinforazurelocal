@@ -160,6 +160,23 @@ const SEED_PAYLOAD = {
                                     hasReportScope: slideText.some(text => text.includes(window.__odinGetReportScopeNote().text)),
                                     hasBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
                                         slideText.some(text => text.includes(note))),
+                                    hasSeparateBmcSlide: slideText.some(text => text.includes('OEM/BMC Proxy Bypass')
+                                        && window.__odinGetBmcProxyGuidance().notes.every(note => text.includes(note)))
+                                        && slideText.filter(text => text.startsWith('Proxy Configuration'))
+                                            .every(text => !text.includes(window.__odinGetBmcProxyGuidance().notes[0])),
+                                    hasInfraContinuation: slideText.some(text =>
+                                        text.includes('Infrastructure Network Configuration (continued)'))
+                                        && slideText.some(text => text.includes('Planning note: management VLAN tagging')),
+                                    infraDiagramBulletCount: (() => {
+                                        const index = slideText.findIndex(text => text.startsWith('Infrastructure Network Configuration')
+                                            && !text.includes('Infrastructure Network Configuration (continued)'));
+                                        if (index < 0) return -1;
+                                        const xml = new DOMParser().parseFromString(slideXml[index], 'application/xml');
+                                        const body = Array.from(xml.getElementsByTagNameNS('*', 'sp')).find(shape =>
+                                            Array.from(shape.getElementsByTagNameNS('*', 'cNvPr')).some(properties =>
+                                                properties.getAttribute('name') === 'BulletsBody'));
+                                        return body ? body.getElementsByTagNameNS('*', 'p').length : -1;
+                                    })(),
                                     hasBmcGuidanceLinks: window.__odinGetBmcProxyGuidance().references.every(reference =>
                                         relationships.some(text => text.includes(reference.url))),
                                     hasRenderedBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
@@ -207,6 +224,13 @@ const SEED_PAYLOAD = {
         }
         if (!result.hasBmcGuidance || !result.hasBmcGuidanceLinks || !result.hasRenderedBmcGuidance || !result.bypassUnchanged) {
             throw new Error('OEM/BMC caveat must appear in HTML and PowerPoint with sources, without adding bypass ranges');
+        }
+        if (!result.hasSeparateBmcSlide || !result.hasInfraContinuation
+            || result.infraDiagramBulletCount < 1 || result.infraDiagramBulletCount > 8) {
+            throw new Error('Proxy/BMC guidance or infrastructure continuation layout regressed: ' + JSON.stringify({
+                bmc: result.hasSeparateBmcSlide, continuation: result.hasInfraContinuation,
+                diagramBullets: result.infraDiagramBulletCount
+            }));
         }
 
         for (const proxy of ['proxy', 'no_proxy']) {
