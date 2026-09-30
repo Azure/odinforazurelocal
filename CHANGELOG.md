@@ -25,6 +25,7 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Fixed
 
+- **Azure DevOps service connection** - Declare the service-connection variable used by every generated Azure CLI task, with an explicit replacement placeholder and instructions to authorize the connection for the pipeline and target subscription.
 - **Designer example validation** - Correct DNS/gateway collisions in the four HCI example templates and validate DNS when loading templates. DNS form errors now also block 100% completion and Report/ARM readiness using the same validation rules. Real-page automated checks exercise every example from a fresh state and in forward/reverse replacement order, requiring 100% progress, no visible validation errors, valid inputs and enabled outputs; invalid-DNS/correction cases cover each architecture.
 - **Disaggregated validation consistency** - Apply node-name/IP readiness to disaggregated reports as well as ARM output, and prevent HCI witness selections from appearing in disaggregated summaries after architecture or example-template changes.
 - **Disconnected management transitions** - Preserve the fixed three-machine topology before rendering after cloud or architecture changes, keeping machine controls, summary, infrastructure rows and readiness synchronized in one action. Workload clusters retain their independently selectable machine counts.

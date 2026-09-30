@@ -86,6 +86,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>What's New layout and keyboard access</strong> &mdash; release history and its help link stay inside one scrollable panel on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.</li>
                         <li><strong>Designer infrastructure readiness</strong> &mdash; deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.</li>
                         <li><strong>Validated Designer examples</strong> &mdash; corrected example DNS addresses and automated full-page checks for every template; DNS conflicts now block completion and Report/ARM output.</li>
+                        <li><strong>Azure DevOps pipeline setup</strong> &mdash; generated YAML declares its required service-connection placeholder and authorization guidance.</li>
                         <li><strong>Disaggregated validation</strong> &mdash; invalid node addresses also block reports, and HCI witness details no longer leak into disaggregated summaries.</li>
                         <li><strong>Disconnected management transitions</strong> &mdash; cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.</li>
                         <li><strong>Designer machine naming</strong> &mdash; generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.</li>

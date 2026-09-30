@@ -400,6 +400,17 @@
         testSuite('CI deployment workflows', 'arm/deployment-workflow.js', [
             (function() {
                 const pipeline = ArmDeploymentWorkflow.buildAzureDevOpsPipeline({ location: 'westeurope' });
+                const declarations = pipeline.match(/^  azureServiceConnection: 'REPLACE_WITH_AZURE_SERVICE_CONNECTION_NAME'$/gm) || [];
+                const tasks = pipeline.match(/task: AzureCLI@2/g) || [];
+                const references = pipeline.match(/azureSubscription: '\$\(azureServiceConnection\)'/g) || [];
+                return assert(declarations.length === 1 && tasks.length === 6 && references.length === tasks.length
+                    && pipeline.includes('authorized for this pipeline and the target subscription'),
+                'Every Azure CLI pipeline task uses the declared service-connection placeholder',
+                '1 declaration / 6 tasks / 6 references',
+                declarations.length + ' / ' + tasks.length + ' / ' + references.length);
+            })(),
+            (function() {
+                const pipeline = ArmDeploymentWorkflow.buildAzureDevOpsPipeline({ location: 'westeurope' });
                 const createCount = (pipeline.match(/az deployment group create/g) || []).length;
                 const valid = pipeline.includes('trigger: none') &&
                     pipeline.includes("default: Validate") &&
