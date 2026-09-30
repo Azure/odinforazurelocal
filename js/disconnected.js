@@ -456,6 +456,7 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         // Hide D-steps by default
         if (stepD1) stepD1.classList.add('hidden');
         if (stepFqdn) stepFqdn.classList.add('hidden');
+        if (state.scenario !== 'disconnected' || state.clusterRole !== 'management') hideMgmtBanner();
 
         if (state.scenario !== 'disconnected') {
             // Clean up disconnected state when leaving

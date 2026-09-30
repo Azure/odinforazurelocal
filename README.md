@@ -66,7 +66,9 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Development dependency security** — the development-only `js-yaml` override is raised to `>=4.3.2 <5.0.0`; no runtime dependency is added.
 - **What's New layout and keyboard access** — release history and its help link stay inside one scrollable panel, keeping the notes readable on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.
 - **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
-- **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; DNS conflicts now block completion and Report/ARM output.
+- **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; blank DNS entries and DNS conflicts block completion and Report/ARM output. AD-less DNS zone edits immediately update progress and readiness.
+- **AD-less ARM inputs** — current and legacy local-identity outputs hide the irrelevant Active Directory OU path.
+- **Clean Designer reset and role guidance** — Start Over removes the obsolete Sizer import confirmation; workload clusters no longer show the previous management role's fixed-three-machine explanation.
 - **Azure DevOps pipeline setup** — generated YAML declares its required service-connection placeholder and authorization guidance.
 - **Disaggregated validation** — invalid node addresses also block reports, HCI witness details no longer leak into disaggregated summaries, and reports omit inactive dedicated iSCSI and backup subnets.
 - **Disconnected management transitions** — cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.
@@ -77,7 +79,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **OEM/BMC proxy guidance** — reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs.
 - **PowerPoint readability** — dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.
 - **Supported AI GPU worker sizes** — size Foundry Local and Video Indexer GPU workers from supported AKS Arc VM SKUs, with separate Agentic embedding and local-LLM selections. CPU, RAM, GPU count and VRAM now follow the chosen sizes; compatible older GPU workloads migrate with an explicit notice. Capacity sizing is not an inference-performance guarantee.
-- **Per-machine GPU placement** — AUTO GPU inventory respects the largest selected worker's GPU requirement. Insufficient manual inventory produces a placement warning and blocks the Designer handoff rather than treating GPUs on different machines as interchangeable.
+- **Per-machine GPU worker placement** — AUTO GPU inventory respects the largest selected worker's GPU requirement. Selected AI worker pools must also fit one machine's usable CPU and RAM after host reservations. Insufficient capacity produces a placement warning and blocks Designer handoff rather than treating resources on different machines as interchangeable.
 
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 

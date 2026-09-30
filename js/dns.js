@@ -265,6 +265,6 @@ function updateLocalDnsZone() {
     const input = document.getElementById('local-dns-zone-input');
     if (input) {
         state.localDnsZone = input.value.trim() || null;
-        updateSummary();
+        updateUI();
     }
 }

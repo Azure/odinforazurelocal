@@ -865,7 +865,7 @@ function getReportReadiness() {
             missing.push('Identity (Active Directory / Local Identity)');
         } else {
             if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
-            if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
+            if (!state.dnsServers || !state.dnsServers.some(s => s && String(s).trim())) missing.push('DNS Servers');
             if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
         }
         if (!state.securityConfiguration) missing.push('Security Configuration');
@@ -917,7 +917,7 @@ function getReportReadiness() {
     } else {
         if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
         // DNS required for both identity options in this wizard.
-        if (!state.dnsServers || state.dnsServers.length <= 0) {
+        if (!state.dnsServers || !state.dnsServers.some(s => s && String(s).trim())) {
             missing.push('DNS Servers');
         }
         if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
@@ -3069,6 +3069,7 @@ function selectOption(category, value) {
         }
         // Add first DNS server automatically
         addDnsServer();
+        validateAllDnsServers();
     } else if (category === 'securityConfiguration') {
         state.securityConfiguration = value;
         const customSecuritySection = document.getElementById('custom-security-section');
@@ -8157,6 +8158,7 @@ function resetAll() {
     Object.assign(state, fresh);
     state.theme = preservedTheme;
     state.fontSize = preservedFontSize;
+    document.getElementById('sizer-import-banner')?.remove();
 
     // Clear input fields
     clearInfraNetworkInputs();

@@ -293,9 +293,9 @@
             const params = window.armPayload.parametersFile.parameters;
             const identityProvider = params.identityProvider && params.identityProvider.value;
             const adouPath = params.adouPath && params.adouPath.value;
-            // Hide OU path for Local_Identity (AD-less) deployments
+            // Hide OU path for current and legacy AD-less deployments.
             // Also hide if adouPath is already provided from the wizard (not empty and not a placeholder)
-            if (identityProvider === 'Local_Identity') {
+            if (identityProvider === 'LocalIdentity' || identityProvider === 'Local_Identity') {
                 ouContainer.style.display = 'none';
             } else if (adouPath && adouPath !== '' && adouPath.indexOf('REPLACE_WITH') === -1) {
                 // OU Path is already filled from the wizard, hide the input field (Issue #85)

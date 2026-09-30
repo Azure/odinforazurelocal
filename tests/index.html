@@ -2098,16 +2098,17 @@
 
             const regionResults = [];
             for (const fixture of [
-                { cloud: 'azure_commercial', location: 'eastus', selected: 'eastus', count: 8 },
-                { cloud: 'azure_government', location: 'usgovvirginia', selected: 'usgovvirginia', count: 1 },
+                { cloud: 'azure_commercial', location: 'eastus', selected: 'eastus', count: 8, identity: 'LocalIdentity' },
+                { cloud: 'azure_government', location: 'usgovvirginia', selected: 'usgovvirginia', count: 1, identity: 'Local_Identity' },
                 { cloud: 'azure_commercial', location: 'demoregion1', selected: 'custom', count: 8 },
                 { cloud: 'azure_government', location: 'westeurope', selected: 'custom', count: 1 },
-                { cloud: 'azure_commercial', location: 'REPLACE_WITH_LOCATION', selected: '', count: 8 }
+                { cloud: 'azure_commercial', location: 'REPLACE_WITH_LOCATION', selected: '', count: 8, identity: 'LocalIdentity' }
             ]) {
                 const frame = document.createElement('iframe');
                 frame.hidden = true;
                 const payload = { cloud: fixture.cloud, readiness: { placeholders: ['Demo deployment details'] },
-                    parametersFile: { parameters: { location: { value: fixture.location }, deploymentMode: { value: 'Validate' } } } };
+                    parametersFile: { parameters: { location: { value: fixture.location }, deploymentMode: { value: 'Validate' },
+                        identityProvider: { value: fixture.identity || 'ActiveDirectory' } } } };
                 try {
                     await new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => reject(new Error('ARM region fixture load timed out')), 15000);
@@ -2117,6 +2118,9 @@
                     });
                     const win = frame.contentWindow;
                     const doc = frame.contentDocument;
+                    regionResults.push(assert((doc.getElementById('ou-path-container').style.display === 'none') === Boolean(fixture.identity),
+                        'ARM OU input follows current or legacy identity provider: ' + (fixture.identity || 'ActiveDirectory'),
+                        Boolean(fixture.identity), doc.getElementById('ou-path-container').style.display));
                     const select = doc.getElementById('input-location');
                     const custom = doc.getElementById('input-location-custom');
                     const error = doc.getElementById('location-error');
@@ -2526,6 +2530,59 @@
                         && !win._sizerVmExceedsNode,
                     'Removing the GPU worker clears its minimum and automatically managed inventory', '0',
                     doc.getElementById('gpu-count').value));
+                    win.applyImportedSizerState({ ...win.getSizerState(), workloads: [], workloadIdCounter: 0 });
+                    const cpuMemoryCases = [
+                        { type: 'foundry', gpuDdaModel: 'l4', workerProfile: 'recommended', workerNodes: 1,
+                            gpuWorkerVmSize: 'Standard_NC32_L4_1' },
+                        { type: 'videoindexer', gpuDdaModel: 'l4', configuration: 'recommended',
+                            gpuWorkerVmSize: 'Standard_NC32_L4_1' },
+                        { type: 'edgerag', gpuDdaModel: 'l40', deploymentMode: 'combined',
+                            llmEndpoint: 'foundry-production', embeddingGpuVmSize: 'Standard_NC32_L40_1',
+                            llmGpuVmSize: 'Standard_NC16_L40_1' },
+                        { type: 'edgerag', gpuDdaModel: 'l40', deploymentMode: 'combined',
+                            llmEndpoint: 'foundry-production', embeddingGpuVmSize: 'Standard_NC16_L40_1',
+                            llmGpuVmSize: 'Standard_NC32_L40_1' }
+                    ];
+                    for (const [index, worker] of cpuMemoryCases.entries()) {
+                        const workerDesign = {
+                            ...win.getSizerState(), clusterType: 'standard', nodeCount: '8',
+                            nodeCountUserSet: true, cpuCores: '16', cpuSockets: '1', cpuConfigUserSet: true,
+                            nodeMemory: '128', memoryUserSet: true, vcpuRatio: '2', vcpuRatioUserSet: true,
+                            futureGrowth: '0', gpuType: worker.gpuDdaModel,
+                            workloads: [{ ...WORKLOAD_DEFAULTS[worker.type], ...worker,
+                                id: 1, name: '<Demo worker> & capacity', gpuMode: 'dda', gpuDdaCount: 1 }],
+                            workloadIdCounter: 1
+                        };
+                        win.applyImportedSizerState(structuredClone(workerDesign));
+                        const notes = doc.getElementById('sizing-notes');
+                        gpuResults.push(assert(win._sizerVmExceedsNode && doc.querySelector('.btn-designer').disabled
+                            && notes.textContent.includes('requires 32 vCPUs per')
+                            && notes.textContent.includes('requires 128 GB memory per')
+                            && notes.textContent.includes('96 GB after a 32 GB host reservation')
+                            && notes.textContent.includes('<Demo worker> & capacity') && !notes.querySelector('demo')
+                            && doc.getElementById('node-memory').value === '128',
+                        'Selected AI pool ' + index + ' blocks CPU/RAM placement after host reservations with escaped details',
+                        true, JSON.stringify({ blocked: win._sizerVmExceedsNode,
+                            memory: doc.getElementById('node-memory').value,
+                            warnings: Array.from(notes.querySelectorAll('li')).filter(el =>
+                                el.textContent.includes('cannot be placed')).map(el => el.textContent) })));
+                        workerDesign.nodeCount = '16';
+                        win.applyImportedSizerState(structuredClone(workerDesign));
+                        gpuResults.push(assert(win._sizerVmExceedsNode && doc.querySelector('.btn-designer').disabled,
+                            'Adding machines cannot resolve indivisible AI pool ' + index + ' placement', true,
+                            win._sizerVmExceedsNode));
+                        workerDesign.nodeMemory = '256';
+                        win.applyImportedSizerState(structuredClone(workerDesign));
+                        gpuResults.push(assert(win._sizerVmExceedsNode
+                            && notes.textContent.includes('requires 32 vCPUs per')
+                            && !notes.textContent.includes('requires 128 GB memory per'),
+                        'Correcting memory alone preserves AI pool ' + index + ' CPU blocker', true, win._sizerVmExceedsNode));
+                        doc.getElementById('vcpu-ratio').value = '4';
+                        doc.getElementById('vcpu-ratio').dispatchEvent(new Event('change', { bubbles: true }));
+                        gpuResults.push(assert(!win._sizerVmExceedsNode && !doc.querySelector('.btn-designer').disabled,
+                            'Correcting CPU capacity clears AI pool ' + index + ' placement blocker in one action',
+                            false, win._sizerVmExceedsNode));
+                    }
                 } finally {
                     win.alert = originalAlert;
                     savedKeys.forEach(([key, value]) => {
@@ -2757,6 +2814,14 @@
                 await managementLoaded;
                 const win = managementFrame.contentWindow;
                 const doc = managementFrame.contentDocument;
+                const importedBanner = doc.createElement('div');
+                importedBanner.id = 'sizer-import-banner';
+                importedBanner.textContent = 'Sizer Configuration Imported';
+                doc.body.appendChild(importedBanner);
+                win.resetAll();
+                templatePageResults.push(assert(!doc.getElementById('sizer-import-banner'),
+                    'Start Over removes the previous Sizer import confirmation', true,
+                    !doc.getElementById('sizer-import-banner')));
                 win.selectOption('scenario', 'disconnected');
                 win.selectOption('architecture', 'hyperconverged');
                 win.selectDisconnectedOption('clusterRole', 'management');
@@ -2771,6 +2836,9 @@
                     'Management cloud transition renders fixed three nodes immediately: ' + cloud,
                     true, JSON.stringify({ selected: three.classList.contains('selected'), disabled: three.disabled, summary })));
                 }
+                managementResults.push(assert(doc.getElementById('mgmt-cluster-info').getClientRects().length > 0,
+                    'Management role displays its fixed-node explanation', true,
+                    doc.getElementById('mgmt-cluster-info').className));
                 win.selectDisconnectedOption('clusterRole', 'workload');
                 win.updateAutonomousCloudFqdn('workloads.example.test');
                 win.confirmFqdn();
@@ -2779,6 +2847,19 @@
                 managementResults.push(assert(one.classList.contains('selected') && !one.disabled
                     && /Nodes\s*1/.test(doc.getElementById('summary-content').textContent),
                 'Workload role remains selectable at one node after management transitions', true, one.className));
+                managementResults.push(assert(doc.getElementById('mgmt-cluster-info').getClientRects().length === 0,
+                    'Workload role hides the obsolete management fixed-node explanation', true,
+                    doc.getElementById('mgmt-cluster-info').className));
+                win.selectDisconnectedOption('clusterRole', 'management');
+                win.updateAutonomousCloudFqdn('cloud.example.test');
+                win.confirmFqdn();
+                managementResults.push(assert(doc.getElementById('mgmt-cluster-info').getClientRects().length > 0,
+                    'Returning to management restores its fixed-node explanation', true,
+                    doc.getElementById('mgmt-cluster-info').className));
+                win.selectOption('scenario', 'hyperconverged');
+                managementResults.push(assert(doc.getElementById('mgmt-cluster-info').getClientRects().length === 0,
+                    'Leaving disconnected mode hides the management fixed-node explanation', true,
+                    doc.getElementById('mgmt-cluster-info').className));
 
                 win.showTemplates();
                 const templateNames = Array.from(doc.querySelectorAll('#templates-overlay h4'), el => el.textContent);
@@ -2863,6 +2944,30 @@
                                 JSON.stringify({ opened: opened.map(url => url.split('#')[0]), readiness: armPayload.readiness })));
                             } finally {
                                 win.open = originalOpen;
+                            }
+                            if (name === '4-Node High Performance') {
+                                win.selectOption('activeDirectory', 'local_identity');
+                                templatePageResults.push(assert(doc.getElementById('dns-success').classList.contains('hidden'),
+                                    'Changing identity clears the previous DNS success message', true,
+                                    doc.getElementById('dns-success').className));
+                                const localZone = doc.getElementById('local-dns-zone-input');
+                                const localDns = doc.querySelector('#dns-servers-container input');
+                                for (const [input, value, ready, label] of [
+                                    [localZone, 'demo.contoso.com', false, 'Zone alone cannot complete a blank DNS entry'],
+                                    [localDns, template.dnsServers[0], true, 'DNS entry completes AD-less design'],
+                                    [localZone, '', false, 'Removing the DNS zone clears progress and readiness'],
+                                    [localDns, template.dnsServers[0], false, 'DNS entry alone cannot complete a missing zone'],
+                                    [localZone, 'demo.contoso.com', true, 'Restoring the DNS zone updates progress in one edit'],
+                                    [localDns, '', false, 'Removing the DNS server blocks both outputs'],
+                                    [localDns, template.dnsServers[0], true, 'Restoring DNS recovers progress and both outputs']
+                                ]) {
+                                    input.value = value;
+                                    input.dispatchEvent(new win.Event('change', { bubbles: true }));
+                                    const fullProgress = doc.getElementById('wizard-progress-text').textContent.trim().startsWith('100%');
+                                    templatePageResults.push(assert(fullProgress === ready
+                                        && report.disabled === !ready && arm.disabled === !ready,
+                                    label, ready, JSON.stringify({ fullProgress, report: !report.disabled, arm: !arm.disabled })));
+                                }
                             }
                         }
                         if (win.configTemplates.find(item => item.name === name).config.architecture === 'disaggregated') {

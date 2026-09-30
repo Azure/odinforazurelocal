@@ -7738,16 +7738,23 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 // input mode w.vcpus / w.memory are fleet aggregates with count=1,
                 // not the spec of any individual VM, so this check would be a
                 // false positive for any reasonably-sized fleet.
+                const placementVms = getAiGpuWorkerPools(w).map(pool => ({
+                    vcpus: pool.size.vcpus, memory: pool.size.memoryGB,
+                    label: pool.size.name + ' VM (' + pool.label + ')'
+                }));
                 if (w.type === 'vm' && w.inputMode !== 'total') {
-                    if (w.vcpus > maxVcpuPerNode) {
-                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || 'VM') + '" requires ' + escapeHtmlSizer(String(w.vcpus)) + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
-                        _vmExceedsNode = true;
-                    }
-                    if (w.memory > usableMemPerNode) {
-                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || 'VM') + '" requires ' + escapeHtmlSizer(String(w.memory)) + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
-                        _vmExceedsNode = true;
-                    }
+                    placementVms.push({ vcpus: w.vcpus, memory: w.memory, label: 'VM' });
                 }
+                placementVms.forEach(function(vm) {
+                    if (vm.vcpus > maxVcpuPerNode) {
+                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || w.type) + '" requires ' + escapeHtmlSizer(String(vm.vcpus)) + ' vCPUs per ' + escapeHtmlSizer(vm.label) + ', which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                    if (vm.memory > usableMemPerNode) {
+                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || w.type) + '" requires ' + escapeHtmlSizer(String(vm.memory)) + ' GB memory per ' + escapeHtmlSizer(vm.label) + ', which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                });
             });
             if (_vmExceedsNode) {
                 _scheduleVmExceedsToast();
