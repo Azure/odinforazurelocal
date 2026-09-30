@@ -53,7 +53,7 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Changed
 
-- **Release metadata aligned** - Update the shared application version and current release summaries to 0.23.07, archive the 0.23.06 README summary, and clarify that Designer exports use the shared `ODIN_VERSION` as version metadata. Export payload structure and the independent Sizer payload version are unchanged.
+- **Release metadata aligned** - Update the shared application version and current release summaries to 0.23.07, archive the 0.23.06 README summary, and clarify that Designer exports use the shared `ODIN_VERSION` as version metadata. The independent Sizer payload version advances from 4 to 5 to persist the AI GPU worker VM-size selections; Designer workload metadata also carries these selections and their resource breakdown. Both public JSON schemas describe the added fields.
 
 ---
 
