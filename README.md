@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.06 - Available here: https://aka.ms/ODIN
+## Version 0.23.07 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,17 +49,30 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.06 - Latest Release
+### Version 0.23.07 - Latest Release
 
-> **Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings.** Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
+> **Import Hyper-V estates with HVTools, follow the two-phase Azure Local ARM deployment workflow, and preserve switchless networking across design outputs and imports.**
 
 **What's new**
-- **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
-- **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
-- **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
-- **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
-- **Release UI validation completed** — full Sizer and Designer matrices now cover every supported topology, outputs, imports, cross-tool handoffs, reset behavior, keyboard access, both themes, and phone/tablet/desktop layouts. The pass also fixed narrow-screen overflow, stale reset/region/architecture state, dialog Escape handling, and option-card disabled and nested-link semantics.
-- All **1,577 / 1,577** browser tests pass.
+- **Foundry Local sizing help** — a centered first-use guide provides practical sizing steps and a how-to link on every card, including token counting, concurrency, GPU placement, and performance validation. Reopen it using **Help sizing Foundry Local** at the top of the dialog or beside GPU Requirements, without changing workload inputs.
+- **Release validation** — automated localhost integration checks now complement offline tests, with explicit completion, failure evidence, and stronger release-readiness checklists.
+- **Report Help and scope** — a first-visit guide explains report contents and exports. A permanent statement in the report and exports identifies it as a starting point, not a complete business/technical requirements document or a replacement for reviewed low-level design (LLD) documentation. The ARM page title now reads "Azure Local Instance | ARM Deployment Automation".
+- **ARM first-visit help** — a skippable three-step guide explains fields, placeholders, Validate/Deploy, and using the generated files. Reopen it with Help; disconnected designs get local deployment guidance.
+- **HVTools (Hyper-V) import** — the Sizer's **RVTools / HVTools** import auto-detects HVTools export-all `.xlsx` workbooks and VM Overview `.json` exports. Memory sizing uses the larger of startup and assigned memory; shared virtual disks are counted once after filtering. JSON exports provide in-use storage only.
+- **Browser-local import processing** — nothing from the imported estate is transmitted. Host/cluster names and disk identifiers are used only in memory; per-VM mode saves VM names as workload names in browser local storage. Licensing data and export user names are ignored.
+- **Two-phase ARM deployment** — an Azure Context dropdown selects Validate first, then Deploy for a second ARM deployment, updating JSON and copy actions immediately. Separate phase downloads and generated PowerShell, Azure CLI, Azure DevOps, and GitHub workflows distinguish Azure Local validation from ARM preflight/What-If and check the Validate-created cluster before Deploy.
+- **Switchless NIC mappings preserved** — confirmed adapter assignments and custom NIC names stay consistent across diagrams, reports, SVG/draw.io downloads, and ARM networks and intents.
+- **CIDR-aware storage networking** — subnet autofill and generated outputs respect CIDR block sizes, including `/30` and octet rollover. ARM imports retain link subnets and manual addressing order; invalid, overlapping, or undersized custom subnets block readiness.
+- **Development dependency security** — the development-only `js-yaml` override is raised to `>=4.3.2 <5.0.0`; no runtime dependency is added.
+- **What's New layout and keyboard access** — release history and its help link stay inside one scrollable panel, keeping the notes readable on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.
+- **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
+- **Designer machine naming** — generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.
+- **Clearer Sizer hardware requirements** — expand "Hardware sizing - view detailed information" to compare overhead-inclusive requirements with sized cores and memory in aligned Required / Sized tables per machine and per instance, with cores-per-socket multiplication. Sized means the hardware selected in Hardware Configuration. The breakdown is collapsed by default to keep capacity bars and warnings prominent, but always included in exports. Auto-scaling policy is unchanged.
+- **Safer warnings and deployment automation** — prevent HTML injection in Sizer placement warnings; choose a Designer-aligned Azure region or Custom code for generated automation and create missing resource groups before Validate preflight. ARM Help uses the familiar ODIN splash-screen layout.
+- **Keyboard and print improvements** — accessible Designer machine counts and Sizer rack toggles, visible info-tip focus, clean browser printing, and corrected ratio guidance.
+- **OEM/BMC proxy guidance** — reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs.
+
+See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 
 ---
 

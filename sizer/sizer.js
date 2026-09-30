@@ -699,6 +699,10 @@ function getGpuRequirementFields(workloadType) {
 
     return `
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
+        ${workloadType === 'foundry' ? `
+        <div style="margin-bottom: 10px; font-size: 12px;">
+            <a id="foundry-gpu-sizing-help-link" href="#foundry-sizing-help-title" aria-haspopup="dialog" onclick="event.preventDefault(); showFoundrySizingHelp().catch(error => reportUiError(error, 'Opening Foundry sizing help'));">Help sizing Foundry Local</a>
+        </div>` : ''}
         ${gpuDocsLink}
         <div class="form-group">
             <label>GPU Mode
@@ -1816,6 +1820,21 @@ function getHostCpuReservedCores(hwConfig, clusterType) {
         pct = 0.10; floor = 2;
     }
     return Math.max(Math.ceil(pct * physicalCores), floor);
+}
+
+function getComputeRequirementSummary(totalVcpus, totalMemoryGB, nodeCount, hwConfig, clusterType, vcpuRatio) {
+    const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+    const hostCores = getHostCpuReservedCores(hwConfig, clusterType);
+    const hostMemoryGB = getHostMemoryReservedGB(hwConfig, clusterType);
+    const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuRatio) + hostCores;
+    const requiredMemoryPerNodeGB = Math.ceil((totalMemoryGB + ARB_MEMORY_OVERHEAD_GB) / effectiveNodes) + hostMemoryGB;
+    return {
+        effectiveNodes, hostCores, hostMemoryGB, requiredCoresPerNode, requiredMemoryPerNodeGB,
+        requiredCoresTotal: requiredCoresPerNode * nodeCount,
+        requiredMemoryTotalGB: requiredMemoryPerNodeGB * nodeCount,
+        configuredCoresTotal: hwConfig.totalPhysicalCores * nodeCount,
+        configuredMemoryTotalGB: hwConfig.memoryGB * nodeCount
+    };
 }
 
 // ALDO Infrastructure Requirement VM (IRVM1) — auto-added when ALDO Management Cluster is selected
@@ -4505,6 +4524,12 @@ function getFoundryModalContent() {
     const profile = FOUNDRY_WORKER_PROFILES[defaults.workerProfile];
     const customProfile = FOUNDRY_WORKER_PROFILES.custom;
     return `
+        <div style="margin-bottom: 16px;">
+            <button id="foundry-sizing-help-btn" type="button" class="odin-dialog__button" onclick="showFoundrySizingHelp().catch(error => reportUiError(error, 'Opening Foundry sizing help'))">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2.5-3 4"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>
+                <span>Help sizing Foundry Local</span>
+            </button>
+        </div>
         <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
             <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
         </div>
@@ -4590,7 +4615,7 @@ function getFoundryModalContent() {
             <strong>AKS Arc infrastructure included:</strong> ${FOUNDRY_CP_NODES}-node control plane, selected worker pool, fixed ${FOUNDRY_OS_DISK_GB} GB OS disk per node, model-cache PVCs, and a ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB platform-services planning allowance. Do not add a separate AKS workload unless you need another independent cluster.
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
-            Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.
+            Infrastructure capacity estimate only &mdash; not validated inference performance. Confirm model fit and benchmark representative context lengths, concurrent requests, latency, and throughput with your OEM hardware partner.
         </div>
         ${getGpuRequirementFields('foundry')}
     `;
@@ -6666,8 +6691,11 @@ function calculateRequirements(options) {
         const vcpuToCore = getVcpuRatio();
 
         // Per-node requirement breakdown
-        const perNodeCores = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
-        const perNodeMemory = Math.ceil(totalMemory / effectiveNodes);
+        const computeRequirements = getComputeRequirementSummary(
+            totalVcpus, totalMemory, nodeCount, hwConfig, document.getElementById('cluster-type').value, vcpuToCore
+        );
+        const perNodeCores = computeRequirements.requiredCoresPerNode;
+        const perNodeMemory = computeRequirements.requiredMemoryPerNodeGB;
         const perNodeStorageRaw = (totalStorage / 1000) * resiliencyMultiplier / nodeCount; // TB raw per node
         const perNodeUsable = totalStorage / 1000 / nodeCount; // TB usable per node (storage accessible during drain)
 
@@ -6721,15 +6749,37 @@ function calculateRequirements(options) {
         // Update per-node requirement cards
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
+        document.getElementById('per-node-configured-cores').textContent = hwConfig.totalPhysicalCores;
+        document.getElementById('per-node-configured-memory').textContent = hwConfig.memoryGB + ' GB';
+        document.getElementById('per-node-cpu-sockets').textContent =
+            hwConfig.coresPerSocket + ' cores/socket × ' + hwConfig.sockets + ' socket(s)';
+        document.getElementById('instance-required-cores').textContent = computeRequirements.requiredCoresTotal;
+        document.getElementById('instance-configured-cores').textContent = computeRequirements.configuredCoresTotal;
+        document.getElementById('instance-required-memory').textContent = computeRequirements.requiredMemoryTotalGB + ' GB';
+        document.getElementById('instance-configured-memory').textContent = computeRequirements.configuredMemoryTotalGB + ' GB';
+        document.getElementById('instance-hardware-subtitle').textContent =
+            'Totals for one instance: per-machine amounts × ' + nodeCount + ' physical machine' + (nodeCount > 1 ? 's' : '') +
+            (nodeCount > 1 ? ', including the N+1 spare.' : '; no N+1 reserve.') +
+            ' Multi-Instance Scale-Out is separate; these are not fleet totals.' +
+            ' The compute and memory capacity results below show workload capacity and headroom after ' +
+            (nodeCount > 1 ? 'excluding the spare, ' : '') +
+            'deducting host and Azure Resource Bridge reservations, and applying the selected vCPU ratio.';
+        document.getElementById('per-node-overhead').textContent =
+            'Demand-based requirements include the growth-adjusted workload totals above, ' +
+            ARB_VCPU_OVERHEAD + ' vCPUs / ' + ARB_MEMORY_OVERHEAD_GB + ' GB for Azure Resource Bridge per instance, and ' +
+            computeRequirements.hostCores + ' physical cores / ' + computeRequirements.hostMemoryGB +
+            ' GB reserved per machine for the selected hardware. Sized means the hardware selected in Hardware Configuration; it can exceed requirements for supported hardware options, platform minimums, and utilization headroom.';
 
         // Reflect the current node count and vCPU overcommit ratio in the per-node heading
         const perNodeTitleEl = document.getElementById('per-node-title');
         if (perNodeTitleEl) {
-            perNodeTitleEl.textContent = nodeCount + ' x Physical Machines Hardware Requirements:';
+            perNodeTitleEl.textContent = 'Physical hardware (' + nodeCount + ' machines per instance)';
         }
         const perNodeSubtitleEl = document.getElementById('per-node-subtitle');
         if (perNodeSubtitleEl) {
-            perNodeSubtitleEl.innerHTML = '- includes N+1 machines (for HA and update resiliency), compute uses a '
+            perNodeSubtitleEl.innerHTML = (nodeCount > 1
+                ? effectiveNodes + ' effective machines after reserving one for HA and servicing (N+1); '
+                : 'Single machine; no N+1 reserve or workload HA. ') + 'Compute uses a '
                 + '<a href="#vcpu-ratio" class="per-node-ratio-link" '
                 + 'onclick="document.getElementById(\'vcpu-ratio\').scrollIntoView({behavior:\'smooth\',block:\'center\'});'
                 + 'document.getElementById(\'vcpu-ratio\').focus();return false;">'
@@ -6740,13 +6790,27 @@ function calculateRequirements(options) {
         const perNodeStorageLabel = document.getElementById('per-node-storage-label');
         const perNodeUsableLabel = document.getElementById('per-node-usable-label');
         const perNodeUsableSection = document.getElementById('per-node-usable-section');
+        const storageTitle = document.getElementById('storage-requirements-title');
+        const storageNote = document.getElementById('storage-requirements-note');
         if (isDisaggPerNode) {
-            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage Required (Total)';
+            if (storageTitle) storageTitle.textContent = 'SAN storage per instance:';
+            if (storageNote) storageNote.textContent = 'Required external SAN usable capacity, including workload growth and ' + AZURE_LOCAL_PLATFORM_VOLUMES_GB + ' GB of platform volumes once per instance. Not storage per compute machine.';
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Required SAN usable storage (total)';
             document.getElementById('per-node-storage').textContent = sanTotalTB.toFixed(2) + ' TB';
             if (perNodeUsableSection) perNodeUsableSection.style.display = 'none';
         } else {
-            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Raw Storage';
-            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'Usable Storage';
+            if (storageTitle) storageTitle.textContent = 'Workload storage per machine:';
+            if (storageNote) {
+                storageNote.textContent = 'Required usable storage is ' + (totalStorage / 1000).toFixed(2) +
+                    ' TB of growth-adjusted workload demand divided across all ' + nodeCount +
+                    ' machines. Raw storage multiplies that amount by ' + resiliencyMultiplier +
+                    ' for the selected resiliency. These are workload requirements, not installed disk capacity; platform volumes and repair reserves are accounted for separately in sizing and available capacity.';
+            }
+            if (perNodeStorageLabel) {
+                perNodeStorageLabel.textContent = 'Required raw storage (' + resiliencyMultiplier +
+                    (resiliencyMultiplier === 1 ? ' copy)' : ' copies)');
+            }
+            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'Required usable storage';
             document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
             document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
             if (perNodeUsableSection) perNodeUsableSection.style.display = '';
@@ -7351,24 +7415,24 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
+        const computeRequirements = hwConfig
+            ? getComputeRequirementSummary(totalVcpus, totalMemory, nodeCount, hwConfig, clusterType, getVcpuRatio())
+            : null;
+
         // Memory recommendation
         if (totalMemory > 0) {
-            const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
-            const totalOverheadPerNode = getHostMemoryReservedGB(hwConfig, clusterType); // host reservation per node (see Physical Host Compute Overhead section)
-            const arbSharePerNode = Math.ceil(ARB_MEMORY_OVERHEAD_GB / (nodeCount > 1 ? nodeCount - 1 : 1));
-            if (hwConfig && memPerNode + arbSharePerNode > hwConfig.memoryGB - totalOverheadPerNode) {
-                notes.push(`⚠️ Workload memory (${memPerNode} GB/machine + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable machine memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding machines.`);
+            if (computeRequirements && computeRequirements.requiredMemoryPerNodeGB > hwConfig.memoryGB) {
+                notes.push(`⚠️ Required memory per machine (${computeRequirements.requiredMemoryPerNodeGB} GB, including ${computeRequirements.hostMemoryGB} GB host reservation and the per-machine share of ${ARB_MEMORY_OVERHEAD_GB} GB ARB per instance) exceeds sized memory (${hwConfig.memoryGB} GB). Consider increasing memory or adding machines.`);
             }
         }
 
         // Compute check
         if (hwConfig && hwConfig.totalPhysicalCores > 0 && totalVcpus > 0) {
-            const vcpuToCore = getVcpuRatio();
             const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-            const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
-            const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores;
+            const hostReservedCores = computeRequirements.hostCores;
+            const requiredCoresPerNode = computeRequirements.requiredCoresPerNode;
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
-                notes.push(`⚠️ Required cores per machine (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional machines.`);
+                notes.push(`⚠️ Required cores per machine (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed sized physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional machines.`);
             }
 
             // AMD suggestion when Intel cores are maxed out and compute ≥80% at 4:1.
@@ -7466,11 +7530,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 // false positive for any reasonably-sized fleet.
                 if (w.type === 'vm' && w.inputMode !== 'total') {
                     if (w.vcpus > maxVcpuPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || 'VM') + '" requires ' + escapeHtmlSizer(String(w.vcpus)) + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                     if (w.memory > usableMemPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || 'VM') + '" requires ' + escapeHtmlSizer(String(w.memory)) + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                 }
@@ -8026,6 +8090,22 @@ function mapSizerToDesignerScale(clusterType) {
 // Export Functions
 // ============================================
 
+let hardwareBreakdownOpenBeforePrint = null;
+window.addEventListener('beforeprint', function() {
+    const breakdown = document.getElementById('hardware-breakdown');
+    if (breakdown && hardwareBreakdownOpenBeforePrint === null) {
+        hardwareBreakdownOpenBeforePrint = breakdown.open;
+        breakdown.open = true;
+    }
+});
+window.addEventListener('afterprint', function() {
+    const breakdown = document.getElementById('hardware-breakdown');
+    if (breakdown && hardwareBreakdownOpenBeforePrint !== null) {
+        breakdown.open = hardwareBreakdownOpenBeforePrint;
+    }
+    hardwareBreakdownOpenBeforePrint = null;
+});
+
 // Export sizer results as PDF using html2canvas + jsPDF
 function exportSizerPDF() { // eslint-disable-line no-unused-vars
     const sizerLayout = document.querySelector('.sizer-layout');
@@ -8035,6 +8115,11 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
     }
 
     showToast('Generating PDF — this may take a few seconds...', 'success');
+
+    // Expand before measuring so collapsed hardware panels are included.
+    const allDetails = sizerLayout.querySelectorAll('details');
+    const wasOpen = [];
+    allDetails.forEach(function(d) { wasOpen.push(d.open); d.open = true; });
 
     // Collect sections to capture individually for clean page breaks
     const sections = [];
@@ -8052,11 +8137,6 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
             if (s.offsetHeight > 0 && s.style.display !== 'none') sections.push(s);
         });
     }
-
-    // Expand all collapsed sections
-    const allDetails = sizerLayout.querySelectorAll('details');
-    const wasOpen = [];
-    allDetails.forEach(function(d) { wasOpen.push(d.open); d.open = true; });
 
     // Hide buttons
     const hideEls = sizerLayout.querySelectorAll('.export-actions, #designer-action, .rack-viz-section, .workload-card-actions, .onboarding-overlay, .section-header-actions');
@@ -8160,6 +8240,12 @@ function exportSizerWord() {
     const totalStorage = document.getElementById('total-storage').textContent || '0';
     const perNodeCores = document.getElementById('per-node-cores').textContent || '0';
     const perNodeMemory = document.getElementById('per-node-memory').textContent || '0';
+    const perNodeOverhead = document.getElementById('per-node-overhead').textContent;
+    const instanceHardwareSubtitle = document.getElementById('instance-hardware-subtitle').textContent;
+    const instanceRequiredCores = document.getElementById('instance-required-cores').textContent;
+    const instanceRequiredMemory = document.getElementById('instance-required-memory').textContent;
+    const instanceConfiguredCores = document.getElementById('instance-configured-cores').textContent;
+    const instanceConfiguredMemory = document.getElementById('instance-configured-memory').textContent;
     const perNodeStorage = document.getElementById('per-node-storage').textContent || '0';
     const perNodeUsable = document.getElementById('per-node-usable').textContent || '0';
     const computePercent = document.getElementById('compute-percent').textContent || '0%';
@@ -8252,13 +8338,26 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>' + nodeCount + ' x Physical Machines Hardware Requirements:</h3>';
-    html += '<p style="font-size:10pt; color:#555; margin:0 0 8pt;">- includes N+1 machines (for HA and update resiliency), compute uses a ' + getVcpuRatio() + ':1 vCPU overcommit ratio</p>';
+    html += '<h3>Physical hardware (' + nodeCount + ' machines per instance)</h3>';
+    html += '<p>' + (nodeCount > 1 ? (nodeCount - 1) + ' effective machines after N+1 reserve.' : 'Single machine; no N+1 reserve or workload HA.') + ' Compute uses a ' + getVcpuRatio() + ':1 vCPU overcommit ratio.</p>';
+    html += '<p>' + escapeHtmlSizer(perNodeOverhead) + '</p>';
+    html += '<h4>Per machine:</h4><table><thead><tr><th scope="col">Resource</th><th scope="col">Required</th><th scope="col">Sized</th></tr></thead><tbody>';
+    html += '<tr><th scope="row">Physical cores</th><td>' + perNodeCores + '</td><td>' + hwConfig.totalPhysicalCores + ' (' + hwConfig.coresPerSocket + ' cores/socket × ' + hwConfig.sockets + ' sockets)</td></tr>';
+    html += '<tr><th scope="row">Memory</th><td>' + perNodeMemory + '</td><td>' + hwConfig.memoryGB + ' GB</td></tr>';
+    html += '</tbody></table>';
+    html += '<h4>' + escapeHtmlSizer(document.getElementById('storage-requirements-title').textContent) + '</h4>';
+    html += '<p>' + escapeHtmlSizer(document.getElementById('storage-requirements-note').textContent) + '</p>';
     html += '<table class="kv-table"><tbody>';
-    html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
-    html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
-    html += '<tr><td>Raw Storage</td><td>' + perNodeStorage + '</td></tr>';
-    html += '<tr><td>Usable Storage</td><td>' + perNodeUsable + '</td></tr>';
+    html += '<tr><td>' + escapeHtmlSizer(document.getElementById('per-node-storage-label').textContent) + '</td><td>' + perNodeStorage + '</td></tr>';
+    if (clusterType !== 'disaggregated') {
+        html += '<tr><td>Required usable storage</td><td>' + perNodeUsable + '</td></tr>';
+    }
+    html += '</tbody></table>';
+
+    html += '<h3>Physical hardware totals per instance</h3><p>' + escapeHtmlSizer(instanceHardwareSubtitle) + '</p>';
+    html += '<table><thead><tr><th scope="col">Resource</th><th scope="col">Required</th><th scope="col">Sized</th></tr></thead><tbody>';
+    html += '<tr><th scope="row">Physical cores</th><td>' + instanceRequiredCores + '</td><td>' + instanceConfiguredCores + '</td></tr>';
+    html += '<tr><th scope="row">Memory</th><td>' + instanceRequiredMemory + '</td><td>' + instanceConfiguredMemory + '</td></tr>';
     html += '</tbody></table>';
 
     // Capacity Utilization
@@ -11406,6 +11505,8 @@ function applyImportedSizerState(d) {
 // Reset scenario
 function resetScenario() {
     clearSizerState();
+    const hardwareBreakdown = document.getElementById('hardware-breakdown');
+    if (hardwareBreakdown) hardwareBreakdown.open = false;
     workloads = [];
     workloadIdCounter = 0;
     _vcpuRatioUserSet = false;

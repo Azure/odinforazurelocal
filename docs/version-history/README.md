@@ -6,6 +6,17 @@ Return to the [ODIN README](../../README.md).
 
 ### Version 0.23.x Series (August-September 2026)
 
+#### 0.23.06 - S2D shared-link and code quality maintenance
+
+> **Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings.** Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
+
+- **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
+- **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
+- **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
+- **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
+- **Release UI validation completed** — full Sizer and Designer matrices now cover every supported topology, outputs, imports, cross-tool handoffs, reset behavior, keyboard access, both themes, and phone/tablet/desktop layouts. The pass also fixed narrow-screen overflow, stale reset/region/architecture state, dialog Escape handling, and option-card disabled and nested-link semantics.
+- All **1,577 / 1,577** browser tests passed.
+
 #### 0.23.05 - Security and CI supply-chain maintenance
 
 > Security maintenance updated development dependencies, code scanning, and CI supply-chain integrity without changing runtime application behavior.

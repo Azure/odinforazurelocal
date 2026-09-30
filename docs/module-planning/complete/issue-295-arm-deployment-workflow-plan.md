@@ -1,5 +1,7 @@
 # Issue 295 ARM Deployment Workflow Plan
 
+Completed in PR #298; included in the 0.23.07 release summary.
+
 ## Current State
 
 ODIN generates a parameters file for Microsoft's Azure Local Quickstart

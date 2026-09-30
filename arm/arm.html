@@ -8,9 +8,11 @@
 
     <meta name="referrer" content="no-referrer">
     <link rel="icon" type="image/png" href="../images/odin-logo.png">
-    <title>Odin for Azure Local — ARM Parameters</title>
+    <title>Azure Local Instance | ARM Deployment Automation</title>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/onboarding.css">
+    <link rel="stylesheet" href="../css/interactions.css">
     <style>
         /* Mobile responsive styles for ARM page */
         @media (max-width: 768px) {
@@ -32,7 +34,8 @@
                 padding: 0.75rem !important;
             }
 
-            #arm-placeholder-inputs input {
+            #arm-placeholder-inputs input,
+            #arm-placeholder-inputs select {
                 font-size: 0.85rem !important;
                 padding: 0.6rem !important;
             }
@@ -166,10 +169,33 @@
             font-size: 14px;
             font-weight: 500;
             color: var(--text-secondary);
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
 
         body {
             padding-top: 56px;
+        }
+
+        @media (max-width: 768px) {
+            .page-header-bar {
+                position: sticky;
+                height: auto;
+                padding: 8px 12px;
+            }
+
+            .page-header-container {
+                flex-wrap: wrap;
+            }
+
+            .page-header-title {
+                order: 1;
+                flex-basis: 100%;
+            }
+
+            body {
+                padding-top: 0;
+            }
         }
     </style>
 </head>
@@ -183,7 +209,8 @@
                 <img src="../images/odin-logo.png" alt="ODIN Logo">
                 <span>ODIN</span>
             </a>
-            <span class="page-header-title">ARM Parameters</span>
+            <span class="page-header-title">Azure Local Instance | ARM Deployment Automation</span>
+            <button id="arm-help-btn" type="button" class="odin-dialog__button" aria-label="Help with ARM deployment" onclick="showArmHelp().catch(error => reportUiError(error, 'Opening ARM help'))" style="margin-left: auto;">Help</button>
         </div>
     </div>
 
@@ -216,6 +243,48 @@
                     <!-- Azure Context Section -->
                     <div style="border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 0.5rem;">
                         <h4 style="margin: 0 0 1rem 0; color: var(--accent-blue); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">Azure Context</h4>
+                        <div style="margin-bottom: 1rem;">
+                            <label for="input-location" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Azure Region</label>
+                            <select id="input-location" aria-describedby="location-help location-error" onchange="updateParameters()"
+                                    style="width: 100%; padding: 0.75rem; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;">
+                                <option value="">Select an Azure region</option>
+                                <option value="australiaeast" data-cloud="azure_commercial">Australia East (australiaeast)</option>
+                                <option value="canadacentral" data-cloud="azure_commercial">Canada Central (canadacentral)</option>
+                                <option value="eastus" data-cloud="azure_commercial">East US (eastus)</option>
+                                <option value="centralindia" data-cloud="azure_commercial">India Central (centralindia)</option>
+                                <option value="japaneast" data-cloud="azure_commercial">Japan East (japaneast)</option>
+                                <option value="southcentralus" data-cloud="azure_commercial">South Central US (southcentralus)</option>
+                                <option value="southeastasia" data-cloud="azure_commercial">Southeast Asia (southeastasia)</option>
+                                <option value="westeurope" data-cloud="azure_commercial">West Europe (westeurope)</option>
+                                <option value="usgovvirginia" data-cloud="azure_government">US Gov Virginia (usgovvirginia)</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <div id="custom-location-code-container" hidden style="margin-top: 0.75rem;">
+                                <label for="input-location-custom" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Custom Azure region code</label>
+                                <input type="text" id="input-location-custom" placeholder="e.g. westeurope" aria-describedby="location-custom-help location-error"
+                                       style="width: 100%; padding: 0.75rem; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;"
+                                       oninput="updateParameters()" disabled>
+                                <p id="location-custom-help" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Use a region code, not a display name. Custom preserves regions not listed for this cloud; accepting a code does not confirm Azure Local availability in that region.</p>
+                            </div>
+                            <p id="location-error" role="status" hidden style="font-size: 0.85rem; color: var(--danger); margin-top: 0.5rem;"></p>
+                            <p id="location-help" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Pre-filled from Designer when available. Choices match Designer for your Azure cloud, with Custom for other region codes. This updates the deployment location and the location used by generated scripts and workflows when creating a missing resource group; existing resource groups are retained.</p>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label for="input-deployment-mode" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Deployment Mode</label>
+                            <select id="input-deployment-mode" aria-describedby="deployment-mode-help deployment-mode-status" onchange="updateParameters()"
+                                    style="width: 100%; padding: 0.75rem; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;">
+                                <option value="Validate" selected>Validate - first ARM deployment</option>
+                                <option value="Deploy">Deploy - second ARM deployment</option>
+                            </select>
+                            <p id="deployment-mode-help" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                First run a real ARM deployment with <code>deploymentMode=Validate</code> and wait for it to succeed.
+                                Then select <strong>Deploy</strong> and run a second ARM deployment using the same template, subscription, resource group, and cluster name.
+                                ARM preflight validation and What-If do not replace the first deployment.
+                                This selection updates the parameter JSON and copy actions immediately; it does not run a deployment or verify that validation succeeded.
+                                Phase-specific downloads in A5 always use the mode named on the button.
+                            </p>
+                            <p id="deployment-mode-status" role="status" style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.5rem;">Validate selected: run this phase first to create and validate the cluster resource.</p>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
                                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Tenant ID <span style="font-weight: normal; color: var(--text-secondary);">(Optional)</span></label>
@@ -373,7 +442,7 @@
                                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                             </svg>
-                            Copy Validate Parameters &amp; Scroll to JSON
+                            <span id="copy-mode-label">Copy Validate Parameters &amp; Scroll to JSON</span>
                         </button>
                     </div>
                 </div>
@@ -535,8 +604,11 @@
     </main>
 
     <script src="../js/notifications.js"></script>
+    <script src="../js/onboarding.js"></script>
     <script src="deployment-workflow.js"></script>
+    <script src="onboarding.js"></script>
     <script src="arm.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', initializeArmHelp);</script>
     <script>
         // Apply saved theme on load
         (function() {

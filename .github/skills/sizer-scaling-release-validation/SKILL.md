@@ -143,6 +143,35 @@ synchronize related controls while preserving explicit user choices.
 
 ## Release Validation
 
+Follow `../release-readiness/SKILL.md` for release-note coverage, automated gates,
+evidence, and publication. Same-version work still requires reviewing README
+and in-app What's New.
+
+## Help, Layout, And Supported Sizing
+
+- Test first-use Help, Next/Back, completion, Skip/Escape, reload, and reopening.
+  Preferences must be independent. Editing/importing must not unexpectedly
+  launch first-use guides, and Reset must preserve remembered Help preferences.
+- Reopen Help after editing inputs; closing it must preserve the inputs. Escape
+  closes only the top dialog. Tab includes source links and returns focus to the
+  correct trigger on dismissal.
+- Check all guide pages at 375 x 667, 768 x 1024, and desktop, in both themes.
+  Measure dialog-center coordinates within 2 CSS pixels of viewport center after
+  animations finish. Check scrollability, title alignment, visible focus, and
+  every action's bounds and clickability; DOM presence alone is insufficient.
+- Test the actual page's stylesheet loading. A shared component can behave
+  differently in Sizer than in Designer/ARM/Report.
+- For GPU sizing changes, select representative supported VM SKUs and compare
+  CPU, memory, GPU count, and VRAM against their documented values and all
+  resulting totals. Exercise CPU/GPU transitions and unsupported combinations.
+  Successful Add or a matching hardware GPU name is not sufficient.
+- For documentation audits, record the source and review date. Distinguish
+  requirements, ODIN planning assumptions, and benchmark measurements. Flag
+  conflicting guidance rather than silently resizing. Do not infer throughput
+  or users per GPU from VM capacity alone.
+
+## Automated Gates
+
 After browser scenarios pass, run:
 
 ```powershell
@@ -150,6 +179,8 @@ npm run lint:js
 npm run lint:html
 npm run lint:css
 node scripts/run-tests.js
+npm run test:runner
+npm run test:http
 git diff --check
 ```
 

@@ -1,10 +1,13 @@
 /**
  * Run ODIN unit tests using Puppeteer and generate NUnit XML report
- * Usage: node scripts/run-tests.js [--nunit | --junit]
+ * Usage: node scripts/run-tests.js [--http] [--nunit | --junit]
  */
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { pathToFileURL } = require('node:url');
+const { startTestServer, collectBrowserTests } = require('./browser-test-harness.js');
+const useHttp = process.argv.includes('--http');
 
 const hasJunitFlag = process.argv.includes('--junit');
 const hasNunitFlag = process.argv.includes('--nunit');
@@ -940,6 +943,34 @@ function generateJUnitXML(results, passed, failed, total) {
 }
 
 (async () => {
+    let browser;
+    let page;
+    let server;
+    let reportedResults = false;
+    const diagnostics = [];
+    const resultsDir = path.resolve(process.cwd(), 'test-results', useHttp ? 'http' : '.');
+    const saveFailureEvidence = async error => {
+        fs.mkdirSync(resultsDir, { recursive: true });
+        fs.writeFileSync(path.join(resultsDir, 'browser-failure.json'), JSON.stringify({
+            error: error.message, stack: error.stack, diagnostics
+        }, null, 2));
+        if (!reportedResults) {
+            const failure = [{
+                name: 'Browser harness completes successfully', suite: 'Browser harness',
+                section: 'Runner', passed: false, expected: 'Complete, consistent test results',
+                actual: error.message, timestamp: new Date().toISOString()
+            }];
+            if (writeJunit) fs.writeFileSync(path.join(resultsDir, 'junit.xml'), generateJUnitXML(failure, 0, 1, 1));
+            if (writeNunit) fs.writeFileSync(path.join(resultsDir, 'nunit.xml'), generateNUnitXML(failure, 0, 1, 1));
+        }
+        if (page && !page.isClosed()) {
+            try {
+                await page.screenshot({ path: path.join(resultsDir, 'browser-failure.png') });
+            } catch (captureError) {
+                console.error('Could not capture failure screenshot:', captureError.message);
+            }
+        }
+    };
     try {
         if (!testReleaseHistoryGuard() || !testRepositoryMapGuard()) {
             process.exit(1);
@@ -1003,46 +1034,39 @@ function generateJUnitXML(results, passed, failed, total) {
 
         console.log('Launching browser...');
         const puppeteer = await import('puppeteer');
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
         
-        const page = await browser.newPage();
+        page = await browser.newPage();
         
         // Capture console output
-        page.on('console', msg => console.log('Browser:', msg.text()));
-        page.on('pageerror', err => console.error('Page error:', err.message));
+        page.on('console', msg => {
+            diagnostics.push({ type: msg.type(), text: msg.text() });
+            console.log('Browser:', msg.text());
+        });
+        page.on('pageerror', err => {
+            diagnostics.push({ type: 'pageerror', text: err.message });
+            console.error('Page error:', err.message);
+        });
+        page.on('requestfailed', request => diagnostics.push({
+            type: 'requestfailed', url: request.url(), error: request.failure()
+        }));
         
         // Load the test file
         const testPath = path.resolve(process.cwd(), 'tests', 'index.html');
-        console.log('Loading tests from:', testPath);
-        await page.goto(`file://${testPath}`, { waitUntil: 'networkidle0', timeout: 60000 });
-        
-        // Wait for tests to complete
-        console.log('Waiting for tests to complete...');
-        await page.waitForFunction(() => {
-            const passEl = document.getElementById('pass-count');
-            const failEl = document.getElementById('fail-count');
-            return passEl && failEl && (parseInt(passEl.textContent) > 0 || parseInt(failEl.textContent) > 0);
-        }, { timeout: 60000 });
-        
-        // Get test results
-        const results = await page.evaluate(() => {
-            return {
-                passed: parseInt(document.getElementById('pass-count').textContent),
-                failed: parseInt(document.getElementById('fail-count').textContent),
-                total: parseInt(document.getElementById('total-count').textContent),
-                details: window.testResults || []
-            };
-        });
+        if (useHttp) server = await startTestServer(process.cwd());
+        const testUrl = server ? server.url + '/tests/index.html' : pathToFileURL(testPath).href;
+        console.log('Loading tests from:', testUrl);
+        console.log('Waiting for explicit completion of all enabled tests...');
+        const results = await collectBrowserTests(page, testUrl);
         
         console.log(`\n========================================`);
         console.log(`Test Results: ${results.passed}/${results.total} passed, ${results.failed} failed`);
         console.log(`========================================\n`);
         
         // Ensure test-results directory exists
-        const resultsDir = path.resolve(process.cwd(), 'test-results');
         if (!fs.existsSync(resultsDir)) {
             fs.mkdirSync(resultsDir, { recursive: true });
         }
@@ -1063,6 +1087,7 @@ function generateJUnitXML(results, passed, failed, total) {
         }
         
         // Print failed tests
+        reportedResults = true;
         if (results.failed > 0) {
             console.log('\nFailed tests:');
             results.details.filter(t => !t.passed).forEach(t => {
@@ -1072,12 +1097,9 @@ function generateJUnitXML(results, passed, failed, total) {
             });
         }
         
-        await browser.close();
-        
         // Exit with error code if tests failed
         if (results.failed > 0) {
-            console.error(`\n❌ ${results.failed} test(s) failed`);
-            process.exit(1);
+            throw new Error(`${results.failed} test(s) failed`);
         }
         
         console.log(`\n✅ All ${results.passed} tests passed!`);
@@ -1112,17 +1134,29 @@ function generateJUnitXML(results, passed, failed, total) {
 
             if (process.argv.includes('--strict-catalog-gap') && gapResult.gaps.length > 0) {
                 console.error(`\n❌ ${gapResult.gaps.length} catalog gap(s) detected (strict mode).`);
-                process.exit(1);
+                throw new Error(`${gapResult.gaps.length} catalog gap(s) detected (strict mode).`);
             }
         } catch (gapErr) {
+            if (process.argv.includes('--strict-catalog-gap')) throw gapErr;
             // Catalog gap analysis is informational — log and continue.
             console.warn('\n⚠️  Catalog gap analysis skipped: ' + (gapErr && gapErr.message ? gapErr.message : gapErr));
         }
 
-        process.exit(0);
     } catch (err) {
         console.error('Error running tests:', err.message);
         console.error(err.stack);
-        process.exit(1);
+        process.exitCode = 1;
+        await saveFailureEvidence(err);
+    } finally {
+        const cleanup = await Promise.allSettled([
+            browser ? browser.close() : Promise.resolve(),
+            server ? server.close() : Promise.resolve()
+        ]);
+        for (const result of cleanup) {
+            if (result.status === 'rejected') {
+                console.error('Test resource cleanup failed:', result.reason);
+                process.exitCode = 1;
+            }
+        }
     }
 })();

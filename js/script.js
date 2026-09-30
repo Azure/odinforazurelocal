@@ -828,6 +828,8 @@ function getReportReadiness() {
 
     if (!state.scenario) missing.push('Deployment Type');
     if (!state.architecture) missing.push('Architecture');
+    if (!state.infraCidr) missing.push('Infrastructure Network (CIDR)');
+    if (!state.infra || !state.infra.start || !state.infra.end) missing.push('Infrastructure IP Pool (Start/End)');
 
     // Disconnected: require confirmed Autonomous Cloud FQDN
     if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
@@ -898,22 +900,7 @@ function getReportReadiness() {
     if (!state.privateEndpoints) missing.push('Private Endpoints');
     if (!state.ip) missing.push('IP Assignment');
 
-    // Static IP deployments require a default gateway.
-    // If the DOM field is populated but state was not synced (e.g. after resume/load),
-    // pull the value from the field to avoid a stale "missing" entry.
-    if (state.ip === 'static') {
-        if (!state.infraGateway) {
-            try {
-                const gwInput = document.getElementById('infra-default-gateway');
-                const gwVal = gwInput ? gwInput.value.trim() : '';
-                if (gwVal && /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(gwVal)) {
-                    state.infraGateway = gwVal;
-                    state.infraGatewayManual = true;
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (!state.infraGateway) missing.push('Default Gateway');
-    }
+    if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
 
     // Node settings (names + IP CIDR)
     const nodeReadiness = getNodeSettingsReadiness();
@@ -1232,7 +1219,7 @@ function generateNodeName(base, num, padding) {
 /**
  * Auto-fill Node 2..N names based on Node 1's naming pattern.
  * If Node 1 is "customname01", fills Node 2 as "customname02", Node 3 as "customname03", etc.
- * Only fills empty node name fields or default placeholder names; never overwrites user-provided values.
+ * Updates generated names and empty/default fields; preserves manual overrides.
  */
 function tryAutoFillSequentialNodeNamesFromFirst() {
     const count = getNumericNodeCount();
@@ -1252,10 +1239,9 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
         const cur = state.nodeSettings[i] || {};
         const curVal = String(cur.name || '').trim();
 
-        // Only fill empty fields or default placeholder names (e.g., "node2", "node3").
         const defaultName = `node${i + 1}`;
         const isDefault = !curVal || curVal === defaultName || curVal.toLowerCase() === defaultName.toLowerCase();
-        if (!isDefault) continue;
+        if (cur.nameAuto === false || (cur.nameAuto !== true && !isDefault)) continue;
 
         const newNum = (num !== null) ? (num + i) : (i + 1);
         const newName = generateNodeName(base, newNum, effectivePadding);
@@ -1263,6 +1249,7 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
         // Validate the generated name.
         if (newName && newName.length <= MAX_NODE_NAME_LENGTH && isValidNetbiosName(newName)) {
             state.nodeSettings[i].name = newName;
+            state.nodeSettings[i].nameAuto = true;
         }
     }
 }
@@ -1328,10 +1315,12 @@ function ensureNodeSettingsInitialized() {
     for (let i = 0; i < count; i++) {
         const existing = state.nodeSettings[i] || {};
         const defaultName = `node${i + 1}`;
-        next.push({
+        const node = {
             name: existing.name || defaultName,
             ipCidr: existing.ipCidr || ''
-        });
+        };
+        if (typeof existing.nameAuto === 'boolean') node.nameAuto = existing.nameAuto;
+        next.push(node);
     }
     state.nodeSettings = next;
 }
@@ -1340,8 +1329,8 @@ function updateNodeName(index, value) {
     ensureNodeSettingsInitialized();
     if (!state.nodeSettings[index]) return;
     state.nodeSettings[index].name = String(value || '').trim();
+    state.nodeSettings[index].nameAuto = !state.nodeSettings[index].name;
 
-    // Convenience: if the user sets Node 1 name, auto-fill remaining empty node names sequentially.
     if (index === 0) {
         tryAutoFillSequentialNodeNamesFromFirst();
     }
@@ -1349,6 +1338,7 @@ function updateNodeName(index, value) {
     validateNodeSettings();
     updateSummary();
     updateUI();
+    saveStateToLocalStorage();
 }
 
 function updateNodeIpCidr(index, value) {
@@ -1646,9 +1636,6 @@ function getArmReadiness() {
     }
 
     const placeholders = [];
-    if (!state.infraCidr) placeholders.push('Infrastructure Network (CIDR)');
-    if (!state.infra || !state.infra.start || !state.infra.end) placeholders.push('Infrastructure IP Pool (Start/End)');
-
     // The wizard does not collect these; warn that placeholders will be used.
     const isAdlessExternalDns = state.activeDirectory === 'local_identity';
 
@@ -3173,6 +3160,9 @@ function selectOption(category, value) {
         updatePrivateEndpointsSelectionSummary();
     }
 
+    if (['scenario', 'region', 'localInstanceRegion', 'ip'].includes(category)) {
+        clearInfraNetworkInputs();
+    }
     updateUI();
 
     // Auto-save state after every option selection to ensure Resume works reliably
@@ -4239,6 +4229,8 @@ function updateUI() {
         } else {
             chip.classList.remove('disabled');
         }
+        chip.disabled = isDisabled;
+        chip.setAttribute('aria-pressed', state.nodes === valueStr ? 'true' : 'false');
     });
 
     // 4. Global Constraints/Locks
@@ -7473,6 +7465,16 @@ function markInfraPoolEndManual() {
 }
 
 function updateInfraNetwork() {
+    validateInfraNetworkInputs();
+    updateSummary();
+    updateUI();
+    if (typeof renderInfraSubnetBar === 'function') {
+        renderInfraSubnetBar();
+    }
+    saveStateToLocalStorage();
+}
+
+function validateInfraNetworkInputs() {
     const cidrInput = document.getElementById('infra-cidr');
     const startInput = document.getElementById('infra-ip-start');
     const endInput = document.getElementById('infra-ip-end');
@@ -7490,6 +7492,8 @@ function updateInfraNetwork() {
 
     if (!startInput || !endInput) return;
 
+    state.infra = null;
+    state.infraGateway = null;
     const cidr = cidrInput ? cidrInput.value.trim() : '';
     state.infraCidr = cidr || null;
 
@@ -7681,7 +7685,6 @@ function updateInfraNetwork() {
 
     if (!hasRange) {
         state.infra = null;
-        updateSummary();
         return;
     }
 
@@ -7833,8 +7836,6 @@ function updateInfraNetwork() {
                                     gwErr.innerText = 'Default Gateway must not be one of the node IP addresses.';
                                     gwErr.classList.remove('hidden');
                                 }
-                                updateSummary();
-                                updateUI();
                                 return;
                             }
                         }
@@ -7854,12 +7855,20 @@ function updateInfraNetwork() {
         state.infraGateway = null;
     }
 
-    updateSummary();
-    updateUI();
-    if (typeof renderInfraSubnetBar === 'function') {
-        renderInfraSubnetBar();
-    }
-    saveStateToLocalStorage();
+}
+
+function clearInfraNetworkInputs() {
+    ['infra-cidr', 'infra-ip-start', 'infra-ip-end', 'infra-default-gateway'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = '';
+            delete input.dataset.autoMinimumEnd;
+        }
+    });
+    ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success'].forEach(id => {
+        const message = document.getElementById(id);
+        if (message) message.classList.add('hidden');
+    });
 }
 
 function markInfraCidrManual(value) {
@@ -8172,14 +8181,7 @@ function resetAll() {
     state.fontSize = preservedFontSize;
 
     // Clear input fields
-    const cidrInput = document.getElementById('infra-cidr');
-    const startInput = document.getElementById('infra-ip-start');
-    const endInput = document.getElementById('infra-ip-end');
-    const gwInput = document.getElementById('infra-default-gateway');
-    if (cidrInput) cidrInput.value = '';
-    if (startInput) startInput.value = '';
-    if (endInput) endInput.value = '';
-    if (gwInput) { gwInput.value = ''; gwInput.disabled = false; }
+    clearInfraNetworkInputs();
 
     const localDnsZoneInput = document.getElementById('local-dns-zone-input');
     if (localDnsZoneInput) localDnsZoneInput.value = '';

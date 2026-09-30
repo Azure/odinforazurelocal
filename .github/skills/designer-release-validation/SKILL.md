@@ -177,6 +177,26 @@ For any changed UI and once per release candidate:
 
 ## Release Validation
 
+Follow `../release-readiness/SKILL.md` for release-note coverage, automated gates,
+evidence, and publication, including additions to the same unreleased version.
+
+### Help and output-page regressions
+
+- Exercise first visit, Next/Back where offered, completion, Skip/Escape,
+  remembered dismissal, and reopening. Check independent page preferences.
+- Reopen Help over edited fields. Values must survive; Escape must close only
+  the top dialog, and Tab must include links and restore focus on close.
+- On ARM and Report, measure every header action's viewport bounds and click it.
+  A button present in the DOM but off-screen is a failure.
+- Measure native splash centers within 2 CSS pixels of viewport center after
+  animations finish. Verify titles, scrolling, and actions at all three viewport
+  sizes in both themes, and check Report Print Friendly mode separately.
+- Test invalid and valid ARM region choices, Custom transitions, cloud filtering,
+  and the region/mode in actual downloaded scripts and parameter files.
+- Verify new report guidance reaches each affected export, not just HTML.
+
+### Automated gates
+
 After browser scenarios pass, run:
 
 ```powershell
@@ -184,6 +204,8 @@ npm run lint:js
 npm run lint:html
 npm run lint:css
 node scripts/run-tests.js
+npm run test:runner
+npm run test:http
 git diff --check
 ```
 

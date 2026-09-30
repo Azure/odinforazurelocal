@@ -1,0 +1,47 @@
+.odin-onboarding.onboarding-card {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(600px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    color: var(--text-primary);
+}
+
+.odin-onboarding::backdrop {
+    background: color-mix(in srgb, var(--bg-dark) 85%, transparent);
+}
+
+.odin-onboarding .onboarding-title {
+    text-align: center;
+    white-space: pre-line;
+}
+
+.odin-onboarding .onboarding-icon img {
+    object-fit: contain;
+}
+
+.odin-onboarding .onboarding-dot:not(.active) {
+    background: var(--text-secondary);
+}
+
+.odin-onboarding .onboarding-feature {
+    background: var(--subtle-bg);
+}
+
+.odin-onboarding .onboarding-buttons {
+    flex-wrap: wrap;
+}
+
+.odin-onboarding .onboarding-feature-link {
+    display: block;
+    margin-top: 8px;
+    color: var(--accent-blue);
+    overflow-wrap: anywhere;
+}
+
+.odin-onboarding .onboarding-btn:focus-visible,
+.odin-onboarding .onboarding-feature-link:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+}

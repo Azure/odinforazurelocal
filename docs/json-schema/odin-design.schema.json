@@ -2,14 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json",
   "title": "ODIN for Azure Local — Design Export",
-  "description": "Schema for the JSON file produced by the ODIN Designer 'Export Configuration' button and consumed by 'Import Configuration'. Source of truth for `state` is getInitialWizardState() in js/script.js. Intentionally permissive (forward-compatible) — newer ODIN releases may add fields. The envelope `version`/`exportedAt` are free-form metadata and are NOT pinned to the app's WIZARD_VERSION.",
+  "description": "Schema for the JSON file produced by the ODIN Designer 'Export Configuration' button and consumed by 'Import Configuration'. Source of truth for `state` is getInitialWizardState() in js/script.js. Intentionally permissive (forward-compatible) — newer ODIN releases may add fields. The envelope `version`/`exportedAt` are free-form metadata and are NOT pinned to the app's ODIN_VERSION.",
   "type": "object",
   "required": ["state"],
   "additionalProperties": true,
   "properties": {
     "version": {
       "type": "string",
-      "description": "App version that produced the file (WIZARD_VERSION). Metadata only — not validated against and not read on import."
+      "description": "App version that produced the file (shared ODIN_VERSION from js/version.js; 0.23.07 for this release). Metadata only — not validated against and not read on import. Release-version updates do not change the payload structure."
     },
     "exportedAt": {
       "type": "string",
@@ -86,6 +86,7 @@
             "additionalProperties": true,
             "properties": {
               "name": { "type": "string" },
+              "nameAuto": { "type": "boolean", "description": "Optional since ODIN 0.23.07. True for names generated from the first machine; false for explicit manual names. Preserved across resume/import. When absent, only empty/default node names are eligible for automatic naming." },
               "ipCidr": { "type": "string", "description": "e.g. 192.168.1.10/24" }
             }
           }

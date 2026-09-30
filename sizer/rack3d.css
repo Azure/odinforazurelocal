@@ -28,6 +28,25 @@
     color: var(--text-secondary);
 }
 
+#rack-viz-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+#rack-viz-toggle:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
 .rack-viz-section h3 .toggle-arrow.collapsed {
     transform: rotate(-90deg);
 }

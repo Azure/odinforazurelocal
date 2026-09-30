@@ -91,6 +91,7 @@ test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, co
     }, payload);
     await reportPage.goto('http://localhost:5500/report/report.html');
     await reportPage.waitForLoadState('domcontentloaded');
+    await reportPage.getByRole('dialog').getByRole('button', { name: 'Skip', exact: true }).click();
     await reportPage.waitForSelector('#pptx-export-btn', { timeout: 30000 });
     // Let the report finish rendering its sections + diagrams.
     await reportPage.waitForTimeout(5000);

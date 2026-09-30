@@ -111,9 +111,17 @@
     <div id="test-results"></div>
 
     <!-- Modular JavaScript files (load before main script.js) -->
+    <script>
+        window.__odinTestRun = { complete: false, http: location.protocol === 'file:' ? 'skipped' : 'pending', errors: [] };
+        window.addEventListener('unhandledrejection', event => {
+            window.__odinTestRun.errors.push(String(event.reason));
+            console.error('Unhandled test rejection:', event.reason);
+        });
+    </script>
     <script src="../js/version.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/notifications.js"></script>
+    <script src="../js/onboarding.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/theme.js"></script>
     <script src="../js/formatting.js"></script>
@@ -124,6 +132,9 @@
     <script src="../js/disaggregated.js"></script>
     <script src="../js/script.js"></script>
     <script src="../arm/deployment-workflow.js"></script>
+    <script src="../arm/onboarding.js"></script>
+    <script src="../report/onboarding.js"></script>
+    <script src="../sizer/foundry-help.js"></script>
     <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
     <script>window.__SIZER_TEST_MODE__ = true;</script>
     <script src="../sizer/sizer.js"></script>
@@ -163,7 +174,7 @@
                 name: testName,
                 suite: currentSuite || 'Default',
                 section: currentSection || 'Tests',
-                passed: condition,
+                passed: Boolean(condition),
                 expected: String(expected),
                 actual: String(actual),
                 timestamp: new Date().toISOString()
@@ -236,6 +247,21 @@
                     'Deploy clone / Validate source',
                     deploy.parameters.deploymentMode.value + ' clone / ' + source.parameters.deploymentMode.value + ' source');
             })(),
+            (() => {
+                const source = { contentVersion: '1.0.0.0', parameters: {
+                    deploymentMode: { value: 'Validate' }, clusterName: { value: 'demo-cluster' },
+                    physicalNodesSettings: { value: [{ name: 'demo-node1' }] }
+                } };
+                const deploy = ArmDeploymentWorkflow.parametersForMode(source, 'Deploy');
+                const validate = ArmDeploymentWorkflow.parametersForMode(deploy, 'Validate');
+                const download = ArmDeploymentWorkflow.parametersForMode(deploy, 'Validate');
+                return assert(JSON.stringify(validate) === JSON.stringify(source)
+                    && deploy.parameters.deploymentMode.value === 'Deploy'
+                    && download.parameters.deploymentMode.value === 'Validate'
+                    && download.parameters.physicalNodesSettings.value[0].name === 'demo-node1',
+                'ARM mode switches round-trip without changing other parameters or a phase download changing the selection',
+                'Validate -> Deploy -> Validate; preserved cluster and nodes', JSON.stringify(validate));
+            })(),
             (function() {
                 let message = '';
                 try {
@@ -249,16 +275,85 @@
             })()
         ]);
 
+        testSuite('ARM first-visit help', 'arm/onboarding.js', [
+            (() => {
+                const steps = getArmHelpSteps(false);
+                const text = JSON.stringify(steps);
+                return assert(steps.length === 3
+                    && steps.every(step => step.features.length === 4 && step.description)
+                    && text.includes('does not execute or monitor')
+                    && text.includes('REPLACE_WITH_')
+                    && text.includes('second ARM deployment')
+                    && text.includes('cannot check')
+                    && text.includes('regardless of the dropdown')
+                    && text.includes('Edit parameters')
+                    && text.includes('Custom'),
+                'Connected ARM help explains fields, two real deployments, and mode-specific output',
+                'three connected preparation steps', JSON.stringify(steps));
+            })(),
+            (() => {
+                const steps = getArmHelpSteps(true);
+                const text = JSON.stringify(steps);
+                return assert(text.includes('not the public Azure Portal')
+                    && text.includes('authorized local management')
+                    && text.includes('local deployment tooling')
+                    && !text.includes('Edit parameters')
+                    && ARM_ONBOARDING_KEY === 'odin_arm_onboarding_v1',
+                'Disconnected help uses local guidance and an independent onboarding preference',
+                'local workflow / independent key', JSON.stringify(steps));
+            })()
+        ]);
+
+        testSuite('Report first-visit help', 'report/onboarding.js', [
+            (() => {
+                const steps = getReportHelpSteps();
+                const content = JSON.stringify(steps);
+                return assert(steps.length === 3 && steps.every(step => step.features.length === 4)
+                    && content.includes('business or technical requirements')
+                    && content.includes('does not replace your reviewed low-level design (LLD) documentation')
+                    && content.includes('Word or Markdown') && content.includes('PowerPoint')
+                    && REPORT_ONBOARDING_KEY !== ARM_ONBOARDING_KEY,
+                'Report help covers benefits, exports, and design boundaries with its own preference',
+                'three steps / four cards / independent key', content);
+            })()
+        ]);
+
+        testSuite('Foundry sizing help content', 'sizer/foundry-help.js', [
+            (() => {
+                const steps = getFoundrySizingHelpSteps();
+                const text = JSON.stringify(steps);
+                return assert(steps.length === 3 && steps.every(step => step.features.length === 4)
+                    && text.includes('same AKS worker node') && text.includes('not a throughput guarantee')
+                    && text.includes('requests per second') && text.includes('time to first token')
+                    && text.includes('Model-deployment count sizes cache storage')
+                    && FOUNDRY_SIZING_HELP_KEY !== SIZER_ONBOARDING_KEY
+                    && FOUNDRY_SIZING_HELP_KEY !== REPORT_ONBOARDING_KEY
+                    && FOUNDRY_SIZING_HELP_KEY !== ARM_ONBOARDING_KEY,
+                'Foundry guide distinguishes demand, serving topology, and measured performance with an independent preference',
+                true, text);
+            })(),
+            (() => {
+                const links = getFoundrySizingHelpSteps().flatMap(step => step.features).filter(feature => feature.link).map(feature => feature.link);
+                const sourceHosts = ['learn.microsoft.com', 'huggingface.co', 'docs.vllm.ai'];
+                return assert(links.length === 12 && links.every(link => link.label
+                    && new URL(link.url).protocol === 'https:' && sourceHosts.includes(new URL(link.url).hostname))
+                    && getFoundrySizingHelpSteps()[2].description.includes('Generic benchmarking examples must be adapted'),
+                    'Every Foundry card has an authoritative how-to link, with generic guidance identified', 12, links.length);
+            })()
+        ]);
+
         testSuite('Local deployment scripts', 'arm/deployment-workflow.js', [
             (function() {
                 const script = ArmDeploymentWorkflow.buildPowerShellScript({
                     tenantId: '', subscriptionId: 'subscription',
-                    resourceGroupName: 'resource-group', deploymentName: 'deployment'
+                    resourceGroupName: 'resource-group', deploymentName: 'deployment', location: 'westeurope'
                 });
                 const valid = script.includes("[ValidateSet('Validate', 'Deploy')]") &&
                     script.includes('azurelocal-parameters-$($DeploymentMode.ToLowerInvariant()).json') &&
                     script.includes('Get-AzResource @clusterLookup') &&
                     script.includes('New-AzResourceGroupDeployment @deploymentParameters') &&
+                    script.includes('$location = "westeurope"') &&
+                    script.includes('deploymentMode = $DeploymentMode') &&
                     !script.includes('New-AzResourceGroupDeployment \\');
                 return assert(valid,
                     'PowerShell uses explicit phases, phase files, a cluster guard, and splatting',
@@ -267,13 +362,16 @@
             (function() {
                 const script = ArmDeploymentWorkflow.buildAzureCliScript({
                     tenantId: '', subscriptionId: 'subscription',
-                    resourceGroupName: 'resource-group', deploymentName: 'deployment'
+                    resourceGroupName: 'resource-group', deploymentName: 'deployment', location: 'westeurope'
                 });
                 const valid = script.includes('DEPLOYMENT_MODE="${1:-Validate}"') &&
                     script.includes('azurelocal-parameters-${DEPLOYMENT_MODE,,}.json') &&
                     script.includes("--resource-type 'Microsoft.AzureStackHCI/clusters'") &&
                     script.includes('az deployment group what-if') &&
                     script.includes('az deployment group create') &&
+                    script.includes('LOCATION="westeurope"') &&
+                    script.includes('groupExists=$(az group exists --name "$RESOURCE_GROUP")') &&
+                    script.includes('if [[ "$groupExists" == "false" ]]') &&
                     !script.includes('az deployment group validate');
                 return assert(valid,
                     'Azure CLI separates ARM preflight from both real deployment phases',
@@ -281,28 +379,56 @@
             })()
         ]);
 
+        testSuite('Deployment automation region validation', 'arm/deployment-workflow.js', [
+            ...['buildPowerShellScript', 'buildAzureCliScript', 'buildAzureDevOpsPipeline', 'buildGitHubWorkflow'].map(builder => {
+                const invalid = [undefined, '', 'REPLACE_WITH_LOCATION', 'West Europe', 'eastus";echo bad', 'eastus\nbad'];
+                const rejected = invalid.every(location => {
+                    try {
+                        ArmDeploymentWorkflow[builder]({ location });
+                        return false;
+                    } catch (error) {
+                        return error.message.includes('valid Azure region code');
+                    }
+                });
+                const script = ArmDeploymentWorkflow[builder]({ location: 'usgovvirginia' });
+                return assert(rejected && script.includes('usgovvirginia') && !script.includes('"eastus"'),
+                    builder + ' requires a shell-safe explicit region, including government region codes',
+                    true, rejected);
+            })
+        ]);
+
         testSuite('CI deployment workflows', 'arm/deployment-workflow.js', [
             (function() {
-                const pipeline = ArmDeploymentWorkflow.buildAzureDevOpsPipeline();
+                const pipeline = ArmDeploymentWorkflow.buildAzureDevOpsPipeline({ location: 'westeurope' });
                 const createCount = (pipeline.match(/az deployment group create/g) || []).length;
                 const valid = pipeline.includes('trigger: none') &&
                     pipeline.includes("default: Validate") &&
                     pipeline.includes('azurelocal-parameters-validate.json') &&
                     pipeline.includes('azurelocal-parameters-deploy.json') &&
                     pipeline.includes("Microsoft.AzureStackHCI/clusters") &&
+                    pipeline.includes("location: 'westeurope'") &&
+                    pipeline.includes('groupExists=$(az group exists --name "$(resourceGroupName)")') &&
+                    pipeline.includes('az group create --name "$(resourceGroupName)" --location "$(location)"') &&
+                    pipeline.indexOf('Ensure resource group exists') < pipeline.indexOf('ARM What-If preflight') &&
+                    (pipeline.match(/az group create/g) || []).length === 1 &&
                     createCount === 2 && !pipeline.includes('az deployment group validate');
                 return assert(valid,
                     'Azure DevOps exposes manual Validate and Deploy resource deployments',
                     true, valid);
             })(),
             (function() {
-                const workflow = ArmDeploymentWorkflow.buildGitHubWorkflow();
+                const workflow = ArmDeploymentWorkflow.buildGitHubWorkflow({ location: 'westeurope' });
                 const createCount = (workflow.match(/az deployment group create/g) || []).length;
                 const valid = workflow.includes('workflow_dispatch:') &&
                     !workflow.includes('  push:') && !workflow.includes('  pull_request:') &&
                     workflow.includes('azurelocal-parameters-validate.json') &&
                     workflow.includes('azurelocal-parameters-deploy.json') &&
                     workflow.includes("Microsoft.AzureStackHCI/clusters") &&
+                    workflow.includes('LOCATION: westeurope') &&
+                    workflow.includes('groupExists=$(az group exists --name "$RESOURCE_GROUP")') &&
+                    workflow.includes('az group create --name "$RESOURCE_GROUP" --location "$LOCATION"') &&
+                    workflow.indexOf('Ensure resource group exists') < workflow.indexOf('ARM What-If preflight') &&
+                    (workflow.match(/az group create/g) || []).length === 1 &&
                     createCount === 2 && !workflow.includes('az deployment group validate');
                 return assert(valid,
                     'GitHub Actions requires a manually selected real deployment phase',
@@ -622,17 +748,51 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.06'
+                    globalThis.ODIN_VERSION === '0.23.07'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.06')
+                        && branding.textContent.includes('Version 0.23.07')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.06 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.07 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
+            })()
+        ]);
+
+        testSuite('Shared release notes', 'changelog.js', [
+            (function() {
+                const trigger = document.createElement('button');
+                document.body.appendChild(trigger);
+                trigger.focus();
+                showChangelog();
+                const overlay = document.body.lastElementChild;
+                const panel = overlay.firstElementChild;
+                const latest = panel.querySelector('h4');
+                const help = panel.querySelector('a[href="https://github.com/Azure/AzureLocal-Supportability"]');
+                const valid = overlay.children.length === 1
+                    && panel.style.overflowWrap === 'anywhere'
+                    && latest.textContent === `Version ${globalThis.ODIN_VERSION}`
+                    && help !== null
+                    && Array.from(panel.querySelectorAll('li')).every(item => item.parentElement.matches('ul, ol'));
+                const close = panel.querySelector('button');
+                const initialFocus = document.activeElement === close;
+                close.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+                const wrappedBack = document.activeElement === help;
+                help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+                const wrappedForward = document.activeElement === close;
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                const restoredFocus = document.activeElement === trigger;
+                trigger.remove();
+                return assert(valid && initialFocus && wrappedBack && wrappedForward && restoredFocus
+                    && overlay.getAttribute('role') === 'dialog' && overlay.getAttribute('aria-modal') === 'true'
+                    && close.getAttribute('aria-label') === "Close What's New"
+                    && !overlay.isConnected && window.closeChangelog === undefined,
+                    'release notes keep current version, history, and help inside one panel and close on Escape',
+                    'one panel / current version / contained help and list items / closed',
+                    `${overlay.children.length} panel / ${latest.textContent} / help ${!!help} / valid ${valid} / closed ${!overlay.isConnected}`);
             })()
         ]);
 
@@ -863,6 +1023,57 @@
                     true,
                     safe);
             })()
+        ]);
+
+        testSuite('CodeQL 50: placement warnings escape imported workload fields', 'sizer.js', [
+            ...[
+                { label: 'CPU-only', vcpus: 57, memory: 4, warnings: 1 },
+                { label: 'memory-only', vcpus: 2, memory: 97, warnings: 1 },
+                { label: 'both', vcpus: 57, memory: 97, warnings: 2 },
+                { label: 'exact capacity', vcpus: 56, memory: 96, warnings: 0 },
+                { label: 'aggregate mode', vcpus: 57, memory: 97, warnings: 0, inputMode: 'total' }
+            ].map(scenario => {
+                const saved = {
+                    workloads, ratio: _vcpuRatioAutoEscalated, disks: _diskConsolidationInfo,
+                    storageLimit: _storageLimitExceeded, exceeds: window._sizerVmExceedsNode,
+                    hadExceeds: Object.prototype.hasOwnProperty.call(window, '_sizerVmExceedsNode')
+                };
+                const fixture = document.createElement('div');
+                fixture.innerHTML = '<input id="cluster-type" value="standard"><input id="vcpu-ratio" value="4">'
+                    + '<input id="future-growth" value="0"><input id="size-for-5yr-growth" value="no">'
+                    + '<span id="compute-percent">0</span><span id="memory-percent">0</span>'
+                    + '<span id="storage-percent">0</span><span id="gpu-percent">0</span><ul id="sizing-notes"></ul>';
+                document.body.prepend(fixture);
+                try {
+                    const name = '<img src=x onerror="window.__placementXss=50"><svg onload="window.__placementXss=50">';
+                    workloads = JSON.parse(JSON.stringify([{
+                        id: 1, type: 'vm', name, inputMode: scenario.inputMode || 'per-vm', count: 1,
+                        vcpus: scenario.vcpus, memory: scenario.memory, storage: 0, gpuMode: 'none'
+                    }]));
+                    _vcpuRatioAutoEscalated = false;
+                    _diskConsolidationInfo = null;
+                    const hw = { totalPhysicalCores: 16, memoryGB: 128, gpuCount: 0, generation: null, diskConfig: null };
+                    updateSizingNotes(3, scenario.vcpus, scenario.memory, 0, '3way', hw, 0, 2);
+                    const notes = fixture.querySelector('#sizing-notes');
+                    const placement = Array.from(notes.querySelectorAll('li')).filter(li =>
+                        li.textContent.includes('This VM cannot be placed on a single machine.'));
+                    const safe = placement.length === scenario.warnings
+                        && placement.every(li => li.textContent.includes(name))
+                        && !notes.querySelector('img,svg,[onerror],[onload]')
+                        && !!window._sizerVmExceedsNode === (scenario.warnings > 0);
+                    return assert(safe, scenario.label + ' preserves placement checks without executable imported markup',
+                        scenario.warnings + ' literal warnings; no injected elements', placement.length + ' warnings');
+                } finally {
+                    _clearVmExceedsToast();
+                    workloads = saved.workloads;
+                    _vcpuRatioAutoEscalated = saved.ratio;
+                    _diskConsolidationInfo = saved.disks;
+                    _storageLimitExceeded = saved.storageLimit;
+                    if (saved.hadExceeds) window._sizerVmExceedsNode = saved.exceeds;
+                    else delete window._sizerVmExceedsNode;
+                    fixture.remove();
+                }
+            })
         ]);
 
         testSuite('Designer import compatibility and entry-point detection', 'script.js + sizer.js', [
@@ -1736,7 +1947,7 @@
         }
 
         // Run async HTML validation tests (only when served via HTTP)
-        (async function runHtmlValidationTests() {
+        const htmlValidationCompletion = (async function runHtmlValidationTests() {
             // Skip if running via file:// protocol (fetch won't work due to CORS)
             if (window.location.protocol === 'file:') {
                 const skipContainer = document.createElement('div');
@@ -1759,12 +1970,18 @@
             // Test ARM page
             const armValidation = await validateHtmlPage('../arm/arm.html', 'ARM Page', [
                 'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container',
-                '#deployment-phase-guidance', '#download-validate-parameters-btn', '#download-deploy-parameters-btn'
+                '#deployment-phase-guidance', '#download-validate-parameters-btn', '#download-deploy-parameters-btn',
+                '#input-deployment-mode', '#deployment-mode-help', '#deployment-mode-status', '#copy-mode-label',
+                'label[for="input-location"]', 'select#input-location[aria-describedby~="location-help"]', '#location-help',
+                'label[for="input-location-custom"]', '#input-location-custom', '#location-error[role="status"]'
             ]);
             
             armResults.push(assert(armValidation.success, 'ARM page loads without errors', true, armValidation.success ? true : armValidation.error));
             
             if (armValidation.success) {
+                armResults.push(assert(armValidation.doc.title === 'Azure Local Instance | ARM Deployment Automation'
+                    && armValidation.doc.querySelector('.page-header-title').textContent === armValidation.doc.title,
+                'ARM browser and top-bar titles describe deployment automation', 'matching descriptive titles', armValidation.doc.title));
                 // Check logo image path
                 const logoImg = armValidation.doc.querySelector('.page-header-logo img');
                 const logoSrc = logoImg ? logoImg.getAttribute('src') : null;
@@ -1785,6 +2002,16 @@
                 armResults.push(assert(guidanceText.includes('do not replace') && guidanceText.includes('deploymentMode=Validate'),
                     'ARM page distinguishes preflight from Azure Local Validate mode',
                     true, guidanceText.trim()));
+                const modeSelect = armValidation.doc.querySelector('#input-deployment-mode');
+                const modeHelp = armValidation.doc.querySelector('#deployment-mode-help');
+                armResults.push(assert(modeSelect.value === 'Validate'
+                    && Array.from(modeSelect.options).map(option => option.value).join(',') === 'Validate,Deploy'
+                    && modeSelect.getAttribute('onchange') === 'updateParameters()'
+                    && modeSelect.getAttribute('aria-describedby').includes('deployment-mode-help')
+                    && armValidation.doc.querySelector('label[for="input-deployment-mode"]')
+                    && modeHelp.textContent.includes('second ARM deployment'),
+                'ARM Azure Context defaults to Validate with immediate JSON update and accessible two-phase guidance',
+                'Validate,Deploy / updateParameters / labeled guidance', modeSelect.outerHTML));
 
                 const scriptSources = Array.from(armValidation.doc.querySelectorAll('script[src]'))
                     .map(function(script) { return script.getAttribute('src'); });
@@ -1793,13 +2020,414 @@
                 armResults.push(assert(workflowIndex >= 0 && armScriptIndex > workflowIndex,
                     'ARM workflow helper loads before arm.js',
                     'deployment-workflow.js before arm.js', scriptSources.join(', ')));
+
+                const regionSelect = armValidation.doc.querySelector('#input-location');
+                const designerRegions = await validateHtmlPage('../index.html', 'Designer regions', ['#step-local-region']);
+                const expectedRegions = designerRegions.success ? Array.from(designerRegions.doc.querySelectorAll('#step-local-region [data-cloud]'))
+                    .map(card => [toAzureLocationFromLocalInstanceRegion(card.dataset.value), card.dataset.cloud]) : [];
+                const actualRegions = Array.from(regionSelect.querySelectorAll('[data-cloud]'))
+                    .map(option => [option.value, option.dataset.cloud]);
+                armResults.push(assert(expectedRegions.length > 0 && JSON.stringify(expectedRegions) === JSON.stringify(actualRegions),
+                    'ARM region choices and clouds match Designer mappings', expectedRegions, actualRegions));
+                armResults.push(assert(regionSelect.value === ''
+                    && regionSelect.querySelector('option[value="custom"]')
+                    && armValidation.doc.querySelector('#custom-location-code-container').hidden
+                    && armValidation.doc.querySelector('#input-location-custom').disabled,
+                'ARM offers Custom without defaulting to a different region or exposing the custom field initially',
+                'empty selection / Custom / hidden disabled input', regionSelect.value));
             }
             
             testSuite('ARM Page Validation', 'arm/arm.html', armResults);
+
+            const regionResults = [];
+            for (const fixture of [
+                { cloud: 'azure_commercial', location: 'eastus', selected: 'eastus', count: 8 },
+                { cloud: 'azure_government', location: 'usgovvirginia', selected: 'usgovvirginia', count: 1 },
+                { cloud: 'azure_commercial', location: 'demoregion1', selected: 'custom', count: 8 },
+                { cloud: 'azure_government', location: 'westeurope', selected: 'custom', count: 1 },
+                { cloud: 'azure_commercial', location: 'REPLACE_WITH_LOCATION', selected: '', count: 8 }
+            ]) {
+                const frame = document.createElement('iframe');
+                frame.hidden = true;
+                const payload = { cloud: fixture.cloud, readiness: { placeholders: ['Demo deployment details'] },
+                    parametersFile: { parameters: { location: { value: fixture.location }, deploymentMode: { value: 'Validate' } } } };
+                try {
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('ARM region fixture load timed out')), 15000);
+                        frame.onload = () => { clearTimeout(timeout); resolve(); };
+                        frame.src = '../arm/arm.html#data=' + btoa(JSON.stringify(payload));
+                        document.body.appendChild(frame);
+                    });
+                    const win = frame.contentWindow;
+                    const doc = frame.contentDocument;
+                    const select = doc.getElementById('input-location');
+                    const custom = doc.getElementById('input-location-custom');
+                    const error = doc.getElementById('location-error');
+                    const jsonLocation = () => JSON.parse(doc.getElementById('arm-json-code').textContent).parameters.location.value;
+                    regionResults.push(assert(select.value === fixture.selected
+                        && select.querySelectorAll('[data-cloud]').length === fixture.count
+                        && jsonLocation() === fixture.location
+                        && (fixture.selected !== 'custom' || custom.value === fixture.location),
+                    'Region handoff preserves ' + fixture.cloud + ' / ' + fixture.location,
+                    fixture.selected + ' / ' + fixture.location, select.value + ' / ' + jsonLocation()));
+                    select.value = 'custom';
+                    select.dispatchEvent(new win.Event('change'));
+                    custom.value = 'demoregion2';
+                    custom.dispatchEvent(new win.Event('input'));
+                    const downloads = [];
+                    win.downloadFile = (name, content) => downloads.push({ name, content });
+                    doc.getElementById('input-subscription-id').value = '00000000-0000-0000-0000-000000000000';
+                    doc.getElementById('input-resource-group').value = 'demo-rg';
+                    const buttons = ['gen-powershell-btn', 'gen-azcli-btn', 'export-devops-btn', 'export-github-btn'];
+                    buttons.forEach(id => doc.getElementById(id).click());
+                    regionResults.push(assert(jsonLocation() === 'demoregion2' && !custom.disabled
+                        && !doc.getElementById('custom-location-code-container').hidden
+                        && downloads.length === 4 && downloads.every(download => download.content.includes('demoregion2')),
+                    'Custom region updates JSON and all four automation outputs: ' + fixture.location,
+                    'demoregion2 / four downloads', downloads.map(download => download.name)));
+                    for (const invalid of ['', 'eastus;bad']) {
+                        custom.value = invalid;
+                        custom.dispatchEvent(new win.Event('input'));
+                        buttons.forEach(id => doc.getElementById(id).click());
+                        regionResults.push(assert(jsonLocation() === 'REPLACE_WITH_LOCATION' && !error.hidden
+                            && custom.getAttribute('aria-invalid') === 'true' && downloads.length === 4,
+                        'Invalid custom region blocks all automation and clears stale JSON: ' + fixture.location + ' / ' + invalid,
+                        'visible error / placeholder / no downloads', error.textContent));
+                    }
+                    custom.value = 'demoregion2';
+                    custom.dispatchEvent(new win.Event('input'));
+                    select.value = fixture.cloud === 'azure_government' ? 'usgovvirginia' : 'westeurope';
+                    select.dispatchEvent(new win.Event('change'));
+                    const knownResult = jsonLocation();
+                    const hidden = doc.getElementById('custom-location-code-container').hidden && custom.disabled && error.hidden;
+                    select.value = 'custom';
+                    select.dispatchEvent(new win.Event('change'));
+                    regionResults.push(assert(knownResult !== 'demoregion2' && hidden && error.hidden
+                        && jsonLocation() === 'demoregion2' && custom.value === 'demoregion2',
+                    'Known/custom inverse transition preserves custom text and clears errors: ' + fixture.location,
+                    'known region then restored custom', knownResult + ' / ' + jsonLocation()));
+                } catch (error) {
+                    regionResults.push(assert(false, 'ARM region fixture ' + fixture.location, 'successful fixture', error.message));
+                } finally {
+                    frame.remove();
+                }
+            }
+            testSuite('ARM region selector behavior', 'arm/arm.js', regionResults);
+
+            const helpResults = [];
+            const originalArmPayload = window.armPayload;
+            const originalHelpPreference = localStorage.getItem(ARM_ONBOARDING_KEY);
+            const helpTrigger = document.createElement('button');
+            helpTrigger.textContent = 'Test ARM Help';
+            document.body.appendChild(helpTrigger);
+            try {
+                for (const scenario of ['hyperconverged', 'disconnected']) {
+                    window.armPayload = { scenario: scenario };
+                    helpTrigger.focus();
+                    const completion = showArmHelp();
+                    const dialog = document.querySelector('dialog.odin-onboarding');
+                    const next = dialog.querySelector('.onboarding-btn-primary');
+                    const skip = dialog.querySelector('.onboarding-btn-secondary');
+                    helpResults.push(assert(dialog.open && dialog.classList.contains('onboarding-card')
+                        && dialog.querySelectorAll('.onboarding-feature').length === 4
+                        && dialog.querySelector('.onboarding-icon img').getAttribute('src') === '../images/odin-logo.png'
+                        && dialog.querySelectorAll('.onboarding-dot').length === 3,
+                    'ARM Help renders the shared splash pattern: ' + scenario,
+                    'logo / four cards / three dots / modal', dialog.open));
+                    next.focus();
+                    next.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+                    const forwardFocus = document.activeElement === skip;
+                    skip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+                    helpResults.push(assert(forwardFocus && document.activeElement === next,
+                        'ARM Help wraps keyboard focus both ways: ' + scenario, true, forwardFocus));
+                    next.click();
+                    helpResults.push(assert(dialog.querySelector('.onboarding-progress').getAttribute('aria-label') === 'Step 2 of 3'
+                        && document.activeElement.id === 'arm-help-title'
+                        && (scenario !== 'disconnected' || dialog.textContent.includes('not the public Azure Portal')),
+                    'ARM Help advances with accessible progress and scenario guidance: ' + scenario,
+                    'step 2 / title focus / correct guidance', dialog.querySelector('.onboarding-title').textContent));
+                    next.click();
+                    const finalLabel = next.textContent;
+                    next.click();
+                    await completion;
+                    helpResults.push(assert(finalLabel === 'Get Started' && !dialog.isConnected
+                        && document.activeElement === helpTrigger && localStorage.getItem(ARM_ONBOARDING_KEY) === 'completed',
+                    'ARM Help completion saves its own preference and restores focus: ' + scenario,
+                    'completed / removed / focus restored', finalLabel));
+                }
+                const escapeCompletion = showArmHelp();
+                document.querySelector('dialog.odin-onboarding').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+                await escapeCompletion;
+                const cancelCompletion = showArmHelp();
+                document.querySelector('dialog.odin-onboarding').dispatchEvent(new Event('cancel', { cancelable: true }));
+                await cancelCompletion;
+                const skipCompletion = showArmHelp();
+                document.querySelector('dialog.odin-onboarding .onboarding-btn-secondary').click();
+                await skipCompletion;
+                helpResults.push(assert(!document.querySelector('dialog.odin-onboarding') && document.activeElement === helpTrigger,
+                    'ARM Help can reopen after Escape and Skip with focus restored', true, document.activeElement === helpTrigger));
+            } finally {
+                helpTrigger.remove();
+                window.armPayload = originalArmPayload;
+                if (originalHelpPreference === null) localStorage.removeItem(ARM_ONBOARDING_KEY);
+                else localStorage.setItem(ARM_ONBOARDING_KEY, originalHelpPreference);
+            }
+            testSuite('ARM help splash behavior', 'arm/onboarding.js', helpResults);
+
+            const reportHelpResults = [];
+            const savedReportPreference = localStorage.getItem(REPORT_ONBOARDING_KEY);
+            const savedArmPreference = localStorage.getItem(ARM_ONBOARDING_KEY);
+            const reportTrigger = document.createElement('button');
+            reportTrigger.id = 'report-help-btn';
+            document.body.appendChild(reportTrigger);
+            try {
+                localStorage.removeItem(REPORT_ONBOARDING_KEY);
+                initializeReportHelp();
+                const dialog = document.querySelector('dialog.odin-onboarding');
+                reportHelpResults.push(assert(dialog && dialog.open && document.activeElement.id === 'report-help-title',
+                    'Report first visit opens its named splash screen', true, Boolean(dialog)));
+                dialog.querySelector('.onboarding-btn-secondary').click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                initializeReportHelp();
+                reportHelpResults.push(assert(!document.querySelector('dialog.odin-onboarding')
+                    && localStorage.getItem(REPORT_ONBOARDING_KEY) === 'completed'
+                    && localStorage.getItem(ARM_ONBOARDING_KEY) === savedArmPreference,
+                'Report completion suppresses repeat auto-opening without changing ARM preference', true, localStorage.getItem(REPORT_ONBOARDING_KEY)));
+                reportTrigger.focus();
+                const reopened = showReportHelp();
+                const reopenedDialog = document.querySelector('dialog.odin-onboarding');
+                reopenedDialog.querySelector('.onboarding-btn-primary').click();
+                reopenedDialog.querySelector('.onboarding-btn-primary').click();
+                reportHelpResults.push(assert(reopenedDialog.textContent.includes('business or technical requirements')
+                    && reopenedDialog.querySelector('.onboarding-btn-primary').textContent === 'Get Started',
+                'Report Help reopens and reaches its design-boundary screen', true, reopenedDialog.textContent));
+                reopenedDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+                await reopened;
+                reportHelpResults.push(assert(document.activeElement === reportTrigger && !reopenedDialog.isConnected,
+                    'Report Help Escape restores the Help trigger', true, document.activeElement.id));
+            } finally {
+                reportTrigger.remove();
+                if (savedReportPreference === null) localStorage.removeItem(REPORT_ONBOARDING_KEY);
+                else localStorage.setItem(REPORT_ONBOARDING_KEY, savedReportPreference);
+            }
+            testSuite('Report help splash behavior', 'report/onboarding.js', reportHelpResults);
+
+            const foundryHelpResults = [];
+            const savedFoundryPreference = localStorage.getItem(FOUNDRY_SIZING_HELP_KEY);
+            const savedSizerPreference = localStorage.getItem(SIZER_ONBOARDING_KEY);
+            const originalOpenWorkload = window.showAddWorkloadModal;
+            const openedWorkloads = [];
+            const foundryTrigger = document.createElement('button');
+            document.body.appendChild(foundryTrigger);
+            try {
+                window.showAddWorkloadModal = type => openedWorkloads.push(type);
+                localStorage.removeItem(FOUNDRY_SIZING_HELP_KEY);
+                foundryTrigger.focus();
+                const opening = startFoundryWorkload();
+                await startFoundryWorkload();
+                const dialog = document.querySelector('dialog.odin-onboarding');
+                const next = dialog.querySelector('.onboarding-btn-primary');
+                const back = dialog.querySelector('[data-action="back"]');
+                foundryHelpResults.push(assert(dialog.open && back.hidden && openedWorkloads.length === 0
+                    && document.querySelectorAll('dialog.odin-onboarding').length === 1,
+                'First Foundry selection shows one guide before opening configuration', true, openedWorkloads.length));
+                const link = dialog.querySelector('a');
+                foundryHelpResults.push(assert(link.target === '_blank' && link.rel === 'noopener noreferrer',
+                    'Foundry source links open safely without replacing configuration', true, link.outerHTML));
+                next.focus();
+                next.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+                const forward = document.activeElement === link;
+                link.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+                foundryHelpResults.push(assert(forward && document.activeElement === next,
+                    'Foundry guide includes source links in its keyboard focus wrap', true, forward));
+                next.click();
+                const stepTwo = !back.hidden && dialog.querySelector('.onboarding-progress').getAttribute('aria-label') === 'Step 2 of 3';
+                back.click();
+                foundryHelpResults.push(assert(stepTwo && back.hidden && document.activeElement.id === 'foundry-sizing-help-title',
+                    'Foundry Back returns to the previous step and its heading', true, stepTwo));
+                next.click();
+                next.click();
+                foundryHelpResults.push(assert(next.textContent === 'Get Started',
+                    'Foundry final page offers Get Started', 'Get Started', next.textContent));
+                next.click();
+                await opening;
+                await startFoundryWorkload();
+                foundryHelpResults.push(assert(openedWorkloads.join(',') === 'foundry,foundry'
+                    && !document.querySelector('dialog.odin-onboarding')
+                    && localStorage.getItem(FOUNDRY_SIZING_HELP_KEY) === 'completed'
+                    && localStorage.getItem(SIZER_ONBOARDING_KEY) === savedSizerPreference,
+                'Completion opens Foundry and subsequent selections bypass only its own guide', true, openedWorkloads));
+                for (const dismissal of ['skip', 'escape']) {
+                    localStorage.removeItem(FOUNDRY_SIZING_HELP_KEY);
+                    const reopened = showFoundrySizingHelp();
+                    const help = document.querySelector('dialog.odin-onboarding');
+                    let escapedToParent = false;
+                    const listener = () => { escapedToParent = true; };
+                    document.addEventListener('keydown', listener);
+                    try {
+                        if (dismissal === 'skip') help.querySelector('.onboarding-btn-secondary').click();
+                        else help.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+                        await reopened;
+                    } finally {
+                        document.removeEventListener('keydown', listener);
+                    }
+                    foundryHelpResults.push(assert(localStorage.getItem(FOUNDRY_SIZING_HELP_KEY) === 'completed'
+                        && document.activeElement === foundryTrigger && !escapedToParent,
+                    'Foundry ' + dismissal + ' remembers dismissal and restores focus without closing the underlying dialog',
+                    true, escapedToParent));
+                }
+            } finally {
+                window.showAddWorkloadModal = originalOpenWorkload;
+                foundryTrigger.remove();
+                if (savedFoundryPreference === null) localStorage.removeItem(FOUNDRY_SIZING_HELP_KEY);
+                else localStorage.setItem(FOUNDRY_SIZING_HELP_KEY, savedFoundryPreference);
+            }
+            testSuite('Foundry sizing help behavior', 'sizer/foundry-help.js', foundryHelpResults);
+
+            const centeringResults = [];
+            const sizingFrame = document.createElement('iframe');
+            sizingFrame.style.cssText = 'width: 375px; height: 667px; border: 0;';
+            const frameLoaded = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Sizer guide layout fixture timed out')), 15000);
+                sizingFrame.onload = () => { clearTimeout(timeout); resolve(); };
+            });
+            const savedGuidePreference = localStorage.getItem(FOUNDRY_SIZING_HELP_KEY);
+            sizingFrame.src = '../sizer/index.html';
+            document.body.appendChild(sizingFrame);
+            try {
+                await frameLoaded;
+                const doc = sizingFrame.contentDocument;
+                const win = sizingFrame.contentWindow;
+                doc.querySelector('[data-workload-type="foundry"]').click();
+                if (!doc.querySelector('dialog.odin-onboarding')) doc.getElementById('foundry-sizing-help-btn').click();
+                const dialog = doc.querySelector('dialog.odin-onboarding');
+                await Promise.all(dialog.getAnimations().map(animation => animation.finished));
+                for (const width of [375, 768, 1440]) {
+                    sizingFrame.style.width = width + 'px';
+                    sizingFrame.style.height = (width === 375 ? 667 : 1024) + 'px';
+                    await new Promise(resolve => win.requestAnimationFrame(resolve));
+                    for (let step = 0; step < 3; step++) {
+                        const bounds = dialog.getBoundingClientRect();
+                        const centered = Math.abs(bounds.x + bounds.width / 2 - doc.documentElement.clientWidth / 2) <= 2
+                            && Math.abs(bounds.y + bounds.height / 2 - doc.documentElement.clientHeight / 2) <= 2;
+                        centeringResults.push(assert(centered && dialog.scrollWidth <= dialog.clientWidth
+                            && bounds.top >= 0 && bounds.bottom <= win.innerHeight + 1,
+                        'Foundry splash is centered and fits at ' + width + 'px, step ' + (step + 1),
+                        true, JSON.stringify({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height })));
+                        const heading = dialog.querySelector('h2');
+                        centeringResults.push(assert(heading.textContent.startsWith('Foundry Local\n')
+                            && win.getComputedStyle(heading).textAlign === 'center'
+                            && win.getComputedStyle(heading).whiteSpace === 'pre-line'
+                            && dialog.querySelectorAll('a.onboarding-feature-link').length === 4,
+                        'Foundry heading has centered product/title lines and four guidance links', true, heading.textContent));
+                        if (step < 2) dialog.querySelector('.onboarding-btn-primary').click();
+                    }
+                    dialog.querySelector('[data-action="back"]').click();
+                    dialog.querySelector('[data-action="back"]').click();
+                }
+                dialog.querySelector('.onboarding-btn-secondary').click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                const helpButton = doc.getElementById('foundry-sizing-help-btn');
+                await new Promise(resolve => win.requestAnimationFrame(resolve));
+                const helpIcon = helpButton.querySelector('svg');
+                centeringResults.push(assert(helpIcon && helpIcon.getAttribute('aria-hidden') === 'true'
+                    && helpIcon.getAttribute('focusable') === 'false'
+                    && helpIcon.querySelector('path').getAttribute('d') === doc.querySelector('.nav-help-btn svg path').getAttribute('d')
+                    && helpButton.textContent.trim() === 'Help sizing Foundry Local',
+                'Foundry Help uses the navigation question-mark icon without changing its accessible label',
+                'matching decorative icon and text label', helpButton.textContent.trim()));
+                const gpuHelpLink = doc.getElementById('foundry-gpu-sizing-help-link');
+                centeringResults.push(assert(gpuHelpLink.tagName === 'A'
+                    && gpuHelpLink.getAttribute('aria-haspopup') === 'dialog'
+                    && gpuHelpLink.parentElement.previousElementSibling.textContent === 'GPU Requirements'
+                    && ['vm', 'aks', 'avd', 'edgerag', 'videoindexer'].every(type =>
+                        !getGpuRequirementFields(type).includes('foundry-gpu-sizing-help-link')),
+                'Foundry alone offers a text Help link directly below GPU Requirements', true, gpuHelpLink.outerHTML));
+                doc.getElementById('workload-name').value = 'Demo GPU guidance';
+                const formFields = Array.from(doc.querySelectorAll('#add-workload-modal input, #add-workload-modal select'));
+                const formValues = formFields.map(field => field.value);
+                const originalHash = win.location.hash;
+                gpuHelpLink.focus();
+                gpuHelpLink.click();
+                const gpuHelpDialog = doc.querySelector('dialog.odin-onboarding');
+                centeringResults.push(assert(gpuHelpDialog && gpuHelpDialog.open
+                    && win.location.hash === originalHash
+                    && ['color', 'fontSize', 'fontWeight', 'textDecorationLine'].every(property =>
+                        win.getComputedStyle(gpuHelpLink)[property] === win.getComputedStyle(doc.querySelector('.foundry-model-catalog-link'))[property]),
+                'GPU Help link matches the model catalog styling and opens the guide without navigating', true, Boolean(gpuHelpDialog)));
+                gpuHelpDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+                await new Promise(resolve => setTimeout(resolve, 0));
+                centeringResults.push(assert(doc.activeElement === gpuHelpLink
+                    && formFields.every((field, index) => field.value === formValues[index])
+                    && helpButton.getClientRects().length > 0,
+                'GPU Help dismissal restores link focus and preserves the open workload inputs', true, doc.activeElement.id));
+            } finally {
+                sizingFrame.remove();
+                if (savedGuidePreference === null) localStorage.removeItem(FOUNDRY_SIZING_HELP_KEY);
+                else localStorage.setItem(FOUNDRY_SIZING_HELP_KEY, savedGuidePreference);
+            }
+            testSuite('Foundry rendered guide layout', 'sizer/index.html + css/onboarding.css', centeringResults);
+
+            const headerResults = [];
+            for (const pageName of ['arm', 'report']) {
+                const preferenceKey = pageName === 'arm' ? ARM_ONBOARDING_KEY : REPORT_ONBOARDING_KEY;
+                const savedPreference = localStorage.getItem(preferenceKey);
+                const frame = document.createElement('iframe');
+                frame.style.height = '900px';
+                frame.style.border = '0';
+                frame.style.width = '375px';
+                const loaded = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error(pageName + ' header fixture timed out')), 10000);
+                    frame.onload = () => { clearTimeout(timeout); resolve(); };
+                });
+                frame.src = '../' + pageName + '/' + pageName + '.html';
+                document.body.appendChild(frame);
+                try {
+                    await loaded;
+                    const doc = frame.contentDocument;
+                    const win = frame.contentWindow;
+                    const skip = doc.querySelector('dialog.odin-onboarding .onboarding-btn-secondary');
+                    if (skip) skip.click();
+                    for (const width of [375, 768, 1440]) {
+                        frame.style.width = width + 'px';
+                        await new Promise(resolve => win.requestAnimationFrame(resolve));
+                        const header = doc.querySelector('.page-header-bar').getBoundingClientRect();
+                        const controls = Array.from(doc.querySelectorAll('.page-header-bar a, .page-header-bar button, .page-header-bar select, .page-header-title'))
+                            .filter(el => el.getClientRects().length);
+                        const clipped = controls.filter(el => {
+                            const bounds = el.getBoundingClientRect();
+                            return bounds.left < 0 || bounds.right > win.innerWidth + 1
+                                || bounds.top < header.top - 1 || bounds.bottom > header.bottom + 1;
+                        });
+                        headerResults.push(assert(clipped.length === 0,
+                            pageName + ' header keeps title and every action visible at ' + width + 'px',
+                            [], clipped.map(el => el.id || el.className)));
+                    }
+                    if (pageName === 'report') {
+                        const printButton = Array.from(doc.querySelectorAll('.header-action-btn'))
+                            .find(el => el.textContent.includes('Print Friendly'));
+                        printButton.click();
+                        doc.getElementById('report-help-btn').click();
+                        const title = doc.querySelector('dialog.odin-onboarding h2');
+                        const expectedColor = win.getComputedStyle(doc.querySelector('.page-header-logo span')).color;
+                        headerResults.push(assert(win.getComputedStyle(title).color === expectedColor,
+                            'Print Friendly mode preserves readable Help heading theme colors',
+                            expectedColor, win.getComputedStyle(title).color));
+                        doc.querySelector('dialog.odin-onboarding .onboarding-btn-secondary').click();
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                } finally {
+                    frame.remove();
+                    if (savedPreference === null) localStorage.removeItem(preferenceKey);
+                    else localStorage.setItem(preferenceKey, savedPreference);
+                }
+            }
+            testSuite('Report and ARM responsive headers', 'report/report.html, arm/arm.html', headerResults);
             
             // Test Report page
             const reportValidation = await validateHtmlPage('../report/report.html', 'Report Page', [
-                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container'
+                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container',
+                '#report-help-btn[aria-label]', '#report-scope-note'
             ]);
             
             reportResults.push(assert(reportValidation.success, 'Report page loads without errors', true, reportValidation.success ? true : reportValidation.error));
@@ -1827,9 +2455,74 @@
             }
             
             testSuite('Report Page Validation', 'report/report.html', reportResults);
+
+            const sizerValidation = await validateHtmlPage('../sizer/index.html', 'Sizer Page', [
+                'table[aria-labelledby="per-machine-hardware-title"]',
+                'table[aria-labelledby="instance-hardware-title"]'
+            ]);
+            const sizerResults = [
+                assert(sizerValidation.success, 'Sizer hardware comparison tables load', true,
+                    sizerValidation.success ? true : sizerValidation.error)
+            ];
+            if (sizerValidation.success) {
+                const rackToggle = sizerValidation.doc.querySelector('#rack-viz-toggle');
+                sizerResults.push(assert(rackToggle && rackToggle.tagName === 'BUTTON'
+                    && rackToggle.type === 'button' && rackToggle.getAttribute('aria-controls') === 'rack-viz-container'
+                    && rackToggle.getAttribute('aria-expanded') === 'true',
+                'Rack visualization toggle is a native button with expanded-state semantics', true, !!rackToggle));
+                const sizingExplanation = Array.from(sizerValidation.doc.querySelectorAll('li'))
+                    .find(item => item.textContent.includes('Hardware scale-up order:'));
+                sizerResults.push(assert(sizingExplanation && sizingExplanation.textContent.includes('4:1 → 5:1 → 6:1 maximum')
+                    && !sizingExplanation.textContent.includes('8:1'),
+                'Sizing help describes the supported ratio scale-up steps', true, !!sizingExplanation));
+                const breakdown = sizerValidation.doc.querySelector('details#hardware-breakdown');
+                sizerResults.push(assert(breakdown && !breakdown.open
+                    && breakdown.querySelector('summary')
+                    && breakdown.querySelectorAll('.hardware-comparison-table').length === 2,
+                'Hardware breakdown groups both tables and defaults to collapsed', true, !!breakdown && !breakdown.open));
+                sizerResults.push(assert(!sizerValidation.doc.querySelector('.capacity-breakdown').closest('details#hardware-breakdown')
+                    && !sizerValidation.doc.querySelector('.notes-section').closest('details#hardware-breakdown'),
+                'Capacity bars and sizing warnings remain outside the collapsed breakdown', true, true));
+                for (const [heading, prefix, coresId, memoryId] of [
+                    ['per-machine-hardware-title', 'per-node', 'per-node-cores', 'per-node-memory'],
+                    ['instance-hardware-title', 'instance', 'instance-required-cores', 'instance-required-memory']
+                ]) {
+                    const table = sizerValidation.doc.querySelector(`table[aria-labelledby="${heading}"]`);
+                    const headers = Array.from(table.querySelectorAll('thead th[scope="col"]'), el => el.textContent);
+                    sizerResults.push(assert(headers.join('|') === 'Resource|Required|Sized',
+                        `${prefix} comparison has accessible Required / Sized columns`,
+                        'Resource|Required|Sized', headers.join('|')));
+                    for (const [resource, requiredId, sizedId] of [
+                        ['Physical cores', coresId, `${prefix}-configured-cores`],
+                        ['Memory', memoryId, `${prefix}-configured-memory`]
+                    ]) {
+                        const row = table.querySelector(`#${requiredId}`).closest('tr');
+                        const cells = row.querySelectorAll('td');
+                        const aligned = row.querySelector('th[scope="row"]').textContent === resource
+                            && cells.length === 2 && cells[0].querySelector(`#${requiredId}`)
+                            && cells[1].querySelector(`#${sizedId}`);
+                        sizerResults.push(assert(!!aligned, `${prefix} ${resource} aligns required with sized`,
+                            true, !!aligned));
+                    }
+                }
+            }
+            testSuite('Sizer Hardware Comparison Markup', 'sizer/index.html', sizerResults);
+
+            const designerValidation = await validateHtmlPage('../index.html', 'Designer Page', ['#step-3 .node-chip']);
+            const machineResults = [
+                assert(designerValidation.success, 'Designer machine-count controls load', true, designerValidation.success)
+            ];
+            if (designerValidation.success) {
+                const chips = Array.from(designerValidation.doc.querySelectorAll('#step-3 .node-chip'));
+                machineResults.push(assert(chips.length === 17 && chips.every(chip =>
+                    chip.tagName === 'BUTTON' && chip.type === 'button' && chip.getAttribute('aria-pressed') === 'false'),
+                'All machine counts use native buttons with selected-state semantics', 17, chips.length));
+            }
+            testSuite('Designer Machine Count Accessibility', 'index.html', machineResults);
             
             // Update summary after async tests complete
             updateTestSummary();
+            window.__odinTestRun.http = 'passed';
         })();
 
         // ========================================================================
@@ -4188,6 +4881,127 @@
                     startInput.remove();
                     endInput.remove();
                     state.infra = previousInfra;
+                }
+            })()
+        ]);
+
+        testSuite('Designer generated machine name ownership', 'script.js', [
+            (() => {
+                const previousState = JSON.parse(JSON.stringify(state));
+                const previousSave = saveStateToLocalStorage;
+                try {
+                    saveStateToLocalStorage = () => {};
+                    Object.assign(state, getInitialWizardState(), { nodes: '4', architecture: 'hyperconverged' });
+                    updateNodeName(0, 'demo01');
+                    updateNodeName(1, 'manual02');
+                    updateNodeName(0, 'test01');
+                    const names = state.nodeSettings.map(node => node.name).join(',');
+                    state.nodeSettings = JSON.parse(JSON.stringify(state.nodeSettings));
+                    ensureNodeSettingsInitialized();
+                    updateNodeName(0, 'again01');
+                    const restored = state.nodeSettings.map(node => node.name).join(',');
+                    updateNodeName(2, 'node3');
+                    updateNodeName(0, 'last01');
+                    const explicitDefault = state.nodeSettings[2].name;
+                    return assert(names === 'test01,manual02,test03,test04'
+                        && restored === 'again01,manual02,again03,again04'
+                        && explicitDefault === 'node3' && state.nodeSettings[3].name === 'last04',
+                    'Generated names follow repeated prefix changes and JSON restoration; manual/default-looking overrides survive',
+                    'test01,manual02,test03,test04 / again01,manual02,again03,again04 / node3',
+                    names + ' / ' + restored + ' / ' + explicitDefault);
+                } finally {
+                    saveStateToLocalStorage = previousSave;
+                    Object.assign(state, previousState);
+                }
+            })(),
+            (() => {
+                const previousState = JSON.parse(JSON.stringify(state));
+                try {
+                    Object.assign(state, getInitialWizardState(), {
+                        nodes: '3', nodeSettings: [{ name: 'demo01' }, { name: 'legacy02' }, { name: 'node3' }]
+                    });
+                    ensureNodeSettingsInitialized();
+                    tryAutoFillSequentialNodeNamesFromFirst();
+                    const names = state.nodeSettings.map(node => node.name).join(',');
+                    return assert(names === 'demo01,legacy02,demo03',
+                        'Legacy imports preserve custom names without guessing ownership',
+                        'demo01,legacy02,demo03', names);
+                } finally {
+                    Object.assign(state, previousState);
+                }
+            })()
+        ]);
+
+        testSuite('Designer infrastructure reset and output readiness', 'script.js', [
+            ...[
+                ['scenario', 'disconnected'],
+                ['region', 'azure_commercial'],
+                ['localInstanceRegion', 'east_us'],
+                ['ip', 'static']
+            ].map(([category, value]) => {
+                const previousState = JSON.parse(JSON.stringify(state));
+                const previousSave = saveStateToLocalStorage;
+                const host = document.createElement('div');
+                host.innerHTML = '<input id="infra-cidr"><input id="infra-ip-start"><input id="infra-ip-end"><input id="infra-default-gateway"><div id="infra-ip-success"></div><div id="infra-gateway-success"></div>';
+                document.body.appendChild(host);
+                try {
+                    saveStateToLocalStorage = () => {};
+                    Object.assign(state, getInitialWizardState(), {
+                        scenario: 'connected', ip: 'static',
+                        infraCidr: '192.0.2.0/24', infra: { start: '192.0.2.10', end: '192.0.2.20' },
+                        infraGateway: '192.0.2.1'
+                    });
+                    host.querySelectorAll('input').forEach(input => { input.value = '192.0.2.10'; });
+                    host.querySelector('#infra-ip-end').dataset.autoMinimumEnd = '192.0.2.20';
+                    selectOption(category, value);
+                    const cleared = Array.from(host.querySelectorAll('input')).every(input => input.value === '')
+                        && !host.querySelector('#infra-ip-end').dataset.autoMinimumEnd
+                        && Array.from(host.querySelectorAll('div')).every(message => message.classList.contains('hidden'));
+                    const missing = getArmReadiness().missing;
+                    return assert(cleared && state.infra === null && state.infraGateway === null
+                        && missing.includes('Infrastructure IP Pool (Start/End)'),
+                    category + ' reset clears stale infrastructure inputs and valid messages and blocks outputs',
+                    'cleared inputs and validated state / missing pool', JSON.stringify({ cleared, missing }));
+                } finally {
+                    saveStateToLocalStorage = previousSave;
+                    Object.assign(state, previousState);
+                    host.remove();
+                }
+            }),
+            (() => {
+                const previousState = JSON.parse(JSON.stringify(state));
+                const previousSave = saveStateToLocalStorage;
+                const previousUi = updateUI;
+                const host = document.createElement('div');
+                host.innerHTML = '<input id="infra-cidr" value="192.0.2.0/24"><input id="infra-ip-start" value="192.0.2.10"><input id="infra-ip-end" value="192.0.2.20"><input id="infra-default-gateway" value="192.0.2.1"><div id="infra-ip-error" class="hidden"></div><div id="infra-ip-success" class="hidden"></div><div id="infra-gateway-error" class="hidden"></div><div id="infra-gateway-success" class="hidden"></div>';
+                document.body.appendChild(host);
+                let saves = 0;
+                let renders = 0;
+                try {
+                    Object.assign(state, getInitialWizardState(), { ip: 'static', infraGatewayManual: true });
+                    saveStateToLocalStorage = () => { saves++; };
+                    updateUI = () => { renders++; };
+                    updateInfraNetwork();
+                    const valid = !!state.infra && state.infraGateway === '192.0.2.1';
+                    host.querySelector('#infra-ip-end').value = '192.0.2.12';
+                    updateInfraNetwork();
+                    const rejected = state.infra === null && state.infraGateway === null
+                        && getReportReadiness().missing.includes('Infrastructure IP Pool (Start/End)')
+                        && getArmReadiness().missing.includes('Default Gateway')
+                        && !host.querySelector('#infra-ip-error').classList.contains('hidden')
+                        && host.querySelector('#infra-ip-success').classList.contains('hidden');
+                    host.querySelector('#infra-ip-end').value = '192.0.2.20';
+                    updateInfraNetwork();
+                    return assert(valid && rejected && state.infra && state.infra.end === '192.0.2.20'
+                        && state.infraGateway === '192.0.2.1' && saves === 3 && renders === 3,
+                    'Invalid pool edits refresh and persist blocked readiness; one valid edit recovers',
+                    'valid / rejected / recovered / 3 saves and renders',
+                    JSON.stringify({ valid, rejected, infra: state.infra, saves, renders }));
+                } finally {
+                    Object.assign(state, previousState);
+                    saveStateToLocalStorage = previousSave;
+                    updateUI = previousUi;
+                    host.remove();
                 }
             })()
         ]);
@@ -6852,6 +7666,119 @@
                 return assert(getCacheTBPerNode({}) === 0,
                     'Missing diskConfig → 0 TB', 0, getCacheTBPerNode({}));
             })()
+        ]);
+
+        testSuite('Hardware breakdown print and PDF expansion', 'sizer.js', [
+            ...[false, true].map(initiallyOpen => {
+                const breakdown = document.createElement('details');
+                breakdown.id = 'hardware-breakdown';
+                breakdown.open = initiallyOpen;
+                document.body.appendChild(breakdown);
+                try {
+                    window.dispatchEvent(new Event('beforeprint'));
+                    const expanded = breakdown.open;
+                    window.dispatchEvent(new Event('beforeprint'));
+                    window.dispatchEvent(new Event('afterprint'));
+                    return assert(expanded && breakdown.open === initiallyOpen,
+                        'Print expands and restores an initially ' + (initiallyOpen ? 'open' : 'closed') + ' breakdown',
+                        true, expanded && breakdown.open === initiallyOpen);
+                } finally {
+                    window.dispatchEvent(new Event('afterprint'));
+                    breakdown.remove();
+                }
+            }),
+            ...[false, true].map(initiallyOpen => {
+                const layout = document.createElement('div');
+                layout.className = 'sizer-layout';
+                layout.innerHTML = '<div class="results-panel"><details><summary>Hardware</summary>'
+                    + '<div class="per-node-section">Per machine</div>'
+                    + '<div class="per-node-section">Per instance</div></details></div>';
+                const breakdown = layout.querySelector('details');
+                breakdown.open = initiallyOpen;
+                layout.querySelectorAll('.per-node-section').forEach(panel => {
+                    Object.defineProperty(panel, 'offsetHeight', { get: () => breakdown.open ? 100 : 0 });
+                });
+                document.body.appendChild(layout);
+                const originalPdf = window.jspdf;
+                const originalCanvas = window.html2canvas;
+                const originalToast = showToast;
+                const originalGetState = getSizerState;
+                const captured = [];
+                let saved = false;
+                try {
+                    showToast = function() {};
+                    getSizerState = () => ({ clusterType: 'standard', nodeCount: 2 });
+                    window.jspdf = {
+                        jsPDF: function() {
+                            return {
+                                internal: { pageSize: { getWidth: () => 210, getHeight: () => 297 } },
+                                setFontSize() {}, setTextColor() {}, text() {}, addPage() {}, addImage() {},
+                                save() { saved = true; }
+                            };
+                        }
+                    };
+                    window.html2canvas = section => ({
+                        then(callback) {
+                            captured.push(section.textContent);
+                            callback({ width: 400, height: 100, toDataURL: () => 'data:image/png;base64,test' });
+                            return { catch() {} };
+                        }
+                    });
+                    exportSizerPDF();
+                    return assert(saved && captured.join('|') === 'Per machine|Per instance'
+                        && breakdown.open === initiallyOpen,
+                    'PDF includes both panels and restores an initially ' + (initiallyOpen ? 'open' : 'closed') + ' breakdown',
+                    'Per machine|Per instance; restored state', captured.join('|') + '; open=' + breakdown.open);
+                } finally {
+                    window.jspdf = originalPdf;
+                    window.html2canvas = originalCanvas;
+                    showToast = originalToast;
+                    getSizerState = originalGetState;
+                    layout.remove();
+                }
+            })
+        ]);
+
+        testSuite('Issue #294: overhead-inclusive hardware requirements', 'sizer.js', [
+            (() => {
+                const hw = { totalPhysicalCores: 96, coresPerSocket: 48, sockets: 2, memoryGB: 2048 };
+                const result = getComputeRequirementSummary(13107, 73846, 56, hw, 'disaggregated', 4);
+                return assert(result.requiredCoresPerNode === 70 && result.requiredMemoryPerNodeGB === 1507
+                    && result.requiredCoresTotal === 3920 && result.requiredMemoryTotalGB === 84392
+                    && result.configuredCoresTotal === 5376 && result.configuredMemoryTotalGB === 114688
+                    && result.hostCores === 10 && result.hostMemoryGB === 164 && result.effectiveNodes === 55,
+                '56-machine reproduction separates 70 required from 96 configured cores and includes all reservations',
+                '70 / 1507 per machine; required 3920 / 84392; configured 5376 / 114688', JSON.stringify(result));
+            })(),
+            ...[1, 2, 4, 56, 64].map(nodes => {
+                const hw = { totalPhysicalCores: 48, memoryGB: 512 };
+                const effective = nodes > 1 ? nodes - 1 : 1;
+                const cores = getHostCpuReservedCores(hw, 'standard');
+                const memory = getHostMemoryReservedGB(hw, 'standard');
+                const cpuCapacity = (48 - cores) * effective * 4 - ARB_VCPU_OVERHEAD;
+                const memoryCapacity = (512 - memory) * effective - ARB_MEMORY_OVERHEAD_GB;
+                const fit = getComputeRequirementSummary(cpuCapacity, memoryCapacity, nodes, hw, 'standard', 4);
+                const deficit = getComputeRequirementSummary(cpuCapacity + 1, memoryCapacity + 1, nodes, hw, 'standard', 4);
+                return assert(fit.requiredCoresPerNode === 48 && fit.requiredMemoryPerNodeGB === 512
+                    && deficit.requiredCoresPerNode === 49 && deficit.requiredMemoryPerNodeGB === 513
+                    && fit.requiredCoresTotal === 48 * nodes && fit.requiredMemoryTotalGB === 512 * nodes,
+                nodes + '-machine requirement agrees exactly with capacity and never clamps manual shortfalls',
+                'fits 48 / 512; exceeds 49 / 513', JSON.stringify({ fit, deficit }));
+            }),
+            ...['standard', 'rack-aware', 'single', 'aldo-mgmt', 'disaggregated'].map(clusterType => {
+                const hw = {
+                    totalPhysicalCores: 32, memoryGB: 256,
+                    diskConfig: { isTiered: true, cache: { count: 2, sizeGB: 1600 } }
+                };
+                const nodes = clusterType === 'single' ? 1 : 3;
+                const result = getComputeRequirementSummary(110, 440, nodes, hw, clusterType, 4);
+                const expectedCores = Math.ceil(114 / result.effectiveNodes / 4) + getHostCpuReservedCores(hw, clusterType);
+                const expectedMemory = Math.ceil(448 / result.effectiveNodes) + getHostMemoryReservedGB(hw, clusterType);
+                return assert(result.requiredCoresPerNode === expectedCores && result.requiredMemoryPerNodeGB === expectedMemory
+                    && result.configuredCoresTotal === 32 * nodes && result.configuredMemoryTotalGB === 256 * nodes,
+                clusterType + ' includes growth-adjusted demand, cache/platform host reserves, and ARB once per instance',
+                expectedCores + ' cores / ' + expectedMemory + ' GB', JSON.stringify(result));
+            })
         ]);
 
         testSuite('getHostMemoryReservedGB()', 'sizer.js', [
@@ -13579,9 +14506,15 @@
         // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
-        updateTestSummary();
-        
-        setTimeout(() => {
+        htmlValidationCompletion.catch(error => {
+            window.__odinTestRun.http = 'failed';
+            console.error('HTTP integration tests failed:', error);
+            testSuite('HTTP integration completion', 'tests/index.html', [
+                assert(false, 'HTTP integration tests finish successfully', 'completed', String(error))
+            ]);
+        }).finally(() => {
+            updateTestSummary();
+            window.__odinTestRun.complete = true;
             if (failCount === 0) {
                 document.body.style.borderTop = '5px solid #10b981';
                 console.log(`✓ All ${totalCount} tests passed!`);
@@ -13589,7 +14522,7 @@
                 document.body.style.borderTop = '5px solid #ef4444';
                 console.log(`✗ ${failCount} of ${totalCount} test(s) failed`);
             }
-        }, 100);
+        });
     </script>
 </body>
 </html>

@@ -22,6 +22,25 @@
 
     var CURRENT_REPORT_STATE = null;
 
+    const REPORT_SCOPE_NOTE = Object.freeze({
+        title: 'A starting point for your Azure Local design and documentation.',
+        text: 'This design report reflects the configuration and sizing information supplied to ODIN. It does not capture a complete set of business or technical requirements for selecting and deploying Azure Local, and does not replace your reviewed low-level design (LLD) documentation. Use it as a starting point: extend and validate it against your organisation\'s requirements before implementation.'
+    });
+    window.__odinGetReportScopeNote = function() { return REPORT_SCOPE_NOTE; };
+
+    const BMC_PROXY_GUIDANCE = Object.freeze({
+        title: 'OEM/BMC proxy bypass - manual action required',
+        notes: Object.freeze([
+            'This example includes only addresses captured by ODIN. Add OEM-required host-to-BMC endpoints used by Solution Builder Extensions, including USB passthrough/Remote NDIS endpoints where applicable. These can differ from external BMC/OOB management addresses. ODIN does not currently collect these endpoint addresses.',
+            'Confirm the required endpoints and exclusion format with your hardware vendor. WinINET/WinHTTP use wildcard syntax; NO_PROXY uses CIDR syntax for subnet exclusions. For an OEM-required APIPA range, the corresponding examples are 169.254.*.* and 169.254.0.0/16 respectively. These are examples, not automatic additions or a universal requirement.'
+        ]),
+        references: Object.freeze([
+            { title: 'Microsoft: Azure Local proxy configuration', url: 'https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2' },
+            { title: 'Dell example: SBE host-to-iDRAC access and proxy exclusions', url: 'https://dell.github.io/azurestack-docs/docs/hci/supportmatrix/2606/sbereleasenotes/' }
+        ])
+    });
+    window.__odinGetBmcProxyGuidance = function() { return BMC_PROXY_GUIDANCE; };
+
     // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
     const FIREWALL_ENDPOINT_URLS = {
         east_us: { label: 'East US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/EastUSendpoints/eastus-hci-endpoints.md' },
@@ -1200,6 +1219,10 @@
         md.push('');
         md.push(getReportSubtitle(s));
         md.push('');
+        md.push('**' + REPORT_SCOPE_NOTE.title + '**');
+        md.push('');
+        md.push(REPORT_SCOPE_NOTE.text);
+        md.push('');
 
         // Metadata section
         md.push('## Report Metadata');
@@ -1764,6 +1787,12 @@
             md.push('```');
             md.push('');
             md.push('> Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.');
+            md.push('');
+            md.push('**' + BMC_PROXY_GUIDANCE.title + '**');
+            BMC_PROXY_GUIDANCE.notes.forEach(function(note) { md.push('', '> ' + note); });
+            BMC_PROXY_GUIDANCE.references.forEach(function(reference) {
+                md.push('', '[' + reference.title + '](' + reference.url + ')');
+            });
             md.push('');
         }
 
@@ -7126,6 +7155,15 @@
                 + escapeHtml(bypassItems.join(','))
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.</p>'
+                + '<aside id="report-bmc-proxy-guidance" aria-labelledby="report-bmc-proxy-title" style="margin-top: 1rem; padding: 0.75rem; border-left: 4px solid var(--warning);">'
+                + '<strong id="report-bmc-proxy-title">' + escapeHtml(BMC_PROXY_GUIDANCE.title) + '</strong>'
+                + BMC_PROXY_GUIDANCE.notes.map(function(note) {
+                    return '<p style="margin-top: 0.5rem;">' + escapeHtml(note) + '</p>';
+                }).join('')
+                + BMC_PROXY_GUIDANCE.references.map(function(reference) {
+                    return '<p style="margin-top: 0.5rem;"><a href="' + escapeHtml(reference.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(reference.title) + '</a></p>';
+                }).join('')
+                + '</aside>'
                 + '</div>';
         }
 
@@ -8407,6 +8445,10 @@
     }
 
     function init() {
+        const scopeNote = document.getElementById('report-scope-note');
+        if (scopeNote) {
+            scopeNote.innerHTML = '<strong>' + escapeHtml(REPORT_SCOPE_NOTE.title) + '</strong><p>' + escapeHtml(REPORT_SCOPE_NOTE.text) + '</p>';
+        }
         const payload = tryParsePayload();
         const metaEl = document.getElementById('report-meta');
         const sumEl = document.getElementById('report-summary');
@@ -8735,4 +8777,3 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
         alert('PDF export failed. See console for details.');
     });
 }
-

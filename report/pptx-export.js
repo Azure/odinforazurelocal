@@ -62,6 +62,11 @@
     // hyperconverged (the Disaggregated VRF section doesn't exist there).
     const SECTION_PLAN = [
         {
+            title: 'About This Report',
+            match: [],
+            customExtract: extractReportScope
+        },
+        {
             title: 'Deployment Scenario & Scale',
             match: ['Scenario & Scale', 'Deployment Scenario', 'Scale & Nodes', 'Storage & Ports'],
             customExtract: extractScenarioScale
@@ -1265,6 +1270,14 @@
     // Proxy slide: outbound mode + arc + proxy state + the rendered minimum
     // bypass string + planning notes pulled from the rendered Outbound section
     // so the slide stays in sync with what the user sees.
+    function extractReportScope() {
+        const scope = window.__odinGetReportScopeNote();
+        return {
+            bullets: [{ text: scope.title, lvl: 1 }, { text: scope.text, lvl: 1 }],
+            sources: ['Report scope']
+        };
+    }
+
     function extractProxyConfiguration() {
         const s = (typeof window.__odinGetReportState === 'function')
             ? window.__odinGetReportState() : null;
@@ -1327,6 +1340,18 @@
         bullets.push({ text: 'Ensure node, cluster and infrastructure IPs/subnets are bypassed so internal traffic does not hit the proxy.', lvl: 1 });
 
         const links = [];
+        const bmcGuidance = window.__odinGetBmcProxyGuidance();
+        bullets.push({ text: bmcGuidance.title, lvl: 1 });
+        bmcGuidance.notes.forEach(function(note) {
+            bullets.push({ text: note, lvl: 1 });
+        });
+        bmcGuidance.references.forEach(function(reference, index) {
+            const rid = 101 + index;
+            bullets.push({ text: reference.title, lvl: 1, runs: [
+                { text: reference.title, color: '93C5FD', linkRid: rid }
+            ] });
+            links.push({ rid: rid, url: reference.url });
+        });
         if (s.arc === 'arc_gateway') {
             const arcGwUrl = 'https://learn.microsoft.com/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal';
             bullets.push({

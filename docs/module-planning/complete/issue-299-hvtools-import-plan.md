@@ -1,5 +1,7 @@
 # HVTools Import Plan (Issue #299)
 
+Completed in PRs #300 and #301; included in the 0.23.07 release summary.
+
 ## Current state
 
 - Sizer imports VMware inventories from RVTools `.xlsx` workbooks through the

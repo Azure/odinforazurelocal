@@ -1459,6 +1459,11 @@ header .header-description {
     transform: translateY(-2px);
 }
 
+.node-chip:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+}
+
 .node-chip.disabled {
     opacity: 0.3;
     filter: grayscale(1);

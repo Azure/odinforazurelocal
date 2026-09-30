@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="sizer.css">
+    <link rel="stylesheet" href="../css/onboarding.css">
     <link rel="stylesheet" href="../css/interactions.css">
     <link rel="stylesheet" href="rack3d.css">
 </head>
@@ -100,7 +101,7 @@
                         </span>
                         <span>Azure Virtual Desktop</span>
                     </button>
-                    <button class="workload-type-btn" data-workload-type="foundry" onclick="showAddWorkloadModal('foundry')" data-tooltip="Foundry Local on Azure Local (Preview) — locally hosted AI model serving for SLMs and LLMs (Phi-4, gpt-oss, Mistral, DeepSeek-R1, Qwen3, NVIDIA Nemotron, Whisper, or BYO models) with optional GPU partitioning. Sized per model replica.">
+                    <button class="workload-type-btn" data-workload-type="foundry" onclick="startFoundryWorkload().catch(error => reportUiError(error, 'Opening Foundry Local'))" data-tooltip="Foundry Local on Azure Local (Preview) — locally hosted AI model serving on AKS Arc, with CPU or dedicated GPU workers. Estimate worker capacity and model-cache storage; use the sizing guide to plan model fit and validate performance.">
                         <span class="workload-preview-badge">Preview</span>
                         <span class="workload-icon foundry">
                             <img src="../images/foundry-icon.png" alt="Foundry Local" width="28" height="28">
@@ -702,30 +703,72 @@
                     <span id="growth-applied-banner-text"></span>
                 </div>
 
+                <details id="hardware-breakdown" class="hardware-breakdown">
+                    <summary>
+                        Hardware sizing - view detailed information
+                        <span class="hardware-breakdown-description">Required vs sized resources, per-machine storage, and per-instance totals</span>
+                    </summary>
                 <!-- Per-Node Requirements -->
                 <div class="per-node-section">
-                    <h3 id="per-node-title">Physical Machines Hardware Requirements:</h3>
+                    <h3 id="per-node-title">Physical hardware</h3>
                     <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 machines (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a></p>
                     <p class="per-node-subtitle" id="per-node-howcalc"><a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks machine count, memory, ratio, and cluster type">How is this calculated?</a></p>
-                    <div class="per-node-grid">
-                        <div class="per-node-item">
-                            <span class="label">Physical Cores</span>
-                            <span class="value" id="per-node-cores">0</span>
-                        </div>
-                        <div class="per-node-item">
-                            <span class="label">Memory</span>
-                            <span class="value" id="per-node-memory">0 GB</span>
-                        </div>
+                    <p class="per-node-subtitle" id="per-node-overhead"></p>
+                    <h4 class="hardware-scope-title" id="per-machine-hardware-title">Per machine:</h4>
+                    <table class="hardware-comparison-table" aria-labelledby="per-machine-hardware-title">
+                        <thead>
+                            <tr><th scope="col">Resource</th><th scope="col">Required</th><th scope="col">Sized</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row">Physical cores</th>
+                                <td><span class="value" id="per-node-cores">0</span></td>
+                                <td><span class="value" id="per-node-configured-cores">0</span><span class="hardware-detail" id="per-node-cpu-sockets"></span></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Memory</th>
+                                <td><span class="value" id="per-node-memory">0 GB</span></td>
+                                <td><span class="value" id="per-node-configured-memory">0 GB</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <h4 class="hardware-scope-title storage-scope-title" id="storage-requirements-title">Workload storage per machine:</h4>
+                    <p class="per-node-subtitle" id="storage-requirements-note"></p>
+                    <div class="per-node-grid storage-requirements-grid">
                         <div class="per-node-item" id="per-node-storage-section">
-                            <span class="label" id="per-node-storage-label">Raw Storage</span>
+                            <span class="label" id="per-node-storage-label">Required raw storage (2 copies)</span>
                             <span class="value" id="per-node-storage">0 TB</span>
                         </div>
                         <div class="per-node-item" id="per-node-usable-section">
-                            <span class="label" id="per-node-usable-label">Usable Storage</span>
+                            <span class="label" id="per-node-usable-label">Required usable storage</span>
                             <span class="value" id="per-node-usable">0 TB</span>
                         </div>
                     </div>
                 </div>
+
+                <div class="per-node-section">
+                    <h3 id="instance-hardware-title">Physical hardware totals per instance</h3>
+                    <p class="per-node-subtitle" id="instance-hardware-subtitle"></p>
+                    <table class="hardware-comparison-table" aria-labelledby="instance-hardware-title">
+                        <thead>
+                            <tr><th scope="col">Resource</th><th scope="col">Required</th><th scope="col">Sized</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row">Physical cores</th>
+                                <td><span class="value" id="instance-required-cores">0</span></td>
+                                <td><span class="value" id="instance-configured-cores">0</span></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Memory</th>
+                                <td><span class="value" id="instance-required-memory">0 GB</span></td>
+                                <td><span class="value" id="instance-configured-memory">0 GB</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                </details>
 
                 <!-- Capacity Usage for Workload -->
                 <div class="capacity-breakdown">
@@ -975,13 +1018,15 @@
         <!-- 3D Rack Visualization (Preview) -->
         <section class="rack-viz-section" id="rack-viz-section" style="display: none;">
             <div class="rack-viz-header">
-                <h3 onclick="toggleRackViz()">
+                <h3>
+                    <button type="button" id="rack-viz-toggle" onclick="toggleRackViz()" aria-expanded="true" aria-controls="rack-viz-container">
                     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="2" width="20" height="20" rx="2"/>
                         <path d="M6 6h12M6 10h12M6 14h12M6 18h12"/>
                     </svg>
                     Azure Local - 3D Hardware Visualization
                     <span class="toggle-arrow" id="rack-viz-toggle-arrow">▼</span>
+                    </button>
                 </h3>
             </div>
             <div id="rack-viz-container">
@@ -1221,7 +1266,7 @@
 
             <ol style="margin: 0 0 16px 18px; padding: 0; color: var(--text-primary); font-size: 13px; line-height: 1.6;">
                 <li><strong>Prefer more machines over bigger machines.</strong> The recommender uses a fixed "preferred" per-machine memory cap of <strong>1.5 TB</strong> (or 2 TB for clusters of 10+ machines) when estimating the minimum machine count. Adding a machine is almost always cheaper than jumping a DIMM tier.</li>
-                <li><strong>Hardware scale-up order: cores → sockets → ratio.</strong> When demand outgrows the current per-machine hardware, the Sizer first grows physical cores within the selected CPU SKU, then steps up to 2-socket, then loosens the vCPU:core ratio (4:1 → 6:1 → 8:1, etc.). Memory is bumped to the next DIMM tier as needed.</li>
+                <li><strong>Hardware scale-up order: cores → sockets → ratio.</strong> When demand outgrows the current per-machine hardware, the Sizer first grows physical cores within the selected CPU SKU, then steps up to 2-socket, then loosens the vCPU:core ratio (4:1 → 5:1 → 6:1 maximum). Memory is bumped to the next DIMM tier as needed.</li>
                 <li><strong>Two-pass memory limits.</strong>
                     <ul style="margin: 6px 0 0 16px; padding: 0;">
                         <li><strong>Conservative pass</strong> — caps per-machine memory at <strong>1.5 TB</strong>, then adds machines if utilisation is still ≥ 90 %.</li>
@@ -1351,6 +1396,8 @@
     <script src="rack3d.js?v=20260330z9"></script>
     <script>window.__S2D_CALCULATIONS_ONLY__ = true;</script>
     <script src="../s2d-calc/s2d-calc.js"></script>
+    <script src="../js/onboarding.js"></script>
+    <script src="foundry-help.js"></script>
     <script src="sizer.js"></script>
 </body>
 </html>

@@ -10,6 +10,7 @@
     <title>Azure Local Instance | Design Configuration Report</title>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/onboarding.css">
     <style>
         /* Print-friendly mode styles - toggled via CSS class */
         body.print-friendly-mode {
@@ -33,6 +34,10 @@
         body.print-friendly-mode h4,
         body.print-friendly-mode strong {
             color: #000000 !important;
+        }
+        body.print-friendly-mode .odin-onboarding h2,
+        body.print-friendly-mode .odin-onboarding strong {
+            color: var(--text-primary) !important;
         }
         body.print-friendly-mode .sizing-note-advisory {
             color: #b45309 !important;
@@ -237,6 +242,45 @@
             border-color: var(--accent-blue);
         }
 
+        body {
+            padding-top: 56px;
+        }
+
+        @media (max-width: 1100px) {
+            .page-header-bar {
+                position: sticky;
+                height: auto;
+                padding: 8px 12px;
+            }
+
+            .page-header-container,
+            .page-header-actions {
+                flex-wrap: wrap;
+            }
+
+            .page-header-title {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .page-header-actions {
+                flex: 1 1 100%;
+                justify-content: center;
+                gap: 4px;
+                margin: 0;
+            }
+
+            .header-action-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+                min-height: 44px;
+            }
+
+            body {
+                padding-top: 0;
+            }
+        }
+
         .header-action-group {
             display: inline-flex;
             align-items: stretch;
@@ -268,10 +312,6 @@
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-primary);
             border-color: var(--accent-blue);
-        }
-
-        body {
-            padding-top: 56px;
         }
 
         /* Hide header bar when printing */
@@ -384,6 +424,8 @@
             </a>
             <span class="page-header-title">Azure Local Instance | Design Configuration Report</span>
             <div class="page-header-actions">
+                <button type="button" id="report-help-btn" class="header-action-btn" aria-label="Help with the configuration report"
+                    onclick="showReportHelp().catch(error => reportUiError(error, 'Opening Report help'))">Help</button>
                 <button type="button" id="print-friendly-btn" class="header-action-btn" onclick="togglePrintFriendly()">
                     🖨️ Print Friendly
                 </button>
@@ -408,6 +450,7 @@
         <header>
             <h1>Azure Local Instance | Design Configuration Report</h1>
             <p id="report-subtitle">This report explains what was selected and why, based on the inputs from ODIN Designer workflow.</p>
+            <aside id="report-scope-note" class="report-planning-aid" aria-label="Report scope"></aside>
         </header>
 
         <section class="step" style="margin-bottom:1.5rem;">
@@ -461,11 +504,15 @@
     <script src="../vendor/jspdf-4.2.1.umd.min.js"></script>
     <script src="rack-svg.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/onboarding.js"></script>
+    <script src="onboarding.js"></script>
     <script src="../js/subnet-utilization.js"></script>
     <script src="report.js"></script>
     <!-- PowerPoint export (vendored PptxGenJS provides JSZip; slide builder uses .potx template) -->
     <script src="vendor/pptxgen.bundle.js"></script>
     <script src="pptx-export.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', initializeReportHelp);</script>
     <script>
         // Apply saved theme on load
         (function() {

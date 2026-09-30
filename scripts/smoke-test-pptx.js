@@ -156,7 +156,16 @@ const SEED_PAYLOAD = {
                                     sizingNotesSlides: slideText.filter(text => text.includes('Sizing Notes & Recommendations')).length,
                                     hasFinalSizingNote: slideText.some(text => text.includes('Sizing recommendation 50')),
                                     advisoryStyleCount: slideXml.reduce((count, text) => count + ((text.match(/val="B45309"/g) || []).length), 0),
-                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows'))
+                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows')),
+                                    hasReportScope: slideText.some(text => text.includes(window.__odinGetReportScopeNote().text)),
+                                    hasBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
+                                        slideText.some(text => text.includes(note))),
+                                    hasBmcGuidanceLinks: window.__odinGetBmcProxyGuidance().references.every(reference =>
+                                        relationships.some(text => text.includes(reference.url))),
+                                    hasRenderedBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
+                                        document.getElementById('report-bmc-proxy-guidance').textContent.includes(note)),
+                                    bypassUnchanged: !window.__odinBuildProxyBypassList(window.__odinGetReportState())
+                                        .some(entry => entry.includes('169.254'))
                                 });
                             })().catch(fail);
                         };
@@ -193,8 +202,56 @@ const SEED_PAYLOAD = {
         if (result.advisoryStyleCount < 2) {
             throw new Error('Both minimum-fit and Single Node Advisory headings must retain amber styling');
         }
-        if (!result.hasWorkflowSubtitle) {
-            throw new Error('Sizer and Designer workflow subtitle is missing from the cover slide');
+        if (!result.hasWorkflowSubtitle || !result.hasReportScope) {
+            throw new Error('Workflow subtitle or report scope statement is missing from the presentation');
+        }
+        if (!result.hasBmcGuidance || !result.hasBmcGuidanceLinks || !result.hasRenderedBmcGuidance || !result.bypassUnchanged) {
+            throw new Error('OEM/BMC caveat must appear in HTML and PowerPoint with sources, without adding bypass ranges');
+        }
+
+        for (const proxy of ['proxy', 'no_proxy']) {
+            if (proxy === 'no_proxy') {
+                const noProxyPayload = JSON.parse(JSON.stringify(SEED_PAYLOAD));
+                noProxyPayload.state.proxy = 'no_proxy';
+                noProxyPayload.state.outbound = 'public';
+                await page.goto(`file://${reportPath}#data=${Buffer.from(JSON.stringify(noProxyPayload)).toString('base64')}`,
+                    { waitUntil: 'networkidle0', timeout: 60000 });
+                await page.reload({ waitUntil: 'networkidle0' });
+            }
+            const displayed = await page.$('#report-bmc-proxy-guidance');
+            if (Boolean(displayed) !== (proxy === 'proxy')) {
+                throw new Error(`OEM/BMC caveat visibility does not match proxy mode: ${proxy}`);
+            }
+            for (const format of ['Markdown', 'Word']) {
+                const hasGuidance = await page.evaluate(({ format, expectGuidance }) => new Promise((resolve, reject) => {
+                    const originalClick = HTMLAnchorElement.prototype.click;
+                    const timeout = setTimeout(() => {
+                        HTMLAnchorElement.prototype.click = originalClick;
+                        reject(new Error(format + ' report download timed out'));
+                    }, 30000);
+                    HTMLAnchorElement.prototype.click = function() {
+                        if (!this.download.endsWith(format === 'Word' ? '.doc' : '.md')) {
+                            return originalClick.call(this);
+                        }
+                        const url = this.href;
+                        fetch(url).then(response => response.text()).then(content => {
+                            const guidance = window.__odinGetBmcProxyGuidance();
+                            const text = format === 'Word'
+                                ? new DOMParser().parseFromString(content, 'text/html').body.textContent : content;
+                            const present = guidance.notes.every(note => text.includes(note))
+                                && guidance.references.every(reference => content.includes(reference.url));
+                            const absent = !text.includes(guidance.title) && !text.includes('Remote NDIS');
+                            resolve((expectGuidance ? present : absent) && text.includes(window.__odinGetReportScopeNote().text));
+                        }).catch(reject).finally(() => {
+                            clearTimeout(timeout);
+                            HTMLAnchorElement.prototype.click = originalClick;
+                        });
+                    };
+                    window['downloadReport' + format]();
+                }), { format, expectGuidance: proxy === 'proxy' });
+                if (!hasGuidance) throw new Error(`OEM/BMC guidance mismatch in ${format} export for ${proxy}`);
+                console.log(`OEM/BMC ${format} export: ${proxy} OK`);
+            }
         }
 
         console.log(`PPTX smoke test: OK — ${result.filename}, ${(result.size / 1024).toFixed(1)} KB, magic ${result.headHex}`);

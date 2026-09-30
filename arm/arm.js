@@ -317,10 +317,28 @@
         }
 
         const params = window.armPayload.parametersFile.parameters;
+        const modeInput = document.getElementById('input-deployment-mode');
+        if (modeInput) {
+            modeInput.value = params.deploymentMode ? params.deploymentMode.value : 'Validate';
+        }
 
         // Helper function to check if a value is a valid (non-placeholder) value
         function isValidValue(val) {
             return val && typeof val === 'string' && val !== '' && val.indexOf('REPLACE_WITH') === -1;
+        }
+
+        const locationInput = document.getElementById('input-location');
+        if (locationInput) {
+            const cloud = window.armPayload.cloud || 'azure_commercial';
+            locationInput.querySelectorAll('option[data-cloud]').forEach(option => {
+                if (option.dataset.cloud !== cloud) option.remove();
+            });
+            if (params.location && isValidValue(params.location.value)) {
+                const location = params.location.value;
+                const knownRegion = Array.from(locationInput.options).some(option => option.dataset.cloud && option.value === location);
+                locationInput.value = knownRegion ? location : 'custom';
+                if (!knownRegion) document.getElementById('input-location-custom').value = location;
+            }
         }
 
         // Pre-populate Cluster Name (Issue #86)
@@ -493,6 +511,10 @@
 
         // Pre-populate input fields with values from the payload (Issue #85, #86)
         prePopulateInputFields();
+        if (!updateParameters()) {
+            if (copyBtn) copyBtn.disabled = true;
+            return;
+        }
 
         let rawJsonText = '';
         try {
@@ -579,10 +601,11 @@ function deployToAzure() {
         'Template: ' + (ref.name || 'Unknown') + '\n' +
         'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : 'Azure Commercial') + '\n\n' +
         'To apply your configuration:\n' +
-        '1. Use "Copy Parameters & Scroll to JSON" button on this page\n' +
-        '2. In Azure Portal, click "Edit parameters"\n' +
-        '3. Paste your copied JSON and click Save\n' +
-        '4. Replace any REPLACE_WITH_ placeholders\n\n' +
+        '1. Select Validate for the first deployment; select Deploy only after Validate succeeds\n' +
+        '2. Copy the selected-mode parameters from this page\n' +
+        '3. In Azure Portal, click "Edit parameters", paste the JSON, and save\n' +
+        '4. Replace any REPLACE_WITH_ placeholders and create the deployment\n' +
+        '5. Run Deploy as a second deployment against the same cluster after Validate succeeds\n\n' +
         'Continue to Azure Portal?';
 
     if (confirm(confirmMsg)) {
@@ -668,14 +691,46 @@ function highlightCopyButton() {
 }
 
 // Integration Features Functions
+function getSelectedDeploymentLocation() {
+    const select = document.getElementById('input-location');
+    const customInput = document.getElementById('input-location-custom');
+    const custom = select.value === 'custom';
+    const errorElement = document.getElementById('location-error');
+    document.getElementById('custom-location-code-container').hidden = !custom;
+    customInput.disabled = !custom;
+    select.removeAttribute('aria-invalid');
+    customInput.removeAttribute('aria-invalid');
+    try {
+        const location = window.ArmDeploymentWorkflow.requireDeploymentLocation(custom ? customInput.value.trim() : select.value);
+        errorElement.hidden = true;
+        errorElement.textContent = '';
+        return location;
+    } catch (error) {
+        errorElement.textContent = error.message;
+        errorElement.hidden = false;
+        (custom ? customInput : select).setAttribute('aria-invalid', 'true');
+        return null;
+    }
+}
+
+function getDeploymentAutomationLocation() {
+    const location = getSelectedDeploymentLocation();
+    if (!location) showNotification('Select a valid Azure Region or enter a valid custom region code in Azure Context before downloading automation.', 'error');
+    return location;
+}
+
 function generateDevOpsPipeline() {
-    const pipeline = window.ArmDeploymentWorkflow.buildAzureDevOpsPipeline();
+    const location = getDeploymentAutomationLocation();
+    if (!location) return;
+    const pipeline = window.ArmDeploymentWorkflow.buildAzureDevOpsPipeline({ location: location });
     downloadFile('azure-pipelines.yml', pipeline);
     showNotification('Azure DevOps pipeline template downloaded!');
 }
 
 function generateGitHubWorkflow() {
-    const workflow = window.ArmDeploymentWorkflow.buildGitHubWorkflow();
+    const location = getDeploymentAutomationLocation();
+    if (!location) return;
+    const workflow = window.ArmDeploymentWorkflow.buildGitHubWorkflow({ location: location });
     downloadFile('.github-workflows-deploy.yml', workflow);
     showNotification('GitHub Actions workflow downloaded! Save as .github/workflows/deploy.yml');
 }
@@ -794,7 +849,10 @@ function showNotification(message, type) { // eslint-disable-line no-redeclare
  * Update parameters when input fields change
  */
 function updateParameters() {
-    if (!window.armPayload || !window.armPayload.parametersFile) return;
+    if (!window.armPayload || !window.armPayload.parametersFile) {
+        showNotification('No ARM parameters are available. Generate them from Designer first.', 'error');
+        return false;
+    }
 
     // Get all input values
     const tenantId = document.getElementById('input-tenant-id')?.value.trim() || '';
@@ -809,9 +867,21 @@ function updateParameters() {
     const diagnosticStorage = document.getElementById('input-diagnostic-storage')?.value.trim() || '';
     const hciRpObjectId = document.getElementById('input-hci-rp-object-id')?.value.trim() || '';
 
-    // Create a copy of the parameters to modify
-    const paramsFile = JSON.parse(JSON.stringify(window.armPayload.parametersFile));
+    const modeInput = document.getElementById('input-deployment-mode');
+    const deploymentMode = modeInput ? modeInput.value : 'Validate';
+    let paramsFile;
+    try {
+        paramsFile = window.ArmDeploymentWorkflow.parametersForMode(window.armPayload.parametersFile, deploymentMode);
+    } catch (error) {
+        showNotification(error.message || 'Unable to update the deployment mode.', 'error');
+        return false;
+    }
     const params = paramsFile.parameters || {};
+
+    const location = getSelectedDeploymentLocation();
+    if (params.location) {
+        params.location.value = location || 'REPLACE_WITH_LOCATION';
+    }
 
     // Update specific parameter values
     if (tenantId && params.tenantId) {
@@ -887,6 +957,14 @@ function updateParameters() {
     }
 
     window.armPayload.parametersFile = paramsFile;
+    const modeStatus = document.getElementById('deployment-mode-status');
+    if (modeStatus) {
+        modeStatus.textContent = deploymentMode === 'Validate'
+            ? 'Validate selected: run this phase first to create and validate the cluster resource.'
+            : 'Deploy selected: proceed only after Validate succeeds and the cluster resource exists. This is a second ARM deployment.';
+    }
+    const copyModeLabel = document.getElementById('copy-mode-label');
+    if (copyModeLabel) copyModeLabel.textContent = 'Copy ' + deploymentMode + ' Parameters & Scroll to JSON';
 
     // Update the display with syntax highlighting
     const jsonCode = document.getElementById('arm-json-code');
@@ -901,11 +979,12 @@ function updateParameters() {
         statusEl.textContent = 'Parameters updated at ' + new Date().toLocaleTimeString();
         statusEl.style.color = 'var(--accent-green)';
     }
+    return true;
 }
 
 function downloadParametersForMode(mode) {
     try {
-        updateParameters();
+        if (!updateParameters()) return;
         const parametersFile = window.ArmDeploymentWorkflow.parametersForMode(
             window.armPayload && window.armPayload.parametersFile,
             mode
@@ -1055,7 +1134,10 @@ function generatePowerShellScript() {
         return;
     }
 
+    const location = getDeploymentAutomationLocation();
+    if (!location) return;
     const script = window.ArmDeploymentWorkflow.buildPowerShellScript({
+        location: location,
         tenantId: tenantId,
         subscriptionId: subId,
         resourceGroupName: rgName,
@@ -1100,7 +1182,10 @@ function generateAzCLIScript() {
         return;
     }
 
+    const location = getDeploymentAutomationLocation();
+    if (!location) return;
     const script = window.ArmDeploymentWorkflow.buildAzureCliScript({
+        location: location,
         tenantId: tenantId,
         subscriptionId: subId,
         resourceGroupName: rgName,
