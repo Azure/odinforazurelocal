@@ -2480,6 +2480,52 @@
                     gpuResults.push(assert(doc.getElementById('wl-gpuWorkerVmSize').value === 'Standard_NC16_L40S_1',
                         'Editing a restored workload retains its explicit GPU worker SKU', 'Standard_NC16_L40S_1',
                         doc.getElementById('wl-gpuWorkerVmSize').value));
+                    win.closeModal();
+                    const placementDesign = {
+                        ...win.getSizerState(), nodeCountUserSet: false, gpuType: 'l4', gpuCount: '1',
+                        futureGrowth: '0', workloadIdCounter: 3,
+                        workloads: [
+                            { id: 2, type: 'vm', name: 'Demo CPU-driven fleet', inputMode: 'total',
+                                count: 1, vcpus: 4000, memory: 16000, storage: 100, gpuMode: 'none' },
+                            { ...legacy.workloads[0], id: 3, name: '<Demo GPU worker>', workerNodes: 1,
+                                gpuDdaModel: 'l4', gpuDdaCount: 2, gpuWorkerVmSize: 'Standard_NC16_L4_2' }
+                        ]
+                    };
+                    win.applyImportedSizerState(structuredClone(placementDesign));
+                    gpuResults.push(assert(Number(doc.getElementById('node-count').value) >= 8
+                        && doc.getElementById('gpu-count').value === '2',
+                    'CPU-driven high-machine-count design retains two GPUs per machine for a two-GPU worker',
+                    'at least 8 machines, 2 GPUs per machine',
+                    doc.getElementById('node-count').value + '/' + doc.getElementById('gpu-count').value));
+                    for (const manualCount of ['1', '0']) {
+                        doc.getElementById('gpu-count').value = manualCount;
+                        doc.getElementById('gpu-count').dispatchEvent(new Event('change', { bubbles: true }));
+                        const notes = doc.getElementById('sizing-notes');
+                        gpuResults.push(assert(doc.getElementById('gpu-count').value === manualCount
+                            && win._sizerVmExceedsNode && doc.querySelector('.btn-designer').disabled
+                            && notes.textContent.includes('<Demo GPU worker>')
+                            && notes.textContent.includes('requires 2 GPUs on one machine')
+                            && !notes.querySelector('demo'),
+                        'Manual ' + manualCount + '-GPU inventory is preserved with safe placement warning and blocked Designer handoff',
+                        true, notes.textContent.includes('requires 2 GPUs on one machine')));
+                    }
+                    win.clearSingleManualOverride('gpu-count');
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '2'
+                        && !win._sizerVmExceedsNode && !doc.querySelector('.btn-designer').disabled,
+                    'Returning GPU inventory to AUTO clears the placement blocker in one action', true,
+                    doc.getElementById('gpu-count').value));
+                    placementDesign.workloads[1].gpuWorkerVmSize = 'Standard_NC16_L4_1';
+                    placementDesign.workloads[1].gpuDdaCount = 1;
+                    win.applyImportedSizerState(structuredClone(placementDesign));
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '1',
+                        'Replacing the two-GPU worker with a one-GPU SKU reduces automatic inventory', '1',
+                        doc.getElementById('gpu-count').value));
+                    placementDesign.workloads.pop();
+                    win.applyImportedSizerState(placementDesign);
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '0'
+                        && !win._sizerVmExceedsNode,
+                    'Removing the GPU worker clears its minimum and automatically managed inventory', '0',
+                    doc.getElementById('gpu-count').value));
                 } finally {
                     win.alert = originalAlert;
                     savedKeys.forEach(([key, value]) => {
@@ -5014,6 +5060,31 @@
             assert(getAutoGpuCountPerNode(10, 3, 4) === 4,
                 'GPU reconciliation remains capped by model support', 4,
                 getAutoGpuCountPerNode(10, 3, 4)),
+            assert(getAutoGpuCountPerNode(2, 8, 4, 2) === 2,
+                'A two-GPU worker cannot be split across eight one-GPU machines', 2,
+                getAutoGpuCountPerNode(2, 8, 4, 2)),
+            assert(getAutoGpuCountPerNode(2, 16, 4, 2) === 2,
+                'Adding machines never reduces inventory below the worker GPU minimum', 2,
+                getAutoGpuCountPerNode(2, 16, 4, 2)),
+            assert(getAutoGpuCountPerNode(0, 8, 4, 2) === 0,
+                'Zero demand still clears AUTO GPUs despite a stale minimum', 0,
+                getAutoGpuCountPerNode(0, 8, 4, 2)),
+            assert(getWorkloadGpuMinimumPerNode({
+                ...WORKLOAD_DEFAULTS.foundry, type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4',
+                gpuDdaCount: 1, gpuWorkerVmSize: 'Standard_NC16_L4_2'
+            }) === 2, 'AI placement uses the selected SKU rather than a stale compatibility count', 2, 'selected SKU'),
+            assert(getWorkloadGpuMinimumPerNode({
+                type: 'aks', gpuMode: 'dda', gpuDdaCount: 1, aksGpuVmSize: 'Standard_NC16_L4_2'
+            }) === 2, 'AKS placement also respects the selected worker SKU', 2, 'selected SKU'),
+            assert(getWorkloadGpuMinimumPerNode({
+                type: 'vm', gpuMode: 'dda', inputMode: 'total', gpuDdaCount: 252
+            }) === 0, 'Total VM GPU demand is not treated as one indivisible VM', 0, 'aggregate demand'),
+            assert(getWorkloadGpuMinimumPerNode({
+                type: 'vm', gpuMode: 'dda', inputMode: 'per-vm', gpuDdaCount: 4
+            }) === 4, 'Per-VM DDA retains its individual GPU minimum', 4, 'per-VM demand'),
+            assert(getWorkloadGpuMinimumPerNode({
+                type: 'vm', gpuMode: 'gpu-p', gpuDdaCount: 4
+            }) === 0, 'GPU-P does not inherit stale DDA placement requirements', 0, 'partitioned GPU'),
             (() => {
                 const note = getMinimumFitHardwareNote({ totalPhysicalCores: 24, memoryGB: 128 });
                 return assert(note && note.startsWith('<strong><span class="sizing-note-advisory">Advisory</span> - minimum-fit hardware:</strong>') && note.includes('24 physical cores') && note.includes('128 GB memory'),

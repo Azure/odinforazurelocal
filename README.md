@@ -77,6 +77,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **OEM/BMC proxy guidance** — reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs.
 - **PowerPoint readability** — dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.
 - **Supported AI GPU worker sizes** — size Foundry Local and Video Indexer GPU workers from supported AKS Arc VM SKUs, with separate Agentic embedding and local-LLM selections. CPU, RAM, GPU count and VRAM now follow the chosen sizes; compatible older GPU workloads migrate with an explicit notice. Capacity sizing is not an inference-performance guarantee.
+- **Per-machine GPU placement** — AUTO GPU inventory respects the largest selected worker's GPU requirement. Insufficient manual inventory produces a placement warning and blocks the Designer handoff rather than treating GPUs on different machines as interchangeable.
 
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 

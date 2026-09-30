@@ -6126,14 +6126,25 @@ function getGpuCapacityMetrics(gpuCountPerNode, nodeCount, effectiveNodes, total
     };
 }
 
-function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode) {
+function getWorkloadGpuMinimumPerNode(w) {
+    if (w.gpuMode !== 'dda' || (w.type === 'vm' && w.inputMode === 'total')) return 0;
+    const pools = getAiGpuWorkerPools(w);
+    if (pools.length) return Math.max(...pools.map(pool => pool.size.gpus));
+    if (w.type === 'aks') {
+        const size = (AKS_GPU_VM_SIZES[getWorkloadGpuType(w)] || []).find(item => item.name === w.aksGpuVmSize);
+        if (size) return size.gpus;
+    }
+    return w.gpuDdaCount || 1;
+}
+
+function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumPerNode = 0) {
     const demand = Math.max(Number(totalGpus) || 0, 0);
     if (demand === 0) return 0;
     const physicalNodes = Math.max(Number(nodeCount) || 1, 1);
     const effectiveNodes = physicalNodes > 1 ? physicalNodes - 1 : 1;
     const supportedMax = Math.max(Number(maxPerNode) || 1, 1);
     const requiredBelowThreshold = Math.floor(demand / (effectiveNodes * 0.9)) + 1;
-    return Math.min(Math.max(requiredBelowThreshold, 1), supportedMax);
+    return Math.min(Math.max(requiredBelowThreshold, minimumPerNode, 1), supportedMax);
 }
 
 // Calculate all requirements
@@ -6144,7 +6155,7 @@ function calculateRequirements(options) {
 
     try {
         // Sum all workload requirements (raw, before growth)
-        let totalVcpus = 0, totalMemory = 0, totalStorage = 0, totalGpus = 0;
+        let totalVcpus = 0, totalMemory = 0, totalStorage = 0, totalGpus = 0, minimumGpusPerNode = 0;
 
         workloads.forEach(w => {
             const reqs = calculateWorkloadRequirements(w);
@@ -6152,6 +6163,7 @@ function calculateRequirements(options) {
             totalMemory += reqs.memory;
             totalStorage += reqs.storage;
             totalGpus += reqs.gpus || 0;
+            if (reqs.gpus > 0) minimumGpusPerNode = Math.max(minimumGpusPerNode, getWorkloadGpuMinimumPerNode(w));
         });
 
         // Apply future growth factor
@@ -6270,7 +6282,7 @@ function calculateRequirements(options) {
             if (currentGpuCount > 0 && currentGpuCount < maxPerNode) {
                 // Calculate needed GPUs per node: totalGpus / effectiveNodes, rounded up
                 const effNodesForGpu = nodeCount > 1 ? nodeCount - 1 : 1;
-                const neededPerNode = Math.ceil(totalGpus / effNodesForGpu);
+                const neededPerNode = Math.max(Math.ceil(totalGpus / effNodesForGpu), minimumGpusPerNode);
                 const targetPerNode = Math.min(neededPerNode, maxPerNode);
                 if (targetPerNode > currentGpuCount) {
                     gpuCountEl.value = targetPerNode;
@@ -6863,12 +6875,12 @@ function calculateRequirements(options) {
 
         // Node scaling can leave an earlier GPU-per-machine recommendation
         // unnecessarily high. Reconcile against the final N-1 machine count
-        // while preserving the same strict-below-90% utilization policy.
+        // while preserving the worker placement floor and strict-below-90% policy.
         if (!_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
             const gpuModel = GPU_MODELS[hwConfig.gpuType];
             const maxPerNode = gpuModel ? gpuModel.maxPerNode : 1;
-            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode);
+            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumGpusPerNode);
             if (gpuCountEl && parseInt(gpuCountEl.value, 10) !== reconciledGpuCount) {
                 gpuCountEl.value = reconciledGpuCount;
                 markAutoScaled('gpu-count');
@@ -7717,6 +7729,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
             const maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
             workloads.forEach(function(w) {
+                const requiredGpus = getWorkloadGpuMinimumPerNode(w);
+                if (requiredGpus > (hwConfig.gpuCount || 0) && calculateWorkloadGpuRequirement(w) > 0) {
+                    notes.push('🚫 Workload "' + escapeHtmlSizer(w.name || w.type) + '" requires ' + escapeHtmlSizer(String(requiredGpus)) + ' GPUs on one machine, but hardware has ' + (hwConfig.gpuCount || 0) + ' GPUs per machine. Increase GPUs per machine or select a smaller GPU worker/VM configuration. Adding machines cannot satisfy this per-worker requirement.');
+                    _vmExceedsNode = true;
+                }
                 // Only check single-VM placement for per-VM input mode. In 'total'
                 // input mode w.vcpus / w.memory are fleet aggregates with count=1,
                 // not the spec of any individual VM, so this check would be a
