@@ -2550,6 +2550,55 @@
                 }
             }
             testSuite('Report and ARM responsive headers', 'report/report.html, arm/arm.html', headerResults);
+
+            const subnetResults = [];
+            const savedReportPayload = localStorage.getItem('azloc_report_payload');
+            try {
+                for (const storageType of ['fc_san', 'iscsi_4nic', 'iscsi_6nic']) {
+                    for (const backupEnabled of [false, true]) {
+                        const reportState = {
+                            scenario: 'hyperconverged', architecture: 'disaggregated', nodes: '4',
+                            disaggStorageType: storageType, disaggRackCount: 1, disaggNodesPerRack: 4,
+                            disaggBackupEnabled: backupEnabled,
+                            disaggSubnets: {
+                                cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24',
+                                iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24',
+                                backup: '10.80.0.0/24'
+                            }
+                        };
+                        localStorage.setItem('azloc_report_payload', JSON.stringify({
+                            generatedAt: '2026-09-30T00:00:00.000Z', state: reportState
+                        }));
+                        const frame = document.createElement('iframe');
+                        const loaded = new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => reject(new Error('Report subnet fixture timed out')), 10000);
+                            frame.onload = () => { clearTimeout(timeout); resolve(); };
+                        });
+                        frame.src = '../report/report.html';
+                        document.body.appendChild(frame);
+                        try {
+                            await loaded;
+                            const labels = Array.from(frame.contentDocument.querySelectorAll('#report-summary .summary-label'))
+                                .map(el => el.textContent);
+                            const context = storageType + ', backup ' + backupEnabled;
+                            subnetResults.push(assert(labels.includes('Cluster 1 Subnet') && labels.includes('Cluster 2 Subnet'),
+                                context + ': cluster subnets remain visible', true, labels));
+                            subnetResults.push(assert(labels.includes('iSCSI A Subnet') === (storageType === 'iscsi_6nic')
+                                && labels.includes('iSCSI B Subnet') === (storageType === 'iscsi_6nic'),
+                            context + ': dedicated iSCSI subnets appear only for dedicated iSCSI NICs',
+                            storageType === 'iscsi_6nic', labels));
+                            subnetResults.push(assert(labels.includes('Backup Subnet') === backupEnabled,
+                                context + ': backup subnet follows the enabled backup intent', backupEnabled, labels));
+                        } finally {
+                            frame.remove();
+                        }
+                    }
+                }
+            } finally {
+                if (savedReportPayload === null) localStorage.removeItem('azloc_report_payload');
+                else localStorage.setItem('azloc_report_payload', savedReportPayload);
+            }
+            testSuite('Report active SAN subnet rows', 'report/report.js', subnetResults);
             
             // Test Report page
             const reportValidation = await validateHtmlPage('../report/report.html', 'Report Page', [

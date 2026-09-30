@@ -68,7 +68,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
 - **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; DNS conflicts now block completion and Report/ARM output.
 - **Azure DevOps pipeline setup** — generated YAML declares its required service-connection placeholder and authorization guidance.
-- **Disaggregated validation** — invalid node addresses also block reports, and HCI witness details no longer leak into disaggregated summaries.
+- **Disaggregated validation** — invalid node addresses also block reports, HCI witness details no longer leak into disaggregated summaries, and reports omit inactive dedicated iSCSI and backup subnets.
 - **Disconnected management transitions** — cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.
 - **Designer machine naming** — generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.
 - **Clearer Sizer hardware requirements** — expand "Hardware sizing - view detailed information" to compare overhead-inclusive requirements with sized cores and memory in aligned Required / Sized tables per machine and per instance, with cores-per-socket multiplication. Sized means the hardware selected in Hardware Configuration. The breakdown is collapsed by default to keep capacity bars and warnings prominent, but always included in exports. Auto-scaling policy is unchanged.

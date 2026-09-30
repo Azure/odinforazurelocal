@@ -8044,9 +8044,11 @@
             if (s.disaggSubnets) {
                 if (s.disaggSubnets.cluster1) hostNetworkingRows += row('Cluster 1 Subnet', s.disaggSubnets.cluster1, true);
                 if (s.disaggSubnets.cluster2) hostNetworkingRows += row('Cluster 2 Subnet', s.disaggSubnets.cluster2, true);
-                if (s.disaggSubnets.iscsiA) hostNetworkingRows += row('iSCSI A Subnet', s.disaggSubnets.iscsiA, true);
-                if (s.disaggSubnets.iscsiB) hostNetworkingRows += row('iSCSI B Subnet', s.disaggSubnets.iscsiB, true);
-                if (s.disaggSubnets.backup) hostNetworkingRows += row('Backup Subnet', s.disaggSubnets.backup, true);
+                if (s.disaggStorageType === 'iscsi_6nic') {
+                    if (s.disaggSubnets.iscsiA) hostNetworkingRows += row('iSCSI A Subnet', s.disaggSubnets.iscsiA, true);
+                    if (s.disaggSubnets.iscsiB) hostNetworkingRows += row('iSCSI B Subnet', s.disaggSubnets.iscsiB, true);
+                }
+                if (s.disaggBackupEnabled && s.disaggSubnets.backup) hostNetworkingRows += row('Backup Subnet', s.disaggSubnets.backup, true);
             }
         }
 

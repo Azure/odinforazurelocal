@@ -25,6 +25,7 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Fixed
 
+- **Active SAN report subnets** - Show dedicated iSCSI subnet rows only for six-NIC iSCSI designs and backup subnet rows only when backup networking is enabled. Fibre Channel and shared four-NIC iSCSI reports no longer display unused dedicated iSCSI values retained in the design.
 - **Azure DevOps service connection** - Declare the service-connection variable used by every generated Azure CLI task, with an explicit replacement placeholder and instructions to authorize the connection for the pipeline and target subscription.
 - **Designer example validation** - Correct DNS/gateway collisions in the four HCI example templates and validate DNS when loading templates. DNS form errors now also block 100% completion and Report/ARM readiness using the same validation rules. Real-page automated checks exercise every example from a fresh state and in forward/reverse replacement order, requiring 100% progress, no visible validation errors, valid inputs and enabled outputs; invalid-DNS/correction cases cover each architecture.
 - **Disaggregated validation consistency** - Apply node-name/IP readiness to disaggregated reports as well as ARM output, and prevent HCI witness selections from appearing in disaggregated summaries after architecture or example-template changes.
