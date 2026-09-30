@@ -2637,8 +2637,10 @@
             testSuite('Designer Machine Count Accessibility', 'index.html', machineResults);
 
             const managementResults = [];
+            const templatePageResults = [];
             const managementFrame = document.createElement('iframe');
-            const savedDesignerState = localStorage.getItem('azureLocalWizardState');
+            const savedDesignerValues = ['azureLocalWizardState', 'azureLocalWizardTimestamp',
+                'azloc_report_payload', 'azloc_arm_payload'].map(key => [key, localStorage.getItem(key)]);
             const managementLoaded = new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => reject(new Error('Disconnected management fixture timed out')), 15000);
                 managementFrame.onload = () => { clearTimeout(timeout); resolve(); };
@@ -2671,12 +2673,107 @@
                 managementResults.push(assert(one.classList.contains('selected') && !one.disabled
                     && /Nodes\s*1/.test(doc.getElementById('summary-content').textContent),
                 'Workload role remains selectable at one node after management transitions', true, one.className));
+
+                win.showTemplates();
+                const templateNames = Array.from(doc.querySelectorAll('#templates-overlay h4'), el => el.textContent);
+                doc.querySelector('#templates-overlay [data-action="close-templates"]').click();
+                templatePageResults.push(assert(templateNames.length > 0,
+                    'Real Designer template picker contains examples', true, templateNames.length));
+                for (const mode of ['fresh', 'forward', 'reverse']) {
+                    const names = mode === 'reverse' ? templateNames.slice().reverse() : templateNames;
+                    for (const name of names) {
+                        if (mode === 'fresh') win.resetAll();
+                        win.showTemplates();
+                        const button = Array.from(doc.querySelectorAll('#templates-overlay button'))
+                            .find(el => el.querySelector('h4')?.textContent === name);
+                        button.click();
+                        // Template infrastructure validation currently runs after a 100ms delay.
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        doc.querySelectorAll('#dns-servers-container input').forEach(input =>
+                            input.dispatchEvent(new win.Event('change', { bubbles: true })));
+                        const progress = doc.getElementById('wizard-progress-text').textContent;
+                        const errors = Array.from(doc.querySelectorAll('[id*="error"]'))
+                            .filter(el => el.getClientRects().length && el.textContent.trim())
+                            .map(el => el.id + ': ' + el.textContent.trim());
+                        const invalidInputs = Array.from(doc.querySelectorAll('input:invalid'))
+                            .filter(el => el.getClientRects().length).map(el => el.id || el.outerHTML);
+                        const report = doc.getElementById('generate-report-btn');
+                        const arm = doc.getElementById('generate-arm-btn');
+                        templatePageResults.push(assert(progress.trim().startsWith('100%'),
+                            mode + ' template reaches rendered 100%: ' + name, '100%', progress));
+                        templatePageResults.push(assert(errors.length === 0 && invalidInputs.length === 0,
+                            mode + ' template has no validation errors: ' + name, [],
+                            errors.concat(invalidInputs)));
+                        templatePageResults.push(assert(!report.disabled && !arm.disabled,
+                            mode + ' template enables Report and ARM: ' + name, true,
+                            JSON.stringify({ report: report.title, arm: arm.title })));
+                        if (mode === 'fresh') {
+                            const dns = doc.querySelector('#dns-servers-container input');
+                            const originalDns = dns.value;
+                            const template = win.configTemplates.find(item => item.name === name).config;
+                            for (const invalidDns of ['bad-ip', template.infraGateway, template.infra.start,
+                                template.nodeSettings[0].ipCidr.split('/')[0], '10.96.0.1', '8.8.8.8']) {
+                                dns.value = invalidDns;
+                                dns.dispatchEvent(new win.Event('change', { bubbles: true }));
+                                const dnsError = doc.getElementById('dns-error');
+                                templatePageResults.push(assert(!dnsError.classList.contains('hidden')
+                                    && report.disabled && arm.disabled
+                                    && !doc.getElementById('wizard-progress-text').textContent.trim().startsWith('100%'),
+                                name + ' invalid DNS blocks completion and both outputs: ' + invalidDns,
+                                true, JSON.stringify({ error: dnsError.textContent, report: report.disabled, arm: arm.disabled })));
+                            }
+                            dns.value = originalDns;
+                            dns.dispatchEvent(new win.Event('change', { bubbles: true }));
+                            templatePageResults.push(assert(doc.getElementById('dns-error').classList.contains('hidden')
+                                && !report.disabled && !arm.disabled
+                                && doc.getElementById('wizard-progress-text').textContent.trim().startsWith('100%'),
+                            name + ' DNS correction restores completion in one edit', true, report.title));
+                            const nodeIp = doc.querySelector('input[onchange^="updateNodeIpCidr(1,"]');
+                            const originalIp = nodeIp.value;
+                            nodeIp.value = template.nodeSettings[0].ipCidr;
+                            nodeIp.dispatchEvent(new win.Event('change', { bubbles: true }));
+                            templatePageResults.push(assert(report.disabled && arm.disabled,
+                                name + ' duplicate node IP blocks both outputs', true, report.title));
+                            const restoredIp = doc.querySelector('input[onchange^="updateNodeIpCidr(1,"]');
+                            restoredIp.value = originalIp;
+                            restoredIp.dispatchEvent(new win.Event('change', { bubbles: true }));
+                            templatePageResults.push(assert(!report.disabled && !arm.disabled,
+                                name + ' unique node IP restores both outputs', true, report.title));
+                            const originalOpen = win.open;
+                            const opened = [];
+                            win.open = url => { opened.push(url); return null; };
+                            try {
+                                report.click();
+                                arm.click();
+                                const reportPayload = JSON.parse(localStorage.getItem('azloc_report_payload'));
+                                const armPayload = JSON.parse(localStorage.getItem('azloc_arm_payload'));
+                                templatePageResults.push(assert(opened.length === 2
+                                    && reportPayload.state.nodes === template.nodes
+                                    && reportPayload.state.architecture === template.architecture
+                                    && armPayload.readiness.ready
+                                    && armPayload.parametersFile.parameters.physicalNodesSettings.value.length === Number(template.nodes)
+                                    && JSON.stringify(armPayload.parametersFile.parameters.dnsServers.value) === JSON.stringify(template.dnsServers),
+                                name + ' generates matching Report and ARM payloads', true,
+                                JSON.stringify({ opened: opened.map(url => url.split('#')[0]), readiness: armPayload.readiness })));
+                            } finally {
+                                win.open = originalOpen;
+                            }
+                        }
+                        if (win.configTemplates.find(item => item.name === name).config.architecture === 'disaggregated') {
+                            templatePageResults.push(assert(!doc.getElementById('summary-content').textContent.includes('Cloud Witness Type'),
+                                mode + ' disaggregated template excludes HCI witness summary', true, true));
+                        }
+                    }
+                }
             } finally {
                 managementFrame.remove();
-                if (savedDesignerState === null) localStorage.removeItem('azureLocalWizardState');
-                else localStorage.setItem('azureLocalWizardState', savedDesignerState);
+                savedDesignerValues.forEach(([key, value]) => {
+                    if (value === null) localStorage.removeItem(key);
+                    else localStorage.setItem(key, value);
+                });
             }
             testSuite('Disconnected management render ordering', 'js/disconnected.js', managementResults);
+            testSuite('Real Designer example template validation', 'index.html + js/script.js', templatePageResults);
             
             // Update summary after async tests complete
             updateTestSummary();
@@ -4069,7 +4166,7 @@
                 state.infraVlan = 'default';
                 state.activeDirectory = 'azure_ad';
                 state.adDomain = 'contoso.local';
-                state.dnsServers = ['10.0.0.1'];
+                state.dnsServers = ['10.0.0.254'];
                 state.privateEndpoints = 'no';
                 state.securityConfiguration = 'recommended';
                 state.securitySettings = {};
@@ -4147,7 +4244,7 @@
                 state.infraVlan = 'default';
                 state.activeDirectory = 'azure_ad';
                 state.adDomain = 'contoso.local';
-                state.dnsServers = ['10.0.0.1'];
+                state.dnsServers = ['10.0.0.254'];
                 state.customIntents = {};
                 state.privateEndpoints = 'no';
                 state.securityConfiguration = 'recommended';
@@ -4220,7 +4317,7 @@
                 state.infraVlan = 'default';
                 state.activeDirectory = 'azure_ad';
                 state.adDomain = 'contoso.local';
-                state.dnsServers = ['10.0.0.1'];
+                state.dnsServers = ['10.0.0.254'];
                 state.customIntents = {};
                 state.privateEndpoints = 'no';
                 state.securityConfiguration = 'recommended';
@@ -4299,7 +4396,7 @@
                 state.infraVlan = 'default';
                 state.activeDirectory = 'azure_ad';
                 state.adDomain = 'contoso.local';
-                state.dnsServers = ['10.0.0.1'];
+                state.dnsServers = ['10.0.0.254'];
                 state.customIntents = {};
                 state.privateEndpoints = 'no';
                 state.securityConfiguration = 'recommended';
@@ -4357,7 +4454,7 @@
                         outbound: 'public', proxy: 'no_proxy', arc: 'no_arc', privateEndpoints: 'no_pe',
                         infra: { start: '192.0.2.100', end: '192.0.2.105' }, infraCidr: '192.0.2.0/24',
                         infraVlan: 'default', activeDirectory: 'local_identity', localDnsZone: 'example.test',
-                        dnsServers: ['192.0.2.1'], securityConfiguration: 'recommended', sdnEnabled: 'no',
+                        dnsServers: ['192.0.2.254'], securityConfiguration: 'recommended', sdnEnabled: 'no',
                         portConfigConfirmed: true, adapterMappingConfirmed: true,
                         portConfig: Array.from({ length: config.ports }, (_, index) => ({
                             speed: '25GbE', rdma: index !== 2 && index !== 3,

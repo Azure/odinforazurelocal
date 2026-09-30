@@ -66,6 +66,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Development dependency security** — the development-only `js-yaml` override is raised to `>=4.3.2 <5.0.0`; no runtime dependency is added.
 - **What's New layout and keyboard access** — release history and its help link stay inside one scrollable panel, keeping the notes readable on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.
 - **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
+- **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; DNS conflicts now block completion and Report/ARM output.
+- **Disaggregated validation** — invalid node addresses also block reports, and HCI witness details no longer leak into disaggregated summaries.
 - **Disconnected management transitions** — cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.
 - **Designer machine naming** — generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.
 - **Clearer Sizer hardware requirements** — expand "Hardware sizing - view detailed information" to compare overhead-inclusive requirements with sized cores and memory in aligned Required / Sized tables per machine and per instance, with cores-per-socket multiplication. Sized means the hardware selected in Hardware Configuration. The breakdown is collapsed by default to keep capacity bars and warnings prominent, but always included in exports. Auto-scaling policy is unchanged.

@@ -1,3 +1,4 @@
+/* global getDnsValidationError */
 // Odin for Azure Local - version for tracking changes
 const WIZARD_VERSION = globalThis.ODIN_VERSION;
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
@@ -637,7 +638,8 @@ function computeWizardProgress() {
     if (state.activeDirectory === 'azure_ad') {
         add('AD Domain', Boolean(state.adDomain));
     }
-    add('DNS Servers', Array.isArray(state.dnsServers) && state.dnsServers.filter(s => s && String(s).trim()).length > 0);
+    add('DNS Servers', Array.isArray(state.dnsServers) && state.dnsServers.filter(s => s && String(s).trim()).length > 0
+        && !getDnsValidationError());
     if (state.activeDirectory === 'local_identity') {
         add('Local DNS Zone', Boolean(state.localDnsZone));
     }
@@ -830,6 +832,10 @@ function getReportReadiness() {
     if (!state.architecture) missing.push('Architecture');
     if (!state.infraCidr) missing.push('Infrastructure Network (CIDR)');
     if (!state.infra || !state.infra.start || !state.infra.end) missing.push('Infrastructure IP Pool (Start/End)');
+    const dnsError = getDnsValidationError();
+    if (dnsError) missing.push(dnsError);
+    const nodeReadiness = getNodeSettingsReadiness();
+    if (!nodeReadiness.ready) missing.push(...nodeReadiness.missing);
 
     // Disconnected: require confirmed Autonomous Cloud FQDN
     if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
@@ -902,10 +908,6 @@ function getReportReadiness() {
 
     if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
 
-    // Node settings (names + IP CIDR)
-    const nodeReadiness = getNodeSettingsReadiness();
-    if (!nodeReadiness.ready) missing.push(...nodeReadiness.missing);
-
     // Infra VLAN defaults are applied in flow, but still treat as required.
     if (!state.infraVlan) missing.push('Infrastructure VLAN');
     if (state.infraVlan === 'custom' && !state.infraVlanId) missing.push('Infrastructure VLAN ID');
@@ -917,31 +919,6 @@ function getReportReadiness() {
         // DNS required for both identity options in this wizard.
         if (!state.dnsServers || state.dnsServers.length <= 0) {
             missing.push('DNS Servers');
-        } else {
-            const validDnsServers = state.dnsServers.filter(s => s && s.trim());
-            // Reject network (.0) and broadcast (.255) DNS addresses
-            for (const server of validDnsServers) {
-                if (typeof isLastOctetNetworkOrBroadcast === 'function') {
-                    const check = isLastOctetNetworkOrBroadcast(server);
-                    if (check === 'network') {
-                        missing.push(`DNS server ${server} cannot be a network address (.0)`);
-                        break;
-                    }
-                    if (check === 'broadcast') {
-                        missing.push(`DNS server ${server} cannot be a broadcast address (.255)`);
-                        break;
-                    }
-                }
-            }
-            if (state.activeDirectory === 'azure_ad') {
-                // RFC 1918 validation - AD mode requires private DNS servers
-                for (const server of validDnsServers) {
-                    if (!isRfc1918Ip(server)) {
-                        missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
-                        break;
-                    }
-                }
-            }
         }
         if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
     }
@@ -2843,6 +2820,7 @@ function selectOption(category, value) {
         state.infraPerfLunId = null;
         if (value === 'disaggregated') {
             state.storagePoolConfiguration = 'InfraOnly';
+            state.witnessType = null;
         } else {
             state.storagePoolConfiguration = null;
         }
@@ -6647,7 +6625,7 @@ function updateSummary() {
     }
     if (state.scale) scenarioScaleRows += renderRow('Scale', escapeHtml(formatScale(state.scale)));
     if (state.nodes) scenarioScaleRows += renderRow('Nodes', escapeHtml(state.nodes), { mono: true });
-    if (state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
+    if (state.architecture !== 'disaggregated' && state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
 
     // Rack Aware additions (Availability Zones + ToR architecture)
     let rackAwareRows = '';
@@ -10571,7 +10549,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'contoso.local',
                 adOuPath: 'OU=AzureLocal,DC=contoso,DC=local',
-                dnsServers: ['192.168.1.1'],
+                dnsServers: ['192.168.1.254'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
@@ -10616,7 +10594,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'corp.contoso.com',
                 adOuPath: 'OU=AzureLocal,DC=corp,DC=contoso,DC=com',
-                dnsServers: ['10.0.1.1', '10.0.1.2'],
+                dnsServers: ['10.0.1.2', '10.0.1.3'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'yes',
@@ -10677,7 +10655,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'datacenter.local',
                 adOuPath: 'OU=AzureLocal,DC=datacenter,DC=local',
-                dnsServers: ['172.16.0.1', '172.16.0.2'],
+                dnsServers: ['172.16.0.2', '172.16.0.3'],
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
             }
@@ -10725,7 +10703,7 @@ function showTemplates() {
                 adOuPath: 'OU=AzureLocal,DC=airgap,DC=contoso,DC=com',
                 adfsServerName: 'adfs.airgap.contoso.com',
                 localDnsZone: 'airgap.local',
-                dnsServers: ['10.10.10.1'],
+                dnsServers: ['10.10.10.2'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
@@ -11022,6 +11000,7 @@ function loadTemplate(templateIndex) {
     if (state.infraCidr || state.infra || state.infraGateway) {
         setTimeout(() => {
             updateInfraNetwork();
+            validateAllDnsServers();
         }, 100);
     }
 
