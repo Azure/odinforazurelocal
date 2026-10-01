@@ -8369,6 +8369,7 @@
                 const originalToast = showToast;
                 const originalGetState = getSizerState;
                 const captured = [];
+                const captureOptions = [];
                 let saved = false;
                 try {
                     showToast = function() {};
@@ -8382,18 +8383,24 @@
                             };
                         }
                     };
-                    window.html2canvas = section => ({
+                    window.html2canvas = (section, options) => ({
                         then(callback) {
                             captured.push(section.textContent);
+                            captureOptions.push(options);
                             callback({ width: 400, height: 100, toDataURL: () => 'data:image/png;base64,test' });
                             return { catch() {} };
                         }
                     });
                     exportSizerPDF();
-                    return assert(saved && captured.join('|') === 'Per machine|Per instance'
+                    return [assert(saved && captured.join('|') === 'Per machine|Per instance'
                         && breakdown.open === initiallyOpen,
                     'PDF includes both panels and restores an initially ' + (initiallyOpen ? 'open' : 'closed') + ' breakdown',
-                    'Per machine|Per instance; restored state', captured.join('|') + '; open=' + breakdown.open);
+                    'Per machine|Per instance; restored state', captured.join('|') + '; open=' + breakdown.open),
+                    assert(captureOptions.length === 2 && captureOptions.every(options =>
+                        options && options.backgroundColor === '#000000' && options.scale === 2
+                        && options.useCORS === true && options.logging === false && options.windowWidth === 800),
+                    'PDF preserves capture options with an initially ' + (initiallyOpen ? 'open' : 'closed') + ' breakdown',
+                    'Both captures receive background, scale, CORS, logging and width options', captureOptions)];
                 } finally {
                     window.jspdf = originalPdf;
                     window.html2canvas = originalCanvas;
@@ -8401,7 +8408,7 @@
                     getSizerState = originalGetState;
                     layout.remove();
                 }
-            })
+            }).flat()
         ]);
 
         testSuite('Issue #294: overhead-inclusive hardware requirements', 'sizer.js', [
