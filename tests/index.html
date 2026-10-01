@@ -2762,6 +2762,14 @@
                 const headerBar = reportValidation.doc.querySelector('.page-header-bar');
                 const hasNoPrint = headerBar ? headerBar.classList.contains('no-print') : false;
                 reportResults.push(assert(hasNoPrint, 'Report header bar has no-print class', true, hasNoPrint));
+                const reportStyles = Array.from(reportValidation.doc.querySelectorAll('style'))
+                    .map(style => style.textContent).join('\n');
+                reportResults.push(assert(/#report-bmc-proxy-guidance a,\s*#report-bmc-proxy-guidance a:visited\s*\{[^}]*color:\s*var\(--report-reference-link, var\(--link-on-dark\)\)/.test(reportStyles),
+                    'Proxy reference links share theme-aware normal and visited colors', true, true));
+                reportResults.push(assert(/#report-bmc-proxy-guidance a:focus-visible\s*\{[^}]*outline:\s*2px solid currentColor/.test(reportStyles),
+                    'Proxy reference links have a visible keyboard focus outline', true, true));
+                reportResults.push(assert(/body\.print-friendly-mode #report-bmc-proxy-guidance a\s*\{[^}]*color:\s*var\(--link-on-light\)/.test(reportStyles),
+                    'Proxy references retain dark-on-light colors in Print Friendly mode', true, true));
             }
             
             testSuite('Report Page Validation', 'report/report.html', reportResults);

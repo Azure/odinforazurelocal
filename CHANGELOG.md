@@ -25,6 +25,7 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Fixed
 
+- **Report proxy-reference contrast** - Make OEM/BMC proxy guidance links readable in dark and light themes, including visited links, with underlines and visible keyboard focus. Preserve dark-on-light links in Print Friendly mode.
 - **`fast-uri` mailto security update** - Raise the development-only transitive dependency and enforced override from 4.1.4 to 4.2.1, incorporating the fix for percent-encoded mailto field-name desynchronization (GHSA-jvvf-x445-j334, Dependabot alert #38). This brings the dependency update proposed in #303 into the shared Release branch; no browser runtime dependency or audit exception is added.
 - **Whole-worker GPU packing** - AUTO GPU inventory now fits all indivisible DDA workers across N-1 available machines rather than relying on aggregate demand and the largest worker alone. Manual inventory is preserved, with an explicit placement blocker when workers cannot fit; mixed worker sizes, more-machine recovery, and AUTO recovery are covered. Total VM fleet GPU requirements and GPU-P retain their aggregate capacity behavior.
 - **DNS step completion** - The Identity/DNS step checkmark now uses the same DNS validation as overall progress and Report/ARM readiness, so invalid addresses no longer leave a green completion marker.

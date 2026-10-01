@@ -12,6 +12,23 @@
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/onboarding.css">
     <style>
+        #report-bmc-proxy-guidance a,
+        #report-bmc-proxy-guidance a:visited {
+            color: var(--report-reference-link, var(--link-on-dark));
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+            overflow-wrap: anywhere;
+        }
+
+        #report-bmc-proxy-guidance a:focus-visible {
+            outline: 2px solid currentColor;
+            outline-offset: 3px;
+        }
+
+        body.print-friendly-mode #report-bmc-proxy-guidance a {
+            color: var(--link-on-light);
+        }
+
         /* Print-friendly mode styles - toggled via CSS class */
         body.print-friendly-mode {
             background: #ffffff !important;
@@ -519,6 +536,7 @@
             var theme = localStorage.getItem('odin-theme') || 'dark';
             var root = document.documentElement;
             if (theme === 'light') {
+                root.style.setProperty('--report-reference-link', 'var(--link-on-light)');
                 root.style.setProperty('--bg-dark', '#f5f5f5');
                 root.style.setProperty('--card-bg', '#ffffff');
                 root.style.setProperty('--card-bg-transparent', 'rgba(255, 255, 255, 0.95)');
