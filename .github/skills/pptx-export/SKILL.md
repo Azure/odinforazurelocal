@@ -39,18 +39,29 @@ Run the focused checks after exporter changes:
 npx eslint "report/*.js"
 npx html-validate "report/report.html"
 node scripts/smoke-test-pptx.js
-npx playwright test tools/demos/generate-disagg-fc-deck.spec.js
+npx playwright test --config=tools\playwright.config.js generate-disagg-fc-deck.spec.js
 ```
 
 Then run the complete repository suite:
 
 ```powershell
 node scripts/run-tests.js
+npm run test:http
 ```
 
 Inspect at least one generated HCI deck and one disaggregated deck when slide content, ordering, rendering, or media changes. Confirm that PowerPoint opens the file without a repair warning and that text, diagrams, and footers fit their slide bounds.
 
+Report package generation, ZIP/XML/content checks, and native PowerPoint visual
+inspection as separate outcomes. If PowerPoint is unavailable, mark that check
+**blocked**, not passed, and leave the generated deck for manual inspection.
+The demo configuration is headed and records video; it is not a substitute for
+the headless smoke test. Install its matching browser only after a missing-browser
+failure, and keep generated videos/decks out of commits.
+
 ## Repository Workflow
+
+Follow `../release-readiness/SKILL.md`, including README and in-app What's New
+coverage when adding user-visible changes without another version bump.
 
 - Work directly on the long-lived `Release` branch.
 - The only pull request direction is `Release` to `main`; do not create a feature branch.

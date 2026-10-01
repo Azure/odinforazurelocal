@@ -1547,6 +1547,8 @@ function toggleRackViz() {
     const arrow = document.getElementById('rack-viz-toggle-arrow');
     if (!container) return;
     const isCollapsed = container.classList.toggle('collapsed');
+    const toggle = document.getElementById('rack-viz-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', String(!isCollapsed));
     if (arrow) {
         arrow.classList.toggle('collapsed', isCollapsed);
     }

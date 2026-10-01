@@ -136,19 +136,12 @@ function updateDnsServiceExisting(value) {
 /**
  * Validate all DNS server entries for format and subnet conflicts.
  */
-function validateAllDnsServers() {
-    const err = document.getElementById('dns-error');
-    const succ = document.getElementById('dns-success');
-
-    if (err) err.classList.add('hidden');
-    if (succ) succ.classList.add('hidden');
-
+function getDnsValidationError() {
     // Filter out empty servers
     const validServers = state.dnsServers.filter(s => s && s.trim());
 
     if (validServers.length === 0) {
-        updateSummary();
-        return;
+        return '';
     }
 
     const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -156,27 +149,15 @@ function validateAllDnsServers() {
     // Validate format
     for (const server of validServers) {
         if (!ipv4Regex.test(server)) {
-            if (err) {
-                err.innerText = `Invalid DNS server format: ${server}`;
-                err.classList.remove('hidden');
-            }
-            return;
+            return `Invalid DNS server format: ${server}`;
         }
         // Reject network (.0) and broadcast (.255) addresses
         const lastOctetCheck = isLastOctetNetworkOrBroadcast(server);
         if (lastOctetCheck === 'network') {
-            if (err) {
-                err.innerText = `DNS server ${server} cannot use a network address (last octet .0)`;
-                err.classList.remove('hidden');
-            }
-            return;
+            return `DNS server ${server} cannot use a network address (last octet .0)`;
         }
         if (lastOctetCheck === 'broadcast') {
-            if (err) {
-                err.innerText = `DNS server ${server} cannot use a broadcast address (last octet .255)`;
-                err.classList.remove('hidden');
-            }
-            return;
+            return `DNS server ${server} cannot use a broadcast address (last octet .255)`;
         }
     }
 
@@ -185,11 +166,7 @@ function validateAllDnsServers() {
     if (state.activeDirectory === 'azure_ad') {
         for (const server of validServers) {
             if (!isRfc1918Ip(server)) {
-                if (err) {
-                    err.innerText = `DNS server ${server} must be a private IP address (RFC 1918) when using Active Directory. Public DNS servers like 8.8.8.8 or 1.1.1.1 cannot resolve internal AD domain names.`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} must be a private IP address (RFC 1918) when using Active Directory. Public DNS servers like 8.8.8.8 or 1.1.1.1 cannot resolve internal AD domain names.`;
             }
         }
     }
@@ -205,11 +182,7 @@ function validateAllDnsServers() {
 
         for (const r of ranges) {
             if (serverL >= r.min && serverL <= r.max) {
-                if (err) {
-                    err.innerText = `DNS server ${server} overlaps with reserved AKS subnet ${r.name}.`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} overlaps with reserved AKS subnet ${r.name}.`;
             }
         }
     }
@@ -223,11 +196,7 @@ function validateAllDnsServers() {
             const serverL = ipToLong(server);
 
             if (serverL >= infraStartL && serverL <= infraEndL) {
-                if (err) {
-                    err.innerText = `DNS server ${server} cannot be within the Infrastructure Network range (${state.infra.start} - ${state.infra.end}).`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} cannot be within the Infrastructure Network range (${state.infra.start} - ${state.infra.end}).`;
             }
         }
     }
@@ -240,11 +209,7 @@ function validateAllDnsServers() {
                 if (node && node.ipCidr) {
                     const nodeIp = node.ipCidr.split('/')[0];
                     if (server === nodeIp) {
-                        if (err) {
-                            err.innerText = `DNS server ${server} conflicts with Node ${i + 1} IP (${nodeIp}).`;
-                            err.classList.remove('hidden');
-                        }
-                        return;
+                        return `DNS server ${server} conflicts with Node ${i + 1} IP (${nodeIp}).`;
                     }
                 }
             }
@@ -255,11 +220,7 @@ function validateAllDnsServers() {
     if (state.infraGateway) {
         for (const server of validServers) {
             if (server === state.infraGateway) {
-                if (err) {
-                    err.innerText = `DNS server ${server} conflicts with the default gateway (${state.infraGateway}).`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} conflicts with the default gateway (${state.infraGateway}).`;
             }
         }
     }
@@ -268,29 +229,33 @@ function validateAllDnsServers() {
     if (state.applianceIp1 || state.applianceIp2) {
         for (const server of validServers) {
             if (state.applianceIp1 && server === state.applianceIp1) {
-                if (err) {
-                    err.innerText = `DNS server ${server} conflicts with Appliance IP 1 (Ingress vNIC).`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} conflicts with Appliance IP 1 (Ingress vNIC).`;
             }
             if (state.applianceIp2 && server === state.applianceIp2) {
-                if (err) {
-                    err.innerText = `DNS server ${server} conflicts with Appliance IP 2 (Mgmt vNIC).`;
-                    err.classList.remove('hidden');
-                }
-                return;
+                return `DNS server ${server} conflicts with Appliance IP 2 (Mgmt vNIC).`;
             }
         }
     }
 
-    // Valid
+    return '';
+}
+
+function validateAllDnsServers() {
+    const err = document.getElementById('dns-error');
+    const succ = document.getElementById('dns-success');
+    const error = getDnsValidationError();
+    const validServers = state.dnsServers.filter(s => s && s.trim());
+
+    if (err) {
+        err.textContent = error;
+        err.classList.toggle('hidden', !error);
+    }
     if (succ) {
         succ.innerText = `✓ ${validServers.length} DNS server(s) configured`;
-        succ.classList.remove('hidden');
+        succ.classList.toggle('hidden', !!error || validServers.length === 0);
     }
 
-    updateSummary();
+    updateUI();
 }
 
 /**
@@ -300,6 +265,6 @@ function updateLocalDnsZone() {
     const input = document.getElementById('local-dns-zone-input');
     if (input) {
         state.localDnsZone = input.value.trim() || null;
-        updateSummary();
+        updateUI();
     }
 }

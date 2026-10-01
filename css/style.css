@@ -6,6 +6,8 @@
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
     --accent-blue: #0078d4;
+    --link-on-dark: #75bfff;
+    --link-on-light: #005a9e;
     --accent-purple: #8b5cf6;
     --success: #10b981;
     --warning: #f59e0b;
@@ -1457,6 +1459,11 @@ header .header-description {
     color: white;
     box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
     transform: translateY(-2px);
+}
+
+.node-chip:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
 }
 
 .node-chip.disabled {

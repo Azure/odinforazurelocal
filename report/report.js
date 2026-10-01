@@ -22,6 +22,25 @@
 
     var CURRENT_REPORT_STATE = null;
 
+    const REPORT_SCOPE_NOTE = Object.freeze({
+        title: 'A starting point for your Azure Local design and documentation.',
+        text: 'This design report reflects the configuration and sizing information supplied to ODIN. It does not capture a complete set of business or technical requirements for selecting and deploying Azure Local, and does not replace your reviewed low-level design (LLD) documentation. Use it as a starting point: extend and validate it against your organisation\'s requirements before implementation.'
+    });
+    window.__odinGetReportScopeNote = function() { return REPORT_SCOPE_NOTE; };
+
+    const BMC_PROXY_GUIDANCE = Object.freeze({
+        title: 'OEM/BMC proxy bypass - manual action required',
+        notes: Object.freeze([
+            'This example includes only addresses captured by ODIN. Add OEM-required host-to-BMC endpoints used by Solution Builder Extensions, including USB passthrough/Remote NDIS endpoints where applicable. These can differ from external BMC/OOB management addresses. ODIN does not currently collect these endpoint addresses.',
+            'Confirm the required endpoints and exclusion format with your hardware vendor. WinINET/WinHTTP use wildcard syntax; NO_PROXY uses CIDR syntax for subnet exclusions. For an OEM-required APIPA range, the corresponding examples are 169.254.*.* and 169.254.0.0/16 respectively. These are examples, not automatic additions or a universal requirement.'
+        ]),
+        references: Object.freeze([
+            { title: 'Microsoft: Azure Local proxy configuration', url: 'https://learn.microsoft.com/en-us/azure/azure-local/manage/configure-proxy-settings-23h2' },
+            { title: 'Dell example: SBE host-to-iDRAC access and proxy exclusions', url: 'https://dell.github.io/azurestack-docs/docs/hci/supportmatrix/2606/sbereleasenotes/' }
+        ])
+    });
+    window.__odinGetBmcProxyGuidance = function() { return BMC_PROXY_GUIDANCE; };
+
     // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
     const FIREWALL_ENDPOINT_URLS = {
         east_us: { label: 'East US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/EastUSendpoints/eastus-hci-endpoints.md' },
@@ -686,7 +705,7 @@
             '.info-box.visible { display: block; }',
             '.info-box.hidden { display: none; }',
             '.info-box strong { color: #111111; }',
-            '.info-box a { color: #0b5cab; text-decoration: underline; }',
+            'a, a:visited { color: #0b5cab; text-decoration: underline; }',
 
             '.summary-section { margin: 0 0 12pt 0; }',
             '.summary-section-title { font-size: 12pt; font-weight: 700; color: #111111; padding: 6pt 8pt; background: #f3f4f6; border: 1px solid #e5e7eb; border-left: 4pt solid #0b5cab; border-radius: 8px; margin: 0 0 8pt 0; }',
@@ -1200,6 +1219,10 @@
         md.push('');
         md.push(getReportSubtitle(s));
         md.push('');
+        md.push('**' + REPORT_SCOPE_NOTE.title + '**');
+        md.push('');
+        md.push(REPORT_SCOPE_NOTE.text);
+        md.push('');
 
         // Metadata section
         md.push('## Report Metadata');
@@ -1371,7 +1394,7 @@
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
                     }
                 } else if (wl.type === 'foundry') {
-                    md.push('| Worker Profile | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
+                    md.push('| ' + (wl.gpuWorkerVmSize ? 'Worker capacity floor' : 'Worker Profile') + ' | ' + (foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-') + ' |');
                     md.push('| Worker Nodes | ' + (wl.workerNodes || 1) + ' |');
                     md.push('| Model Deployments | ' + (wl.modelDeployments || 1) + ' |');
                     md.push('| Cache per Deployment | ' + (wl.modelCacheStorageGB || 100) + ' GiB |');
@@ -1384,13 +1407,13 @@
                     const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
                     md.push('| Deployment Mode | ' + deploymentMode + ' |');
                     md.push('| CPU Workers | 3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each) |');
-                    md.push('| Embedding GPU Workers | ' + (wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16') + ' |');
+                    md.push('| Embedding GPU Workers | ' + (wl.deploymentMode === 'agentic' ? 'None' : '2 × ' + escapeMd(wl.embeddingGpuVmSize || 'NC8_A2 / NC8_A16 (legacy estimate)')) + ' |');
                     md.push('| Language Model Endpoint | ' + llmEndpoint + ' |');
                     md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMin = wl.configuration === 'minimum';
                     md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
-                    md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
+                    md.push('| ' + (wl.gpuWorkerVmSize ? 'Worker pool capacity floor' : 'Cluster-wide compute') + ' | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
                     md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
                 } else if (wl.type === 'ghel') {
                     md.push('| Topology | Primary + ' + (wl.replicas || 0) + ' replica(s) |');
@@ -1399,6 +1422,7 @@
                 }
                 const workloadGpu = formatSizerWorkloadGpu(wl);
                 if (workloadGpu) md.push('| GPU Type | ' + escapeMd(workloadGpu) + ' |');
+                if (wl.gpuWorkerSummary) md.push('| GPU worker VM sizes | ' + escapeMd(wl.gpuWorkerSummary) + ' |');
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
             }
@@ -1764,6 +1788,12 @@
             md.push('```');
             md.push('');
             md.push('> Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.');
+            md.push('');
+            md.push('**' + BMC_PROXY_GUIDANCE.title + '**');
+            BMC_PROXY_GUIDANCE.notes.forEach(function(note) { md.push('', '> ' + note); });
+            BMC_PROXY_GUIDANCE.references.forEach(function(reference) {
+                md.push('', '[' + reference.title + '](' + reference.url + ')');
+            });
             md.push('');
         }
 
@@ -5082,7 +5112,7 @@
             const learnRef = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-reference-architecture?view=azloc-2511#tor-switch-architecture';
             const intro = '<div style="margin-bottom:0.5rem;">'
                 + '<div style="font-weight:700; color:var(--text-primary);">' + escapeHtml(titleForArch(arch)) + '</div>'
-                + '<div style="color:var(--text-secondary);">Reference: <a href="' + learnRef + '" target="_blank" rel="noopener" style="color:var(--accent-blue); text-decoration:underline;">Microsoft Learn</a></div>'
+                + '<div style="color:var(--text-secondary);">Reference: <a href="' + learnRef + '" target="_blank" rel="noopener">Microsoft Learn</a></div>'
                 + '</div>';
 
             // Diagram layout is intentionally fixed-size for export stability.
@@ -7126,6 +7156,15 @@
                 + escapeHtml(bypassItems.join(','))
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.</p>'
+                + '<aside id="report-bmc-proxy-guidance" aria-labelledby="report-bmc-proxy-title" style="margin-top: 1rem; padding: 0.75rem; border-left: 4px solid var(--warning);">'
+                + '<strong id="report-bmc-proxy-title">' + escapeHtml(BMC_PROXY_GUIDANCE.title) + '</strong>'
+                + BMC_PROXY_GUIDANCE.notes.map(function(note) {
+                    return '<p style="margin-top: 0.5rem;">' + escapeHtml(note) + '</p>';
+                }).join('')
+                + BMC_PROXY_GUIDANCE.references.map(function(reference) {
+                    return '<p style="margin-top: 0.5rem;"><a href="' + escapeHtml(reference.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(reference.title) + '</a></p>';
+                }).join('')
+                + '</aside>'
                 + '</div>';
         }
 
@@ -7168,7 +7207,7 @@
                     // Add documentation link if available
                     if (info.docUrl) {
                         peItems += '<div style="margin-top: 0.5rem;">'
-                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">📚 View documentation ↗</a>'
+                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem;">📚 View documentation ↗</a>'
                             + '</div>';
                     }
 
@@ -7223,11 +7262,11 @@
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
             + (function() {
                 if (s.scenario === 'disconnected') {
-                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Plan your network for disconnected operations</a>';
+                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer">Plan your network for disconnected operations</a>';
                 }
                 if (!s.arc && !s.localInstanceRegion) return '';
                 const fwInfoHtml = getFirewallEndpointInfo(s);
-                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
+                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(fwInfoHtml.label) + '</a>';
             })()
             + (outboundNotes.length ? list(outboundNotes) : '')
             + proxyBypassHtml
@@ -7841,7 +7880,7 @@
         return '<div style="margin-top:0.25rem;">'
             + '<span style="color:var(--text-secondary);">Learn more:</span> '
             + uniq.map(function(u) {
-                return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noreferrer" style="color:var(--accent-blue); text-decoration:underline;">' + escapeHtml(labelFor(u)) + '</a>';
+                return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noreferrer">' + escapeHtml(labelFor(u)) + '</a>';
             }).join(' &nbsp; ')
             + '</div>';
     }
@@ -8005,9 +8044,11 @@
             if (s.disaggSubnets) {
                 if (s.disaggSubnets.cluster1) hostNetworkingRows += row('Cluster 1 Subnet', s.disaggSubnets.cluster1, true);
                 if (s.disaggSubnets.cluster2) hostNetworkingRows += row('Cluster 2 Subnet', s.disaggSubnets.cluster2, true);
-                if (s.disaggSubnets.iscsiA) hostNetworkingRows += row('iSCSI A Subnet', s.disaggSubnets.iscsiA, true);
-                if (s.disaggSubnets.iscsiB) hostNetworkingRows += row('iSCSI B Subnet', s.disaggSubnets.iscsiB, true);
-                if (s.disaggSubnets.backup) hostNetworkingRows += row('Backup Subnet', s.disaggSubnets.backup, true);
+                if (s.disaggStorageType === 'iscsi_6nic') {
+                    if (s.disaggSubnets.iscsiA) hostNetworkingRows += row('iSCSI A Subnet', s.disaggSubnets.iscsiA, true);
+                    if (s.disaggSubnets.iscsiB) hostNetworkingRows += row('iSCSI B Subnet', s.disaggSubnets.iscsiB, true);
+                }
+                if (s.disaggBackupEnabled && s.disaggSubnets.backup) hostNetworkingRows += row('Backup Subnet', s.disaggSubnets.backup, true);
             }
         }
 
@@ -8264,7 +8305,7 @@
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
                     }
                 } else if (wl.type === 'foundry') {
-                    sizerWorkloadsRows += row('Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
+                    sizerWorkloadsRows += row(wl.gpuWorkerVmSize ? 'Worker capacity floor' : 'Worker Profile', foundryProfileLabels[wl.workerProfile] || wl.workerProfile || '-');
                     sizerWorkloadsRows += row('Worker Nodes', String(wl.workerNodes || 1));
                     sizerWorkloadsRows += row('Model Deployments', String(wl.modelDeployments || 1));
                     sizerWorkloadsRows += row('Cache per Deployment', (wl.modelCacheStorageGB || 100) + ' GiB');
@@ -8277,13 +8318,13 @@
                     const llmEndpoint = wl.llmEndpoint === 'foundry-minimum' ? 'Foundry Local minimum' : wl.llmEndpoint === 'foundry-production' ? 'Foundry Local production' : 'External / Microsoft Foundry';
                     sizerWorkloadsRows += row('Deployment Mode', deploymentMode);
                     sizerWorkloadsRows += row('CPU Workers', '3 × D8s_v3 (8 vCPU / 32 GB / 200 GB OS each)');
-                    sizerWorkloadsRows += row('Embedding GPU Workers', wl.deploymentMode === 'agentic' ? 'None' : '2 × NC8_A2 / NC8_A16');
+                    sizerWorkloadsRows += row('Embedding GPU Workers', wl.deploymentMode === 'agentic' ? 'None' : '2 × ' + (wl.embeddingGpuVmSize || 'NC8_A2 / NC8_A16 (legacy estimate)'));
                     sizerWorkloadsRows += row('Language Model Endpoint', llmEndpoint);
                     sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
                 } else if (wl.type === 'videoindexer') {
                     const viIsMinH = wl.configuration === 'minimum';
                     sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
-                    sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
+                    sizerWorkloadsRows += row(wl.gpuWorkerVmSize ? 'Worker pool capacity floor' : 'Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
                     sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
                 } else if (wl.type === 'ghel') {
                     sizerWorkloadsRows += row('Topology', 'Primary + ' + (wl.replicas || 0) + ' replica(s)');
@@ -8292,6 +8333,7 @@
                 }
                 const workloadGpu = formatSizerWorkloadGpu(wl);
                 if (workloadGpu) sizerWorkloadsRows += row('GPU Type', workloadGpu);
+                if (wl.gpuWorkerSummary) sizerWorkloadsRows += row('GPU worker VM sizes', wl.gpuWorkerSummary);
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
             }
@@ -8305,7 +8347,7 @@
         let aksNetworkRows = '';
         {
             aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
-                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
+                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer">AKS Arc network &amp; port requirements documentation</a>'
                 + '</div>'
                 + '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.5rem;">'
                 + '<thead><tr style="border-bottom: 2px solid var(--glass-border); text-align: left;">'
@@ -8340,13 +8382,13 @@
         if (s.scenario === 'disconnected') {
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Network Requirements') + '</div>'
-                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
+                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer">Plan your network for disconnected operations</a></div>'
                 + '</div>';
         } else if (s.arc || s.localInstanceRegion) {
             const fwInfo = getFirewallEndpointInfo(s);
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
-                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
+                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(fwInfo.label) + '</a></div>'
                 + '</div>';
         }
 
@@ -8378,8 +8420,8 @@
                     + '</p>'
                     : '')
                 + (connIsDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">\ud83d\udcd8 View complete Outbound Connectivity Guide</a>'
-                + ' \u00b7 <a href="https://cristianedwards.github.io/AzLoFlows/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">\ud83d\udd00 Interactive Diagram Builder</a>'
+                + '<a href="../docs/outbound-connectivity/" target="_blank">\ud83d\udcd8 View complete Outbound Connectivity Guide</a>'
+                + ' \u00b7 <a href="https://cristianedwards.github.io/AzLoFlows/" target="_blank" rel="noopener noreferrer">\ud83d\udd00 Interactive Diagram Builder</a>'
                 + '</p>')
                 + '</div>';
         }
@@ -8407,6 +8449,10 @@
     }
 
     function init() {
+        const scopeNote = document.getElementById('report-scope-note');
+        if (scopeNote) {
+            scopeNote.innerHTML = '<strong>' + escapeHtml(REPORT_SCOPE_NOTE.title) + '</strong><p>' + escapeHtml(REPORT_SCOPE_NOTE.text) + '</p>';
+        }
         const payload = tryParsePayload();
         const metaEl = document.getElementById('report-meta');
         const sumEl = document.getElementById('report-summary');
@@ -8735,4 +8781,3 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
         alert('PDF export failed. See console for details.');
     });
 }
-

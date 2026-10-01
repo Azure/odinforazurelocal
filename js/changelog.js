@@ -6,7 +6,11 @@
  * @global
  */
 function showChangelog() { // eslint-disable-line no-unused-vars
+    const previousFocus = document.activeElement;
     const overlay = document.createElement('div');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', "What's New");
 
     // Reusable close handler — used by X button, overlay click, and Escape key.
     const closeChangelog = () => {
@@ -18,6 +22,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
         if (window.closeChangelog === closeChangelog) {
             window.closeChangelog = undefined;
         }
+        if (previousFocus && previousFocus.isConnected) previousFocus.focus();
     };
     const onOverlayClick = (e) => {
         if (e.target === overlay) {
@@ -26,6 +31,17 @@ function showChangelog() { // eslint-disable-line no-unused-vars
     };
     const onKeyDown = (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') closeChangelog();
+        if (e.key !== 'Tab') return;
+        const focusable = Array.from(overlay.querySelectorAll('button, a[href]'));
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     };
     window.closeChangelog = closeChangelog;
     overlay.style.cssText = `
@@ -45,13 +61,48 @@ function showChangelog() { // eslint-disable-line no-unused-vars
     `;
 
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; overflow-wrap: anywhere; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="margin: 0; color: var(--accent-blue); font-size: 18px;">What's New</h3>
-                <button onclick="closeChangelog()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;">&times;</button>
+                <button aria-label="Close What's New" onclick="closeChangelog()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;">&times;</button>
             </div>
 
             <div style="color: var(--text-primary); line-height: 1.8;">
+                <div style="margin-bottom: 24px; padding: 16px; background: var(--subtle-bg); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.07</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">September 30, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Import Hyper-V estates with HVTools, follow the two-phase Azure Local ARM deployment workflow, and preserve switchless networking across design outputs and imports.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>Foundry Local sizing help</strong> &mdash; a centered first-use guide provides practical sizing steps and a how-to link on every card, including token counting, concurrency, GPU placement, and performance validation. Reopen it using <strong>Help sizing Foundry Local</strong> at the top of the dialog or beside GPU Requirements, without changing workload inputs.</li>
+                        <li><strong>Release validation</strong> &mdash; automated localhost integration checks now complement offline tests, with explicit completion, failure evidence, and stronger release-readiness checklists.</li>
+                        <li><strong>Report Help and scope</strong> &mdash; a first-visit guide explains report contents and exports. A permanent statement in the report and exports identifies it as a starting point, not a complete business/technical requirements document or a replacement for reviewed low-level design (LLD) documentation. The ARM page title now reads "Azure Local Instance | ARM Deployment Automation".</li>
+                        <li><strong>ARM first-visit help</strong> &mdash; a skippable three-step guide explains fields, placeholders, Validate/Deploy, and generated files. Reopen it with Help; disconnected designs get local deployment guidance.</li>
+                        <li><strong>HVTools (Hyper-V) import</strong> &mdash; RVTools / HVTools auto-detects export-all XLSX workbooks and VM Overview JSON exports. Memory uses the larger of startup and assigned memory; shared virtual disks are counted once after filtering. JSON exports provide in-use storage only.</li>
+                        <li><strong>Browser-local processing</strong> &mdash; nothing from the imported estate is transmitted. Host/cluster names and disk identifiers are used only in memory; per-VM mode saves VM names as workload names in browser local storage. Licensing data and export user names are ignored.</li>
+                        <li><strong>Two-phase ARM deployment</strong> &mdash; an Azure Context dropdown selects Validate first, then Deploy for a second ARM deployment, updating JSON and copy actions immediately. Separate phase downloads and generated scripts/workflows distinguish Azure Local validation from ARM preflight/What-If and check the Validate-created cluster before Deploy.</li>
+                        <li><strong>Switchless NIC mappings preserved</strong> &mdash; confirmed adapters and custom NIC names stay aligned across diagrams, reports, SVG/draw.io downloads, and ARM networks and intents.</li>
+                        <li><strong>CIDR-aware storage networking</strong> &mdash; autofill and outputs respect block sizes, including /30 and octet rollover. ARM imports retain link subnets and manual addressing order; invalid, overlapping, or undersized subnets block readiness.</li>
+                        <li><strong>Development dependency security</strong> &mdash; development-only overrides enforce js-yaml &gt;=4.3.2 &lt;5.0.0 and fast-uri &gt;=4.2.1, including the mailto header-injection fix, without adding a runtime dependency.</li>
+                        <li><strong>What's New layout and keyboard access</strong> &mdash; release history and its help link stay inside one scrollable panel on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.</li>
+                        <li><strong>Designer infrastructure readiness</strong> &mdash; deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.</li>
+                        <li><strong>Validated Designer examples</strong> &mdash; corrected example DNS addresses and automated full-page checks for every template; blank DNS entries and DNS conflicts block completion and Report/ARM output. AD-less DNS zone edits immediately update progress and readiness.</li>
+                        <li><strong>AD-less ARM inputs</strong> &mdash; current and legacy local-identity outputs hide the irrelevant Active Directory OU path.</li>
+                        <li><strong>Consistent DNS completion</strong> &mdash; invalid DNS clears the Identity/DNS step checkmark as well as blocking progress and outputs.</li>
+                        <li><strong>Whole-worker GPU packing</strong> &mdash; AUTO inventory fits all indivisible workers across N-1 machines, including mixed worker sizes. Insufficient manual inventory warns and blocks Designer handoff without changing the selection.</li>
+                        <li><strong>Clean Designer reset and role guidance</strong> &mdash; Start Over removes the obsolete Sizer import confirmation; workload clusters no longer show the previous management role's fixed-three-machine explanation.</li>
+                        <li><strong>Azure DevOps pipeline setup</strong> &mdash; generated YAML declares its required service-connection placeholder and authorization guidance.</li>
+                        <li><strong>Disaggregated validation</strong> &mdash; invalid node addresses also block reports, HCI witness details no longer leak into disaggregated summaries, and reports omit inactive dedicated iSCSI and backup subnets.</li>
+                        <li><strong>Disconnected management transitions</strong> &mdash; cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.</li>
+                        <li><strong>Designer machine naming</strong> &mdash; generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.</li>
+                        <li><strong>Clearer Sizer hardware requirements</strong> &mdash; expand "Hardware sizing - view detailed information" to compare overhead-inclusive requirements with sized cores and memory in aligned Required / Sized tables per machine and per instance, with cores-per-socket multiplication. Sized means the hardware selected in Hardware Configuration. The breakdown is collapsed by default to keep capacity bars and warnings prominent, but always included in exports. Auto-scaling policy is unchanged.</li>
+                        <li><strong>Safer warnings and deployment automation</strong> &mdash; prevent HTML injection in Sizer placement warnings and exported Word notes; choose a Designer-aligned Azure region or Custom code for generated automation and create missing resource groups before Validate preflight. ARM Help uses the familiar ODIN splash-screen layout.</li>
+                        <li><strong>Keyboard and print improvements</strong> &mdash; accessible Designer machine counts and Sizer rack toggles, visible info-tip focus, clean browser printing, and corrected ratio guidance.</li>
+                        <li><strong>OEM/BMC proxy guidance</strong> &mdash; reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs. All report content links remain readable in both themes and Print Friendly mode, with visible keyboard focus and consistent Word-export styling.</li>
+                        <li><strong>PowerPoint readability</strong> &mdash; dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.</li>
+                        <li><strong>Supported AI GPU worker sizes</strong> &mdash; Foundry Local and Video Indexer GPU workers use supported AKS Arc VM SKUs, with separate Agentic embedding and local-LLM selections. CPU, RAM, GPU count and VRAM follow the chosen sizes; compatible older GPU workloads migrate with an explicit notice. Capacity sizing is not an inference-performance guarantee. The public v5 JSON schema now requires the applicable worker SKU fields while preserving legacy and unversioned compatibility.</li>
+                        <li><strong>Per-machine GPU worker placement</strong> &mdash; AUTO inventory respects the largest worker's GPU requirement. Selected AI worker pools must also fit one machine's usable CPU and RAM after host reservations. Insufficient capacity produces a placement warning and blocks the Designer handoff.</li>
+                    </ul>
+                </div>
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.06</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">September 3, 2026</div>
@@ -2179,6 +2230,8 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li>Edge 2-Node Switchless (cost-optimized edge deployment)</li>
                     </ul>
                 </div>
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Documentation Links:</strong> Direct links to Microsoft Learn for security features and best practices.</li>
                         <li><strong>Enhanced Validation:</strong> All new configuration options included in readiness checks.</li>
                     </ul>
@@ -2231,4 +2284,5 @@ function showChangelog() { // eslint-disable-line no-unused-vars
     document.body.appendChild(overlay);
     // Allow closing the modal with the Escape key for accessibility.
     document.addEventListener('keydown', onKeyDown);
+    overlay.querySelector('button').focus();
 }

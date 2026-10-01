@@ -50,6 +50,24 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 
 ## Repository Reference
 
+### Maintainer validation
+
+Run `node scripts/run-tests.js` for offline/file-mode coverage and
+`npm run test:http` for the complete HTTP-enabled browser harness. The HTTP
+command starts a loopback-only server on an available port and cleans it up
+afterward. Both modes wait for an explicit completion signal and require a
+boolean `passed` result on every detail record, consistent with the aggregate counts.
+
+Run `npm run test:runner` to exercise delayed completion, failed assertions,
+browser exceptions, rejected promises, invalid results, and timeout handling.
+Results are written to `test-results/` and `test-results/http/`; browser failures
+also retain diagnostics and a screenshot. These generated files are not committed.
+
+Follow the [release-readiness checklist](.github/skills/release-readiness/SKILL.md)
+and the relevant real-UI validation skills before publication. HTTP integration
+checks do not replace complete end-to-end release scenarios or native PowerPoint
+inspection.
+
 This map is provided to help issue reporters identify the affected product area. It is not an invitation or workflow for external code contributions.
 
 ### Repository Map

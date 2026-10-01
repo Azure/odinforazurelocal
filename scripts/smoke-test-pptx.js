@@ -47,7 +47,19 @@ const SEED_PAYLOAD = {
                 'Advisory - single nodes provide no workload high-availability: Maintenance interrupts workloads.'
             ].concat(Array.from({ length: 48 }, (_, index) => 'Sizing recommendation ' + (index + 3)))
         },
-        sizerWorkloads: [{ type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 }]
+        sizerWorkloads: [
+            { type: 'vm', name: 'Smoke workload', totalVcpus: 8, totalMemoryGB: 32, totalStorageGB: 100 },
+            { type: 'foundry', name: 'Demo GPU inference', workerNodes: 2, workerProfile: 'recommended',
+                modelDeployments: 1, modelCacheStorageGB: 100, engine: 'vllm',
+                gpuType: 'l40s', gpuMode: 'dda', gpuWorkerVmSize: 'Standard_NC16_L40S_1',
+                gpuWorkerSummary: 'GPU workers: 2 x Standard_NC16_L40S_1 (16 vCPU / 64 GB RAM / 1 GPU / 48 GB VRAM per worker)',
+                totalVcpus: 46, totalMemoryGB: 156, totalStorageGB: 1100 },
+            { type: 'edgerag', name: 'Demo Agentic GPU pools', deploymentMode: 'combined', llmEndpoint: 'foundry-production',
+                corpusGB: 100, gpuType: 'l40s', gpuMode: 'dda',
+                embeddingGpuVmSize: 'Standard_NC16_L40S_1', llmGpuVmSize: 'Standard_NC32_L40S_2',
+                gpuWorkerSummary: 'Embedding GPU workers: 2 x Standard_NC16_L40S_1 (16 vCPU / 64 GB RAM / 1 GPU / 48 GB VRAM per worker); Local LLM GPU worker: 1 x Standard_NC32_L40S_2 (32 vCPU / 128 GB RAM / 2 GPU / 96 GB VRAM per worker)',
+                totalVcpus: 100, totalMemoryGB: 376, totalStorageGB: 1850 }
+        ]
     }
 };
 
@@ -156,7 +168,36 @@ const SEED_PAYLOAD = {
                                     sizingNotesSlides: slideText.filter(text => text.includes('Sizing Notes & Recommendations')).length,
                                     hasFinalSizingNote: slideText.some(text => text.includes('Sizing recommendation 50')),
                                     advisoryStyleCount: slideXml.reduce((count, text) => count + ((text.match(/val="B45309"/g) || []).length), 0),
-                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows'))
+                                    hasWorkflowSubtitle: slideText.some(text => text.includes('Sizer and Designer workflows')),
+                                    hasReportScope: slideText.some(text => text.includes(window.__odinGetReportScopeNote().text)),
+                                    hasGpuWorkerSizes: window.__odinGetReportState().sizerWorkloads
+                                        .filter(w => w.gpuWorkerSummary).every(w =>
+                                            w.gpuWorkerSummary.split('; ').every(pool => slideText.some(text => text.includes(pool)))),
+                                    hasBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
+                                        slideText.some(text => text.includes(note))),
+                                    hasSeparateBmcSlide: slideText.some(text => text.includes('OEM/BMC Proxy Bypass')
+                                        && window.__odinGetBmcProxyGuidance().notes.every(note => text.includes(note)))
+                                        && slideText.filter(text => text.startsWith('Proxy Configuration'))
+                                            .every(text => !text.includes(window.__odinGetBmcProxyGuidance().notes[0])),
+                                    hasInfraContinuation: slideText.some(text =>
+                                        text.includes('Infrastructure Network Configuration (continued)'))
+                                        && slideText.some(text => text.includes('Planning note: management VLAN tagging')),
+                                    infraDiagramBulletCount: (() => {
+                                        const index = slideText.findIndex(text => text.startsWith('Infrastructure Network Configuration')
+                                            && !text.includes('Infrastructure Network Configuration (continued)'));
+                                        if (index < 0) return -1;
+                                        const xml = new DOMParser().parseFromString(slideXml[index], 'application/xml');
+                                        const body = Array.from(xml.getElementsByTagNameNS('*', 'sp')).find(shape =>
+                                            Array.from(shape.getElementsByTagNameNS('*', 'cNvPr')).some(properties =>
+                                                properties.getAttribute('name') === 'BulletsBody'));
+                                        return body ? body.getElementsByTagNameNS('*', 'p').length : -1;
+                                    })(),
+                                    hasBmcGuidanceLinks: window.__odinGetBmcProxyGuidance().references.every(reference =>
+                                        relationships.some(text => text.includes(reference.url))),
+                                    hasRenderedBmcGuidance: window.__odinGetBmcProxyGuidance().notes.every(note =>
+                                        document.getElementById('report-bmc-proxy-guidance').textContent.includes(note)),
+                                    bypassUnchanged: !window.__odinBuildProxyBypassList(window.__odinGetReportState())
+                                        .some(entry => entry.includes('169.254'))
                                 });
                             })().catch(fail);
                         };
@@ -193,8 +234,66 @@ const SEED_PAYLOAD = {
         if (result.advisoryStyleCount < 2) {
             throw new Error('Both minimum-fit and Single Node Advisory headings must retain amber styling');
         }
-        if (!result.hasWorkflowSubtitle) {
-            throw new Error('Sizer and Designer workflow subtitle is missing from the cover slide');
+        if (!result.hasWorkflowSubtitle || !result.hasReportScope) {
+            throw new Error('Workflow subtitle or report scope statement is missing from the presentation');
+        }
+        if (!result.hasGpuWorkerSizes) throw new Error('Supported GPU worker size details are missing from PowerPoint');
+        if (!result.hasBmcGuidance || !result.hasBmcGuidanceLinks || !result.hasRenderedBmcGuidance || !result.bypassUnchanged) {
+            throw new Error('OEM/BMC caveat must appear in HTML and PowerPoint with sources, without adding bypass ranges');
+        }
+        if (!result.hasSeparateBmcSlide || !result.hasInfraContinuation
+            || result.infraDiagramBulletCount < 1 || result.infraDiagramBulletCount > 8) {
+            throw new Error('Proxy/BMC guidance or infrastructure continuation layout regressed: ' + JSON.stringify({
+                bmc: result.hasSeparateBmcSlide, continuation: result.hasInfraContinuation,
+                diagramBullets: result.infraDiagramBulletCount
+            }));
+        }
+
+        for (const proxy of ['proxy', 'no_proxy']) {
+            if (proxy === 'no_proxy') {
+                const noProxyPayload = JSON.parse(JSON.stringify(SEED_PAYLOAD));
+                noProxyPayload.state.proxy = 'no_proxy';
+                noProxyPayload.state.outbound = 'public';
+                await page.goto(`file://${reportPath}#data=${Buffer.from(JSON.stringify(noProxyPayload)).toString('base64')}`,
+                    { waitUntil: 'networkidle0', timeout: 60000 });
+                await page.reload({ waitUntil: 'networkidle0' });
+            }
+            const displayed = await page.$('#report-bmc-proxy-guidance');
+            if (Boolean(displayed) !== (proxy === 'proxy')) {
+                throw new Error(`OEM/BMC caveat visibility does not match proxy mode: ${proxy}`);
+            }
+            for (const format of ['Markdown', 'Word']) {
+                const hasGuidance = await page.evaluate(({ format, expectGuidance }) => new Promise((resolve, reject) => {
+                    const originalClick = HTMLAnchorElement.prototype.click;
+                    const timeout = setTimeout(() => {
+                        HTMLAnchorElement.prototype.click = originalClick;
+                        reject(new Error(format + ' report download timed out'));
+                    }, 30000);
+                    HTMLAnchorElement.prototype.click = function() {
+                        if (!this.download.endsWith(format === 'Word' ? '.doc' : '.md')) {
+                            return originalClick.call(this);
+                        }
+                        const url = this.href;
+                        fetch(url).then(response => response.text()).then(content => {
+                            const guidance = window.__odinGetBmcProxyGuidance();
+                            const text = format === 'Word'
+                                ? new DOMParser().parseFromString(content, 'text/html').body.textContent : content;
+                            const present = guidance.notes.every(note => text.includes(note))
+                                && guidance.references.every(reference => content.includes(reference.url));
+                            const absent = !text.includes(guidance.title) && !text.includes('Remote NDIS');
+                            const gpuSizesPresent = window.__odinGetReportState().sizerWorkloads
+                                .filter(w => w.gpuWorkerSummary).every(w => text.includes(w.gpuWorkerSummary));
+                            resolve((expectGuidance ? present : absent) && text.includes(window.__odinGetReportScopeNote().text) && gpuSizesPresent);
+                        }).catch(reject).finally(() => {
+                            clearTimeout(timeout);
+                            HTMLAnchorElement.prototype.click = originalClick;
+                        });
+                    };
+                    window['downloadReport' + format]();
+                }), { format, expectGuidance: proxy === 'proxy' });
+                if (!hasGuidance) throw new Error(`OEM/BMC guidance mismatch in ${format} export for ${proxy}`);
+                console.log(`OEM/BMC ${format} export: ${proxy} OK`);
+            }
         }
 
         console.log(`PPTX smoke test: OK — ${result.filename}, ${(result.size / 1024).toFixed(1)} KB, magic ${result.headHex}`);

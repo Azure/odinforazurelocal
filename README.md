@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.06 - Available here: https://aka.ms/ODIN
+## Version 0.23.07 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,17 +49,43 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.06 - Latest Release
+### Version 0.23.07 - Latest Release
 
-> **Quality maintenance modernizes S2D shared-link handling and resolves GitHub Code Quality findings.** Shared configurations preserve Unicode through standards-based browser APIs while malformed or incomplete payloads remain rejected.
+- **Sizer JSON validation** — the public v5 schema enforces required AI GPU worker SKU fields while preserving legacy and unversioned import compatibility.
+
+> **Import Hyper-V estates with HVTools, follow the two-phase Azure Local ARM deployment workflow, and preserve switchless networking across design outputs and imports.**
 
 **What's new**
-- **S2D shared links modernized** — UTF-8 configuration names and data now use `TextEncoder` and `TextDecoder` instead of deprecated browser conversion globals.
-- **Shared-state validation kept in sync** — one field definition now drives S2D serialization and completeness checks while preserving radio-group and direct-control behavior.
-- **Quality findings resolved** — the Arc Private Link table icon is restored, clipboard fallback handling drops an unused error parameter, and the independent onboarding revision key is documented.
-- **GitHub Actions dependencies refreshed** — `checkout` 7.0.1, `setup-node` 7.0.0, and `upload-artifact` 7.0.1 remain pinned to immutable commit SHAs, with Node 24 action and Node 22 project runtimes validated across CI.
-- **Release UI validation completed** — full Sizer and Designer matrices now cover every supported topology, outputs, imports, cross-tool handoffs, reset behavior, keyboard access, both themes, and phone/tablet/desktop layouts. The pass also fixed narrow-screen overflow, stale reset/region/architecture state, dialog Escape handling, and option-card disabled and nested-link semantics.
-- All **1,577 / 1,577** browser tests pass.
+- **Foundry Local sizing help** — a centered first-use guide provides practical sizing steps and a how-to link on every card, including token counting, concurrency, GPU placement, and performance validation. Reopen it using **Help sizing Foundry Local** at the top of the dialog or beside GPU Requirements, without changing workload inputs.
+- **Release validation** — automated localhost integration checks now complement offline tests, with explicit completion, failure evidence, and stronger release-readiness checklists.
+- **Report Help and scope** — a first-visit guide explains report contents and exports. A permanent statement in the report and exports identifies it as a starting point, not a complete business/technical requirements document or a replacement for reviewed low-level design (LLD) documentation. The ARM page title now reads "Azure Local Instance | ARM Deployment Automation".
+- **ARM first-visit help** — a skippable three-step guide explains fields, placeholders, Validate/Deploy, and using the generated files. Reopen it with Help; disconnected designs get local deployment guidance.
+- **HVTools (Hyper-V) import** — the Sizer's **RVTools / HVTools** import auto-detects HVTools export-all `.xlsx` workbooks and VM Overview `.json` exports. Memory sizing uses the larger of startup and assigned memory; shared virtual disks are counted once after filtering. JSON exports provide in-use storage only.
+- **Browser-local import processing** — nothing from the imported estate is transmitted. Host/cluster names and disk identifiers are used only in memory; per-VM mode saves VM names as workload names in browser local storage. Licensing data and export user names are ignored.
+- **Two-phase ARM deployment** — an Azure Context dropdown selects Validate first, then Deploy for a second ARM deployment, updating JSON and copy actions immediately. Separate phase downloads and generated PowerShell, Azure CLI, Azure DevOps, and GitHub workflows distinguish Azure Local validation from ARM preflight/What-If and check the Validate-created cluster before Deploy.
+- **Switchless NIC mappings preserved** — confirmed adapter assignments and custom NIC names stay consistent across diagrams, reports, SVG/draw.io downloads, and ARM networks and intents.
+- **CIDR-aware storage networking** — subnet autofill and generated outputs respect CIDR block sizes, including `/30` and octet rollover. ARM imports retain link subnets and manual addressing order; invalid, overlapping, or undersized custom subnets block readiness.
+- **Development dependency security** — development-only overrides enforce `js-yaml >=4.3.2 <5.0.0` and `fast-uri >=4.2.1`, including the mailto header-injection fix; no runtime dependency is added.
+- **What's New layout and keyboard access** — release history and its help link stay inside one scrollable panel, keeping the notes readable on phones. The named dialog keeps keyboard focus inside and returns it to the trigger when closed.
+- **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
+- **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; blank DNS entries and DNS conflicts block completion and Report/ARM output. AD-less DNS zone edits immediately update progress and readiness.
+- **AD-less ARM inputs** — current and legacy local-identity outputs hide the irrelevant Active Directory OU path.
+- **Consistent DNS completion** — invalid DNS clears the Identity/DNS step checkmark as well as blocking progress and outputs.
+- **Whole-worker GPU packing** — AUTO inventory accounts for all indivisible workers fitting across N-1 machines, including mixed worker sizes. Insufficient manual inventory warns and blocks Designer handoff without changing the selection.
+- **Clean Designer reset and role guidance** — Start Over removes the obsolete Sizer import confirmation; workload clusters no longer show the previous management role's fixed-three-machine explanation.
+- **Azure DevOps pipeline setup** — generated YAML declares its required service-connection placeholder and authorization guidance.
+- **Disaggregated validation** — invalid node addresses also block reports, HCI witness details no longer leak into disaggregated summaries, and reports omit inactive dedicated iSCSI and backup subnets.
+- **Disconnected management transitions** — cloud and architecture changes keep the fixed three-machine controls, summary and readiness synchronized.
+- **Designer machine naming** — generated names follow later first-machine prefix changes while manual overrides are preserved, including after resume or import.
+- **Clearer Sizer hardware requirements** — expand "Hardware sizing - view detailed information" to compare overhead-inclusive requirements with sized cores and memory in aligned Required / Sized tables per machine and per instance, with cores-per-socket multiplication. Sized means the hardware selected in Hardware Configuration. The breakdown is collapsed by default to keep capacity bars and warnings prominent, but always included in exports. Auto-scaling policy is unchanged.
+- **Safer warnings and deployment automation** — prevent HTML injection in Sizer placement warnings and exported Word notes; choose a Designer-aligned Azure region or Custom code for generated automation and create missing resource groups before Validate preflight. ARM Help uses the familiar ODIN splash-screen layout.
+- **Keyboard and print improvements** — accessible Designer machine counts and Sizer rack toggles, visible info-tip focus, clean browser printing, and corrected ratio guidance.
+- **OEM/BMC proxy guidance** — reports and exports flag the manual addition of OEM-required host-to-BMC proxy exclusions, distinguishing USB passthrough addresses from external OOB management IPs. All report content links remain readable in both themes and Print Friendly mode, with visible keyboard focus and consistent Word-export styling.
+- **PowerPoint readability** — dedicated OEM/BMC guidance and continued infrastructure notes keep text clear of diagrams and footers.
+- **Supported AI GPU worker sizes** — size Foundry Local and Video Indexer GPU workers from supported AKS Arc VM SKUs, with separate Agentic embedding and local-LLM selections. CPU, RAM, GPU count and VRAM now follow the chosen sizes; compatible older GPU workloads migrate with an explicit notice. Capacity sizing is not an inference-performance guarantee.
+- **Per-machine GPU worker placement** — AUTO GPU inventory respects the largest selected worker's GPU requirement. Selected AI worker pools must also fit one machine's usable CPU and RAM after host reservations. Insufficient capacity produces a placement warning and blocks Designer handoff rather than treating resources on different machines as interchangeable.
+
+See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 
 ---
 

@@ -1,3 +1,4 @@
+/* global getDnsValidationError */
 // Odin for Azure Local - version for tracking changes
 const WIZARD_VERSION = globalThis.ODIN_VERSION;
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
@@ -637,7 +638,8 @@ function computeWizardProgress() {
     if (state.activeDirectory === 'azure_ad') {
         add('AD Domain', Boolean(state.adDomain));
     }
-    add('DNS Servers', Array.isArray(state.dnsServers) && state.dnsServers.filter(s => s && String(s).trim()).length > 0);
+    add('DNS Servers', Array.isArray(state.dnsServers) && state.dnsServers.filter(s => s && String(s).trim()).length > 0
+        && !getDnsValidationError());
     if (state.activeDirectory === 'local_identity') {
         add('Local DNS Zone', Boolean(state.localDnsZone));
     }
@@ -828,6 +830,12 @@ function getReportReadiness() {
 
     if (!state.scenario) missing.push('Deployment Type');
     if (!state.architecture) missing.push('Architecture');
+    if (!state.infraCidr) missing.push('Infrastructure Network (CIDR)');
+    if (!state.infra || !state.infra.start || !state.infra.end) missing.push('Infrastructure IP Pool (Start/End)');
+    const dnsError = getDnsValidationError();
+    if (dnsError) missing.push(dnsError);
+    const nodeReadiness = getNodeSettingsReadiness();
+    if (!nodeReadiness.ready) missing.push(...nodeReadiness.missing);
 
     // Disconnected: require confirmed Autonomous Cloud FQDN
     if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
@@ -857,7 +865,7 @@ function getReportReadiness() {
             missing.push('Identity (Active Directory / Local Identity)');
         } else {
             if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
-            if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
+            if (!state.dnsServers || !state.dnsServers.some(s => s && String(s).trim())) missing.push('DNS Servers');
             if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
         }
         if (!state.securityConfiguration) missing.push('Security Configuration');
@@ -898,26 +906,7 @@ function getReportReadiness() {
     if (!state.privateEndpoints) missing.push('Private Endpoints');
     if (!state.ip) missing.push('IP Assignment');
 
-    // Static IP deployments require a default gateway.
-    // If the DOM field is populated but state was not synced (e.g. after resume/load),
-    // pull the value from the field to avoid a stale "missing" entry.
-    if (state.ip === 'static') {
-        if (!state.infraGateway) {
-            try {
-                const gwInput = document.getElementById('infra-default-gateway');
-                const gwVal = gwInput ? gwInput.value.trim() : '';
-                if (gwVal && /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(gwVal)) {
-                    state.infraGateway = gwVal;
-                    state.infraGatewayManual = true;
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (!state.infraGateway) missing.push('Default Gateway');
-    }
-
-    // Node settings (names + IP CIDR)
-    const nodeReadiness = getNodeSettingsReadiness();
-    if (!nodeReadiness.ready) missing.push(...nodeReadiness.missing);
+    if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
 
     // Infra VLAN defaults are applied in flow, but still treat as required.
     if (!state.infraVlan) missing.push('Infrastructure VLAN');
@@ -928,33 +917,8 @@ function getReportReadiness() {
     } else {
         if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
         // DNS required for both identity options in this wizard.
-        if (!state.dnsServers || state.dnsServers.length <= 0) {
+        if (!state.dnsServers || !state.dnsServers.some(s => s && String(s).trim())) {
             missing.push('DNS Servers');
-        } else {
-            const validDnsServers = state.dnsServers.filter(s => s && s.trim());
-            // Reject network (.0) and broadcast (.255) DNS addresses
-            for (const server of validDnsServers) {
-                if (typeof isLastOctetNetworkOrBroadcast === 'function') {
-                    const check = isLastOctetNetworkOrBroadcast(server);
-                    if (check === 'network') {
-                        missing.push(`DNS server ${server} cannot be a network address (.0)`);
-                        break;
-                    }
-                    if (check === 'broadcast') {
-                        missing.push(`DNS server ${server} cannot be a broadcast address (.255)`);
-                        break;
-                    }
-                }
-            }
-            if (state.activeDirectory === 'azure_ad') {
-                // RFC 1918 validation - AD mode requires private DNS servers
-                for (const server of validDnsServers) {
-                    if (!isRfc1918Ip(server)) {
-                        missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
-                        break;
-                    }
-                }
-            }
         }
         if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
     }
@@ -1232,7 +1196,7 @@ function generateNodeName(base, num, padding) {
 /**
  * Auto-fill Node 2..N names based on Node 1's naming pattern.
  * If Node 1 is "customname01", fills Node 2 as "customname02", Node 3 as "customname03", etc.
- * Only fills empty node name fields or default placeholder names; never overwrites user-provided values.
+ * Updates generated names and empty/default fields; preserves manual overrides.
  */
 function tryAutoFillSequentialNodeNamesFromFirst() {
     const count = getNumericNodeCount();
@@ -1252,10 +1216,9 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
         const cur = state.nodeSettings[i] || {};
         const curVal = String(cur.name || '').trim();
 
-        // Only fill empty fields or default placeholder names (e.g., "node2", "node3").
         const defaultName = `node${i + 1}`;
         const isDefault = !curVal || curVal === defaultName || curVal.toLowerCase() === defaultName.toLowerCase();
-        if (!isDefault) continue;
+        if (cur.nameAuto === false || (cur.nameAuto !== true && !isDefault)) continue;
 
         const newNum = (num !== null) ? (num + i) : (i + 1);
         const newName = generateNodeName(base, newNum, effectivePadding);
@@ -1263,6 +1226,7 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
         // Validate the generated name.
         if (newName && newName.length <= MAX_NODE_NAME_LENGTH && isValidNetbiosName(newName)) {
             state.nodeSettings[i].name = newName;
+            state.nodeSettings[i].nameAuto = true;
         }
     }
 }
@@ -1328,10 +1292,12 @@ function ensureNodeSettingsInitialized() {
     for (let i = 0; i < count; i++) {
         const existing = state.nodeSettings[i] || {};
         const defaultName = `node${i + 1}`;
-        next.push({
+        const node = {
             name: existing.name || defaultName,
             ipCidr: existing.ipCidr || ''
-        });
+        };
+        if (typeof existing.nameAuto === 'boolean') node.nameAuto = existing.nameAuto;
+        next.push(node);
     }
     state.nodeSettings = next;
 }
@@ -1340,8 +1306,8 @@ function updateNodeName(index, value) {
     ensureNodeSettingsInitialized();
     if (!state.nodeSettings[index]) return;
     state.nodeSettings[index].name = String(value || '').trim();
+    state.nodeSettings[index].nameAuto = !state.nodeSettings[index].name;
 
-    // Convenience: if the user sets Node 1 name, auto-fill remaining empty node names sequentially.
     if (index === 0) {
         tryAutoFillSequentialNodeNamesFromFirst();
     }
@@ -1349,6 +1315,7 @@ function updateNodeName(index, value) {
     validateNodeSettings();
     updateSummary();
     updateUI();
+    saveStateToLocalStorage();
 }
 
 function updateNodeIpCidr(index, value) {
@@ -1646,9 +1613,6 @@ function getArmReadiness() {
     }
 
     const placeholders = [];
-    if (!state.infraCidr) placeholders.push('Infrastructure Network (CIDR)');
-    if (!state.infra || !state.infra.start || !state.infra.end) placeholders.push('Infrastructure IP Pool (Start/End)');
-
     // The wizard does not collect these; warn that placeholders will be used.
     const isAdlessExternalDns = state.activeDirectory === 'local_identity';
 
@@ -2856,6 +2820,7 @@ function selectOption(category, value) {
         state.infraPerfLunId = null;
         if (value === 'disaggregated') {
             state.storagePoolConfiguration = 'InfraOnly';
+            state.witnessType = null;
         } else {
             state.storagePoolConfiguration = null;
         }
@@ -3104,6 +3069,7 @@ function selectOption(category, value) {
         }
         // Add first DNS server automatically
         addDnsServer();
+        validateAllDnsServers();
     } else if (category === 'securityConfiguration') {
         state.securityConfiguration = value;
         const customSecuritySection = document.getElementById('custom-security-section');
@@ -3173,6 +3139,9 @@ function selectOption(category, value) {
         updatePrivateEndpointsSelectionSummary();
     }
 
+    if (['scenario', 'region', 'localInstanceRegion', 'ip'].includes(category)) {
+        clearInfraNetworkInputs();
+    }
     updateUI();
 
     // Auto-save state after every option selection to ensure Resume works reliably
@@ -4239,6 +4208,8 @@ function updateUI() {
         } else {
             chip.classList.remove('disabled');
         }
+        chip.disabled = isDisabled;
+        chip.setAttribute('aria-pressed', state.nodes === valueStr ? 'true' : 'false');
     });
 
     // 4. Global Constraints/Locks
@@ -6533,6 +6504,7 @@ function updateStepIndicators() {
             if (!state.activeDirectory) return false;
             // DNS servers required for both options
             if (!state.dnsServers || state.dnsServers.filter(s => s && String(s).trim()).length === 0) return false;
+            if (getDnsValidationError()) return false;
             // For Active Directory: domain name required
             if (state.activeDirectory === 'azure_ad' && !state.adDomain) return false;
             // For Local Identity (AD-Less): local DNS zone required
@@ -6655,7 +6627,7 @@ function updateSummary() {
     }
     if (state.scale) scenarioScaleRows += renderRow('Scale', escapeHtml(formatScale(state.scale)));
     if (state.nodes) scenarioScaleRows += renderRow('Nodes', escapeHtml(state.nodes), { mono: true });
-    if (state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
+    if (state.architecture !== 'disaggregated' && state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
 
     // Rack Aware additions (Availability Zones + ToR architecture)
     let rackAwareRows = '';
@@ -7473,6 +7445,16 @@ function markInfraPoolEndManual() {
 }
 
 function updateInfraNetwork() {
+    validateInfraNetworkInputs();
+    updateSummary();
+    updateUI();
+    if (typeof renderInfraSubnetBar === 'function') {
+        renderInfraSubnetBar();
+    }
+    saveStateToLocalStorage();
+}
+
+function validateInfraNetworkInputs() {
     const cidrInput = document.getElementById('infra-cidr');
     const startInput = document.getElementById('infra-ip-start');
     const endInput = document.getElementById('infra-ip-end');
@@ -7490,6 +7472,8 @@ function updateInfraNetwork() {
 
     if (!startInput || !endInput) return;
 
+    state.infra = null;
+    state.infraGateway = null;
     const cidr = cidrInput ? cidrInput.value.trim() : '';
     state.infraCidr = cidr || null;
 
@@ -7681,7 +7665,6 @@ function updateInfraNetwork() {
 
     if (!hasRange) {
         state.infra = null;
-        updateSummary();
         return;
     }
 
@@ -7833,8 +7816,6 @@ function updateInfraNetwork() {
                                     gwErr.innerText = 'Default Gateway must not be one of the node IP addresses.';
                                     gwErr.classList.remove('hidden');
                                 }
-                                updateSummary();
-                                updateUI();
                                 return;
                             }
                         }
@@ -7854,12 +7835,20 @@ function updateInfraNetwork() {
         state.infraGateway = null;
     }
 
-    updateSummary();
-    updateUI();
-    if (typeof renderInfraSubnetBar === 'function') {
-        renderInfraSubnetBar();
-    }
-    saveStateToLocalStorage();
+}
+
+function clearInfraNetworkInputs() {
+    ['infra-cidr', 'infra-ip-start', 'infra-ip-end', 'infra-default-gateway'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = '';
+            delete input.dataset.autoMinimumEnd;
+        }
+    });
+    ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success'].forEach(id => {
+        const message = document.getElementById(id);
+        if (message) message.classList.add('hidden');
+    });
 }
 
 function markInfraCidrManual(value) {
@@ -8170,16 +8159,10 @@ function resetAll() {
     Object.assign(state, fresh);
     state.theme = preservedTheme;
     state.fontSize = preservedFontSize;
+    document.getElementById('sizer-import-banner')?.remove();
 
     // Clear input fields
-    const cidrInput = document.getElementById('infra-cidr');
-    const startInput = document.getElementById('infra-ip-start');
-    const endInput = document.getElementById('infra-ip-end');
-    const gwInput = document.getElementById('infra-default-gateway');
-    if (cidrInput) cidrInput.value = '';
-    if (startInput) startInput.value = '';
-    if (endInput) endInput.value = '';
-    if (gwInput) { gwInput.value = ''; gwInput.disabled = false; }
+    clearInfraNetworkInputs();
 
     const localDnsZoneInput = document.getElementById('local-dns-zone-input');
     if (localDnsZoneInput) localDnsZoneInput.value = '';
@@ -10569,7 +10552,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'contoso.local',
                 adOuPath: 'OU=AzureLocal,DC=contoso,DC=local',
-                dnsServers: ['192.168.1.1'],
+                dnsServers: ['192.168.1.254'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
@@ -10614,7 +10597,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'corp.contoso.com',
                 adOuPath: 'OU=AzureLocal,DC=corp,DC=contoso,DC=com',
-                dnsServers: ['10.0.1.1', '10.0.1.2'],
+                dnsServers: ['10.0.1.2', '10.0.1.3'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'yes',
@@ -10675,7 +10658,7 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'datacenter.local',
                 adOuPath: 'OU=AzureLocal,DC=datacenter,DC=local',
-                dnsServers: ['172.16.0.1', '172.16.0.2'],
+                dnsServers: ['172.16.0.2', '172.16.0.3'],
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
             }
@@ -10723,7 +10706,7 @@ function showTemplates() {
                 adOuPath: 'OU=AzureLocal,DC=airgap,DC=contoso,DC=com',
                 adfsServerName: 'adfs.airgap.contoso.com',
                 localDnsZone: 'airgap.local',
-                dnsServers: ['10.10.10.1'],
+                dnsServers: ['10.10.10.2'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
@@ -11020,6 +11003,7 @@ function loadTemplate(templateIndex) {
     if (state.infraCidr || state.infra || state.infraGateway) {
         setTimeout(() => {
             updateInfraNetwork();
+            validateAllDnsServers();
         }, 100);
     }
 

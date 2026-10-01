@@ -456,6 +456,7 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         // Hide D-steps by default
         if (stepD1) stepD1.classList.add('hidden');
         if (stepFqdn) stepFqdn.classList.add('hidden');
+        if (state.scenario !== 'disconnected' || state.clusterRole !== 'management') hideMgmtBanner();
 
         if (state.scenario !== 'disconnected') {
             // Clean up disconnected state when leaving
@@ -683,10 +684,6 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
     function applyMgmtClusterConstraints() {
         if (state.scenario !== 'disconnected' || state.clusterRole !== 'management') return;
 
-        // Force 3 nodes
-        state.nodes = '3';
-        state.scale = 'medium';
-
         // Disable node chips that are not 3
         document.querySelectorAll('#step-3 .node-chip').forEach(function(chip) {
             const onclick = chip.getAttribute('onclick') || '';
@@ -790,6 +787,12 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
             // so that step visibility logic works correctly
             if (state.scenario === 'disconnected' && state.clusterRole === 'workload') {
                 applyWorkloadDefaults();
+            }
+
+            // Normalize fixed topology before rendering chips, summary and readiness.
+            if (state.scenario === 'disconnected' && state.clusterRole === 'management') {
+                state.nodes = '3';
+                state.scale = 'medium';
             }
 
             // Force private endpoints disabled before updateUI so downstream

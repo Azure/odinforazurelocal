@@ -62,6 +62,11 @@
     // hyperconverged (the Disaggregated VRF section doesn't exist there).
     const SECTION_PLAN = [
         {
+            title: 'About This Report',
+            match: [],
+            customExtract: extractReportScope
+        },
+        {
             title: 'Deployment Scenario & Scale',
             match: ['Scenario & Scale', 'Deployment Scenario', 'Scale & Nodes', 'Storage & Ports'],
             customExtract: extractScenarioScale
@@ -154,6 +159,11 @@
             title: 'Proxy Configuration',
             match: [],
             customExtract: extractProxyConfiguration
+        },
+        {
+            title: 'OEM/BMC Proxy Bypass',
+            match: [],
+            customExtract: extractBmcProxyGuidance
         },
         {
             // Private Endpoints follow-up slide: one bullet per selected PE
@@ -1026,7 +1036,13 @@
             // Infrastructure Network slide for the subnet utilisation bar).
             if (extracted.footerSvgString) {
                 return rasterizeSvgString(extracted.footerSvgString).then(function(raster) {
-                    return buildBulletsWithFooterSlide(plan, ec, raster);
+                    const firstPage = buildBulletsWithFooterSlide(plan, Object.assign({}, ec, {
+                        bullets: ec.bullets.slice(0, 8)
+                    }), raster);
+                    if (ec.bullets.length <= 8) return firstPage;
+                    return [firstPage, buildTextSectionSlide({
+                        title: plan.title + ' (continued)'
+                    }, Object.assign({}, ec, { bullets: ec.bullets.slice(8) }))];
                 });
             }
             // Body SVG: full-width SVG renders the entire content area (no
@@ -1265,6 +1281,14 @@
     // Proxy slide: outbound mode + arc + proxy state + the rendered minimum
     // bypass string + planning notes pulled from the rendered Outbound section
     // so the slide stays in sync with what the user sees.
+    function extractReportScope() {
+        const scope = window.__odinGetReportScopeNote();
+        return {
+            bullets: [{ text: scope.title, lvl: 1 }, { text: scope.text, lvl: 1 }],
+            sources: ['Report scope']
+        };
+    }
+
     function extractProxyConfiguration() {
         const s = (typeof window.__odinGetReportState === 'function')
             ? window.__odinGetReportState() : null;
@@ -1345,6 +1369,25 @@
             sources: ['Outbound, Arc, Proxy & Private Endpoints'],
             links: links
         };
+    }
+
+    function extractBmcProxyGuidance() {
+        const s = window.__odinGetReportState();
+        if (!s || s.proxy !== 'proxy') return null;
+        const guidance = window.__odinGetBmcProxyGuidance();
+        const bullets = [{ text: guidance.title, lvl: 1 }];
+        const links = [];
+        guidance.notes.forEach(function(note) {
+            bullets.push({ text: note, lvl: 1 });
+        });
+        guidance.references.forEach(function(reference, index) {
+            const rid = 101 + index;
+            bullets.push({ text: reference.title, lvl: 1, runs: [
+                { text: reference.title, color: '93C5FD', linkRid: rid }
+            ] });
+            links.push({ rid: rid, url: reference.url });
+        });
+        return { bullets: bullets, sources: ['OEM/BMC proxy bypass guidance'], links: links };
     }
 
     // Private Endpoints slide: per-PE name + Private Link FQDN + the most
@@ -1665,7 +1708,8 @@
             } else if (wl.type === 'videoindexer') {
                 const viIsMin = wl.configuration === 'minimum';
                 const viWorkers = viIsMin ? 1 : 2;
-                headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
+                headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended');
+                if (!wl.gpuWorkerVmSize) headline += ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
             } else if (wl.type === 'ghel') {
                 headline = 'Primary + ' + (wl.replicas || 0) + ' replica(s)';
                 if (wl.actions) headline += ' \u00b7 Actions';
@@ -1674,6 +1718,9 @@
                 headline = '\u2014';
             }
             bullets.push({ text: name + ' (' + typeLabel + ') \u2014 ' + headline, lvl: 1 });
+            if (wl.gpuWorkerSummary) {
+                String(wl.gpuWorkerSummary).split('; ').forEach(pool => bullets.push({ text: pool, lvl: 2 }));
+            }
             if (wl.gpuType) {
                 const gpuMode = wl.gpuMode === 'gpu-p' ? 'GPU-P' : wl.gpuMode === 'dda' ? 'DDA' : '';
                 const gpuLabel = wl.gpuLabel || wl.gpuType;
