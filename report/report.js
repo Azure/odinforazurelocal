@@ -705,7 +705,7 @@
             '.info-box.visible { display: block; }',
             '.info-box.hidden { display: none; }',
             '.info-box strong { color: #111111; }',
-            '.info-box a { color: #0b5cab; text-decoration: underline; }',
+            'a, a:visited { color: #0b5cab; text-decoration: underline; }',
 
             '.summary-section { margin: 0 0 12pt 0; }',
             '.summary-section-title { font-size: 12pt; font-weight: 700; color: #111111; padding: 6pt 8pt; background: #f3f4f6; border: 1px solid #e5e7eb; border-left: 4pt solid #0b5cab; border-radius: 8px; margin: 0 0 8pt 0; }',
@@ -5112,7 +5112,7 @@
             const learnRef = 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/rack-aware-cluster-reference-architecture?view=azloc-2511#tor-switch-architecture';
             const intro = '<div style="margin-bottom:0.5rem;">'
                 + '<div style="font-weight:700; color:var(--text-primary);">' + escapeHtml(titleForArch(arch)) + '</div>'
-                + '<div style="color:var(--text-secondary);">Reference: <a href="' + learnRef + '" target="_blank" rel="noopener" style="color:var(--accent-blue); text-decoration:underline;">Microsoft Learn</a></div>'
+                + '<div style="color:var(--text-secondary);">Reference: <a href="' + learnRef + '" target="_blank" rel="noopener">Microsoft Learn</a></div>'
                 + '</div>';
 
             // Diagram layout is intentionally fixed-size for export stability.
@@ -7207,7 +7207,7 @@
                     // Add documentation link if available
                     if (info.docUrl) {
                         peItems += '<div style="margin-top: 0.5rem;">'
-                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">📚 View documentation ↗</a>'
+                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem;">📚 View documentation ↗</a>'
                             + '</div>';
                     }
 
@@ -7262,11 +7262,11 @@
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
             + (function() {
                 if (s.scenario === 'disconnected') {
-                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Plan your network for disconnected operations</a>';
+                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer">Plan your network for disconnected operations</a>';
                 }
                 if (!s.arc && !s.localInstanceRegion) return '';
                 const fwInfoHtml = getFirewallEndpointInfo(s);
-                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
+                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(fwInfoHtml.label) + '</a>';
             })()
             + (outboundNotes.length ? list(outboundNotes) : '')
             + proxyBypassHtml
@@ -7880,7 +7880,7 @@
         return '<div style="margin-top:0.25rem;">'
             + '<span style="color:var(--text-secondary);">Learn more:</span> '
             + uniq.map(function(u) {
-                return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noreferrer" style="color:var(--accent-blue); text-decoration:underline;">' + escapeHtml(labelFor(u)) + '</a>';
+                return '<a href="' + escapeHtml(u) + '" target="_blank" rel="noreferrer">' + escapeHtml(labelFor(u)) + '</a>';
             }).join(' &nbsp; ')
             + '</div>';
     }
@@ -8347,7 +8347,7 @@
         let aksNetworkRows = '';
         {
             aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
-                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
+                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer">AKS Arc network &amp; port requirements documentation</a>'
                 + '</div>'
                 + '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.5rem;">'
                 + '<thead><tr style="border-bottom: 2px solid var(--glass-border); text-align: left;">'
@@ -8382,13 +8382,13 @@
         if (s.scenario === 'disconnected') {
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Network Requirements') + '</div>'
-                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
+                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer">Plan your network for disconnected operations</a></div>'
                 + '</div>';
         } else if (s.arc || s.localInstanceRegion) {
             const fwInfo = getFirewallEndpointInfo(s);
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
-                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
+                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(fwInfo.label) + '</a></div>'
                 + '</div>';
         }
 
@@ -8420,8 +8420,8 @@
                     + '</p>'
                     : '')
                 + (connIsDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">\ud83d\udcd8 View complete Outbound Connectivity Guide</a>'
-                + ' \u00b7 <a href="https://cristianedwards.github.io/AzLoFlows/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">\ud83d\udd00 Interactive Diagram Builder</a>'
+                + '<a href="../docs/outbound-connectivity/" target="_blank">\ud83d\udcd8 View complete Outbound Connectivity Guide</a>'
+                + ' \u00b7 <a href="https://cristianedwards.github.io/AzLoFlows/" target="_blank" rel="noopener noreferrer">\ud83d\udd00 Interactive Diagram Builder</a>'
                 + '</p>')
                 + '</div>';
         }

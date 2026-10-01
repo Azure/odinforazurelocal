@@ -2764,12 +2764,21 @@
                 reportResults.push(assert(hasNoPrint, 'Report header bar has no-print class', true, hasNoPrint));
                 const reportStyles = Array.from(reportValidation.doc.querySelectorAll('style'))
                     .map(style => style.textContent).join('\n');
-                reportResults.push(assert(/#report-bmc-proxy-guidance a,\s*#report-bmc-proxy-guidance a:visited\s*\{[^}]*color:\s*var\(--report-reference-link, var\(--link-on-dark\)\)/.test(reportStyles),
-                    'Proxy reference links share theme-aware normal and visited colors', true, true));
-                reportResults.push(assert(/#report-bmc-proxy-guidance a:focus-visible\s*\{[^}]*outline:\s*2px solid currentColor/.test(reportStyles),
-                    'Proxy reference links have a visible keyboard focus outline', true, true));
-                reportResults.push(assert(/body\.print-friendly-mode #report-bmc-proxy-guidance a\s*\{[^}]*color:\s*var\(--link-on-light\)/.test(reportStyles),
-                    'Proxy references retain dark-on-light colors in Print Friendly mode', true, true));
+                reportResults.push(assert(/main\.container a,\s*main\.container a:visited\s*\{[^}]*color:\s*var\(--report-reference-link, var\(--link-on-dark\)\)/.test(reportStyles),
+                    'All report content links share theme-aware normal and visited colors', true, true));
+                reportResults.push(assert(/main\.container a:focus-visible\s*\{[^}]*outline:\s*2px solid currentColor/.test(reportStyles),
+                    'All report content links have a visible keyboard focus outline', true, true));
+                reportResults.push(assert(/body\.print-friendly-mode main\.container a\s*\{[^}]*color:\s*var\(--link-on-light\)/.test(reportStyles),
+                    'All report content links retain dark-on-light colors in Print Friendly mode', true, true));
+                const reportSource = await fetch('../report/report.js').then(response => {
+                    if (!response.ok) throw new Error('Failed to load report source: ' + response.status);
+                    return response.text();
+                });
+                const inlineLinkOverrides = reportSource.match(/<a\b[^>]*\bstyle="[^"]*(?:color\s*:|text-decoration\s*:)[^"]*"/g) || [];
+                reportResults.push(assert(inlineLinkOverrides.length === 0,
+                    'Generated report links do not override shared link colors or underlines', [], inlineLinkOverrides));
+                reportResults.push(assert(reportSource.includes("'a, a:visited { color: #0b5cab; text-decoration: underline; }'"),
+                    'Word export styles all normal and visited links without browser theme variables', true, true));
             }
             
             testSuite('Report Page Validation', 'report/report.html', reportResults);
