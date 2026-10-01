@@ -80,6 +80,21 @@ test('rejects inconsistent result counts', async () => {
         document.getElementById('total-count').textContent='2'; finish();`), /inconsistent/);
 });
 
+for (const [label, detail] of [
+    ['missing boolean result', { name: 'incomplete' }],
+    ['string result', { name: 'incomplete', passed: 'false' }],
+    ['numeric result', { name: 'incomplete', passed: 0 }],
+    ['null record', null]
+]) {
+    test('rejects a detail with ' + label + ' even when aggregate counts match', async () => {
+        await assert.rejects(runFixture(`
+            document.getElementById('total-count').textContent='2';
+            document.getElementById('fail-count').textContent='1';
+            window.testResults.push(${JSON.stringify(detail)});
+            finish();`), /Incomplete or inconsistent browser test results/);
+    });
+}
+
 test('rejects skipped HTTP tests in HTTP mode', async () => {
     await assert.rejects(runFixture(`
         finish(); window.__odinTestRun.http='skipped';`), /HTTP integration/);

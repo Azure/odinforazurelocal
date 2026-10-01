@@ -83,6 +83,7 @@ async function collectBrowserTests(page, url, timeout = 60000) {
             result.total <= 0 || result.passed < 0 || result.failed < 0 ||
             result.total !== result.passed + result.failed ||
             !Array.isArray(result.details) || result.details.length !== result.total ||
+            result.details.some(test => !test || typeof test.passed !== 'boolean') ||
             result.details.filter(test => test.passed === true).length !== result.passed) {
             throw new Error('Incomplete or inconsistent browser test results');
         }

@@ -55,7 +55,8 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 Run `node scripts/run-tests.js` for offline/file-mode coverage and
 `npm run test:http` for the complete HTTP-enabled browser harness. The HTTP
 command starts a loopback-only server on an available port and cleans it up
-afterward. Both modes wait for an explicit completion signal.
+afterward. Both modes wait for an explicit completion signal and require a
+boolean `passed` result on every detail record, consistent with the aggregate counts.
 
 Run `npm run test:runner` to exercise delayed completion, failed assertions,
 browser exceptions, rejected promises, invalid results, and timeout handling.
