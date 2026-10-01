@@ -6137,14 +6137,46 @@ function getWorkloadGpuMinimumPerNode(w) {
     return w.gpuDdaCount || 1;
 }
 
-function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumPerNode = 0) {
+function canPlaceGpuWorkers(workloadList, gpuCountPerNode, nodeCount) {
+    const groups = [];
+    workloadList.forEach(w => {
+        if (w.gpuMode !== 'dda' || (w.type === 'vm' && w.inputMode === 'total')) return;
+        const pools = getAiGpuWorkerPools(w);
+        if (pools.length) {
+            pools.forEach(pool => groups.push({ size: pool.size.gpus, count: pool.nodes }));
+        } else {
+            groups.push({
+                size: getWorkloadGpuMinimumPerNode(w),
+                count: calculateWorkloadGpuRequirement(w) / (w.gpuDdaCount || 1)
+            });
+        }
+    });
+    // Largest-first packing is exact for the supported 1-4 GPU machine capacities.
+    // Batch identical workers so large imported fleets cannot create unbounded arrays.
+    const available = Array.from({ length: nodeCount > 1 ? nodeCount - 1 : 1 }, () => gpuCountPerNode);
+    groups.sort((a, b) => b.size - a.size);
+    for (const group of groups) {
+        let remaining = group.count;
+        for (let i = 0; i < available.length && remaining > 0; i++) {
+            const placed = Math.min(remaining, Math.floor(available[i] / group.size));
+            available[i] -= placed * group.size;
+            remaining -= placed;
+        }
+        if (remaining > 0) return false;
+    }
+    return true;
+}
+
+function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumPerNode = 0, workloadList = []) {
     const demand = Math.max(Number(totalGpus) || 0, 0);
     if (demand === 0) return 0;
     const physicalNodes = Math.max(Number(nodeCount) || 1, 1);
     const effectiveNodes = physicalNodes > 1 ? physicalNodes - 1 : 1;
     const supportedMax = Math.max(Number(maxPerNode) || 1, 1);
     const requiredBelowThreshold = Math.floor(demand / (effectiveNodes * 0.9)) + 1;
-    return Math.min(Math.max(requiredBelowThreshold, minimumPerNode, 1), supportedMax);
+    let count = Math.min(Math.max(requiredBelowThreshold, minimumPerNode, 1), supportedMax);
+    while (count < supportedMax && !canPlaceGpuWorkers(workloadList, count, physicalNodes)) count++;
+    return count;
 }
 
 // Calculate all requirements
@@ -6280,10 +6312,7 @@ function calculateRequirements(options) {
             const gpuModel = GPU_MODELS[gpuType];
             const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
             if (currentGpuCount > 0 && currentGpuCount < maxPerNode) {
-                // Calculate needed GPUs per node: totalGpus / effectiveNodes, rounded up
-                const effNodesForGpu = nodeCount > 1 ? nodeCount - 1 : 1;
-                const neededPerNode = Math.max(Math.ceil(totalGpus / effNodesForGpu), minimumGpusPerNode);
-                const targetPerNode = Math.min(neededPerNode, maxPerNode);
+                const targetPerNode = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumGpusPerNode, workloads);
                 if (targetPerNode > currentGpuCount) {
                     gpuCountEl.value = targetPerNode;
                     markAutoScaled('gpu-count');
@@ -6880,7 +6909,7 @@ function calculateRequirements(options) {
             const gpuCountEl = document.getElementById('gpu-count');
             const gpuModel = GPU_MODELS[hwConfig.gpuType];
             const maxPerNode = gpuModel ? gpuModel.maxPerNode : 1;
-            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumGpusPerNode);
+            const reconciledGpuCount = getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumGpusPerNode, workloads);
             if (gpuCountEl && parseInt(gpuCountEl.value, 10) !== reconciledGpuCount) {
                 gpuCountEl.value = reconciledGpuCount;
                 markAutoScaled('gpu-count');
@@ -7723,6 +7752,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Single workload exceeds per-node capacity check
         let _vmExceedsNode = false;
         if (hwConfig) {
+            if (!canPlaceGpuWorkers(workloads, hwConfig.gpuCount || 0, nodeCount)) {
+                notes.push('🚫 GPU workers cannot all be placed on the ' + effectiveNodes + ' available machine(s) with ' + (hwConfig.gpuCount || 0) + ' GPUs per machine' + (nodeCount > 1 ? ' during N−1 maintenance' : '') + '. Each worker needs its GPUs on the same machine; aggregate GPU capacity alone is not sufficient. Increase GPUs per machine, add machines, or select smaller/fewer GPU workers.');
+                _vmExceedsNode = true;
+            }
             const singleVmVcpuRatio = getVcpuRatio();
             const hostMemReservedGB = getHostMemoryReservedGB(hwConfig, clusterType);
             const hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);

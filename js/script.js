@@ -6504,6 +6504,7 @@ function updateStepIndicators() {
             if (!state.activeDirectory) return false;
             // DNS servers required for both options
             if (!state.dnsServers || state.dnsServers.filter(s => s && String(s).trim()).length === 0) return false;
+            if (getDnsValidationError()) return false;
             // For Active Directory: domain name required
             if (state.activeDirectory === 'azure_ad' && !state.adDomain) return false;
             // For Local Identity (AD-Less): local DNS zone required

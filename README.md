@@ -68,6 +68,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Designer infrastructure readiness** — deployment transitions clear stale infrastructure inputs, and missing or invalid IP pools block Report and ARM output until corrected.
 - **Validated Designer examples** — corrected example DNS addresses and automated full-page checks for every template; blank DNS entries and DNS conflicts block completion and Report/ARM output. AD-less DNS zone edits immediately update progress and readiness.
 - **AD-less ARM inputs** — current and legacy local-identity outputs hide the irrelevant Active Directory OU path.
+- **Consistent DNS completion** — invalid DNS clears the Identity/DNS step checkmark as well as blocking progress and outputs.
+- **Whole-worker GPU packing** — AUTO inventory accounts for all indivisible workers fitting across N-1 machines, including mixed worker sizes. Insufficient manual inventory warns and blocks Designer handoff without changing the selection.
 - **Clean Designer reset and role guidance** — Start Over removes the obsolete Sizer import confirmation; workload clusters no longer show the previous management role's fixed-three-machine explanation.
 - **Azure DevOps pipeline setup** — generated YAML declares its required service-connection placeholder and authorization guidance.
 - **Disaggregated validation** — invalid node addresses also block reports, HCI witness details no longer leak into disaggregated summaries, and reports omit inactive dedicated iSCSI and backup subnets.

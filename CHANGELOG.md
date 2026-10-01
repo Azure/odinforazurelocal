@@ -25,6 +25,8 @@ Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azu
 
 ### Fixed
 
+- **Whole-worker GPU packing** - AUTO GPU inventory now fits all indivisible DDA workers across N-1 available machines rather than relying on aggregate demand and the largest worker alone. Manual inventory is preserved, with an explicit placement blocker when workers cannot fit; mixed worker sizes, more-machine recovery, and AUTO recovery are covered. Total VM fleet GPU requirements and GPU-P retain their aggregate capacity behavior.
+- **DNS step completion** - The Identity/DNS step checkmark now uses the same DNS validation as overall progress and Report/ARM readiness, so invalid addresses no longer leave a green completion marker.
 - **AD-less DNS readiness and ARM inputs** - DNS zone edits immediately synchronize progress and output readiness. Empty DNS server rows no longer satisfy required DNS configuration, and identity changes clear the previous DNS success message. ARM output recognizes current and legacy AD-less identity values and hides the irrelevant OU path input.
 - **AI worker CPU and memory placement** - Validate each selected Foundry, Video Indexer, and Agentic GPU worker pool against one machine's usable CPU and memory after host reservations. An unplaceable worker blocks Designer handoff even when aggregate capacity is sufficient; correcting hardware capacity clears the warning without replacing manual settings.
 - **Designer reset confirmation cleanup** - Start Over removes the previous Sizer import banner as well as the imported state, so a fresh design no longer displays obsolete machine and hardware details.

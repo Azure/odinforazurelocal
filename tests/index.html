@@ -2518,6 +2518,37 @@
                         && !win._sizerVmExceedsNode && !doc.querySelector('.btn-designer').disabled,
                     'Returning GPU inventory to AUTO clears the placement blocker in one action', true,
                     doc.getElementById('gpu-count').value));
+                    const packedDesign = {
+                        ...win.getSizerState(), nodeCount: '4', nodeCountUserSet: true, futureGrowth: '0',
+                        nodeMemory: '512', memoryUserSet: true, cpuCores: '32', cpuSockets: '2', cpuConfigUserSet: true,
+                        workloads: [{ ...placementDesign.workloads[1], workerNodes: 4 }]
+                    };
+                    win.applyImportedSizerState({ ...win.getSizerState(), workloads: [], workloadIdCounter: 0 });
+                    win.applyImportedSizerState(structuredClone(packedDesign));
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '4'
+                        && !win._sizerVmExceedsNode && !doc.querySelector('.btn-designer').disabled,
+                    'Four two-GPU workers on four machines AUTO-reconcile to four GPUs per machine',
+                    '4 / unblocked', JSON.stringify(win.getSizerState())));
+                    doc.getElementById('gpu-count').value = '3';
+                    doc.getElementById('gpu-count').dispatchEvent(new Event('change', { bubbles: true }));
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '3'
+                        && win._sizerVmExceedsNode && doc.querySelector('.btn-designer').disabled
+                        && doc.getElementById('sizing-notes').textContent.includes('GPU workers cannot all be placed'),
+                    'Manual three-GPU inventory preserves selection but blocks fragmented N-1 capacity',
+                    true, JSON.stringify({ state: win.getSizerState(), blocked: win._sizerVmExceedsNode,
+                        notes: doc.getElementById('sizing-notes').textContent.slice(0, 1500) })));
+                    doc.getElementById('node-count').value = '5';
+                    doc.getElementById('node-count').dispatchEvent(new Event('change', { bubbles: true }));
+                    gpuResults.push(assert(!win._sizerVmExceedsNode && !doc.querySelector('.btn-designer').disabled
+                        && doc.getElementById('gpu-count').value === '3',
+                    'Adding a fifth machine resolves worker placement without changing manual GPUs',
+                    false, win._sizerVmExceedsNode));
+                    doc.getElementById('node-count').value = '4';
+                    doc.getElementById('node-count').dispatchEvent(new Event('change', { bubbles: true }));
+                    win.clearSingleManualOverride('gpu-count');
+                    gpuResults.push(assert(doc.getElementById('gpu-count').value === '4' && !win._sizerVmExceedsNode,
+                        'Returning fragmented inventory to AUTO restores four GPUs and clears blocker',
+                        '4', doc.getElementById('gpu-count').value));
                     placementDesign.workloads[1].gpuWorkerVmSize = 'Standard_NC16_L4_1';
                     placementDesign.workloads[1].gpuDdaCount = 1;
                     win.applyImportedSizerState(structuredClone(placementDesign));
@@ -2905,6 +2936,7 @@
                                 const dnsError = doc.getElementById('dns-error');
                                 templatePageResults.push(assert(!dnsError.classList.contains('hidden')
                                     && report.disabled && arm.disabled
+                                    && !doc.querySelector('#step-13 .step-indicator')
                                     && !doc.getElementById('wizard-progress-text').textContent.trim().startsWith('100%'),
                                 name + ' invalid DNS blocks completion and both outputs: ' + invalidDns,
                                 true, JSON.stringify({ error: dnsError.textContent, report: report.disabled, arm: arm.disabled })));
@@ -2913,6 +2945,7 @@
                             dns.dispatchEvent(new win.Event('change', { bubbles: true }));
                             templatePageResults.push(assert(doc.getElementById('dns-error').classList.contains('hidden')
                                 && !report.disabled && !arm.disabled
+                                && doc.querySelector('#step-13 .step-indicator')
                                 && doc.getElementById('wizard-progress-text').textContent.trim().startsWith('100%'),
                             name + ' DNS correction restores completion in one edit', true, report.title));
                             const nodeIp = doc.querySelector('input[onchange^="updateNodeIpCidr(1,"]');
@@ -5174,6 +5207,32 @@
             assert(getAutoGpuCountPerNode(0, 8, 4, 2) === 0,
                 'Zero demand still clears AUTO GPUs despite a stale minimum', 0,
                 getAutoGpuCountPerNode(0, 8, 4, 2)),
+            (() => {
+                const workers = [{ type: 'vm', inputMode: 'per-vm', gpuMode: 'dda', gpuDdaCount: 2, count: 4 }];
+                return assert(getAutoGpuCountPerNode(8, 4, 4, 2, workers) === 4
+                    && !canPlaceGpuWorkers(workers, 3, 4) && canPlaceGpuWorkers(workers, 4, 4)
+                    && canPlaceGpuWorkers(workers, 3, 5),
+                'Indivisible two-GPU workers require four GPUs or a fifth physical machine', true, 'N-1 packing');
+            })(),
+            (() => {
+                const workers = [
+                    { type: 'vm', gpuMode: 'dda', gpuDdaCount: 1, count: 2 },
+                    { type: 'vm', gpuMode: 'dda', gpuDdaCount: 3, count: 2 },
+                    { type: 'vm', gpuMode: 'dda', gpuDdaCount: 2, count: 2 }
+                ];
+                return assert(canPlaceGpuWorkers(workers, 4, 4) && !canPlaceGpuWorkers(workers, 4, 3),
+                    'Mixed worker sizes pack three-plus-one and two-plus-two across workloads', true, 'mixed groups');
+            })(),
+            assert(canPlaceGpuWorkers([{ type: 'vm', inputMode: 'total', gpuMode: 'dda', gpuDdaCount: 8, count: 1 }], 3, 4),
+                'Total VM aggregate has no invented indivisible worker shape', true, 'aggregate excluded'),
+            assert(canPlaceGpuWorkers([{ type: 'vm', gpuMode: 'gpu-p', gpuDdaCount: 4, count: 100 }], 1, 1),
+                'GPU-P remains governed by partition capacity rather than DDA worker packing', true, 'GPU-P excluded'),
+            assert(!canPlaceGpuWorkers([{ type: 'vm', gpuMode: 'dda', gpuDdaCount: 2, count: 1000000 }], 4, 64),
+                'Large DDA fleets are rejected without allocating a per-worker array', false, 'bounded packing'),
+            assert(canPlaceGpuWorkers([{ type: 'vm', gpuMode: 'dda', gpuDdaCount: 2, count: 2 }], 4, 1),
+                'Single-node GPU packing uses one available machine', true, 'single node'),
+            assert(Object.values(GPU_MODELS).every(model => model.maxPerNode <= 4),
+                'Supported GPU capacities stay within the exact largest-first packing bound', true, 'max 4 GPUs'),
             assert(getWorkloadGpuMinimumPerNode({
                 ...WORKLOAD_DEFAULTS.foundry, type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4',
                 gpuDdaCount: 1, gpuWorkerVmSize: 'Standard_NC16_L4_2'
