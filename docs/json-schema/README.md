@@ -55,7 +55,7 @@ Stable URLs (suitable for a `$schema` reference):
 {
   "_meta": {
     "tool": "ODIN Sizer for Azure Local",
-    "version": 4,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
+    "version": 5,                   // SIZER_VERSION — a PAYLOAD-FORMAT integer, not a release version
     "exportedAt": "2026-06-02T10:00:00.000Z",
     "url": "https://azure.github.io/odinforazurelocal/sizer/index.html"
   },
@@ -80,6 +80,16 @@ Stable URLs (suitable for a `$schema` reference):
 - `_meta.version` (`SIZER_VERSION`) is a **payload-format** integer — it only bumps when the Sizer
   payload shape changes, not on every release. Bumped 1 → 2 in v0.22.62 when GitHub Enterprise Local
   (GHEL) became a first-class workload type.
+- For wrapped exports with `_meta.version` equal to `5` or `"5"`, the schema requires
+  non-blank `gpuWorkerVmSize` for Foundry/Video DDA workloads, `embeddingGpuVmSize`
+  for Combined/Knowledge Agentic Retrieval, and `llmGpuVmSize` for local LLM endpoints.
+  Agentic-only with an external endpoint needs neither GPU field. CPU Foundry/Video
+  workloads are unaffected.
+- Earlier versions, missing version metadata, and bare states retain the existing
+  allowance for omitted SKUs so compatible legacy workloads can migrate on import.
+  The importer does not read `_meta.version` and remains deliberately permissive;
+  this schema validates the v5 export contract more strictly. The application still
+  checks SKU support, GPU-model compatibility, and capacity floors.
 
 ## Validate an export
 

@@ -51,6 +51,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ### Version 0.23.07 - Latest Release
 
+- **Sizer JSON validation** — the public v5 schema enforces required AI GPU worker SKU fields while preserving legacy and unversioned import compatibility.
+
 > **Import Hyper-V estates with HVTools, follow the two-phase Azure Local ARM deployment workflow, and preserve switchless networking across design outputs and imports.**
 
 **What's new**

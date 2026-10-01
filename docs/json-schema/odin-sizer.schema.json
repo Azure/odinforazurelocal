@@ -13,7 +13,7 @@
       "properties": {
         "_meta": {
           "type": "object",
-          "description": "Export metadata. NOT read on import; informational only.",
+          "description": "Export metadata. Not read by the importer; version 5 activates GPU worker SKU requirements in this schema.",
           "additionalProperties": true,
           "properties": {
             "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
@@ -33,7 +33,72 @@
       "$ref": "#/definitions/sizerState"
     }
   ],
+  "if": {
+    "required": ["_meta", "data"],
+    "properties": {
+      "_meta": {
+        "type": "object",
+        "required": ["version"],
+        "properties": { "version": { "enum": [5, "5"] } }
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "data": {
+        "properties": {
+          "workloads": {
+            "items": { "$ref": "#/definitions/v5GpuWorkload" }
+          }
+        }
+      }
+    }
+  },
   "definitions": {
+    "v5GpuWorkload": {
+      "description": "Additional requirements for explicitly versioned v5 exports. Older and unversioned payloads may omit worker SKUs for importer migration. Supported SKU/model/capacity combinations are validated by the application.",
+      "allOf": [
+        {
+          "if": {
+            "required": ["type", "gpuMode"],
+            "properties": {
+              "type": { "enum": ["foundry", "videoindexer"] },
+              "gpuMode": { "const": "dda" }
+            }
+          },
+          "then": {
+            "required": ["gpuWorkerVmSize"],
+            "properties": { "gpuWorkerVmSize": { "type": "string", "pattern": "\\S" } }
+          }
+        },
+        {
+          "if": {
+            "required": ["type", "deploymentMode"],
+            "properties": {
+              "type": { "const": "edgerag" },
+              "deploymentMode": { "enum": ["combined", "knowledge"] }
+            }
+          },
+          "then": {
+            "required": ["embeddingGpuVmSize"],
+            "properties": { "embeddingGpuVmSize": { "type": "string", "pattern": "\\S" } }
+          }
+        },
+        {
+          "if": {
+            "required": ["type", "llmEndpoint"],
+            "properties": {
+              "type": { "const": "edgerag" },
+              "llmEndpoint": { "enum": ["foundry-minimum", "foundry-production"] }
+            }
+          },
+          "then": {
+            "required": ["llmGpuVmSize"],
+            "properties": { "llmGpuVmSize": { "type": "string", "pattern": "\\S" } }
+          }
+        }
+      ]
+    },
     "sizerState": {
       "type": "object",
       "description": "Sizer cluster + hardware + workload configuration. The importer duck-types validity by requiring at least `clusterType` OR `workloads`. additionalProperties is true for forward-compatibility; dangerous keys (__proto__/constructor/prototype) are rejected by the importer.",
@@ -125,9 +190,9 @@
         "name": { "type": "string" },
         "gpuDdaModel": { "type": "string", "description": "GPU model key. All GPU workloads in an instance must use the same physical model." },
         "gpuDdaCount": { "type": "integer", "minimum": 1, "description": "For AI workloads, a compatibility mirror of the largest per-worker GPU count. Role-specific VM sizes determine actual demand." },
-        "gpuWorkerVmSize": { "type": "string", "description": "Required for DDA Foundry Local and Video Indexer: supported AKS Arc GPU VM SKU matching gpuDdaModel and meeting the chosen worker capacity floor. Determines CPU, RAM, GPUs and VRAM per worker." },
-        "embeddingGpuVmSize": { "type": "string", "description": "Required for Agentic Retrieval embedding workers (Combined/Knowledge). Supported AKS Arc GPU VM SKU, sized independently of the local LLM pool." },
-        "llmGpuVmSize": { "type": "string", "description": "Required for a local Agentic Retrieval LLM endpoint. Supported AKS Arc GPU VM SKU meeting the endpoint CPU, RAM and per-GPU VRAM floor. Adding several smaller GPUs does not satisfy a per-GPU VRAM minimum." },
+        "gpuWorkerVmSize": { "type": "string", "description": "Required in v5 for DDA Foundry Local and Video Indexer; optional for legacy migration. Supported AKS Arc GPU VM SKU matching gpuDdaModel and meeting the chosen worker capacity floor. Determines CPU, RAM, GPUs and VRAM per worker." },
+        "embeddingGpuVmSize": { "type": "string", "description": "Required in v5 for Agentic Retrieval embedding workers (Combined/Knowledge); optional for legacy migration. Supported AKS Arc GPU VM SKU, sized independently of the local LLM pool." },
+        "llmGpuVmSize": { "type": "string", "description": "Required in v5 for a local Agentic Retrieval LLM endpoint; optional for legacy migration. Supported AKS Arc GPU VM SKU meeting the endpoint CPU, RAM and per-GPU VRAM floor. Adding several smaller GPUs does not satisfy a per-GPU VRAM minimum." },
         "gpuMode": {
           "type": ["string", "null"],
           "enum": ["none", "dda", null],

@@ -5,6 +5,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const Ajv = require('ajv');
 const { pathToFileURL } = require('node:url');
 const { startTestServer, collectBrowserTests } = require('./browser-test-harness.js');
 const useHttp = process.argv.includes('--http');
@@ -549,6 +550,75 @@ function checkSchemaDrift() {
     return allOk;
 }
 
+function checkSizerGpuSchemaRequirements() {
+    const schema = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'docs', 'json-schema', 'odin-sizer.schema.json'), 'utf8'));
+    const validate = new Ajv({ strict: false, validateFormats: false }).compile(schema);
+    const foundry = {
+        type: 'foundry', workerProfile: 'recommended', workerNodes: 1, modelDeployments: 1,
+        modelCacheStorageGB: 100, engine: 'onnx-genai', gpuMode: 'dda',
+        gpuWorkerVmSize: 'Standard_NC16_L4_1'
+    };
+    const video = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'dda', gpuWorkerVmSize: 'Standard_NC32_L4_1' };
+    const cases = [
+        { label: 'Foundry DDA', workload: foundry, fields: ['gpuWorkerVmSize'] },
+        { label: 'Video DDA', workload: video, fields: ['gpuWorkerVmSize'] },
+        { label: 'Foundry CPU', workload: { ...foundry, gpuMode: 'none', gpuWorkerVmSize: undefined }, fields: [] },
+        { label: 'Video CPU', workload: { ...video, gpuMode: 'none', gpuWorkerVmSize: undefined }, fields: [] },
+        { label: 'VM DDA', workload: { type: 'vm', vcpus: 4, memory: 16, storage: 100, gpuMode: 'dda' }, fields: [] }
+    ];
+    for (const deploymentMode of ['combined', 'knowledge', 'agentic']) {
+        for (const llmEndpoint of ['external', 'foundry-minimum', 'foundry-production']) {
+            const fields = [];
+            const workload = { type: 'edgerag', deploymentMode, llmEndpoint, corpusGB: 100, gpuMode: 'dda' };
+            if (deploymentMode !== 'agentic') {
+                workload.embeddingGpuVmSize = 'Standard_NC16_L4_1';
+                fields.push('embeddingGpuVmSize');
+            }
+            if (llmEndpoint !== 'external') {
+                workload.llmGpuVmSize = 'Standard_NC32_L4_1';
+                fields.push('llmGpuVmSize');
+            }
+            if (!fields.length) workload.gpuMode = 'none';
+            cases.push({ label: deploymentMode + '/' + llmEndpoint, workload, fields });
+        }
+    }
+    let checked = 0;
+    let allOk = true;
+    function check(payload, expected, label) {
+        checked++;
+        const actual = validate(payload);
+        if (actual !== expected) {
+            allOk = false;
+            console.error(`Sizer GPU schema: ${label}: expected ${expected}, got ${actual}: ${JSON.stringify(validate.errors)}`);
+        }
+    }
+    for (const test of cases) {
+        for (const version of [5, '5']) {
+            const payload = { _meta: { version }, data: { workloads: [test.workload] } };
+            check(payload, true, test.label + ' valid v' + version);
+            for (const field of test.fields) {
+                for (const invalid of [undefined, '', ' ', null]) {
+                    const bad = JSON.parse(JSON.stringify(payload));
+                    if (invalid === undefined) delete bad.data.workloads[0][field];
+                    else bad.data.workloads[0][field] = invalid;
+                    check(bad, false, test.label + ' invalid ' + field + ' v' + version);
+                    bad.clusterType = 'standard';
+                    check(bad, false, test.label + ' cannot bypass v5 through bare-state branch');
+                }
+            }
+        }
+        const legacy = JSON.parse(JSON.stringify(test.workload));
+        for (const field of test.fields) delete legacy[field];
+        for (const version of [4, '4', undefined]) {
+            check({ _meta: { version }, data: { workloads: [legacy] } }, true, test.label + ' legacy v' + version);
+        }
+        check({ data: { workloads: [legacy] } }, true, test.label + ' missing metadata');
+        check({ workloads: [legacy] }, true, test.label + ' bare legacy');
+    }
+    if (allOk) console.log(`Sizer GPU schema requirements OK: ${checked}/${checked} cases`);
+    return allOk;
+}
+
 // Renderer coverage. Every depth-1 field of select Sizer→Designer payload
 // sub-objects should be referenced (by bare identifier) in every downstream
 // renderer that's expected to surface it. This is a coarse text-grep — it
@@ -1011,6 +1081,10 @@ function generateJUnitXML(results, passed, failed, total) {
         // keep docs/json-schema/ in lock-step with the in-app state objects).
         if (!checkSchemaDrift()) {
             console.error('\n❌ Schema drift check failed — update docs/json-schema/ to match the state object(s) in the same PR.');
+            process.exit(1);
+        }
+        if (!checkSizerGpuSchemaRequirements()) {
+            console.error('\nSizer GPU schema requirement checks failed.');
             process.exit(1);
         }
 
