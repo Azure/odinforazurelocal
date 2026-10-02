@@ -86,6 +86,7 @@ node scripts/run-tests.js            # must show the complete suite passing
 - Node.js scripts (under `scripts/`, `tools/`) are not linted by CI. `tools/` has its own `.eslintrc.json` with `env.node = true` so local broad-scope lints (`npx eslint tools/`) still pass.
 
 ## CHANGELOG & Version Discipline
+- Starting with the next release after `0.23.07`, use `YY.MM.DD` CalVer based on the actual publication date, with zero-padded month/day and no leading `0.` (for example `27.01.01`). Follow [Application release numbering](../CONTRIBUTING.md#application-release-numbering); preserve historical versions and keep `SIZER_VERSION` independent. Do not invent same-day release suffixes without an agreed and validated convention.
 - Follow `.github/skills/release-readiness/SKILL.md` before declaring user-visible work complete or preparing a release PR. For changes added to the same unreleased version, update `CHANGELOG.md` and review/update both the README summary and in-app `js/changelog.js` entry; an unchanged version number does not waive this check. Record a reason if a summary needs no change.
 - Every user-visible change gets an entry in `CHANGELOG.md` under the **current unreleased version heading** at the top of the file (create a new `## Version X.Y.Z` section if one doesn't exist for the in-progress release).
 - When a version ships, the latest version stays in `README.md`'s What's New section; the previous summary moves to `docs/version-history/README.md`. Do not duplicate the current release in the history file.

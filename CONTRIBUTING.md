@@ -50,6 +50,29 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 
 ## Repository Reference
 
+### Application release numbering
+
+Starting with the next release after `0.23.07`, ODIN uses calendar versioning
+(CalVer) in `YY.MM.DD` format: a two-digit year, zero-padded month, and zero-padded
+day based on the actual publication date. For example, 2 October 2026 is
+`26.10.02`, and 1 January 2027 is `27.01.01`. Do not add a leading `0.`.
+
+This is not Semantic Versioning: leading zeros are intentional, and the version
+does not encode compatibility guarantees. Keep previously published versions,
+including `0.23.07`, unchanged. Do not assign the next release's date merely when
+development starts.
+
+When preparing the first CalVer release, verify version consumers, export/import
+compatibility, and release-history checks; update `js/version.js`, `CHANGELOG.md`,
+the README What's New summary, and `js/changelog.js` together. Explain the naming
+change in that release's notes and move the previous README summary into
+`docs/version-history/README.md`.
+
+`SIZER_VERSION` remains an independent payload-format integer; adopting CalVer
+does not change the JSON contract. Same-day additional release numbering is not
+yet agreed: decide and validate a convention before publishing one, rather than
+reusing a published version or introducing an unsupported suffix.
+
 ### Maintainer validation
 
 Run `node scripts/run-tests.js` for offline/file-mode coverage and
