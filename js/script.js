@@ -4158,6 +4158,8 @@ function updateUI() {
 
     // 3. Node Chips Logic & Visuals
     document.querySelectorAll('.node-chip').forEach(chip => {
+        // Disaggregated node counts come from DA3, not these hidden HCI controls.
+        if (state.architecture === 'disaggregated') return;
         const clickFn = chip.getAttribute('onclick');
         if (!clickFn) return;
         const valueStr = clickFn.match(/'([^']+)'\)$/)[1];

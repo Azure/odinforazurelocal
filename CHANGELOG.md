@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.08] - 2026-11-18
+
+Targeted maintenance release for [#309](https://github.com/Azure/odinforazurelocal/issues/309).
+
+### Fixed
+
+- **Disaggregated node names and IPs ([#309](https://github.com/Azure/odinforazurelocal/issues/309))** - Preserve Static IP node settings in designs with 1-16 nodes. Hidden HCI node-count controls no longer clear Disaggregated settings during UI updates. Sequential IP/name autofill and manually edited names remain intact. Add real-page regression coverage for 3, 16, and 18 nodes; HCI restrictions and JSON payload shapes are unchanged.
+
+### Changed
+
+- **Release numbering exception** - Publish the explicitly requested `0.23.08` targeted fix as the final legacy-numbered release. The following release adopts `YY.MM.DD` CalVer; historical versions and the independent Sizer payload-format integer remain unchanged.
+
 ## [0.23.07] - 2026-09-30
 
 Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azure Local ARM deployment workflow, switchless networking fixes, and development dependency security. The shared application version, README, and in-app What's New now reflect these changes.

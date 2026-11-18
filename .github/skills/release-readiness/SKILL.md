@@ -11,7 +11,8 @@ skills. It does not replace their scenario matrices.
 ## Release documentation
 
 Follow [Application release numbering](../../../CONTRIBUTING.md#application-release-numbering):
-the next release after `0.23.07` adopts `YY.MM.DD` CalVer using the actual
+the explicitly requested `0.23.08` fix for #309 is the final legacy-numbered
+exception. The next release after `0.23.08` adopts `YY.MM.DD` CalVer using the actual
 publication date, with zero-padded month/day and no leading `0.`. At that
 transition, verify version consumers and export/import compatibility, document
 the naming change, and preserve historical versions and the independent Sizer

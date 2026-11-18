@@ -9,7 +9,7 @@
   "properties": {
     "version": {
       "type": "string",
-      "description": "App version that produced the file (shared ODIN_VERSION from js/version.js; 0.23.07 for this release). Metadata only — not validated against and not read on import. Release-version updates do not change the payload structure."
+      "description": "App version that produced the file (shared ODIN_VERSION from js/version.js; 0.23.08 for this release). Metadata only — not validated against and not read on import. Release-version updates do not change the payload structure."
     },
     "exportedAt": {
       "type": "string",

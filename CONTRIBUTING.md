@@ -52,14 +52,15 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 
 ### Application release numbering
 
-Starting with the next release after `0.23.07`, ODIN uses calendar versioning
+The explicitly requested `0.23.08` targeted fix for issue #309 is the final
+legacy-numbered release. Starting with the next release after `0.23.08`, ODIN uses calendar versioning
 (CalVer) in `YY.MM.DD` format: a two-digit year, zero-padded month, and zero-padded
 day based on the actual publication date. For example, 2 October 2026 is
 `26.10.02`, and 1 January 2027 is `27.01.01`. Do not add a leading `0.`.
 
 This is not Semantic Versioning: leading zeros are intentional, and the version
 does not encode compatibility guarantees. Keep previously published versions,
-including `0.23.07`, unchanged. Do not assign the next release's date merely when
+including `0.23.07` and `0.23.08`, unchanged. Do not assign the next release's date merely when
 development starts.
 
 When preparing the first CalVer release, verify version consumers, export/import
