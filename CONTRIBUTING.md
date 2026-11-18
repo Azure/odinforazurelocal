@@ -91,6 +91,27 @@ and the relevant real-UI validation skills before publication. HTTP integration
 checks do not replace complete end-to-end release scenarios or native PowerPoint
 inspection.
 
+### Development dependency audit
+
+Run `node scripts/check-npm-audit.js` for the CI high/critical advisory gate and
+`npm run test:audit` for its regression tests. Audit service errors fail the gate.
+
+Until **2026-12-18 00:00 UTC**, the gate explicitly accepts only picomatch advisory
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) in transitive
+dependencies whose affected lockfile entries are all development-only. There is
+no patched published picomatch release at the time of this exception.
+
+Picomatch is used by Stylelint to match repository-controlled file patterns,
+including the fixed `**/*.css` lint command. The advisory concerns excessive CPU
+use from crafted glob patterns: it can hang developer/CI linting, but this
+dependency is not loaded by the browser or published to GitHub Pages. Website
+visitor inputs do not reach it.
+
+The exception is logged, does not cover other advisories or critical severity,
+and stops applying at expiry. Remove it as soon as a patched dependency path is
+available. Raw `npm audit` will continue reporting the accepted finding; a
+passing policy gate is not a vulnerability-free dependency tree.
+
 This map is provided to help issue reporters identify the affected product area. It is not an invitation or workflow for external code contributions.
 
 ### Repository Map
