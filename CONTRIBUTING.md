@@ -50,6 +50,29 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 
 ## Repository Reference
 
+### Application release numbering
+
+Starting with the next release after `0.23.07`, ODIN uses calendar versioning
+(CalVer) in `YY.MM.DD` format: a two-digit year, zero-padded month, and zero-padded
+day based on the actual publication date. For example, 2 October 2026 is
+`26.10.02`, and 1 January 2027 is `27.01.01`. Do not add a leading `0.`.
+
+This is not Semantic Versioning: leading zeros are intentional, and the version
+does not encode compatibility guarantees. Keep previously published versions,
+including `0.23.07`, unchanged. Do not assign the next release's date merely when
+development starts.
+
+When preparing the first CalVer release, verify version consumers, export/import
+compatibility, and release-history checks; update `js/version.js`, `CHANGELOG.md`,
+the README What's New summary, and `js/changelog.js` together. Explain the naming
+change in that release's notes and move the previous README summary into
+`docs/version-history/README.md`.
+
+`SIZER_VERSION` remains an independent payload-format integer; adopting CalVer
+does not change the JSON contract. Same-day additional release numbering is not
+yet agreed: decide and validate a convention before publishing one, rather than
+reusing a published version or introducing an unsupported suffix.
+
 ### Maintainer validation
 
 Run `node scripts/run-tests.js` for offline/file-mode coverage and
@@ -67,6 +90,27 @@ Follow the [release-readiness checklist](.github/skills/release-readiness/SKILL.
 and the relevant real-UI validation skills before publication. HTTP integration
 checks do not replace complete end-to-end release scenarios or native PowerPoint
 inspection.
+
+### Development dependency audit
+
+Run `node scripts/check-npm-audit.js` for the CI high/critical advisory gate and
+`npm run test:audit` for its regression tests. Audit service errors fail the gate.
+
+Until **2026-12-18 00:00 UTC**, the gate explicitly accepts only picomatch advisory
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) in transitive
+dependencies whose affected lockfile entries are all development-only. There is
+no patched published picomatch release at the time of this exception.
+
+Picomatch is used by Stylelint to match repository-controlled file patterns,
+including the fixed `**/*.css` lint command. The advisory concerns excessive CPU
+use from crafted glob patterns: it can hang developer/CI linting, but this
+dependency is not loaded by the browser or published to GitHub Pages. Website
+visitor inputs do not reach it.
+
+The exception is logged, does not cover other advisories or critical severity,
+and stops applying at expiry. Remove it as soon as a patched dependency path is
+available. Raw `npm audit` will continue reporting the accepted finding; a
+passing policy gate is not a vulnerability-free dependency tree.
 
 This map is provided to help issue reporters identify the affected product area. It is not an invitation or workflow for external code contributions.
 

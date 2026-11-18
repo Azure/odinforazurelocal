@@ -10,6 +10,14 @@ skills. It does not replace their scenario matrices.
 
 ## Release documentation
 
+Follow [Application release numbering](../../../CONTRIBUTING.md#application-release-numbering):
+the next release after `0.23.07` adopts `YY.MM.DD` CalVer using the actual
+publication date, with zero-padded month/day and no leading `0.`. At that
+transition, verify version consumers and export/import compatibility, document
+the naming change, and preserve historical versions and the independent Sizer
+payload-format integer. Agree and validate same-day additional release numbering
+before publishing a second release with the same date.
+
 For every user-visible change, including additions to an already-numbered
 unreleased version:
 
