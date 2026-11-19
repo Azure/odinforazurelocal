@@ -8742,6 +8742,7 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
             });
             for (const diagram of diagrams) {
                 let svg = diagram;
+                let diagramBackground = background;
                 if (diagram.tagName.toLowerCase() === 'img') {
                     if (!/\.svg(?:[?#]|$)/i.test(diagram.src)) continue;
                     let svgText;
@@ -8755,8 +8756,10 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
                         svgText = await response.text();
                     }
                     svg = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
+                    // Parsed assets retain authored styles; the capture clone inlines computed SVG styles.
+                    diagramBackground = svg.style.backgroundColor || background;
                 }
-                const png = await window.__odinSvgElementToPng(svg, { theme: theme, background: background, scale: 2 });
+                const png = await window.__odinSvgElementToPng(svg, { theme: theme, background: diagramBackground, scale: 2 });
                 if (!png) throw new Error('Unable to prepare a report diagram for PDF export.');
                 const bounds = diagram.getBoundingClientRect();
                 const image = clonedDocument.createElement('img');

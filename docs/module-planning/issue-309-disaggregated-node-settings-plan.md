@@ -71,6 +71,9 @@ live report and surface rasterization failures instead of omitting diagrams.
 - Preserve the active report palette and background together in PDF capture,
   including light and Print Friendly modes. Check rasterized diagram contrast
   and actual downloads in both themes over HTTP and `file://`.
+- Preserve authored backgrounds for standalone SVGs with fixed pale labels and
+  links; extend actual rasterized-output checks to the external fabric diagram,
+  not only the theme-aware host diagram.
 - Update the same release notes and reply to both review threads with evidence.
 
 ## Implementation order

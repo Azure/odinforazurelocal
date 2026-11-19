@@ -519,6 +519,8 @@ for (const [label, template] of [
                 const foreground = theme === 'print-friendly' ?
                     await report.locator('body').evaluate(element => getComputedStyle(element).color) :
                     await sourceDiagram.locator('text[fill="var(--text-primary)"]').first().evaluate(element => getComputedStyle(element).fill);
+                const fabricSvg = label === 'disaggregated' ?
+                    await fs.readFile(path.resolve('images', 'disaggregated', 'leaf-spine-topology-four-racks.svg'), 'utf8') : null;
                 const exportErrors = [];
                 report.on('console', message => {
                     if (message.type() === 'error') exportErrors.push(message.text());
@@ -536,7 +538,14 @@ for (const [label, template] of [
                     const image = report.frameLocator('iframe.html2canvas-container').getByAltText(diagramLabel, { exact: true });
                     await image.waitFor({ state: 'attached', timeout: 30000 });
                     const png = await image.getAttribute('src');
-                    return report.evaluate(async png => {
+                    let fabricPng;
+                    if (fabricSvg) {
+                        const fabricImage = report.frameLocator('iframe.html2canvas-container')
+                            .getByAltText('Leaf-spine topology for disaggregated Azure Local', { exact: true });
+                        await expect(fabricImage).toHaveAttribute('src', /^data:image\/png;base64,/);
+                        fabricPng = await fabricImage.getAttribute('src');
+                    }
+                    return report.evaluate(async ({ png, fabricPng, fabricSvg }) => {
                         const element = new Image();
                         element.src = png;
                         await element.decode();
@@ -544,8 +553,26 @@ for (const [label, template] of [
                         canvas.width = canvas.height = 1;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(element, 0, 0, 1, 1, 0, 0, 1, 1);
-                        return { png, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
-                    }, png);
+                        const result = { png, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
+                        if (fabricPng) {
+                            element.src = fabricPng;
+                            await element.decode();
+                            ctx.clearRect(0, 0, 1, 1);
+                            ctx.drawImage(element, 20, 20, 1, 1, 0, 0, 1, 1);
+                            result.fabric = { png: fabricPng, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
+                            const source = new DOMParser().parseFromString(fabricSvg, 'image/svg+xml').documentElement;
+                            for (const [key, color] of [
+                                ['authoredBackground', source.style.backgroundColor],
+                                ['foreground', source.querySelector('text').getAttribute('fill')]
+                            ]) {
+                                ctx.clearRect(0, 0, 1, 1);
+                                ctx.fillStyle = color;
+                                ctx.fillRect(0, 0, 1, 1);
+                                result.fabric[key] = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+                            }
+                        }
+                        return result;
+                    }, { png, fabricPng, fabricSvg });
                 })();
                 const [file, diagram] = await Promise.race([Promise.all([download, capture]), failure]);
                 const target = path.join(artifacts, 'pdf-' + label + '-' + protocol + '-' + theme);
@@ -565,6 +592,17 @@ for (const [label, template] of [
                     (Math.min(textLuminance, backgroundLuminance) + 0.05);
                 t.diagnostic('Generated host-diagram contrast: ' + contrast.toFixed(2) + ':1');
                 assert.ok(contrast >= 4.5, 'Rasterized diagram text/background contrast must meet WCAG AA: ' + contrast);
+                if (diagram.fabric) {
+                    await fs.writeFile(target + '-fabric.png', Buffer.from(diagram.fabric.png.split(',')[1], 'base64'));
+                    assert.deepEqual(diagram.fabric.background, diagram.fabric.authoredBackground,
+                        'Fixed-palette fabric diagrams retain their authored background');
+                    const fabricText = luminance(diagram.fabric.foreground);
+                    const fabricBackground = luminance(diagram.fabric.background);
+                    const fabricContrast = (Math.max(fabricText, fabricBackground) + 0.05) /
+                        (Math.min(fabricText, fabricBackground) + 0.05);
+                    t.diagnostic('Generated fabric-diagram title contrast: ' + fabricContrast.toFixed(2) + ':1');
+                    assert.ok(fabricContrast >= 4.5, 'Rasterized fabric diagram labels retain readable contrast');
+                }
                 assert.deepEqual(pageErrors, [], 'No uncaught exceptions');
                 assert.deepEqual(exportErrors, [], 'No PDF export console errors');
             } catch (error) {
