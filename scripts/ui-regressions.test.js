@@ -451,7 +451,7 @@ test('Offline report diagram bundle matches the source SVG assets', async () => 
     const names = (await fs.readdir(source)).filter(name => name.endsWith('.svg')).sort();
     assert.deepEqual(Object.keys(window.ODIN_REPORT_DIAGRAM_ASSETS).sort(), names);
     for (const name of names) {
-        assert.equal(window.ODIN_REPORT_DIAGRAM_ASSETS[name], await fs.readFile(path.join(source, name), 'utf8'),
+        assert.equal(window.ODIN_REPORT_DIAGRAM_ASSETS[name], (await fs.readFile(path.join(source, name), 'utf8')).replace(/\r\n/g, '\n'),
             name + ': regenerate with node scripts/generate-report-diagram-assets.js');
     }
 });
