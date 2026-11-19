@@ -74,6 +74,10 @@ live report and surface rasterization failures instead of omitting diagrams.
 - Preserve authored backgrounds for standalone SVGs with fixed pale labels and
   links; extend actual rasterized-output checks to the external fabric diagram,
   not only the theme-aware host diagram.
+- Check actual foreground-colored glyph pixels inside rasterized label bounds,
+  not only inferred foreground/background contrast. Remove computed-style
+  overrides in light SVG rasterization so Print Friendly PDFs retain real,
+  readable label text.
 - Update the same release notes and reply to both review threads with evidence.
 
 ## Implementation order

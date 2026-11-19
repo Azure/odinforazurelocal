@@ -516,9 +516,16 @@ for (const [label, template] of [
                 if (theme === 'print-friendly') await report.locator('#print-friendly-btn').click();
                 const sourceDiagram = report.locator('svg.switchless-diagram__svg').first();
                 const diagramLabel = await sourceDiagram.getAttribute('aria-label');
+                const primaryLabel = sourceDiagram.locator('text[fill="var(--text-primary)"]').first();
+                const labelBox = await primaryLabel.evaluate(element => {
+                    const box = element.getBBox();
+                    const viewBox = element.ownerSVGElement.viewBox.baseVal;
+                    return { x: box.x - viewBox.x, y: box.y - viewBox.y, width: box.width, height: box.height, svgWidth: viewBox.width };
+                });
                 const foreground = theme === 'print-friendly' ?
                     await report.locator('body').evaluate(element => getComputedStyle(element).color) :
-                    await sourceDiagram.locator('text[fill="var(--text-primary)"]').first().evaluate(element => getComputedStyle(element).fill);
+                    await primaryLabel.evaluate(element => getComputedStyle(element).fill);
+                const foregroundRgb = foreground.match(/\d+/g).slice(0, 3).map(Number);
                 const fabricSvg = label === 'disaggregated' ?
                     await fs.readFile(path.resolve('images', 'disaggregated', 'leaf-spine-topology-four-racks.svg'), 'utf8') : null;
                 const exportErrors = [];
@@ -545,15 +552,44 @@ for (const [label, template] of [
                         await expect(fabricImage).toHaveAttribute('src', /^data:image\/png;base64,/);
                         fabricPng = await fabricImage.getAttribute('src');
                     }
-                    return report.evaluate(async ({ png, fabricPng, fabricSvg }) => {
+                    return report.evaluate(async ({ png, fabricPng, fabricSvg, labelBox, foregroundRgb }) => {
                         const element = new Image();
                         element.src = png;
                         await element.decode();
                         const canvas = document.createElement('canvas');
-                        canvas.width = canvas.height = 1;
+                        const scale = element.naturalWidth / labelBox.svgWidth;
+                        canvas.width = Math.ceil((labelBox.width + 4) * scale);
+                        canvas.height = Math.ceil((labelBox.height + 4) * scale);
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(element, 0, 0, 1, 1, 0, 0, 1, 1);
-                        const result = { png, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
+                        ctx.drawImage(element, (labelBox.x - 2) * scale, (labelBox.y - 2) * scale,
+                            canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+                        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                        let foregroundPixels = 0;
+                        let foregroundColor;
+                        let nearestColor = Infinity;
+                        const colorCounts = new Map();
+                        let backgroundColor;
+                        let backgroundPixels = 0;
+                        for (let i = 0; i < pixels.length; i += 4) {
+                            if (pixels[i + 3] > 240) {
+                                const color = Array.from(pixels.slice(i, i + 3));
+                                const key = color.join(',');
+                                const count = (colorCounts.get(key) || 0) + 1;
+                                colorCounts.set(key, count);
+                                if (count > backgroundPixels) {
+                                    backgroundPixels = count;
+                                    backgroundColor = color;
+                                }
+                                const distance = foregroundRgb.reduce((sum, channel, index) => sum + Math.abs(channel - pixels[i + index]), 0);
+                                if (distance < nearestColor) {
+                                    nearestColor = distance;
+                                    foregroundColor = color;
+                                }
+                                if (foregroundRgb.every((channel, index) => Math.abs(channel - pixels[i + index]) <= 20)) foregroundPixels++;
+                            }
+                        }
+                        canvas.width = canvas.height = 1;
+                        const result = { png, foregroundPixels, foregroundColor, background: backgroundColor };
                         if (fabricPng) {
                             element.src = fabricPng;
                             await element.decode();
@@ -572,7 +608,7 @@ for (const [label, template] of [
                             }
                         }
                         return result;
-                    }, { png, fabricPng, fabricSvg });
+                    }, { png, fabricPng, fabricSvg, labelBox, foregroundRgb });
                 })();
                 const [file, diagram] = await Promise.race([Promise.all([download, capture]), failure]);
                 const target = path.join(artifacts, 'pdf-' + label + '-' + protocol + '-' + theme);
@@ -585,12 +621,14 @@ for (const [label, template] of [
                     const channel = value / 255;
                     return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
                 }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
-                const textLuminance = luminance(foreground.match(/\d+/g).slice(0, 3).map(Number));
-                assert.equal(textLuminance < 0.5, theme !== 'dark', 'The requested report palette is active');
+                assert.equal(luminance(foregroundRgb) < 0.5, theme !== 'dark', 'The requested report palette is active');
+                t.diagnostic('Actual primary-label foreground pixels: ' + diagram.foregroundPixels);
+                assert.ok(diagram.foregroundPixels >= 5, 'The rasterized label contains the expected foreground color');
+                const textLuminance = luminance(diagram.foregroundColor);
                 const backgroundLuminance = luminance(diagram.background);
                 const contrast = (Math.max(textLuminance, backgroundLuminance) + 0.05) /
                     (Math.min(textLuminance, backgroundLuminance) + 0.05);
-                t.diagnostic('Generated host-diagram contrast: ' + contrast.toFixed(2) + ':1');
+                t.diagnostic('Generated host-label local contrast: ' + contrast.toFixed(2) + ':1');
                 assert.ok(contrast >= 4.5, 'Rasterized diagram text/background contrast must meet WCAG AA: ' + contrast);
                 if (diagram.fabric) {
                     await fs.writeFile(target + '-fabric.png', Buffer.from(diagram.fabric.png.split(',')[1], 'base64'));

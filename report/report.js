@@ -944,11 +944,23 @@
                     };
 
                     if (theme === 'light') {
-                        themeVars['--bg-dark'] = '#ffffff';
-                        themeVars['--card-bg'] = '#ffffff';
-                        themeVars['--text-primary'] = '#0b0b0b';
-                        themeVars['--text-secondary'] = '#404040';
-                        themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
+                        const lightVars = {
+                            '--bg-dark': '#ffffff',
+                            '--card-bg': '#ffffff',
+                            '--text-primary': '#0b0b0b',
+                            '--text-secondary': '#404040',
+                            '--glass-border': 'rgba(0, 0, 0, 0.14)'
+                        };
+                        Object.assign(themeVars, lightVars);
+                        // html2canvas inlines computed SVG styles that otherwise override light variables.
+                        for (const element of [clone, ...clone.querySelectorAll('*')]) {
+                            if (!element.style) continue;
+                            Object.keys(lightVars).forEach(function(name) { element.style.removeProperty(name); });
+                            for (const property of ['fill', 'stroke']) {
+                                const value = element.getAttribute(property);
+                                if (value && value.indexOf('var(') !== -1) element.style.setProperty(property, value);
+                            }
+                        }
                     }
 
                     const decls = Object.keys(themeVars)
