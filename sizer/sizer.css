@@ -1187,7 +1187,8 @@ header .header-description {
 
 /* Cluster Name text input — matches the select styling in this panel
    (issue #230, carried Sizer → Designer → ARM). */
-.config-row input.cluster-name-input {
+.config-row input.cluster-name-input,
+input.disk-size-input {
     padding: 8px 12px;
     background: var(--select-bg, #1a1a1a);
     border: 1px solid var(--glass-border);
@@ -1199,13 +1200,46 @@ header .header-description {
     box-sizing: border-box;
 }
 
-.config-row input.cluster-name-input:focus {
+.config-row input.cluster-name-input:focus,
+input.disk-size-input:focus {
     outline: none;
     border-color: var(--accent-blue);
 }
 
-.config-row input.cluster-name-input.invalid {
+.config-row input.cluster-name-input.invalid,
+input.disk-size-input[aria-invalid="true"] {
     border-color: var(--danger);
+}
+
+.custom-disk-size-control {
+    width: 180px;
+    max-width: 100%;
+}
+
+input.disk-size-input {
+    width: 100%;
+    min-width: 0;
+}
+
+.custom-disk-size-error {
+    display: block;
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.custom-disk-size-validation {
+    padding: 16px;
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    background: var(--subtle-bg);
+    color: var(--danger);
+}
+
+.invalid-custom-disks .results-panel > :not(.custom-disk-size-validation),
+.invalid-custom-disks #node-recommendation,
+.invalid-custom-disks #multi-instance-section {
+    display: none !important;
 }
 
 .config-row select option {

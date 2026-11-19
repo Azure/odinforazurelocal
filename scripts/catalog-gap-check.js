@@ -142,8 +142,9 @@ const KNOWN_DESIGN_EXCEPTIONS = [
             g.missingSizesTB.every((tb) => LEGACY_CAPACITY_DRIVE_SIZES_TB.has(tb)),
         reason:
             'Small (<3.84 TB) and odd enterprise capacity SKUs in the OEM catalog ' +
-            'are deliberately not surfaced in the Sizer. The Sizer offers a curated ' +
-            'set (0.96, 1.92, 3.84, 5.68, 7.68, 8, 12, 15.36, 16, 20 TB) covering ' +
+            'are deliberately not listed as Sizer presets; use Custom for sizes ' +
+            'from 0.1 to 100 TB. The curated preset set ' +
+            '(0.96, 1.92, 3.2, 3.84, 5.68, 7.68, 8, 12, 15.36, 16, 20 TB) covers ' +
             'common Azure Local deployment shapes; full OEM SKU breadth lives in ' +
             'the catalog itself. A NEW size outside this allowlist will surface as ' +
             'a regular gap.',
@@ -156,8 +157,8 @@ const KNOWN_DESIGN_EXCEPTIONS = [
             g.missingSizesTB.every((tb) => LEGACY_CACHE_DRIVE_SIZES_TB.has(tb)),
         reason:
             'Legacy small cache SKUs (<7.68 TB) in the OEM catalog are deliberately ' +
-            'not surfaced in the Sizer. Sizer offers 0.96–15.36 TB cache choices ' +
-            'aligned with current AI / VM / AKS deployment guidance. A NEW small ' +
+            'not listed as Sizer presets; use Custom for sizes from 0.1 to 100 TB. ' +
+            'Sizer retains the existing curated cache presets. A NEW small ' +
             'cache size outside this allowlist will surface as a regular gap.',
     },
 ];

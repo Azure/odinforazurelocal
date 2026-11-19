@@ -69,7 +69,7 @@
                             <button class="btn btn-secondary btn-sm" onclick="openImportModal('rvtools')" title="Import your VMware (RVTools) or Hyper-V (HVTools) inventory export">
                                 📊 RVTools / HVTools
                             </button>
-                            <button class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
+                            <button id="sizer-export-json" class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
                                 📤 Export
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="requestSizerReset()" title="Reset all workloads and settings">
@@ -459,6 +459,7 @@
                                 <select id="capacity-disk-size" onchange="onDiskSizeChange()">
                                     <option value="0.96">960 GB (0.96 TB)</option>
                                     <option value="1.92">1.92 TB</option>
+                                    <option value="3.2">3.2 TB</option>
                                     <option value="3.84" selected>3.84 TB</option>
                                     <option value="5.68">5.68 TB</option>
                                     <option value="7.68">7.68 TB</option>
@@ -467,7 +468,15 @@
                                     <option value="15.36">15.36 TB</option>
                                     <option value="16">16 TB</option>
                                     <option value="20">20 TB</option>
+                                    <option value="custom">Custom...</option>
                                 </select>
+                            </div>
+                            <div id="capacity-disk-size-custom-row" class="config-row" style="display: none;">
+                                <label for="capacity-disk-size-custom">Custom Capacity Disk Size (TB)</label>
+                                <div class="custom-disk-size-control">
+                                    <input id="capacity-disk-size-custom" class="disk-size-input" type="number" min="0.1" max="100" step="any" inputmode="decimal" aria-describedby="capacity-disk-size-error" oninput="onDiskSizeChange()">
+                                    <span id="capacity-disk-size-error" class="custom-disk-size-error" aria-live="polite"></span>
+                                </div>
                             </div>
 
                             <h3 class="hw-subsection-title">S2D Repair Reservation</h3>
@@ -504,12 +513,21 @@
                                 <select id="cache-disk-size" onchange="onHardwareConfigChange()">
                                     <option value="0.96">960 GB (0.96 TB)</option>
                                     <option value="1.92" selected>1.92 TB</option>
+                                    <option value="3.2">3.2 TB</option>
                                     <option value="3.84">3.84 TB</option>
                                     <option value="5.68">5.68 TB</option>
                                     <option value="7.68">7.68 TB</option>
                                     <option value="12.8">12.8 TB</option>
                                     <option value="15.36">15.36 TB</option>
+                                    <option value="custom">Custom...</option>
                                 </select>
+                            </div>
+                            <div id="cache-disk-size-custom-row" class="config-row" style="display: none;">
+                                <label for="cache-disk-size-custom">Custom Cache Disk Size (TB)</label>
+                                <div class="custom-disk-size-control">
+                                    <input id="cache-disk-size-custom" class="disk-size-input" type="number" min="0.1" max="100" step="any" inputmode="decimal" aria-describedby="cache-disk-size-error" oninput="onHardwareConfigChange()">
+                                    <span id="cache-disk-size-error" class="custom-disk-size-error" aria-live="polite"></span>
+                                </div>
                             </div>
                             <div class="config-info disk-type-info" id="cache-disk-type-info">
                                 <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -552,6 +570,7 @@
                                 <select id="tiered-capacity-disk-size" onchange="onDiskSizeChange()">
                                     <option value="0.96">960 GB (0.96 TB)</option>
                                     <option value="1.92">1.92 TB</option>
+                                    <option value="3.2">3.2 TB</option>
                                     <option value="3.84" selected>3.84 TB</option>
                                     <option value="5.68">5.68 TB</option>
                                     <option value="7.68">7.68 TB</option>
@@ -560,7 +579,15 @@
                                     <option value="15.36">15.36 TB</option>
                                     <option value="16">16 TB</option>
                                     <option value="20">20 TB</option>
+                                    <option value="custom">Custom...</option>
                                 </select>
+                            </div>
+                            <div id="tiered-capacity-disk-size-custom-row" class="config-row" style="display: none;">
+                                <label for="tiered-capacity-disk-size-custom">Custom Capacity Disk Size (TB)</label>
+                                <div class="custom-disk-size-control">
+                                    <input id="tiered-capacity-disk-size-custom" class="disk-size-input" type="number" min="0.1" max="100" step="any" inputmode="decimal" aria-describedby="tiered-capacity-disk-size-error" oninput="onDiskSizeChange()">
+                                    <span id="tiered-capacity-disk-size-error" class="custom-disk-size-error" aria-live="polite"></span>
+                                </div>
                             </div>
                             <div class="config-info disk-type-info" id="tiered-capacity-disk-type-info">
                                 <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -611,6 +638,7 @@
 
             <!-- Right Panel: Results -->
             <div class="results-panel">
+                <div id="custom-disk-size-validation" class="custom-disk-size-validation" role="status" style="display: none;">Sizing is paused. Enter a custom disk size from 0.1 to 100 TB to calculate, export, or open Designer.</div>
                 <div class="panel-section">
                     <div class="section-header-row">
                         <h2>

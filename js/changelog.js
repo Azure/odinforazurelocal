@@ -69,6 +69,17 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: var(--subtle-bg); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.09</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">November 19, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">3.2 TB and custom Sizer disks, plus a patched development-tool dependency chain.</p>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <li><strong>3.2 TB disks</strong> &mdash; select the size already offered by S2D Calc for capacity and cache disks, including tiered storage and instance hardware imports.</li>
+                        <li><strong>Custom disk sizes</strong> &mdash; choose Custom to enter 0.1-100 TB for capacity and cache disks, including Hybrid and Mixed All-Flash. Custom capacity stays manually fixed; values survive save/resume, JSON round-trips, and Designer handoff.</li>
+                        <li><strong>Development dependency security</strong> &mdash; update HTML Validate's glob/minimatch chain to address the minimatch denial-of-service advisory in <a href="https://github.com/Azure/odinforazurelocal/security/dependabot/50" target="_blank" rel="noopener noreferrer">Dependabot alert 50</a>. No website runtime dependency is added.</li>
+                        <li><strong>Compatibility unchanged</strong> &mdash; existing disk defaults, sizing formulas, JSON payload shapes, and the independent Sizer payload version stay the same.</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: var(--subtle-bg); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.08</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">November 18, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Disaggregated node settings, reliable Help/Import, and stronger browser regressions.</p>

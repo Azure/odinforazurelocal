@@ -55,6 +55,13 @@
     }
   },
   "definitions": {
+    "diskSizeTB": {
+      "type": ["string", "number", "null"],
+      "description": "TB per disk: a standard preset (including 3.2 and 3.84) or a Custom decimal from 0.1 to 100 inclusive. Custom values use the existing numeric/string field, never the literal 'custom'. Null means an unused or unset size. Custom capacity disks are manually owned through diskSizeUserSet; the Sizer payload remains v5.",
+      "minimum": 0.1,
+      "maximum": 100,
+      "pattern": "^(?:0\\.[1-9][0-9]*|[1-9][0-9]?(?:\\.[0-9]+)?|100(?:\\.0+)?)$"
+    },
     "v5GpuWorkload": {
       "description": "Additional requirements for explicitly versioned v5 exports. Older and unversioned payloads may omit worker SKUs for importer migration. Supported SKU/model/capacity combinations are validated by the application.",
       "allOf": [
@@ -148,11 +155,11 @@
           "description": "Cache/capacity tiering option. The available values are dynamic (depend on storageConfig); known all-flash values: 'nvme-capacity', 'ssd-capacity'. Left as a free string because mixed-flash/hybrid inject cache-tier options at runtime."
         },
         "capacityDiskCount": { "type": ["string", "integer", "null"] },
-        "capacityDiskSize": { "type": ["string", "number", "null"], "description": "TB per capacity disk (e.g. 3.84, 7.68, 8, 16, 20)." },
+        "capacityDiskSize": { "$ref": "#/definitions/diskSizeTB" },
         "cacheDiskCount": { "type": ["string", "integer", "null"] },
-        "cacheDiskSize": { "type": ["string", "number", "null"] },
+        "cacheDiskSize": { "$ref": "#/definitions/diskSizeTB" },
         "tieredCapacityDiskCount": { "type": ["string", "integer", "null"] },
-        "tieredCapacityDiskSize": { "type": ["string", "number", "null"] },
+        "tieredCapacityDiskSize": { "$ref": "#/definitions/diskSizeTB" },
         "diskSizeUserSet": { "type": "boolean" },
         "diskCountUserSet": { "type": "boolean" },
         "repairDiskCount": { "type": ["string", "integer", "null"] },

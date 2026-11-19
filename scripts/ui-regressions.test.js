@@ -215,6 +215,218 @@ test('Sizer Help traps both Tab directions and restores edited inputs and trigge
     });
 });
 
+test('Sizer Custom disk sizes validate boundaries and return to automatic presets', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-disk-validation', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        const input = page.getByLabel('Custom Capacity Disk Size (TB)', { exact: true }).first();
+        await expect(input).toBeVisible();
+        for (const value of ['', '0', '-1', '0.09', '100.1']) {
+            await input.fill(value);
+            await expect(input).toHaveAttribute('aria-invalid', 'true');
+            await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
+            await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeDisabled();
+            await expect(page.locator('.results-panel .requirements-grid')).not.toBeVisible();
+        }
+        for (const value of ['0.1', '100', '2.4']) {
+            await input.fill(value);
+            await expect(input).toHaveAttribute('aria-invalid', 'false');
+            await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+            await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeEnabled();
+        }
+        await expect(page.locator('#storage-total')).toHaveText('6.9');
+        await input.fill('');
+        await page.locator('#storage-config').selectOption('hybrid');
+        await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await page.locator('#cache-disk-size').selectOption('custom');
+        await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
+        await page.locator('#cache-disk-size-custom').fill('1.6');
+        await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await input.fill('2.4');
+        await page.getByRole('button', { name: 'Remove Capacity Disk Size override', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(input).not.toBeVisible();
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        await input.fill('2.4');
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(input).toHaveValue('');
+        await expect(input).not.toBeVisible();
+        await expect(page.locator('#cache-disk-size')).toHaveValue('1.92');
+    });
+});
+
+test('Sizer custom capacity and cache survive Hybrid, Mixed All-Flash and v5 JSON roundtrip', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-disk-roundtrip', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await edit(page.locator('#workload-name'), 'Demo custom storage');
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        await page.locator('#capacity-disk-size-custom').fill('2.4');
+        for (const mode of ['mixed-flash', 'hybrid']) {
+            await page.locator('#storage-config').selectOption(mode);
+            await page.locator('#cache-disk-size').selectOption('custom');
+            await page.locator('#cache-disk-size-custom').fill('1.6');
+            await page.locator('#tiered-capacity-disk-count').selectOption('4');
+            await page.locator('#tiered-capacity-disk-size').selectOption('custom');
+            await page.locator('#tiered-capacity-disk-size-custom').fill('6.4');
+            await expect(page.locator('#cache-disk-size-custom')).toBeVisible();
+            await expect(page.locator('#tiered-capacity-disk-size-custom')).toBeVisible();
+            await expect(page.locator('#storage-total')).toHaveText('18.9');
+        }
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            page.getByTitle('Export configuration as a JSON file', { exact: true }).click()
+        ]);
+        const exported = await fs.readFile(await download.path());
+        const payload = JSON.parse(exported.toString('utf8'));
+        assert.equal(payload._meta.version, 5);
+        assert.equal(payload.data.capacityDiskSize, '2.4');
+        assert.equal(payload.data.cacheDiskSize, '1.6');
+        assert.equal(payload.data.tieredCapacityDiskSize, '6.4');
+        assert.equal(payload.data.diskSizeUserSet, true);
+        await page.reload();
+        await page.getByRole('button', { name: 'Resume', exact: true }).click();
+        await expect(page.locator('#storage-config')).toHaveValue('hybrid');
+        await expect(page.locator('#cache-disk-size-custom')).toHaveValue('1.6');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('6.4');
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        const invalid = JSON.parse(exported.toString('utf8'));
+        invalid.data.cacheDiskSize = 'Infinity';
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [invalidChooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await invalidChooser.setFiles({ name: 'invalid-custom-size.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(invalid)) });
+        await expect(page.getByText('Cannot load disk sizes: cacheDiskSize must be a number from 0.1 to 100 TB.', { exact: true })).toBeVisible();
+        await expect(page.locator('#total-workloads')).toHaveText('0');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        const importPayload = JSON.parse(exported.toString('utf8'));
+        importPayload.data.cacheDiskSize = ' 1.6 ';
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [chooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await chooser.setFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(importPayload)) });
+        await expect(page.locator('#workloads-list')).toContainText('Demo custom storage');
+        await expect(page.locator('#storage-total')).toHaveText('18.9');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#cache-disk-size-custom')).toHaveValue('1.6');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('6.4');
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#capacity-disk-size-custom')).toHaveValue('2.4');
+        await expect(page.locator('#storage-total')).toHaveText('6.9');
+        await page.locator('#storage-config').selectOption('hybrid');
+        await page.getByRole('button', { name: /Configure in Designer/ }).click();
+        await page.locator('#connectivity-choice-overlay').getByRole('button', { name: /^Connected/ }).click();
+        await page.getByRole('button', { name: 'West Europe', exact: true }).click();
+        await page.waitForURL(/from=sizer/);
+        const skip = page.getByRole('button', { name: 'Skip', exact: true });
+        if (await skip.isVisible()) await skip.click();
+        await expect(page.locator('#sizer-import-banner')).toBeVisible();
+        await page.getByRole('button', { name: '💾 Export', exact: true }).click();
+        const designer = JSON.parse(await downloadText(page, page.getByRole('dialog').getByRole('button', { name: 'Export JSON', exact: true })));
+        assert.equal(designer.state.sizerHardware.storage.diskConfig.cache.sizeGB, 1.6 * 1024);
+        assert.equal(designer.state.sizerHardware.storage.diskConfig.capacity.sizeGB, 6.4 * 1024);
+    });
+});
+
+test('Sizer hardware-import Custom disks validate and load both capacity layouts', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-hardware-import', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        await page.locator('[onclick="switchImportTab(\'cluster\')"]').click();
+        await page.locator('#cluster-json-input').fill(JSON.stringify({
+            type: 'Microsoft.HybridCompute/machines',
+            name: 'demo-machine',
+            properties: { detectedProperties: { coreCount: 32, processorCount: 2, totalPhysicalMemoryInGigabytes: 256, processorNames: 'Demo processor' } }
+        }));
+        await page.getByRole('button', { name: 'Parse & Preview', exact: true }).click();
+        await page.locator('#cluster-import-disk-size').selectOption('custom');
+        await expect(page.getByRole('button', { name: 'Load Cluster Configuration', exact: true })).toBeDisabled();
+        await page.locator('#cluster-import-disk-size-custom').fill('2.4');
+        await page.getByRole('button', { name: 'Load Cluster Configuration', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#capacity-disk-size-custom')).toHaveValue('2.4');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('2.4');
+    });
+});
+
+test('Sizer 3.2 TB disks survive tier changes, reload and JSON import', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=three-point-two-tb', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await edit(page.locator('#workload-name'), 'Demo 3.2 TB storage');
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        await page.locator('#capacity-disk-size').selectOption('3.2');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+
+        await page.locator('#storage-config').selectOption('mixed-flash');
+        await page.locator('#cache-disk-size').selectOption('3.2');
+        await page.locator('#tiered-capacity-disk-count').selectOption('4');
+        await page.locator('#tiered-capacity-disk-size').selectOption('3.2');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('cache drives do not add usable capacity');
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.2');
+        await page.locator('#storage-config').selectOption('mixed-flash');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('3.2');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.2');
+
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            page.getByTitle('Export configuration as a JSON file', { exact: true }).click()
+        ]);
+        const filename = await download.path();
+        const exported = await fs.readFile(filename);
+        const payload = JSON.parse(exported.toString('utf8'));
+        assert.equal(payload._meta.version, 5);
+        for (const key of ['capacityDiskSize', 'cacheDiskSize', 'tieredCapacityDiskSize']) {
+            assert.equal(payload.data[key], '3.2', key + ' survives JSON export');
+        }
+        assert.equal(payload.data.diskSizeUserSet, true, 'Manual capacity selection remains owned by the user');
+        await page.reload();
+        await page.getByRole('button', { name: 'Resume', exact: true }).click();
+        await expect(page.locator('#storage-config')).toHaveValue('mixed-flash');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.2');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('3.2');
+
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('1.92');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.84');
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [chooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await chooser.setFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: exported });
+        await expect(page.locator('#workloads-list')).toContainText('Demo 3.2 TB storage');
+        await expect(page.locator('#storage-config')).toHaveValue('mixed-flash');
+        for (const id of ['capacity-disk-size', 'cache-disk-size', 'tiered-capacity-disk-size']) {
+            await expect(page.locator('#' + id)).toHaveValue('3.2');
+        }
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+    });
+});
+
 test('Infrastructure pool ownership and invalid addresses control real output readiness', { timeout: 90000 }, async t => {
     await visit(t, '/index.html?ui=infra-validation', async page => {
         await page.getByRole('button', { name: 'Skip', exact: true }).click();
