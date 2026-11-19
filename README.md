@@ -55,7 +55,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 - **Node settings preserved ([#309](https://github.com/Azure/odinforazurelocal/issues/309))** — Disaggregated designs with 1–16 nodes retain Static IP addresses and machine names when edited. Sequential autofill and manual name overrides are preserved.
 - **Help and Import** — Designer Help no longer removes Import, including when dismissed with Escape. Designer/Sizer Help traps keyboard focus and restores it on close.
-- **Reliable report exports** — Fix Disaggregated PDF diagram capture and malformed outbound SVG paths. Real-control Playwright checks now run in CI alongside offline and HTTP tests.
+- **Reliable report exports** — Fix Disaggregated PDF diagram capture, including offline files, preserve readable labels in light/dark and Print Friendly modes, and repair malformed outbound SVG paths. Real-control Playwright checks now run in CI alongside offline and HTTP tests.
 - **Compatibility unchanged** — HCI node restrictions, Designer JSON payload shape, and the independent Sizer payload version remain unchanged.
 
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.

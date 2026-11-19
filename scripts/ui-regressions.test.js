@@ -2,6 +2,8 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const vm = require('node:vm');
 const { chromium, expect } = require('@playwright/test');
 const { startTestServer } = require('./browser-test-harness.js');
 
@@ -442,6 +444,18 @@ test('Government cloud transition filters ARM regions and selects the government
     });
 });
 
+test('Offline report diagram bundle matches the source SVG assets', async () => {
+    const window = {};
+    vm.runInNewContext(await fs.readFile(path.resolve('report', 'diagram-assets.js'), 'utf8'), { window });
+    const source = path.resolve('images', 'disaggregated');
+    const names = (await fs.readdir(source)).filter(name => name.endsWith('.svg')).sort();
+    assert.deepEqual(Object.keys(window.ODIN_REPORT_DIAGRAM_ASSETS).sort(), names);
+    for (const name of names) {
+        assert.equal(window.ODIN_REPORT_DIAGRAM_ASSETS[name], await fs.readFile(path.join(source, name), 'utf8'),
+            name + ': regenerate with node scripts/generate-report-diagram-assets.js');
+    }
+});
+
 for (const [label, template] of [
     ['hci', '2-Node Standard Cluster'],
     ['disaggregated', '64-Node Disaggregated Storage Cluster']
@@ -478,6 +492,91 @@ for (const [label, template] of [
             }
         });
     });
+}
+
+for (const [label, template] of [
+    ['hci', '2-Node Standard Cluster'],
+    ['disaggregated', '64-Node Disaggregated Storage Cluster']
+]) {
+    for (const [protocol, theme] of [['http', 'light'], ['file', 'dark'], ['file', 'light'], ['http', 'print-friendly']]) {
+        test('Report PDF ' + label + ' ' + protocol + ' ' + theme + ' preserves readable diagrams', { timeout: 120000 }, async t => {
+            const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+            const page = await context.newPage();
+            let report;
+            const pageErrors = [];
+            context.on('page', child => child.on('pageerror', error => pageErrors.push(error.message)));
+            page.on('pageerror', error => pageErrors.push(error.message));
+            try {
+                await page.goto(protocol === 'file' ? pathToFileURL(path.resolve('index.html')).href :
+                    server.url + '/index.html?ui=pdf-palette');
+                await page.getByRole('button', { name: 'Skip', exact: true }).click();
+                if (theme === 'light') await page.locator('#theme-toggle').click();
+                await loadTemplate(page, template);
+                report = await openOutput(page, '#generate-report-btn');
+                if (theme === 'print-friendly') await report.locator('#print-friendly-btn').click();
+                const sourceDiagram = report.locator('svg.switchless-diagram__svg').first();
+                const diagramLabel = await sourceDiagram.getAttribute('aria-label');
+                const foreground = theme === 'print-friendly' ?
+                    await report.locator('body').evaluate(element => getComputedStyle(element).color) :
+                    await sourceDiagram.locator('text[fill="var(--text-primary)"]').first().evaluate(element => getComputedStyle(element).fill);
+                const exportErrors = [];
+                report.on('console', message => {
+                    if (message.type() === 'error') exportErrors.push(message.text());
+                });
+                const failure = new Promise((resolve, reject) => {
+                    report.once('dialog', async dialog => {
+                        const message = dialog.message();
+                        await dialog.accept();
+                        reject(new Error(message));
+                    });
+                });
+                const download = report.waitForEvent('download', { timeout: 100000 });
+                const capture = (async () => {
+                    await report.getByRole('button', { name: /Save as PDF/ }).click();
+                    const image = report.frameLocator('iframe.html2canvas-container').getByAltText(diagramLabel, { exact: true });
+                    await image.waitFor({ state: 'attached', timeout: 30000 });
+                    const png = await image.getAttribute('src');
+                    return report.evaluate(async png => {
+                        const element = new Image();
+                        element.src = png;
+                        await element.decode();
+                        const canvas = document.createElement('canvas');
+                        canvas.width = canvas.height = 1;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(element, 0, 0, 1, 1, 0, 0, 1, 1);
+                        return { png, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
+                    }, png);
+                })();
+                const [file, diagram] = await Promise.race([Promise.all([download, capture]), failure]);
+                const target = path.join(artifacts, 'pdf-' + label + '-' + protocol + '-' + theme);
+                await file.saveAs(target + '.pdf');
+                await fs.writeFile(target + '.png', Buffer.from(diagram.png.split(',')[1], 'base64'));
+                const bytes = await fs.readFile(target + '.pdf');
+                assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+                assert.ok(bytes.length > 10000, 'A complete PDF was downloaded');
+                const luminance = rgb => rgb.map(value => {
+                    const channel = value / 255;
+                    return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+                }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+                const textLuminance = luminance(foreground.match(/\d+/g).slice(0, 3).map(Number));
+                assert.equal(textLuminance < 0.5, theme !== 'dark', 'The requested report palette is active');
+                const backgroundLuminance = luminance(diagram.background);
+                const contrast = (Math.max(textLuminance, backgroundLuminance) + 0.05) /
+                    (Math.min(textLuminance, backgroundLuminance) + 0.05);
+                t.diagnostic('Generated host-diagram contrast: ' + contrast.toFixed(2) + ':1');
+                assert.ok(contrast >= 4.5, 'Rasterized diagram text/background contrast must meet WCAG AA: ' + contrast);
+                assert.deepEqual(pageErrors, [], 'No uncaught exceptions');
+                assert.deepEqual(exportErrors, [], 'No PDF export console errors');
+            } catch (error) {
+                await (report || page).screenshot({
+                    path: path.join(artifacts, 'pdf-' + label + '-' + protocol + '-' + theme + '-failure.png'), timeout: 5000
+                }).catch(captureError => t.diagnostic('Failure screenshot: ' + captureError.message));
+                throw error;
+            } finally {
+                await context.close();
+            }
+        });
+    }
 }
 
 test('Output Help is centered, keyboard-contained and independent across sizes and themes', { timeout: 180000 }, async t => {

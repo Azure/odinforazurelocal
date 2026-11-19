@@ -61,6 +61,18 @@ The output matrix also reproduced a Disaggregated PDF canvas-taint failure.
 Reuse Report's existing SVG rasterizer in the PDF capture clone; preserve the
 live report and surface rasterization failures instead of omitting diagrams.
 
+## PR review follow-up
+
+- Cover Disaggregated PDF export through actual `file://` controls; the earlier
+  offline PDF smoke covered only HCI.
+- Package the four external Disaggregated SVGs as a generated classic-script
+  asset for offline PDF preparation. Keep the SVG files authoritative, check
+  bundle/source parity, and continue using the existing sanitizer.
+- Preserve the active report palette and background together in PDF capture,
+  including light and Print Friendly modes. Check rasterized diagram contrast
+  and actual downloads in both themes over HTTP and `file://`.
+- Update the same release notes and reply to both review threads with evidence.
+
 ## Implementation order
 
 1. Add failing regression coverage, then apply the architecture guard.

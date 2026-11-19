@@ -102,6 +102,10 @@ paths, not just successful template rendering. Failures retain screenshots and
 diagnostics in `test-results/ui/`, including URLs and statuses for same-origin
 HTTP errors. CI runs this separately from file/HTTP tests.
 
+After changing Disaggregated SVG assets, regenerate the offline PDF bundle with
+`node scripts/generate-report-diagram-assets.js`. Do not hand-edit
+`report/diagram-assets.js`; `test:ui` checks it against the source SVGs.
+
 ### Development dependency audit
 
 Run `node scripts/check-npm-audit.js` for the CI high/critical advisory gate and

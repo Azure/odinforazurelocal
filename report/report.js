@@ -8726,9 +8726,11 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
     // Hide action buttons during capture
     const buttons = mainEl.querySelectorAll('.header-action-btn, .scroll-to-top');
     buttons.forEach(function(b) { b.style.display = 'none'; });
+    const background = window.getComputedStyle(document.body).backgroundColor;
+    const theme = document.body.classList.contains('print-friendly-mode') ? 'light' : 'current';
 
     html2canvas(mainEl, {
-        backgroundColor: '#0a0e27',
+        backgroundColor: background,
         scale: 2,
         useCORS: true,
         logging: false,
@@ -8742,11 +8744,19 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
                 let svg = diagram;
                 if (diagram.tagName.toLowerCase() === 'img') {
                     if (!/\.svg(?:[?#]|$)/i.test(diagram.src)) continue;
-                    const response = await fetch(diagram.src);
-                    if (!response.ok) throw new Error('Unable to load PDF diagram: ' + response.status);
-                    svg = new DOMParser().parseFromString(await response.text(), 'image/svg+xml').documentElement;
+                    let svgText;
+                    if (window.location.protocol === 'file:') {
+                        const name = new URL(diagram.src).pathname.split('/').pop();
+                        svgText = window.ODIN_REPORT_DIAGRAM_ASSETS[name];
+                        if (!svgText) throw new Error('Offline PDF diagram is unavailable: ' + name);
+                    } else {
+                        const response = await fetch(diagram.src);
+                        if (!response.ok) throw new Error('Unable to load PDF diagram: ' + response.status);
+                        svgText = await response.text();
+                    }
+                    svg = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
                 }
-                const png = await window.__odinSvgElementToPng(svg, { theme: 'dark', background: '#0a0e27', scale: 2 });
+                const png = await window.__odinSvgElementToPng(svg, { theme: theme, background: background, scale: 2 });
                 if (!png) throw new Error('Unable to prepare a report diagram for PDF export.');
                 const bounds = diagram.getBoundingClientRect();
                 const image = clonedDocument.createElement('img');
