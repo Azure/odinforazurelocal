@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.08] - 2026-11-18
+
+Targeted maintenance release for [#309](https://github.com/Azure/odinforazurelocal/issues/309).
+
+### Fixed
+
+- **Disaggregated node names and IPs ([#309](https://github.com/Azure/odinforazurelocal/issues/309))** - Preserve Static IP node settings in designs with 1-16 nodes. Hidden HCI node-count controls no longer clear Disaggregated settings during UI updates. Sequential IP/name autofill and manually edited names remain intact. Add real-page regression coverage for 3, 16, and 18 nodes; HCI restrictions and JSON payload shapes are unchanged.
+- **Help and Import** - Designer welcome/Knowledge Help and Escape dismiss only their own overlay, preserving Import without a reload. Designer and Sizer guides contain keyboard focus in both directions and restore it to the Help trigger without changing edited values.
+- **Report PDF diagrams** - Reuse the existing SVG sanitization/rasterization path before PDF capture, preventing Disaggregated diagrams with Draw.io foreignObject content from tainting the export canvas. Package external Disaggregated SVGs for `file://` export without blocked local fetches, and match theme-aware diagram backgrounds to the active light/dark or Print Friendly palette to preserve readable labels. Retain authored backgrounds for standalone fabric diagrams with fixed pale labels and links. Restore light SVG variable fills/strokes instead of retaining dark computed styles in Print Friendly exports; regression checks verify actual rasterized glyph colors as well as diagram backgrounds.
+- **Outbound diagrams** - Correct malformed Azure-logo SVG arc commands in five standalone outbound-connectivity diagrams, eliminating the browser errors in report/export validation.
+
+### Added
+
+- **Real-control Playwright regressions** - Run a permanent localhost UI suite in CI, separately from file-mode and HTTP integration tests. Cover node-count boundaries and inverse transitions, Help/Import and keyboard behavior, networking validation, output readiness, actual report/ARM downloads, responsive Help, and Designer-to-Sizer/ToR handoffs. Retain failure screenshots and diagnostics.
+
+### Changed
+
+- **Release numbering exception** - Publish the explicitly requested `0.23.08` targeted fix as the final legacy-numbered release. The following release adopts `YY.MM.DD` CalVer; historical versions and the independent Sizer payload-format integer remain unchanged.
+
 ## [0.23.07] - 2026-09-30
 
 Consolidates the changes merged since 0.23.06: HVTools import, the two-phase Azure Local ARM deployment workflow, switchless networking fixes, and development dependency security. The shared application version, README, and in-app What's New now reflect these changes.

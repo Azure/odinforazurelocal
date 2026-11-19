@@ -12000,8 +12000,12 @@ const sizerOnboardingSteps = [
 ];
 
 let currentSizerOnboardingStep = 0;
+let sizerOnboardingPreviousFocus = null;
 
 function showSizerOnboarding() {
+    if (!document.getElementById('sizer-onboarding-overlay')) {
+        sizerOnboardingPreviousFocus = document.activeElement;
+    }
     currentSizerOnboardingStep = 0;
     renderSizerOnboardingStep();
 }
@@ -12021,9 +12025,9 @@ function renderSizerOnboardingStep() {
     overlay.id = 'sizer-onboarding-overlay';
     overlay.className = 'onboarding-overlay';
     overlay.innerHTML = `
-        <div class="onboarding-card">
+        <div class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="sizer-onboarding-title">
             <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
-            <h2 class="onboarding-title">${step.title}</h2>
+            <h2 class="onboarding-title" id="sizer-onboarding-title" tabindex="-1">${step.title}</h2>
             <p class="onboarding-description">${step.description}</p>
 
             <div class="onboarding-features">
@@ -12038,7 +12042,7 @@ function renderSizerOnboardingStep() {
                 `).join('')}
             </div>
 
-            <div class="onboarding-progress">
+            <div class="onboarding-progress" role="img" aria-label="Step ${currentSizerOnboardingStep + 1} of ${sizerOnboardingSteps.length}">
                 ${sizerOnboardingSteps.map((_, i) => `<div class="onboarding-dot ${i === currentSizerOnboardingStep ? 'active' : ''}"></div>`).join('')}
             </div>
 
@@ -12061,6 +12065,7 @@ function renderSizerOnboardingStep() {
     });
 
     document.body.appendChild(overlay);
+    overlay.querySelector('.onboarding-title').focus({ preventScroll: true });
 }
 
 function nextSizerOnboardingStep() {
@@ -12075,25 +12080,44 @@ function nextSizerOnboardingStep() {
 function skipSizerOnboarding() {
     localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
     removeSizerOnboardingOverlay();
+    if (sizerOnboardingPreviousFocus && sizerOnboardingPreviousFocus.isConnected) {
+        sizerOnboardingPreviousFocus.focus();
+    }
+    sizerOnboardingPreviousFocus = null;
 }
 
 function finishSizerOnboarding() {
-    localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
-    removeSizerOnboardingOverlay();
+    skipSizerOnboarding();
 }
 
 // Close onboarding overlay or workload modal on Escape key
 function handleSizerKeydown(e) {
+    const guide = document.getElementById('sizer-onboarding-overlay');
+    if (guide) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            skipSizerOnboarding();
+        } else if (e.key === 'Tab') {
+            const focusable = Array.from(guide.querySelectorAll('a[href], button:not([disabled])'));
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+            if (e.shiftKey && (active === first || !focusable.includes(active))) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && (active === last || !guide.contains(active))) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+        return;
+    }
     if (e.key === 'Escape') {
         // Workload modal takes precedence
         const modal = document.getElementById('add-workload-modal');
         if (modal && modal.classList.contains('active')) {
             closeModal();
-            return;
-        }
-        const overlay = document.getElementById('sizer-onboarding-overlay');
-        if (overlay) {
-            skipSizerOnboarding();
             return;
         }
         const staticOverlayClosers = [

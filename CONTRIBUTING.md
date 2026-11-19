@@ -52,14 +52,15 @@ For general questions about using ODIN, please open a [Discussion](https://githu
 
 ### Application release numbering
 
-Starting with the next release after `0.23.07`, ODIN uses calendar versioning
+The explicitly requested `0.23.08` targeted fix for issue #309 is the final
+legacy-numbered release. Starting with the next release after `0.23.08`, ODIN uses calendar versioning
 (CalVer) in `YY.MM.DD` format: a two-digit year, zero-padded month, and zero-padded
 day based on the actual publication date. For example, 2 October 2026 is
 `26.10.02`, and 1 January 2027 is `27.01.01`. Do not add a leading `0.`.
 
 This is not Semantic Versioning: leading zeros are intentional, and the version
 does not encode compatibility guarantees. Keep previously published versions,
-including `0.23.07`, unchanged. Do not assign the next release's date merely when
+including `0.23.07` and `0.23.08`, unchanged. Do not assign the next release's date merely when
 development starts.
 
 When preparing the first CalVer release, verify version consumers, export/import
@@ -90,6 +91,20 @@ Follow the [release-readiness checklist](.github/skills/release-readiness/SKILL.
 and the relevant real-UI validation skills before publication. HTTP integration
 checks do not replace complete end-to-end release scenarios or native PowerPoint
 inspection.
+
+Run `npm run test:ui` for permanent Playwright regressions against the real
+Designer and Sizer pages. This command uses the existing Puppeteer Chromium
+installation, an isolated loopback server and fresh browser contexts. Drive
+rendered controls rather than seeding application state or invoking wizard
+handlers: `/tests` and template loading deliberately bypass `updateUI()`.
+Cover edits after loading, boundary/inverse transitions and first-use/dismissal
+paths, not just successful template rendering. Failures retain screenshots and
+diagnostics in `test-results/ui/`, including URLs and statuses for same-origin
+HTTP errors. CI runs this separately from file/HTTP tests.
+
+After changing Disaggregated SVG assets, regenerate the offline PDF bundle with
+`node scripts/generate-report-diagram-assets.js`. Do not hand-edit
+`report/diagram-assets.js`; `test:ui` checks it against the source SVGs.
 
 ### Development dependency audit
 

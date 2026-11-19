@@ -944,11 +944,23 @@
                     };
 
                     if (theme === 'light') {
-                        themeVars['--bg-dark'] = '#ffffff';
-                        themeVars['--card-bg'] = '#ffffff';
-                        themeVars['--text-primary'] = '#0b0b0b';
-                        themeVars['--text-secondary'] = '#404040';
-                        themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
+                        const lightVars = {
+                            '--bg-dark': '#ffffff',
+                            '--card-bg': '#ffffff',
+                            '--text-primary': '#0b0b0b',
+                            '--text-secondary': '#404040',
+                            '--glass-border': 'rgba(0, 0, 0, 0.14)'
+                        };
+                        Object.assign(themeVars, lightVars);
+                        // html2canvas inlines computed SVG styles that otherwise override light variables.
+                        for (const element of [clone, ...clone.querySelectorAll('*')]) {
+                            if (!element.style) continue;
+                            Object.keys(lightVars).forEach(function(name) { element.style.removeProperty(name); });
+                            for (const property of ['fill', 'stroke']) {
+                                const value = element.getAttribute(property);
+                                if (value && value.indexOf('var(') !== -1) element.style.setProperty(property, value);
+                            }
+                        }
                     }
 
                     const decls = Object.keys(themeVars)
@@ -8726,13 +8738,51 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
     // Hide action buttons during capture
     const buttons = mainEl.querySelectorAll('.header-action-btn, .scroll-to-top');
     buttons.forEach(function(b) { b.style.display = 'none'; });
+    const background = window.getComputedStyle(document.body).backgroundColor;
+    const theme = document.body.classList.contains('print-friendly-mode') ? 'light' : 'current';
 
     html2canvas(mainEl, {
-        backgroundColor: '#0a0e27',
+        backgroundColor: background,
         scale: 2,
         useCORS: true,
         logging: false,
-        windowWidth: 900
+        windowWidth: 900,
+        onclone: async function(clonedDocument) {
+            // Draw.io foreignObject content taints html2canvas's SVG images.
+            const diagrams = Array.from(clonedDocument.querySelectorAll('main svg, main img')).filter(function(element) {
+                return !element.parentElement.closest('svg');
+            });
+            for (const diagram of diagrams) {
+                let svg = diagram;
+                let diagramBackground = background;
+                if (diagram.tagName.toLowerCase() === 'img') {
+                    if (!/\.svg(?:[?#]|$)/i.test(diagram.src)) continue;
+                    let svgText;
+                    if (window.location.protocol === 'file:') {
+                        const name = new URL(diagram.src).pathname.split('/').pop();
+                        svgText = window.ODIN_REPORT_DIAGRAM_ASSETS[name];
+                        if (!svgText) throw new Error('Offline PDF diagram is unavailable: ' + name);
+                    } else {
+                        const response = await fetch(diagram.src);
+                        if (!response.ok) throw new Error('Unable to load PDF diagram: ' + response.status);
+                        svgText = await response.text();
+                    }
+                    svg = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
+                    // Parsed assets retain authored styles; the capture clone inlines computed SVG styles.
+                    diagramBackground = svg.style.backgroundColor || background;
+                }
+                const png = await window.__odinSvgElementToPng(svg, { theme: theme, background: diagramBackground, scale: 2 });
+                if (!png) throw new Error('Unable to prepare a report diagram for PDF export.');
+                const bounds = diagram.getBoundingClientRect();
+                const image = clonedDocument.createElement('img');
+                image.src = png;
+                image.alt = diagram.getAttribute('aria-label') || diagram.getAttribute('alt') || 'Report diagram';
+                image.style.width = bounds.width + 'px';
+                image.style.height = bounds.height + 'px';
+                diagram.replaceWith(image);
+                await image.decode();
+            }
+        }
     }).then(function(canvas) {
         buttons.forEach(function(b) { b.style.display = ''; });
 

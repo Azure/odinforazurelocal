@@ -759,16 +759,16 @@
                 const logo = branding.querySelector('img');
                 const button = branding.querySelector('button');
                 return assert(
-                    globalThis.ODIN_VERSION === '0.23.07'
+                    globalThis.ODIN_VERSION === '0.23.08'
                         && WIZARD_VERSION === globalThis.ODIN_VERSION
                         && logo.getAttribute('src') === '../images/odin-logo.png'
                         && brandings[1].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && brandings[2].querySelector('img').getAttribute('src') === 'images/odin-logo.png'
                         && host.querySelectorAll('#odin-logo').length === 1
-                        && branding.textContent.includes('Version 0.23.07')
+                        && branding.textContent.includes('Version 0.23.08')
                         && button.textContent === "What's New",
                     'shared branding renders relative assets, rejects external base URLs, and assigns one primary logo ID',
-                    '0.23.07 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
+                    '0.23.08 / ../images/odin-logo.png / two local fallbacks / one primary ID / What\'s New',
                     `${globalThis.ODIN_VERSION} / ${logo.getAttribute('src')} / ${brandings[1].querySelector('img').getAttribute('src')} / ${brandings[2].querySelector('img').getAttribute('src')} / ${host.querySelectorAll('#odin-logo').length} primary ID / ${button.textContent}`);
             })()
         ]);
@@ -2849,6 +2849,7 @@
 
             const managementResults = [];
             const templatePageResults = [];
+            const disaggregatedNodeResults = [];
             const managementFrame = document.createElement('iframe');
             const savedDesignerValues = ['azureLocalWizardState', 'azureLocalWizardTimestamp',
                 'azloc_report_payload', 'azloc_arm_payload'].map(key => [key, localStorage.getItem(key)]);
@@ -2908,6 +2909,45 @@
                 managementResults.push(assert(doc.getElementById('mgmt-cluster-info').getClientRects().length === 0,
                     'Leaving disconnected mode hides the management fixed-node explanation', true,
                     doc.getElementById('mgmt-cluster-info').className));
+
+                for (const [racks, perRack] of [[1, 3], [2, 8], [2, 9]]) {
+                    win.resetAll();
+                    win.selectOption('scenario', 'connected');
+                    win.selectOption('architecture', 'disaggregated');
+                    win.selectDisaggOption('storageType', 'fc_san');
+                    win.selectOption('region', 'azure_commercial');
+                    win.selectOption('localInstanceRegion', 'west_europe');
+                    win.selectDisaggOption('backup', false);
+                    win.selectDisaggOption('racks', racks);
+                    win.selectDisaggOption('nodesPerRack', perRack);
+                    win.confirmDisaggVlanConfig();
+                    win.confirmDisaggIpConfig();
+                    win.confirmDisaggPortConfig();
+                    win.selectOption('outbound', 'public');
+                    win.selectOption('arc', 'no_arc');
+                    win.selectOption('proxy', 'no_proxy');
+                    win.selectOption('privateEndpoints', 'pe_disabled');
+                    win.selectOption('ip', 'static');
+                    const count = racks * perRack;
+                    const edit = (selector, value) => {
+                        const input = doc.querySelector(selector);
+                        input.value = value;
+                        input.dispatchEvent(new win.Event('change', { bubbles: true }));
+                    };
+                    edit('input[onchange^="updateNodeIpCidr(0,"]', '192.0.2.11/24');
+                    edit('input[onchange^="updateNodeName(0,"]', 'lab-n01');
+                    edit('input[onchange^="updateNodeName(1,"]', 'manual-node');
+                    edit('input[onchange^="updateNodeName(0,"]', 'edge01');
+                    const names = Array.from(doc.querySelectorAll('input[onchange^="updateNodeName("]'), input => input.value);
+                    const ips = Array.from(doc.querySelectorAll('input[onchange^="updateNodeIpCidr("]'), input => input.value);
+                    disaggregatedNodeResults.push(assert(names.length === count
+                        && names.every((name, index) => name === (index === 1 ? 'manual-node' : 'edge' + String(index + 1).padStart(2, '0')))
+                        && ips.every((ip, index) => ip === '192.0.2.' + (11 + index) + '/24')
+                        && win.getNodeSettingsReadiness().ready
+                        && doc.getElementById('step-2').getClientRects().length === 0,
+                    'Disaggregated rendered edits preserve IPs and manual names without an HCI scale: ' + count + ' nodes',
+                    true, JSON.stringify({ names, ips, readiness: win.getNodeSettingsReadiness() })));
+                }
 
                 win.showTemplates();
                 const templateNames = Array.from(doc.querySelectorAll('#templates-overlay h4'), el => el.textContent);
@@ -3034,6 +3074,7 @@
                 });
             }
             testSuite('Disconnected management render ordering', 'js/disconnected.js', managementResults);
+            testSuite('Disaggregated rendered node settings (issue #309)', 'index.html + js/script.js', disaggregatedNodeResults);
             testSuite('Real Designer example template validation', 'index.html + js/script.js', templatePageResults);
             
             // Update summary after async tests complete
@@ -13640,7 +13681,7 @@
             var workloadModal = document.getElementById('add-workload-modal');
             var workloadModalWasActive = workloadModal && workloadModal.classList.contains('active');
             if (workloadModalWasActive) workloadModal.classList.remove('active');
-            handleSizerKeydown({ key: 'Escape' });
+            handleSizerKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
             if (workloadModalWasActive) workloadModal.classList.add('active');
             results.push(assert(
                 staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay'),
@@ -13664,7 +13705,7 @@
                     }
                     overlay.style.display = id === targetId ? 'flex' : 'none';
                 });
-                handleSizerKeydown({ key: 'Escape' });
+                handleSizerKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
                 var target = document.getElementById(targetId);
                 if (!target || target.style.display !== 'none') escapeOverlayFailures.push(targetId);
             });
