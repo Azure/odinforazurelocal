@@ -92,6 +92,15 @@ and the relevant real-UI validation skills before publication. HTTP integration
 checks do not replace complete end-to-end release scenarios or native PowerPoint
 inspection.
 
+Run `npm run test:ui` for permanent Playwright regressions against the real
+Designer and Sizer pages. This command uses the existing Puppeteer Chromium
+installation, an isolated loopback server and fresh browser contexts. Drive
+rendered controls rather than seeding application state or invoking wizard
+handlers: `/tests` and template loading deliberately bypass `updateUI()`.
+Cover edits after loading, boundary/inverse transitions and first-use/dismissal
+paths, not just successful template rendering. Failures retain screenshots and
+diagnostics in `test-results/ui/`. CI runs this separately from file/HTTP tests.
+
 ### Development dependency audit
 
 Run `node scripts/check-npm-audit.js` for the CI high/critical advisory gate and

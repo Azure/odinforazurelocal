@@ -10,7 +10,8 @@
     "test": "node scripts/run-tests.js",
     "test:audit": "node --test scripts/check-npm-audit.test.js",
     "test:http": "node scripts/run-tests.js --http",
-    "test:runner": "node --test scripts/browser-test-harness.test.js"
+    "test:runner": "node --test scripts/browser-test-harness.test.js",
+    "test:ui": "node --test scripts/ui-regressions.test.js"
   },
   "engines": {
     "node": ">=22.12.0"

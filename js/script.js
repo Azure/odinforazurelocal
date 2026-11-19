@@ -119,7 +119,50 @@ function switchKnowledgePage(linkEl, src) {
  *   - AzLoFlows (cross-origin interactive diagram builder)
  * Called by showNavHelp() in js/nav.js when the Knowledge tab is active.
  */
+let designerOnboardingPreviousFocus = null;
+
+function mountDesignerOnboarding(overlay, dismiss) {
+    const card = overlay.querySelector('.onboarding-card');
+    const title = overlay.querySelector('.onboarding-title');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    title.id = 'designer-onboarding-title';
+    title.tabIndex = -1;
+    card.setAttribute('aria-labelledby', title.id);
+    overlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            dismiss();
+        } else if (event.key === 'Tab') {
+            const focusable = Array.from(overlay.querySelectorAll('a[href], button:not([disabled])'));
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === title)) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+    });
+    document.body.appendChild(overlay);
+    title.focus({ preventScroll: true });
+}
+
+function dismissDesignerOnboarding() {
+    document.getElementById('designer-onboarding-overlay')?.remove();
+    if (designerOnboardingPreviousFocus && designerOnboardingPreviousFocus.isConnected) {
+        designerOnboardingPreviousFocus.focus();
+    }
+    designerOnboardingPreviousFocus = null;
+}
+
 function showKnowledgeOnboarding() {
+    if (!document.getElementById('designer-onboarding-overlay')) {
+        designerOnboardingPreviousFocus = document.activeElement;
+    }
     const activeItem = document.querySelector('#tab-knowledge .knowledge-nav-item.active');
     const src = activeItem ? (activeItem.getAttribute('data-src') || '') : '';
     const isAzLoFlows = src.indexOf('AzLoFlows') !== -1;
@@ -207,9 +250,10 @@ function showKnowledgeOnboarding() {
     let stepIndex = 0;
     const render = function() {
         const step = steps[stepIndex];
-        document.querySelectorAll('.onboarding-overlay').forEach(function(el) { el.remove(); });
+        document.getElementById('designer-onboarding-overlay')?.remove();
 
         const overlay = document.createElement('div');
+        overlay.id = 'designer-onboarding-overlay';
         overlay.className = 'onboarding-overlay';
         overlay.innerHTML = '<div class="onboarding-card">' +
             '<div class="onboarding-icon">' + step.icon + '</div>' +
@@ -235,7 +279,7 @@ function showKnowledgeOnboarding() {
             '</div></div>';
 
         const dismiss = function() {
-            document.querySelectorAll('.onboarding-overlay').forEach(function(el) { el.remove(); });
+            dismissDesignerOnboarding();
         };
         overlay.querySelector('[data-action="skip"]').addEventListener('click', dismiss);
         overlay.querySelector('[data-action="next"]').addEventListener('click', function() {
@@ -247,7 +291,7 @@ function showKnowledgeOnboarding() {
             }
         });
 
-        document.body.appendChild(overlay);
+        mountDesignerOnboarding(overlay, dismiss);
     };
 
     render();
@@ -11282,7 +11326,12 @@ function initKeyboardShortcuts() {
 
         // Escape to close modals - use specific classes for safety
         if (e.key === 'Escape') {
-            const modals = document.querySelectorAll('.preview-modal, .onboarding-overlay, [data-close-on-escape="true"]');
+            const importModal = document.getElementById('designer-import-modal');
+            if (importModal && importModal.style.display !== 'none') {
+                closeDesignerImportModal();
+                return;
+            }
+            const modals = document.querySelectorAll('.preview-modal, [data-close-on-escape="true"]');
             modals.forEach(m => m.remove());
         }
 
@@ -11599,6 +11648,9 @@ const onboardingSteps = [
 let currentOnboardingStep = 0;
 
 function showOnboarding() {
+    if (!document.getElementById('designer-onboarding-overlay')) {
+        designerOnboardingPreviousFocus = document.activeElement;
+    }
     currentOnboardingStep = 0;
     renderOnboardingStep();
 }
@@ -11607,9 +11659,10 @@ function renderOnboardingStep() {
     const step = onboardingSteps[currentOnboardingStep];
 
     // Remove existing overlay if any
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    document.getElementById('designer-onboarding-overlay')?.remove();
 
     const overlay = document.createElement('div');
+    overlay.id = 'designer-onboarding-overlay';
     overlay.className = 'onboarding-overlay';
     overlay.innerHTML = `
         <div class="onboarding-card">
@@ -11652,7 +11705,7 @@ function renderOnboardingStep() {
         }
     });
 
-    document.body.appendChild(overlay);
+    mountDesignerOnboarding(overlay, skipOnboarding);
 }
 
 function nextOnboardingStep() {
@@ -11666,12 +11719,11 @@ function nextOnboardingStep() {
 
 function skipOnboarding() {
     localStorage.setItem('odin_onboarding_v0_20_06', 'true');
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    dismissDesignerOnboarding();
 }
 
 function finishOnboarding() {
-    localStorage.setItem('odin_onboarding_v0_20_06', 'true');
-    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    skipOnboarding();
     showToast('Welcome! Start by selecting a Deployment Type.', 'success', 4000);
 }
 

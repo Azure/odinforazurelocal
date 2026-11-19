@@ -13681,7 +13681,7 @@
             var workloadModal = document.getElementById('add-workload-modal');
             var workloadModalWasActive = workloadModal && workloadModal.classList.contains('active');
             if (workloadModalWasActive) workloadModal.classList.remove('active');
-            handleSizerKeydown({ key: 'Escape' });
+            handleSizerKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
             if (workloadModalWasActive) workloadModal.classList.add('active');
             results.push(assert(
                 staticOverlaysRemain() && !document.getElementById('sizer-onboarding-overlay'),
@@ -13705,7 +13705,7 @@
                     }
                     overlay.style.display = id === targetId ? 'flex' : 'none';
                 });
-                handleSizerKeydown({ key: 'Escape' });
+                handleSizerKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
                 var target = document.getElementById(targetId);
                 if (!target || target.style.display !== 'none') escapeOverlayFailures.push(targetId);
             });

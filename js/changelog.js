@@ -71,9 +71,11 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding: 16px; background: var(--subtle-bg); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.23.08</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">November 18, 2026</div>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Targeted fix for Disaggregated node names and IP addresses.</p>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Disaggregated node settings, reliable Help/Import, and stronger browser regressions.</p>
                     <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary);">
                         <li><strong>Node settings preserved</strong> &mdash; Disaggregated designs with 1&ndash;16 nodes retain Static IP addresses and machine names when edited. Sequential autofill and manual name overrides are preserved. Fixes <a href="https://github.com/Azure/odinforazurelocal/issues/309" target="_blank" rel="noopener noreferrer">#309</a>.</li>
+                        <li><strong>Help and Import</strong> &mdash; Designer Help and Escape preserve Import without a reload. Designer/Sizer guides contain keyboard focus and restore it to Help when closed.</li>
+                        <li><strong>Reliable report exports</strong> &mdash; fix Disaggregated PDF diagram capture and malformed outbound SVG paths. Permanent real-control Playwright checks now run in CI alongside offline and HTTP tests.</li>
                         <li><strong>Compatibility unchanged</strong> &mdash; HCI node restrictions and JSON payload shapes stay the same.</li>
                     </ul>
                 </div>

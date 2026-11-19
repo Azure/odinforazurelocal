@@ -14,6 +14,13 @@ Targeted maintenance release for [#309](https://github.com/Azure/odinforazureloc
 ### Fixed
 
 - **Disaggregated node names and IPs ([#309](https://github.com/Azure/odinforazurelocal/issues/309))** - Preserve Static IP node settings in designs with 1-16 nodes. Hidden HCI node-count controls no longer clear Disaggregated settings during UI updates. Sequential IP/name autofill and manually edited names remain intact. Add real-page regression coverage for 3, 16, and 18 nodes; HCI restrictions and JSON payload shapes are unchanged.
+- **Help and Import** - Designer welcome/Knowledge Help and Escape dismiss only their own overlay, preserving Import without a reload. Designer and Sizer guides contain keyboard focus in both directions and restore it to the Help trigger without changing edited values.
+- **Report PDF diagrams** - Reuse the existing SVG sanitization/rasterization path before PDF capture, preventing Disaggregated diagrams with Draw.io foreignObject content from tainting the export canvas.
+- **Outbound diagrams** - Correct malformed Azure-logo SVG arc commands in five standalone outbound-connectivity diagrams, eliminating the browser errors in report/export validation.
+
+### Added
+
+- **Real-control Playwright regressions** - Run a permanent localhost UI suite in CI, separately from file-mode and HTTP integration tests. Cover node-count boundaries and inverse transitions, Help/Import and keyboard behavior, networking validation, output readiness, actual report/ARM downloads, responsive Help, and Designer-to-Sizer/ToR handoffs. Retain failure screenshots and diagnostics.
 
 ### Changed
 

@@ -8732,7 +8732,32 @@ function exportReportPDF() { // eslint-disable-line no-unused-vars
         scale: 2,
         useCORS: true,
         logging: false,
-        windowWidth: 900
+        windowWidth: 900,
+        onclone: async function(clonedDocument) {
+            // Draw.io foreignObject content taints html2canvas's SVG images.
+            const diagrams = Array.from(clonedDocument.querySelectorAll('main svg, main img')).filter(function(element) {
+                return !element.parentElement.closest('svg');
+            });
+            for (const diagram of diagrams) {
+                let svg = diagram;
+                if (diagram.tagName.toLowerCase() === 'img') {
+                    if (!/\.svg(?:[?#]|$)/i.test(diagram.src)) continue;
+                    const response = await fetch(diagram.src);
+                    if (!response.ok) throw new Error('Unable to load PDF diagram: ' + response.status);
+                    svg = new DOMParser().parseFromString(await response.text(), 'image/svg+xml').documentElement;
+                }
+                const png = await window.__odinSvgElementToPng(svg, { theme: 'dark', background: '#0a0e27', scale: 2 });
+                if (!png) throw new Error('Unable to prepare a report diagram for PDF export.');
+                const bounds = diagram.getBoundingClientRect();
+                const image = clonedDocument.createElement('img');
+                image.src = png;
+                image.alt = diagram.getAttribute('aria-label') || diagram.getAttribute('alt') || 'Report diagram';
+                image.style.width = bounds.width + 'px';
+                image.style.height = bounds.height + 'px';
+                diagram.replaceWith(image);
+                await image.decode();
+            }
+        }
     }).then(function(canvas) {
         buttons.forEach(function(b) { b.style.display = ''; });
 

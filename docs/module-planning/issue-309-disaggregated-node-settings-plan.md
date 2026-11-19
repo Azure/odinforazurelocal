@@ -33,6 +33,34 @@
 
 - None. The maintainer explicitly requested version `0.23.08`.
 
+## Release validation hardening
+
+- Add a permanent Playwright real-control suite to CI alongside file/HTTP
+  coverage. Test actual edits after template loading, boundary/inverse topology
+  transitions, first-use Help followed by Import without reload, and keyboard
+  focus containment/restoration. Do not seed application state in these tests.
+- Limit Designer guide cleanup to its own generated overlay. Preserve static
+  Import markup across welcome and Knowledge Help rendering/dismissal.
+- Preserve the Sizer guide's content and preferences while adding dialog
+  semantics, initial/step focus, bidirectional Tab containment, top-dialog
+  Escape handling and trigger-focus restoration.
+- Apply the same keyboard ownership to Designer welcome/Knowledge Help.
+  Escape must hide, never destroy, the static Import chooser.
+- Complete the remaining networking, IP validation, import rejection, handoff,
+  ARM/Report help/header/download and responsive release scenarios.
+- Trace malformed SVG diagnostics to their source; fix the source rather than
+  generated assets. Inspect synthetic HCI and Disaggregated decks in native
+  PowerPoint separately from package-generation checks.
+- Keep this work in 0.23.08 and the existing draft Release-to-main PR. Update all
+  three current release-note surfaces; do not silently waive incomplete checks.
+
+Additional files: `scripts/ui-regressions.test.js`, `package.json`,
+`.github/workflows/test.yml`, `sizer/sizer.js`, and `CONTRIBUTING.md`.
+Any export-source changes depend on the reproduced SVG diagnosis.
+The output matrix also reproduced a Disaggregated PDF canvas-taint failure.
+Reuse Report's existing SVG rasterizer in the PDF capture clone; preserve the
+live report and surface rasterization failures instead of omitting diagrams.
+
 ## Implementation order
 
 1. Add failing regression coverage, then apply the architecture guard.
