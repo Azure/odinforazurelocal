@@ -28,7 +28,12 @@ after(async () => {
 async function visit(t, route, run) {
     console.log('UI:', t.name);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    const diagnostics = { pageErrors: [], failedRequests: [], consoleErrors: [] };
+    const diagnostics = { pageErrors: [], failedRequests: [], failedResponses: [], consoleErrors: [] };
+    context.on('response', response => {
+        if (response.status() >= 400 && response.url().startsWith(server.url)) {
+            diagnostics.failedResponses.push({ url: response.url(), status: response.status() });
+        }
+    });
     context.on('page', page => {
         page.setDefaultTimeout(10000);
         page.on('pageerror', error => diagnostics.pageErrors.push(error.message));
@@ -45,6 +50,7 @@ async function visit(t, route, run) {
         await run(page, context);
         assert.deepEqual(diagnostics.pageErrors, [], 'No uncaught exceptions on the real page');
         assert.deepEqual(diagnostics.failedRequests, [], 'No failed same-origin requests');
+        assert.deepEqual(diagnostics.failedResponses, [], 'No same-origin HTTP errors');
         assert.deepEqual(diagnostics.consoleErrors, [], 'No browser console errors');
     } catch (error) {
         const name = t.name.replace(/[^a-z0-9-]+/gi, '-');
@@ -566,15 +572,21 @@ test('Designer handoffs replace stale topology in Sizer and ToR configuration', 
 });
 
 test('Published outbound SVG paths parse without malformed arc commands', { timeout: 60000 }, async t => {
-    await visit(t, '/docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg', async page => {
+    await visit(t, '/index.html?ui=svg-paths', async page => {
         for (const name of ['public-path-no-proxy-no-arc-gateway', 'public-path-no-proxy-with-arc-gateway',
             'public-path-proxy-no-arc-gateway', 'public-path-with-proxy-and-arc-gateway',
             'private-path-explicit-proxy-and-arc-gateway']) {
-            await page.goto(server.url + '/docs/outbound-connectivity/images/' + name + '.svg');
-            const invalid = await page.locator('path[d]').evaluateAll(elements => elements
-                .filter(element => !CSS.supports('d', 'path("' + element.getAttribute('d') + '")'))
-                .map(element => element.getAttribute('d')));
-            assert.deepEqual(invalid, [], name + ': all path data must parse, not just form valid XML');
+            const response = await page.request.get(server.url + '/docs/outbound-connectivity/images/' + name + '.svg');
+            assert.equal(response.status(), 200, name + ': diagram asset is served');
+            const result = await page.evaluate(text => {
+                const svg = new DOMParser().parseFromString(text, 'image/svg+xml');
+                const paths = Array.from(svg.querySelectorAll('path[d]'));
+                return { count: paths.length, invalid: paths
+                    .filter(element => !CSS.supports('d', 'path("' + element.getAttribute('d') + '")'))
+                    .map(element => element.getAttribute('d')) };
+            }, await response.text());
+            assert.ok(result.count > 0, name + ': actual SVG paths are present');
+            assert.deepEqual(result.invalid, [], name + ': all path data must parse, not just form valid XML');
         }
     });
 });

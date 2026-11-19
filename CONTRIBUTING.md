@@ -99,7 +99,8 @@ rendered controls rather than seeding application state or invoking wizard
 handlers: `/tests` and template loading deliberately bypass `updateUI()`.
 Cover edits after loading, boundary/inverse transitions and first-use/dismissal
 paths, not just successful template rendering. Failures retain screenshots and
-diagnostics in `test-results/ui/`. CI runs this separately from file/HTTP tests.
+diagnostics in `test-results/ui/`, including URLs and statuses for same-origin
+HTTP errors. CI runs this separately from file/HTTP tests.
 
 ### Development dependency audit
 
