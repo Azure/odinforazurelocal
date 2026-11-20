@@ -144,11 +144,63 @@ test('Designer Help owns its keyboard focus without removing other dialogs', { t
     });
 });
 
+for (const identity of ['azure_ad', 'local_identity']) {
+    test('Designer DNS values remain literal through import and list edits: ' + identity, { timeout: 90000 }, async t => {
+        await visit(t, '/index.html?ui=dns-literal-' + identity, async page => {
+            await page.getByRole('button', { name: 'Skip', exact: true }).click();
+            await loadTemplate(page, '2-Node Standard Cluster');
+            await page.getByRole('button', { name: '💾 Export', exact: true }).click();
+            const payload = JSON.parse(await downloadText(page, page.getByRole('dialog').getByRole('button', { name: 'Export JSON', exact: true })));
+            const validDns = payload.state.dnsServers[0];
+            const injected = '"><img data-dns-injection src="data:," onerror="document.body.dataset.dnsInjection=\'executed\'">';
+            payload.state.activeDirectory = identity;
+            payload.state.localDnsZone = 'lab.invalid';
+            payload.state.dnsServers = [injected, validDns];
+            await page.getByRole('button', { name: '📁 Import', exact: true }).click();
+            const [chooser] = await Promise.all([
+                page.waitForEvent('filechooser'),
+                page.getByText('Import ODIN Designer Configuration', { exact: true }).click()
+            ]);
+            await chooser.setFiles({ name: 'dns-literal.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(payload)) });
+            const container = page.locator('#dns-servers-container');
+            const inputs = container.locator('input');
+            await expect(inputs).toHaveCount(2);
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await expect(page.locator('body')).not.toHaveAttribute('data-dns-injection', 'executed');
+            await expect(page.getByLabel(identity === 'azure_ad' ? 'DNS Server 1' : 'DNS server *', { exact: true })).toHaveValue(injected);
+            await edit(inputs.first(), injected + ' ');
+            await expect(page.locator('#dns-error')).toContainText('Invalid DNS server format');
+            await page.getByRole('button', { name: '+ Add DNS server', exact: true }).click();
+            await expect(inputs).toHaveCount(3);
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await container.getByRole('button', { name: 'Remove DNS server 2', exact: true }).click();
+            await expect(inputs).toHaveCount(2);
+            await edit(inputs.nth(1), validDns);
+            await container.getByRole('button', { name: 'Remove DNS server 1', exact: true }).click();
+            await expect(inputs).toHaveCount(1);
+            await expect(inputs.first()).toHaveValue(validDns);
+            await expect(page.locator('#dns-error')).not.toBeVisible();
+            await edit(inputs.first(), injected);
+            await page.getByRole('button', { name: '+ Add DNS server', exact: true }).click();
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await expect(page.locator('body')).not.toHaveAttribute('data-dns-injection', 'executed');
+            await edit(inputs.first(), validDns);
+            await container.getByRole('button', { name: 'Remove DNS server 2', exact: true }).click();
+            await expect(inputs).toHaveCount(1);
+            await expect(page.locator('#dns-error')).not.toBeVisible();
+        });
+    });
+}
+
 test('Disaggregated rendered edits survive node boundaries and their inverse', { timeout: 90000 }, async t => {
     await visit(t, '/index.html?ui=node-boundaries', async page => {
         await page.getByRole('button', { name: 'Skip', exact: true }).click();
         await loadTemplate(page, '64-Node Disaggregated Storage Cluster');
         let sequence = 0;
+        let previousNodes = [];
         const prefix = (await page.getByRole('textbox', { name: /^IPv4 CIDR/ }).first().inputValue())
             .split('.').slice(0, 3).join('.') + '.';
         for (const [racks, perRack] of [[1, 1], [1, 3], [2, 8], [2, 9], [2, 8]]) {
@@ -157,6 +209,12 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
             for (let index = 1; index < perRack; index++) await page.locator('#da-nodes-per-rack').press('ArrowRight');
             const names = page.getByRole('textbox', { name: /^SAM Account name/ });
             const ips = page.getByRole('textbox', { name: /^IPv4 CIDR/ });
+            await expect(names).toHaveCount(racks * perRack);
+            await expect(ips).toHaveCount(racks * perRack);
+            for (let index = 0; index < Math.min(previousNodes.length, racks * perRack); index++) {
+                await expect(names.nth(index)).toHaveValue(previousNodes[index].name);
+                await expect(ips.nth(index)).toHaveValue(previousNodes[index].ip);
+            }
             const firstIP = prefix + (100 + 20 * sequence++) + '/24';
             await edit(ips.first(), firstIP);
             await edit(names.first(), 'lab01');
@@ -165,8 +223,6 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
                 await edit(ips.nth(1), prefix + '220/24');
             }
             await edit(names.first(), 'edge01');
-            await expect(names).toHaveCount(racks * perRack);
-            await expect(ips).toHaveCount(racks * perRack);
             await expect(names.first()).toHaveValue('edge01');
             await expect(ips.first()).toHaveValue(firstIP);
             if (racks * perRack > 1) {
@@ -178,6 +234,8 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
             await expect(page.locator('#node-config-section')).toContainText('Node settings valid');
             await expect(page.locator('#wizard-progress-text')).toContainText('100%');
             await expect(page.locator('#generate-arm-btn')).toBeEnabled();
+            previousNodes = [{ name: 'edge01', ip: firstIP }];
+            if (racks * perRack > 1) previousNodes.push({ name: 'manual-node', ip: prefix + '220/24' });
         }
     });
 });
@@ -710,10 +768,14 @@ for (const [label, template] of [
                 assert.ok(/low.level design/i.test(text), format + ' includes the LLD scope guidance');
                 assert.ok(/business or technical requirements/i.test(text), format + ' includes requirements guidance');
             }
+            const scopeColor = await report.locator('#report-scope-note').evaluate(element => getComputedStyle(element).color);
             await report.locator('#print-friendly-btn').click();
             await expect(report.locator('body')).toHaveClass(/print-friendly-mode/);
+            await expect(report.locator('#report-scope-note')).toHaveCSS('color',
+                await report.locator('body').evaluate(element => getComputedStyle(element).color));
             await report.locator('#print-friendly-btn').click();
             await expect(report.locator('body')).not.toHaveClass(/print-friendly-mode/);
+            await expect(report.locator('#report-scope-note')).toHaveCSS('color', scopeColor);
             for (const [button, extension, signature] of [
                 ['#pptx-export-btn', 'pptx', 'PK'],
                 ['button[onclick="exportReportPDF()"]', 'pdf', '%PDF-']
@@ -751,6 +813,10 @@ for (const [label, template] of [
                 await loadTemplate(page, template);
                 report = await openOutput(page, '#generate-report-btn');
                 if (theme === 'print-friendly') await report.locator('#print-friendly-btn').click();
+                const scopeColors = await report.locator('#report-scope-note').evaluate(element => ({
+                    foreground: getComputedStyle(element).color.match(/\d+/g).slice(0, 3).map(Number),
+                    background: getComputedStyle(document.body).backgroundColor.match(/\d+/g).slice(0, 3).map(Number)
+                }));
                 const sourceDiagram = report.locator('svg.switchless-diagram__svg').first();
                 const diagramLabel = await sourceDiagram.getAttribute('aria-label');
                 const primaryLabel = sourceDiagram.locator('text[fill="var(--text-primary)"]').first();
@@ -778,71 +844,92 @@ for (const [label, template] of [
                 });
                 const download = report.waitForEvent('download', { timeout: 100000 });
                 const capture = (async () => {
-                    await report.getByRole('button', { name: /Save as PDF/ }).click();
-                    const image = report.frameLocator('iframe.html2canvas-container').getByAltText(diagramLabel, { exact: true });
-                    await image.waitFor({ state: 'attached', timeout: 30000 });
-                    const png = await image.getAttribute('src');
-                    let fabricPng;
-                    if (fabricSvg) {
-                        const fabricImage = report.frameLocator('iframe.html2canvas-container')
-                            .getByAltText('Leaf-spine topology for disaggregated Azure Local', { exact: true });
-                        await expect(fabricImage).toHaveAttribute('src', /^data:image\/png;base64,/);
-                        fabricPng = await fabricImage.getAttribute('src');
-                    }
+                    // Read cloned PNG sources atomically before html2canvas removes its iframe.
+                    const imageSources = report.waitForFunction(({ diagramLabel, includeFabric }) => {
+                        const frame = document.querySelector('iframe.html2canvas-container');
+                        const images = Array.from(frame?.contentDocument?.images || []);
+                        const png = images.find(image => image.alt === diagramLabel)?.getAttribute('src');
+                        const fabricPng = images.find(image => image.alt === 'Leaf-spine topology for disaggregated Azure Local')?.getAttribute('src');
+                        if (!png?.startsWith('data:image/png;base64,') ||
+                            (includeFabric && !fabricPng?.startsWith('data:image/png;base64,'))) return null;
+                        return { png, fabricPng };
+                    }, { diagramLabel, includeFabric: !!fabricSvg }, { timeout: 30000 });
+                    const [sources] = await Promise.all([
+                        imageSources,
+                        report.getByRole('button', { name: /Save as PDF/ }).click()
+                    ]);
+                    const { png, fabricPng } = await sources.jsonValue();
+                    await sources.dispose();
                     return report.evaluate(async ({ png, fabricPng, fabricSvg, labelBox, foregroundRgb }) => {
                         const element = new Image();
                         element.src = png;
                         await element.decode();
                         const canvas = document.createElement('canvas');
-                        const scale = element.naturalWidth / labelBox.svgWidth;
-                        canvas.width = Math.ceil((labelBox.width + 4) * scale);
-                        canvas.height = Math.ceil((labelBox.height + 4) * scale);
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(element, (labelBox.x - 2) * scale, (labelBox.y - 2) * scale,
-                            canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-                        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                        let foregroundPixels = 0;
-                        let foregroundColor;
-                        let nearestColor = Infinity;
-                        const colorCounts = new Map();
-                        let backgroundColor;
-                        let backgroundPixels = 0;
-                        for (let i = 0; i < pixels.length; i += 4) {
-                            if (pixels[i + 3] > 240) {
-                                const color = Array.from(pixels.slice(i, i + 3));
-                                const key = color.join(',');
-                                const count = (colorCounts.get(key) || 0) + 1;
-                                colorCounts.set(key, count);
-                                if (count > backgroundPixels) {
-                                    backgroundPixels = count;
-                                    backgroundColor = color;
+                        function sampleLabel(image, box, expectedForeground) {
+                            canvas.width = Math.ceil(box.width);
+                            canvas.height = Math.ceil(box.height);
+                            ctx.drawImage(image, box.x, box.y, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+                            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                            let foregroundPixels = 0;
+                            let foregroundColor;
+                            let nearestColor = Infinity;
+                            const colorCounts = new Map();
+                            let backgroundColor;
+                            let backgroundPixels = 0;
+                            for (let i = 0; i < pixels.length; i += 4) {
+                                if (pixels[i + 3] > 240) {
+                                    const color = Array.from(pixels.slice(i, i + 3));
+                                    const key = color.join(',');
+                                    const count = (colorCounts.get(key) || 0) + 1;
+                                    colorCounts.set(key, count);
+                                    if (count > backgroundPixels) {
+                                        backgroundPixels = count;
+                                        backgroundColor = color;
+                                    }
+                                    const distance = expectedForeground.reduce((sum, channel, index) => sum + Math.abs(channel - pixels[i + index]), 0);
+                                    if (distance < nearestColor) {
+                                        nearestColor = distance;
+                                        foregroundColor = color;
+                                    }
+                                    if (expectedForeground.every((channel, index) => Math.abs(channel - pixels[i + index]) <= 20)) foregroundPixels++;
                                 }
-                                const distance = foregroundRgb.reduce((sum, channel, index) => sum + Math.abs(channel - pixels[i + index]), 0);
-                                if (distance < nearestColor) {
-                                    nearestColor = distance;
-                                    foregroundColor = color;
-                                }
-                                if (foregroundRgb.every((channel, index) => Math.abs(channel - pixels[i + index]) <= 20)) foregroundPixels++;
                             }
+                            return { foregroundPixels, foregroundColor, background: backgroundColor };
                         }
-                        canvas.width = canvas.height = 1;
-                        const result = { png, foregroundPixels, foregroundColor, background: backgroundColor };
+                        const scale = element.naturalWidth / labelBox.svgWidth;
+                        const result = {
+                            png,
+                            ...sampleLabel(element, {
+                                x: (labelBox.x - 2) * scale, y: (labelBox.y - 2) * scale,
+                                width: (labelBox.width + 4) * scale, height: (labelBox.height + 4) * scale
+                            }, foregroundRgb)
+                        };
                         if (fabricPng) {
                             element.src = fabricPng;
                             await element.decode();
-                            ctx.clearRect(0, 0, 1, 1);
-                            ctx.drawImage(element, 20, 20, 1, 1, 0, 0, 1, 1);
-                            result.fabric = { png: fabricPng, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
                             const source = new DOMParser().parseFromString(fabricSvg, 'image/svg+xml').documentElement;
+                            const title = source.querySelector('text');
+                            const colors = {};
+                            canvas.width = canvas.height = 1;
                             for (const [key, color] of [
                                 ['authoredBackground', source.style.backgroundColor],
-                                ['foreground', source.querySelector('text').getAttribute('fill')]
+                                ['foreground', title.getAttribute('fill')]
                             ]) {
                                 ctx.clearRect(0, 0, 1, 1);
                                 ctx.fillStyle = color;
                                 ctx.fillRect(0, 0, 1, 1);
-                                result.fabric[key] = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+                                colors[key] = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
                             }
+                            const fontSize = Number(title.getAttribute('font-size'));
+                            const fabricScale = element.naturalWidth / source.viewBox.baseVal.width;
+                            result.fabric = {
+                                png: fabricPng, authoredBackground: colors.authoredBackground,
+                                ...sampleLabel(element, {
+                                    x: 0, y: (Number(title.getAttribute('y')) - fontSize - 2) * fabricScale,
+                                    width: element.naturalWidth, height: (fontSize + 4) * fabricScale
+                                }, colors.foreground)
+                            };
                         }
                         return result;
                     }, { png, fabricPng, fabricSvg, labelBox, foregroundRgb });
@@ -858,6 +945,11 @@ for (const [label, template] of [
                     const channel = value / 255;
                     return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
                 }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+                const scopeForeground = luminance(scopeColors.foreground);
+                const scopeBackground = luminance(scopeColors.background);
+                const scopeContrast = (Math.max(scopeForeground, scopeBackground) + 0.05) /
+                    (Math.min(scopeForeground, scopeBackground) + 0.05);
+                assert.ok(scopeContrast >= 4.5, 'Report scope text contrast meets WCAG AA: ' + scopeContrast);
                 assert.equal(luminance(foregroundRgb) < 0.5, theme !== 'dark', 'The requested report palette is active');
                 t.diagnostic('Actual primary-label foreground pixels: ' + diagram.foregroundPixels);
                 assert.ok(diagram.foregroundPixels >= 5, 'The rasterized label contains the expected foreground color');
@@ -871,11 +963,13 @@ for (const [label, template] of [
                     await fs.writeFile(target + '-fabric.png', Buffer.from(diagram.fabric.png.split(',')[1], 'base64'));
                     assert.deepEqual(diagram.fabric.background, diagram.fabric.authoredBackground,
                         'Fixed-palette fabric diagrams retain their authored background');
-                    const fabricText = luminance(diagram.fabric.foreground);
+                    t.diagnostic('Actual fabric-label foreground pixels: ' + diagram.fabric.foregroundPixels);
+                    assert.ok(diagram.fabric.foregroundPixels >= 5, 'Rasterized fabric diagram contains expected foreground glyph pixels');
+                    const fabricText = luminance(diagram.fabric.foregroundColor);
                     const fabricBackground = luminance(diagram.fabric.background);
                     const fabricContrast = (Math.max(fabricText, fabricBackground) + 0.05) /
                         (Math.min(fabricText, fabricBackground) + 0.05);
-                    t.diagnostic('Generated fabric-diagram title contrast: ' + fabricContrast.toFixed(2) + ':1');
+                    t.diagnostic('Generated fabric-diagram local title contrast: ' + fabricContrast.toFixed(2) + ':1');
                     assert.ok(fabricContrast >= 4.5, 'Rasterized fabric diagram labels retain readable contrast');
                 }
                 assert.deepEqual(pageErrors, [], 'No uncaught exceptions');

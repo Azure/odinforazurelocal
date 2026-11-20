@@ -38,9 +38,58 @@ if (!audit || audit.error || !audit.vulnerabilities
 const lockfile = JSON.parse(readFileSync(path.join(__dirname, '..', 'package-lock.json'), 'utf8'));
 const blockingAdvisories = [];
 let acceptedAdvisories = 0;
+const severities = ['info', 'low', 'moderate', 'high', 'critical'];
+
+function isObjectRecord(value) {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities)) {
-    for (const finding of vulnerability.via || []) {
+    if (!isObjectRecord(vulnerability) || !severities.includes(vulnerability.severity)
+        || !Array.isArray(vulnerability.via) || vulnerability.via.length === 0) {
+        console.error(`npm audit returned a malformed vulnerability entry for package "${packageName}".`);
+        process.exit(1);
+    }
+
+    for (const finding of vulnerability.via) {
+        if (typeof finding === 'string') {
+            if (!Object.hasOwn(audit.vulnerabilities, finding)) {
+                console.error(`npm audit returned a malformed advisory reference for package "${packageName}".`);
+                process.exit(1);
+            }
+        } else if (!isObjectRecord(finding) || !severities.includes(finding.severity)
+            || typeof finding.title !== 'string' || !finding.title.trim()
+            || typeof finding.url !== 'string' || !finding.url.trim()) {
+            console.error(`npm audit returned a malformed advisory entry for package "${packageName}".`);
+            process.exit(1);
+        }
+    }
+}
+
+for (const [packageName, vulnerability] of Object.entries(audit.vulnerabilities)) {
+    if (['high', 'critical'].includes(vulnerability.severity)) {
+        const pending = [packageName];
+        const visited = new Set();
+        let explained = false;
+        while (pending.length > 0 && !explained) {
+            const name = pending.pop();
+            if (visited.has(name)) continue;
+            visited.add(name);
+            for (const finding of audit.vulnerabilities[name].via) {
+                if (typeof finding === 'string') pending.push(finding);
+                else if (severities.indexOf(finding.severity) >= severities.indexOf(vulnerability.severity)) {
+                    explained = true;
+                    break;
+                }
+            }
+        }
+        if (!explained) {
+            console.error(`npm audit returned an unexplained ${vulnerability.severity} vulnerability for package "${packageName}".`);
+            process.exit(1);
+        }
+    }
+
+    for (const finding of vulnerability.via) {
         if (typeof finding === 'string' || !['high', 'critical'].includes(finding.severity)) continue;
 
         // No published fix; accepted only for repository-controlled lint globs until expiry.

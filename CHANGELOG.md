@@ -18,13 +18,17 @@ for the legacy release exceptions and planned transition to calendar versioning.
 ### Fixed
 
 - **Invalid Custom disk S2D results** - Hide the S2D volume count, maximum volume size, and capacity derivation alongside other sizing results while an active Custom disk size is invalid. Restore recalculated results when corrected, with real-control regression coverage for single-tier capacity, cache, and tiered capacity inputs.
+- **Report planning-text contrast** - Use the existing primary-text color for readable planning-aid text in light and dark themes; the light theme's secondary color fell below the 4.5:1 contrast threshold. In Print Friendly mode, inherit the print-friendly foreground instead of retaining dark-theme colors against white. Restore the active theme palette when Print Friendly is disabled.
 
 ### Security
 
+- **Designer DNS rendering** - Assign imported and edited DNS values through input properties rather than interpolating them into HTML attributes. Keep markup and event-handler text literal through import, add/remove, and validation; associate DNS labels with their inputs.
+- **Fail-closed dependency audit** - Reject malformed vulnerability/advisory records, unresolved references, and unexplained high/critical results before filtering. Preserve legitimate transitive references and the unchanged scoped, expiring picomatch exception. Cover clean audits, nonblocking advisories, malformed records, and reference chains.
 - **Development-only minimatch denial of service** - Address [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) ([Dependabot alert 50](https://github.com/Azure/odinforazurelocal/security/dependabot/50)) by upgrading HTML Validate's glob 13 dependency to compatible glob 14.0.6 and patched minimatch 11. Preserve the legacy glob 7/minimatch 3 path, existing security floors, and audit policy. No runtime dependency is added.
 
 ### Changed
 
+- **Regression evidence** - Check surviving Disaggregated node names and addresses immediately after topology transitions, before rewriting them. Capture cloned PNG sources atomically before PDF iframe cleanup, and measure fabric-label glyph pixels and local foreground/background contrast instead of inferring the foreground from SVG source colors.
 - **Release numbering exception** - Prepare the explicitly requested `0.23.09` Sizer and development-dependency follow-up as an additional legacy-numbered release. The following release adopts `YY.MM.DD` CalVer; historical versions and the independent Sizer payload-format integer remain unchanged.
 
 ## [0.23.08] - 2026-11-18

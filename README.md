@@ -56,6 +56,7 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **3.2 TB disks** — Select the size already offered by S2D Calc for Sizer capacity and cache disks, including tiered storage and instance hardware imports.
 - **Custom disk sizes** — Choose Custom to enter 0.1-100 TB for capacity and cache disks, including Hybrid and Mixed All-Flash. Custom capacity stays manually fixed; values survive save/resume, JSON round-trips, and Designer handoff. Invalid active sizes hide sizing results, including S2D volume guidance, until corrected.
 - **Development dependency security** — Update HTML Validate's glob/minimatch chain to address the minimatch denial-of-service advisory in [Dependabot alert 50](https://github.com/Azure/odinforazurelocal/security/dependabot/50), without adding a website runtime dependency.
+- **Designer, report, and audit hardening** — Render DNS values safely, keep planning text readable in light, dark, and Print Friendly modes, and reject malformed dependency-audit results. Strengthen node-preservation and actual diagram-pixel regressions.
 - **Compatibility unchanged** — Existing disk defaults, sizing formulas, JSON payload shapes, and the independent Sizer payload version remain unchanged.
 
 Tracked in [#314: 3.2 TB and custom disk sizes](https://github.com/Azure/odinforazurelocal/issues/314).

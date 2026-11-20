@@ -66,9 +66,8 @@ function renderDnsServers() {
 
         div.innerHTML = `
             <div style="flex:1;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">${labelText}</label>
-                <input type="text"
-                    value="${server}"
+                <label for="dns-server-${index}" style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">${labelText}</label>
+                <input type="text" id="dns-server-${index}"
                     placeholder="e.g. 192.168.1.1"
                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                     title="Enter a valid IPv4 address"
@@ -76,13 +75,14 @@ function renderDnsServers() {
                     onchange="updateDnsServer(${index}, this.value)">
             </div>
             ${state.dnsServers.length > 1 ? `
-                <button onclick="removeDnsServer(${index})"
+                <button type="button" aria-label="Remove DNS server ${index + 1}" onclick="removeDnsServer(${index})"
                     style="padding:0.75rem; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.5); color:#ef4444; border-radius:4px; cursor:pointer; margin-top:1.5rem;">
                     ✕
                 </button>
             ` : ''}
         `;
 
+        div.querySelector('input').value = server;
         container.appendChild(div);
     });
 }

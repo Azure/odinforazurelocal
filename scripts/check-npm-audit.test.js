@@ -14,6 +14,7 @@ function runAudit(options = {}) {
         ...options.finding
     };
     const vulnerability = {
+        severity: finding.severity,
         isDirect: false,
         nodes: ['node_modules/picomatch'],
         via: [finding],
@@ -104,13 +105,86 @@ test('keeps other high and critical advisories blocking alongside the accepted a
         const result = runAudit({
             vulnerability: {
                 via: [
-                    { url: 'https://github.com/advisories/GHSA-fc5q-39xc-vjpf', severity: 'high' },
-                    { url: 'https://github.com/advisories/GHSA-other-advisory', severity }
+                    { title: 'Accepted advisory', url: 'https://github.com/advisories/GHSA-fc5q-39xc-vjpf', severity: 'high' },
+                    { title: 'Another advisory', url: 'https://github.com/advisories/GHSA-other-advisory', severity }
                 ]
             }
         });
         assert.equal(result.status, 1);
         assert.match(result.output, /Blocking npm audit advisories/);
+    }
+});
+
+test('accepts a successful npm command with an empty vulnerability report', () => {
+    const result = runAudit({ commandStatus: 0, report: { vulnerabilities: {} } });
+    assert.equal(result.status, 0);
+    assert.match(result.output, /No high or critical npm audit advisories found/);
+});
+
+test('accepts reports containing only low or moderate advisories', () => {
+    for (const severity of ['low', 'moderate']) {
+        for (const commandStatus of [0, 1]) {
+            const result = runAudit({
+                commandStatus,
+                finding: { severity, url: 'https://github.com/advisories/GHSA-nonblocking' }
+            });
+            assert.equal(result.status, 0);
+            assert.match(result.output, /No high or critical npm audit advisories found/);
+        }
+    }
+});
+
+test('rejects malformed vulnerability records and advisory entries without claiming a clean audit', () => {
+    const advisory = { title: 'An advisory', severity: 'high', url: 'https://github.com/advisories/GHSA-other-advisory' };
+    for (const vulnerability of [
+        null, [], 'invalid', { severity: 'high' },
+        { severity: 'high', via: null }, { severity: 'high', via: [] },
+        { severity: 'high', via: 'picomatch' },
+        { severity: 'unknown', via: [advisory] },
+        ...[null, [], 1, {}, 'missing-package',
+            { ...advisory, severity: undefined }, { ...advisory, severity: 'unknown' },
+            { ...advisory, title: undefined }, { ...advisory, title: ' ' },
+            { ...advisory, url: undefined }, { ...advisory, url: ' ' }
+        ].map(finding => ({ severity: 'high', via: [finding] }))
+    ]) {
+        const result = runAudit({ report: { vulnerabilities: { picomatch: vulnerability } } });
+        assert.equal(result.status, 1);
+        assert.match(result.output, /malformed/);
+        assert.doesNotMatch(result.output, /No high or critical npm audit advisories found/);
+    }
+});
+
+test('retains accepted and blocking advisories reached through valid transitive references', () => {
+    for (const accepted of [true, false]) {
+        const result = runAudit({
+            report: {
+                vulnerabilities: {
+                    parent: { severity: 'high', via: ['picomatch'] },
+                    picomatch: {
+                        severity: 'high', isDirect: false, nodes: ['node_modules/picomatch'],
+                        via: [{
+                            title: 'Transitive advisory', severity: 'high',
+                            url: 'https://github.com/advisories/' + (accepted ? 'GHSA-fc5q-39xc-vjpf' : 'GHSA-other-advisory')
+                        }]
+                    }
+                }
+            }
+        });
+        assert.equal(result.status, accepted ? 0 : 1);
+        assert.match(result.output, accepted ? /explicitly accepted temporary advisory/ : /Blocking npm audit advisories/);
+        assert.doesNotMatch(result.output, /No high or critical npm audit advisories found/);
+    }
+});
+
+test('rejects high-severity reports without an explaining advisory, including reference cycles', () => {
+    for (const report of [
+        { vulnerabilities: { parent: { severity: 'high', via: [{ title: 'Low advisory', severity: 'low', url: 'https://github.com/advisories/GHSA-low-only' }] } } },
+        { vulnerabilities: { a: { severity: 'high', via: ['b'] }, b: { severity: 'high', via: ['a'] } } }
+    ]) {
+        const result = runAudit({ report });
+        assert.equal(result.status, 1);
+        assert.match(result.output, /unexplained high vulnerability/);
+        assert.doesNotMatch(result.output, /No high or critical npm audit advisories found/);
     }
 });
 
