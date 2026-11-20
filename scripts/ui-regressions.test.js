@@ -222,6 +222,8 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
         await page.locator('#modal-submit-btn').click();
         await page.locator('#node-count').selectOption('2');
         await page.locator('#capacity-disk-count').selectOption('4');
+        const s2d = page.locator('#s2d-integration-section');
+        await expect(s2d).toBeVisible();
         await page.locator('#capacity-disk-size').selectOption('custom');
         const input = page.getByLabel('Custom Capacity Disk Size (TB)', { exact: true }).first();
         await expect(input).toBeVisible();
@@ -231,24 +233,47 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
             await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
             await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeDisabled();
             await expect(page.locator('.results-panel .requirements-grid')).not.toBeVisible();
+            await expect(s2d).not.toBeVisible();
         }
         for (const value of ['0.1', '100', '2.4']) {
             await input.fill(value);
             await expect(input).toHaveAttribute('aria-invalid', 'false');
             await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
             await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeEnabled();
+            await expect(s2d).toBeVisible();
         }
         await expect(page.locator('#storage-total')).toHaveText('6.9');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 2.4 TB = 19.2 TB');
         await input.fill('');
+        await expect(s2d).not.toBeVisible();
         await page.locator('#storage-config').selectOption('hybrid');
         await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await expect(s2d).toBeVisible();
         await page.locator('#cache-disk-size').selectOption('custom');
         await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
+        await expect(s2d).not.toBeVisible();
         await page.locator('#cache-disk-size-custom').fill('1.6');
         await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await expect(s2d).toBeVisible();
+        await page.locator('#cache-disk-size-custom').fill('0');
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#cache-disk-size-custom').fill('1.6');
+        await expect(s2d).toBeVisible();
+        await page.locator('#tiered-capacity-disk-size').selectOption('custom');
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#tiered-capacity-disk-size-custom').fill('6.4');
+        await expect(s2d).toBeVisible();
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 6.4 TB = 51.2 TB');
+        await page.locator('#tiered-capacity-disk-size-custom').fill('');
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#tiered-capacity-disk-size-custom').fill('3.2');
+        await expect(s2d).toBeVisible();
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
         await page.locator('#storage-config').selectOption('all-flash');
         await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(s2d).not.toBeVisible();
         await input.fill('2.4');
+        await expect(s2d).toBeVisible();
         await page.getByRole('button', { name: 'Remove Capacity Disk Size override', exact: true }).click();
         await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
         await expect(input).not.toBeVisible();

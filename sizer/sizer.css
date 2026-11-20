@@ -1238,6 +1238,7 @@ input.disk-size-input {
 
 .invalid-custom-disks .results-panel > :not(.custom-disk-size-validation),
 .invalid-custom-disks #node-recommendation,
+.invalid-custom-disks #s2d-integration-section,
 .invalid-custom-disks #multi-instance-section {
     display: none !important;
 }

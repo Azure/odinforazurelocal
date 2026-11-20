@@ -15,6 +15,10 @@ for the legacy release exceptions and planned transition to calendar versioning.
 - **3.2 TB Sizer disks** - Add the disk size already offered by S2D Calc to single-tier capacity, cache, tiered capacity, instance hardware import choices, and automatic disk-size stepping. Preserve existing defaults, sizing formulas, manual selections, and the Sizer v5 JSON contract. Add real-control regression coverage for capacity calculations, tier transitions, reload/resume, reset, and JSON export/import.
 - **Custom Sizer disk sizes** - Add Custom options with separate labelled capacity and cache inputs, including Hybrid, Mixed All-Flash, and instance hardware imports. Accept decimals from 0.1 to 100 TB, retain custom capacity as a manual override, and return to standard AUTO presets when that override is cleared. Show accessible errors and withhold stale results, exports, and Designer handoff while active inputs are invalid. Preserve valid values through storage-mode changes, save/resume, JSON import/export, and Designer handoff using the existing Sizer v5 fields. Reset restores existing defaults; invalid imported disk sizes are explicitly rejected.
 
+### Fixed
+
+- **Invalid Custom disk S2D results** - Hide the S2D volume count, maximum volume size, and capacity derivation alongside other sizing results while an active Custom disk size is invalid. Restore recalculated results when corrected, with real-control regression coverage for single-tier capacity, cache, and tiered capacity inputs.
+
 ### Security
 
 - **Development-only minimatch denial of service** - Address [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) ([Dependabot alert 50](https://github.com/Azure/odinforazurelocal/security/dependabot/50)) by upgrading HTML Validate's glob 13 dependency to compatible glob 14.0.6 and patched minimatch 11. Preserve the legacy glob 7/minimatch 3 path, existing security floors, and audit policy. No runtime dependency is added.
