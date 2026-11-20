@@ -58,6 +58,8 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 - **Development dependency security** — Update HTML Validate's glob/minimatch chain to address the minimatch denial-of-service advisory in [Dependabot alert 50](https://github.com/Azure/odinforazurelocal/security/dependabot/50), without adding a website runtime dependency.
 - **Compatibility unchanged** — Existing disk defaults, sizing formulas, JSON payload shapes, and the independent Sizer payload version remain unchanged.
 
+Tracked in [#314: 3.2 TB and custom disk sizes](https://github.com/Azure/odinforazurelocal/issues/314).
+
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 
 ---
