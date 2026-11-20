@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.23.08 - Available here: https://aka.ms/ODIN
+## Version 0.23.09 - Available here: https://aka.ms/ODIN
 
 A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODIN combines architecture design, workload-based hardware sizing, storage planning, network and switch configuration, reference architectures, and deployment/report outputs. Configuration data is processed locally in the browser.
 
@@ -49,14 +49,17 @@ A browser-based planning toolkit for Azure Local (formerly Azure Stack HCI). ODI
 
 ## What's New
 
-### Version 0.23.08 - Latest Release
+### Version 0.23.09 - Latest Release
 
-> **Disaggregated node settings, reliable Help/Import, and stronger browser regressions.**
+> **3.2 TB and custom Sizer disks, plus a patched development-tool dependency chain.**
 
-- **Node settings preserved ([#309](https://github.com/Azure/odinforazurelocal/issues/309))** — Disaggregated designs with 1–16 nodes retain Static IP addresses and machine names when edited. Sequential autofill and manual name overrides are preserved.
-- **Help and Import** — Designer Help no longer removes Import, including when dismissed with Escape. Designer/Sizer Help traps keyboard focus and restores it on close.
-- **Reliable report exports** — Fix Disaggregated PDF diagram capture, including offline files, preserve readable labels in light/dark and Print Friendly modes, and repair malformed outbound SVG paths. Real-control Playwright checks now run in CI alongside offline and HTTP tests.
-- **Compatibility unchanged** — HCI node restrictions, Designer JSON payload shape, and the independent Sizer payload version remain unchanged.
+- **3.2 TB disks** — Select the size already offered by S2D Calc for Sizer capacity and cache disks, including tiered storage and instance hardware imports.
+- **Custom disk sizes** — Choose Custom to enter 0.1-100 TB for capacity and cache disks, including Hybrid and Mixed All-Flash. Custom capacity stays manually fixed; values survive save/resume, JSON round-trips, and Designer handoff. Invalid active sizes hide sizing results, including S2D volume guidance, until corrected, and retain a distinct keyboard-focus indicator.
+- **Development dependency security** — Update HTML Validate's glob/minimatch chain to address the minimatch denial-of-service advisory in [Dependabot alert 50](https://github.com/Azure/odinforazurelocal/security/dependabot/50), without adding a website runtime dependency.
+- **Designer, report, and audit hardening** — Render DNS values safely, keep planning text readable in light, dark, and Print Friendly modes, and reject malformed dependency-audit results. Strengthen node-preservation and actual diagram-pixel regressions.
+- **Compatibility unchanged** — Existing disk defaults, sizing formulas, JSON payload shapes, and the independent Sizer payload version remain unchanged.
+
+Tracked in [#314: 3.2 TB and custom disk sizes](https://github.com/Azure/odinforazurelocal/issues/314).
 
 See [version history](docs/version-history/README.md) for previous release summaries and [CHANGELOG.md](CHANGELOG.md) for the full change record.
 

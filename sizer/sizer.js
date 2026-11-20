@@ -460,6 +460,84 @@ function onCpuConfigChange() {
 }
 
 // Dedicated handlers for capacity disk dropdowns — lock only the specific field against auto-scaling
+function isValidDiskSize(value) {
+    return (typeof value === 'string' || typeof value === 'number') &&
+        String(value).trim() !== '' && Number.isFinite(Number(value)) &&
+        Number(value) >= 0.1 && Number(value) <= 100;
+}
+
+function getDiskSizeValue(elementId) {
+    const select = document.getElementById(elementId);
+    if (select.value !== 'custom') return select.value;
+    const value = document.getElementById(elementId + '-custom').value;
+    // Inactive invalid drafts are not persisted as hardware configuration.
+    return isValidDiskSize(value) ? String(Number(value)) : null;
+}
+
+function setDiskSizeValue(elementId, value) {
+    const select = document.getElementById(elementId);
+    const input = document.getElementById(elementId + '-custom');
+    const normalized = String(Number(value));
+    const preset = Array.from(select.options).some(option => option.value === normalized);
+    select.value = preset ? normalized : 'custom';
+    if (input) input.value = preset ? '' : normalized;
+}
+
+function updateCustomDiskSizeInput(elementId) {
+    const select = document.getElementById(elementId);
+    const input = document.getElementById(elementId + '-custom');
+    const row = document.getElementById(elementId + '-custom-row');
+    if (!select || !input || !row) return true;
+    const custom = select.value === 'custom';
+    row.style.display = custom ? '' : 'none';
+    input.disabled = select.disabled;
+    const valid = !custom || input.disabled || isValidDiskSize(input.value);
+    const message = valid ? '' : 'Enter a disk size from 0.1 to 100 TB.';
+    input.setCustomValidity(message);
+    input.setAttribute('aria-invalid', String(!valid));
+    document.getElementById(elementId + '-error').textContent = message;
+    return valid;
+}
+
+function validateCustomDiskSizes() {
+    if (!document.getElementById('capacity-disk-size-custom')) return true;
+    const tiered = _isTieredStorage();
+    const active = tiered ? ['cache-disk-size', 'tiered-capacity-disk-size'] : ['capacity-disk-size'];
+    let valid = true;
+    for (const id of ['capacity-disk-size', 'cache-disk-size', 'tiered-capacity-disk-size']) {
+        const fieldValid = updateCustomDiskSizeInput(id);
+        if (active.includes(id) && !fieldValid) valid = false;
+    }
+    document.body.classList.toggle('invalid-custom-disks', !valid);
+    const message = document.getElementById('custom-disk-size-validation');
+    if (message) message.style.display = valid ? 'none' : '';
+    const exportButton = document.getElementById('sizer-export-json');
+    if (exportButton) exportButton.disabled = !valid;
+    return valid;
+}
+
+function validateImportedDiskSizes(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        showToast('Cannot load disk sizes from an invalid Sizer configuration.', 'error');
+        return false;
+    }
+    for (const key of ['capacityDiskSize', 'cacheDiskSize', 'tieredCapacityDiskSize']) {
+        const value = data[key];
+        if (value !== undefined && value !== null && value !== '' && !isValidDiskSize(value)) {
+            showToast('Cannot load disk sizes: ' + key + ' must be a number from 0.1 to 100 TB.', 'error');
+            return false;
+        }
+    }
+    return true;
+}
+
+function clearCustomCapacitySizes() {
+    for (const id of ['capacity-disk-size', 'tiered-capacity-disk-size']) {
+        const select = document.getElementById(id);
+        if (select && select.value === 'custom') setDiskSizeValue(id, '3.84');
+    }
+}
+
 function onDiskSizeChange() {
     _diskSizeUserSet = true;
     const isTiered = _isTieredStorage();
@@ -1127,9 +1205,9 @@ function getHardwareConfig() {
     let diskConfig = {};
     if (selectedTier.isTiered) {
         const cacheDiskCount = parseInt(document.getElementById('cache-disk-count').value) || 2;
-        const cacheDiskSizeTB = parseFloat(document.getElementById('cache-disk-size').value) || 1.92;
+        const cacheDiskSizeTB = parseFloat(getDiskSizeValue('cache-disk-size')) || 1.92;
         const capacityDiskCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
-        const capacityDiskSizeTB = parseFloat(document.getElementById('tiered-capacity-disk-size').value) || 3.84;
+        const capacityDiskSizeTB = parseFloat(getDiskSizeValue('tiered-capacity-disk-size')) || 3.84;
 
         diskConfig = {
             isTiered: true,
@@ -1146,7 +1224,7 @@ function getHardwareConfig() {
         };
     } else {
         const diskCount = parseInt(document.getElementById('capacity-disk-count').value) || 4;
-        const diskSizeTB = parseFloat(document.getElementById('capacity-disk-size').value) || 3.84;
+        const diskSizeTB = parseFloat(getDiskSizeValue('capacity-disk-size')) || 3.84;
 
         diskConfig = {
             isTiered: false,
@@ -1866,7 +1944,7 @@ const DISAGG_BOOT_DISK_COUNT = 2;
 const DISAGG_BOOT_DISK_SIZE_TB = 0.96;
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
-const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 5.68, 7.68, 15.36];
+const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.2, 3.84, 5.68, 7.68, 15.36];
 
 // S2D resiliency repair: reserve 1 capacity disk per node (up to 4 max) from the storage pool
 const S2D_REPAIR_MAX_RESERVED_DISKS = 4;
@@ -2050,6 +2128,7 @@ function clearManualBadges() {
 
 // Remove all manual overrides — resets user locks and re-runs auto-scaling
 function clearAllManualOverrides() {
+    clearCustomCapacitySizes();
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
@@ -2122,7 +2201,7 @@ function clearSingleManualOverride(elementId) {
         case 'vcpuRatio':   _vcpuRatioUserSet   = false; break;
         case 'memory':      _memoryUserSet       = false; break;
         case 'cpuConfig':   _cpuConfigUserSet    = false; break;
-        case 'diskSize':    _diskSizeUserSet     = false; break;
+        case 'diskSize':    _diskSizeUserSet     = false; clearCustomCapacitySizes(); break;
         case 'diskCount':   _diskCountUserSet    = false; break;
         case 'gpuCount':    _gpuCountUserSet     = false; break;
         case 'repairDisks': _repairDisksUserSet  = false; break;
@@ -2525,14 +2604,14 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
 
     // S2D repair reservation: min(nodeCount, 4) capacity disks of raw pool space reserved for repair jobs
-    const diskSizeTBForRepair = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
+    const diskSizeTBForRepair = parseFloat(getDiskSizeValue(diskSizeId)) || 3.84;
     const s2dRepairRawGB = getS2dRepairReservedGB(nodeCount, diskSizeTBForRepair * 1024);
     // Total raw storage needed across all nodes includes platform volumes and S2D repair capacity.
     const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + platformVolumesRawGB + s2dRepairRawGB;
     // Raw storage each node must provide
     const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
-    const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
+    const diskSizeTB = parseFloat(getDiskSizeValue(diskSizeId)) || 3.84;
     const diskSizeGB = diskSizeTB * 1024;
 
     // Always reset consolidation info — even when user locked disk config
@@ -2824,7 +2903,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
-        const hrDiskSizeTB = parseFloat(hrDiskSizeSelect.value) || 3.84;
+        const hrDiskSizeTB = parseFloat(getDiskSizeValue(diskSizeId)) || 3.84;
         let hrDiskSizeGB = hrDiskSizeTB * 1024;
         let storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
         let storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
@@ -2916,11 +2995,11 @@ function getSizerState() {
         storageConfig: document.getElementById('storage-config').value,
         storageTiering: document.getElementById('storage-tiering').value,
         capacityDiskCount: document.getElementById('capacity-disk-count').value,
-        capacityDiskSize: document.getElementById('capacity-disk-size').value,
+        capacityDiskSize: getDiskSizeValue('capacity-disk-size'),
         cacheDiskCount: document.getElementById('cache-disk-count').value,
-        cacheDiskSize: document.getElementById('cache-disk-size').value,
+        cacheDiskSize: getDiskSizeValue('cache-disk-size'),
         tieredCapacityDiskCount: document.getElementById('tiered-capacity-disk-count').value,
-        tieredCapacityDiskSize: document.getElementById('tiered-capacity-disk-size').value,
+        tieredCapacityDiskSize: getDiskSizeValue('tiered-capacity-disk-size'),
         diskSizeUserSet: _diskSizeUserSet,
         diskCountUserSet: _diskCountUserSet,
         repairDiskCount: document.getElementById('repair-disk-count').value,
@@ -2939,6 +3018,7 @@ function getSizerState() {
 
 // Save sizer state to localStorage
 function saveSizerState() {
+    if (!validateCustomDiskSizes()) return;
     try {
         const stateWithMeta = {
             version: SIZER_VERSION,
@@ -3164,6 +3244,7 @@ function resumeSizerState() {
     const saved = loadSizerState();
     if (!saved || !saved.data) return;
     const d = saved.data;
+    if (!validateImportedDiskSizes(d)) return;
     if (!migrateAiGpuWorkloads(d)) return;
 
     // Restore cluster config
@@ -3242,11 +3323,11 @@ function resumeSizerState() {
 
     // Restore disk configs
     document.getElementById('capacity-disk-count').value = d.capacityDiskCount || '4';
-    document.getElementById('capacity-disk-size').value = d.capacityDiskSize || '3.84';
+    setDiskSizeValue('capacity-disk-size', d.capacityDiskSize || '3.84');
     document.getElementById('cache-disk-count').value = d.cacheDiskCount || '2';
-    document.getElementById('cache-disk-size').value = d.cacheDiskSize || '1.92';
+    setDiskSizeValue('cache-disk-size', d.cacheDiskSize || '1.92');
     document.getElementById('tiered-capacity-disk-count').value = d.tieredCapacityDiskCount || '4';
-    document.getElementById('tiered-capacity-disk-size').value = d.tieredCapacityDiskSize || '3.84';
+    setDiskSizeValue('tiered-capacity-disk-size', d.tieredCapacityDiskSize || '3.84');
 
     // Restore resiliency (after node count is set so options are correct)
     updateResiliencyOptions();
@@ -3287,7 +3368,8 @@ function resumeSizerState() {
         markManualSet('cpu-sockets');
     }
 
-    _diskSizeUserSet = !!d.diskSizeUserSet;
+    _diskSizeUserSet = !!d.diskSizeUserSet ||
+        ['capacity-disk-size', 'tiered-capacity-disk-size'].some(id => document.getElementById(id).value === 'custom');
     if (_diskSizeUserSet) {
         const isTiered = _isTieredStorage();
         markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
@@ -4119,14 +4201,14 @@ function enforceAldoMinimums() {
     const diskSizeSelect = document.getElementById('capacity-disk-size');
     const diskCountInput = document.getElementById('capacity-disk-count');
     if (diskSizeSelect && diskCountInput) {
-        const diskSizeTB = parseFloat(diskSizeSelect.value) || 0;
+        const diskSizeTB = parseFloat(getDiskSizeValue('capacity-disk-size'));
         const diskCount = parseInt(diskCountInput.value) || 0;
         const totalPerNodeTB = diskSizeTB * diskCount;
-        if (totalPerNodeTB < ALDO_MIN_STORAGE_PER_NODE_TB) {
+        if (Number.isFinite(diskSizeTB) && totalPerNodeTB < ALDO_MIN_STORAGE_PER_NODE_TB) {
             // Prefer increasing disk size first, then count
             const minSize = DISK_SIZE_OPTIONS_TB.find(s => s * diskCount >= ALDO_MIN_STORAGE_PER_NODE_TB);
             if (minSize) {
-                diskSizeSelect.value = minSize;
+                setDiskSizeValue('capacity-disk-size', minSize);
             } else {
                 // Increase disk count at current size
                 const minCount = Math.ceil(ALDO_MIN_STORAGE_PER_NODE_TB / diskSizeTB);
@@ -6182,6 +6264,7 @@ function getAutoGpuCountPerNode(totalGpus, nodeCount, maxPerNode, minimumPerNode
 // Calculate all requirements
 function calculateRequirements(options) {
     if (isCalculating) return;
+    if (!validateCustomDiskSizes()) return;
     isCalculating = true;
     const skipAutoNodeRecommend = _nodeCountUserSet || (options && options.skipAutoNodeRecommend);
 
@@ -8143,6 +8226,7 @@ function updateGrowthProjection(rawVcpus, rawMemory, rawStorage, rawGpus, hwConf
 // Show "Configure in Designer" button only when workloads exist and all resources are under 90%
 // Update multi-instance summary (scale-out view — visual only, not used in sizing)
 function updateMultiInstanceSummary() {
+    if (!validateCustomDiskSizes()) return;
     const section = document.getElementById('multi-instance-section');
     const summaryDiv = document.getElementById('multi-instance-summary');
     if (!section || !summaryDiv) return;
@@ -8358,6 +8442,7 @@ window.addEventListener('afterprint', function() {
 
 // Export sizer results as PDF using html2canvas + jsPDF
 function exportSizerPDF() { // eslint-disable-line no-unused-vars
+    if (!validateCustomDiskSizes()) return;
     const sizerLayout = document.querySelector('.sizer-layout');
     if (!sizerLayout) {
         alert('No results to export. Add workloads first.');
@@ -8453,6 +8538,7 @@ function exportSizerPDF() { // eslint-disable-line no-unused-vars
 }
 
 function exportSizerWord() {
+    if (!validateCustomDiskSizes()) return;
     const hwConfig = getHardwareConfig();
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
@@ -8665,6 +8751,7 @@ function escapeHtmlSizer(str) {
 }
 
 function configureInDesigner() {
+    if (!validateCustomDiskSizes()) return;
     // Block if storage limits are exceeded
     if (_storageLimitExceeded) {
         alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Switch the deployment type to Disaggregated Storage (external SAN), or reduce disk count, disk size, or machine count before proceeding.');
@@ -8862,6 +8949,7 @@ function closeRegionModal() {
 
 // User selected a region — build payload and navigate to Designer
 function selectRegionAndConfigure(region, cloud) {
+    if (!validateCustomDiskSizes()) return;
     closeRegionModal();
 
     const clusterType = document.getElementById('cluster-type').value;
@@ -9060,6 +9148,7 @@ function selectRegionAndConfigure(region, cloud) {
 
 // Export current sizer state to a downloadable JSON file
 function exportSizerJSON() {
+    if (!validateCustomDiskSizes()) return;
     try {
         const state = getSizerState();
         const exportPayload = {
@@ -9107,6 +9196,7 @@ function escapeSpreadsheetCell(cell) {
 
 // Export hardware BOM as CSV spreadsheet
 function exportSizerCSV() { // eslint-disable-line no-unused-vars
+    if (!validateCustomDiskSizes()) return;
     try {
         const st = getSizerState();
         const hwConfig = getHardwareConfig();
@@ -9238,6 +9328,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
 
 // Share sizer configuration via URL (compressed base64 in query parameter)
 async function shareSizerURL() { // eslint-disable-line no-unused-vars
+    if (!validateCustomDiskSizes()) return;
     if (workloads.length === 0) {
         showToast('Add at least one workload before sharing', 'error');
         return;
@@ -10054,7 +10145,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
             nodeCount: prevNodeInput ? prevNodeInput.value : null,
             deployType: prevDeployRadio ? prevDeployRadio.value : null,
             diskCount: prevDiskCountSel ? prevDiskCountSel.value : null,
-            diskSize: prevDiskSizeSel ? prevDiskSizeSel.value : null
+            diskSize: prevDiskSizeSel ? getDiskSizeValue('cluster-import-disk-size') : null
         };
     }
 
@@ -10277,9 +10368,10 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         +   '<option value="10">10</option><option value="12">12</option><option value="16">16</option><option value="24">24</option>'
         + '</select>'
         + '<span>Capacity per disk:</span>'
-        + '<select id="cluster-import-disk-size" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
+        + '<select id="cluster-import-disk-size" aria-label="Capacity per disk" onchange="validateClusterImportSelection()" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
         +   '<option value="0.96">960 GB (0.96 TB)</option>'
         +   '<option value="1.92">1.92 TB</option>'
+        +   '<option value="3.2">3.2 TB</option>'
         +   '<option value="3.84" selected>3.84 TB</option>'
         +   '<option value="5.68">5.68 TB</option>'
         +   '<option value="7.68">7.68 TB</option>'
@@ -10288,7 +10380,13 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         +   '<option value="15.36">15.36 TB</option>'
         +   '<option value="16">16 TB</option>'
         +   '<option value="20">20 TB</option>'
+        +   '<option value="custom">Custom...</option>'
         + '</select>'
+        + '<span id="cluster-import-disk-size-custom-row" class="custom-disk-size-control" style="display: none;">'
+        + '<label for="cluster-import-disk-size-custom">Custom Capacity Disk Size (TB)</label>'
+        + '<input id="cluster-import-disk-size-custom" class="disk-size-input" type="number" min="0.1" max="100" step="any" inputmode="decimal" aria-describedby="cluster-import-disk-size-error" oninput="validateClusterImportSelection()">'
+        + '<span id="cluster-import-disk-size-error" class="custom-disk-size-error" aria-live="polite"></span>'
+        + '</span>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(not in the JSON — supply for accurate sizing)</span>'
         + '</span>';
     previewHTML += '<span style="grid-column: 1 / -1;" id="cluster-import-validation"></span>';
@@ -10346,10 +10444,7 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         }
         const restDiskSizeSel = document.getElementById('cluster-import-disk-size');
         if (restDiskSizeSel && preservedSelections.diskSize) {
-            const dsOpts = Array.prototype.map.call(restDiskSizeSel.options, function(o) { return o.value; });
-            if (dsOpts.indexOf(preservedSelections.diskSize) !== -1) {
-                restDiskSizeSel.value = preservedSelections.diskSize;
-            }
+            setDiskSizeValue('cluster-import-disk-size', preservedSelections.diskSize);
         }
     }
 
@@ -10404,6 +10499,9 @@ function validateClusterImportSelection() { // eslint-disable-line no-unused-var
     }
 
     const errors = [];
+    if (!updateCustomDiskSizeInput('cluster-import-disk-size')) {
+        errors.push('Custom capacity disk size must be a number from 0.1 to 100 TB.');
+    }
     if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
         errors.push('Number of machines must be between 1 and 16.');
     } else if (deployType === 'rack-aware' && nodeCount !== 1) {
@@ -10445,6 +10543,10 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // and force Single Node when nodeCount === 1 regardless of the radio selection.
     const deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
     const chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
+    if (!updateCustomDiskSizeInput('cluster-import-disk-size')) {
+        showToast('Enter a custom capacity disk size from 0.1 to 100 TB.', 'error');
+        return;
+    }
 
     // Read the S2D capacity-disk choices supplied in the preview banner BEFORE
     // the modal closes. The Azure Local machine JSON does not enumerate S2D
@@ -10453,7 +10555,7 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     const diskCountSel = document.getElementById('cluster-import-disk-count');
     const diskSizeSel = document.getElementById('cluster-import-disk-size');
     let chosenDiskCount = diskCountSel ? parseInt(diskCountSel.value, 10) : NaN;
-    let chosenDiskSizeTB = diskSizeSel ? parseFloat(diskSizeSel.value) : NaN;
+    let chosenDiskSizeTB = diskSizeSel ? parseFloat(getDiskSizeValue('cluster-import-disk-size')) : NaN;
     if (isNaN(chosenDiskCount) || chosenDiskCount < 1) chosenDiskCount = null;
     if (isNaN(chosenDiskSizeTB) || chosenDiskSizeTB <= 0) chosenDiskSizeTB = null;
 
@@ -10643,13 +10745,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function(id) {
             const el = document.getElementById(id);
             if (!el) return;
-            const avail = Array.from(el.options).map(function(o) { return parseFloat(o.value); });
-            // Floating-point compare — match within 0.001 TB.
-            const found = avail.some(function(v) { return Math.abs(v - chosenDiskSizeTB) < 0.001; });
-            if (found) {
-                el.value = String(chosenDiskSizeTB);
-                markManualSet(id);
-            }
+            setDiskSizeValue(id, chosenDiskSizeTB);
+            markManualSet(id);
         });
         // Issue #235: lock imported capacity-disk size so it does not auto-scale.
         _diskSizeUserSet = true;
@@ -11502,6 +11599,7 @@ function handleSizerFileImport(event) {
 
 // Apply an imported sizer state object to the UI (mirrors resumeSizerState)
 function applyImportedSizerState(d) {
+    if (!validateImportedDiskSizes(d)) return false;
     // Import hardening (#237): the Sizer reads named properties off `d` rather
     // than bulk-copying into a target, so it is not directly prototype-pollutable;
     // but strip dangerous keys defensively in case future code iterates `d`, and
@@ -11646,11 +11744,11 @@ function applyImportedSizerState(d) {
 
     // Restore disk configs
     document.getElementById('capacity-disk-count').value = d.capacityDiskCount || '4';
-    document.getElementById('capacity-disk-size').value = d.capacityDiskSize || '3.84';
+    setDiskSizeValue('capacity-disk-size', d.capacityDiskSize || '3.84');
     document.getElementById('cache-disk-count').value = d.cacheDiskCount || '2';
-    document.getElementById('cache-disk-size').value = d.cacheDiskSize || '1.92';
+    setDiskSizeValue('cache-disk-size', d.cacheDiskSize || '1.92');
     document.getElementById('tiered-capacity-disk-count').value = d.tieredCapacityDiskCount || '4';
-    document.getElementById('tiered-capacity-disk-size').value = d.tieredCapacityDiskSize || '3.84';
+    setDiskSizeValue('tiered-capacity-disk-size', d.tieredCapacityDiskSize || '3.84');
 
     // Restore resiliency
     updateResiliencyOptions();
@@ -11691,7 +11789,8 @@ function applyImportedSizerState(d) {
         markManualSet('cpu-sockets');
     }
 
-    _diskSizeUserSet = !!d.diskSizeUserSet;
+    _diskSizeUserSet = !!d.diskSizeUserSet ||
+        ['capacity-disk-size', 'tiered-capacity-disk-size'].some(id => document.getElementById(id).value === 'custom');
     if (_diskSizeUserSet) {
         const isTiered = _isTieredStorage();
         markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
@@ -11792,11 +11891,11 @@ function resetScenario() {
 
     // Reset disk config
     document.getElementById('capacity-disk-count').value = '4';
-    document.getElementById('capacity-disk-size').value = '3.84';
+    setDiskSizeValue('capacity-disk-size', '3.84');
     document.getElementById('cache-disk-count').value = '2';
-    document.getElementById('cache-disk-size').value = '1.92';
+    setDiskSizeValue('cache-disk-size', '1.92');
     document.getElementById('tiered-capacity-disk-count').value = '4';
-    document.getElementById('tiered-capacity-disk-size').value = '3.84';
+    setDiskSizeValue('tiered-capacity-disk-size', '3.84');
     document.getElementById('repair-disk-count').value = '2';
     document.getElementById('tiered-repair-disk-count').value = '2';
 

@@ -144,11 +144,63 @@ test('Designer Help owns its keyboard focus without removing other dialogs', { t
     });
 });
 
+for (const identity of ['azure_ad', 'local_identity']) {
+    test('Designer DNS values remain literal through import and list edits: ' + identity, { timeout: 90000 }, async t => {
+        await visit(t, '/index.html?ui=dns-literal-' + identity, async page => {
+            await page.getByRole('button', { name: 'Skip', exact: true }).click();
+            await loadTemplate(page, '2-Node Standard Cluster');
+            await page.getByRole('button', { name: '💾 Export', exact: true }).click();
+            const payload = JSON.parse(await downloadText(page, page.getByRole('dialog').getByRole('button', { name: 'Export JSON', exact: true })));
+            const validDns = payload.state.dnsServers[0];
+            const injected = '"><img data-dns-injection src="data:," onerror="document.body.dataset.dnsInjection=\'executed\'">';
+            payload.state.activeDirectory = identity;
+            payload.state.localDnsZone = 'lab.invalid';
+            payload.state.dnsServers = [injected, validDns];
+            await page.getByRole('button', { name: '📁 Import', exact: true }).click();
+            const [chooser] = await Promise.all([
+                page.waitForEvent('filechooser'),
+                page.getByText('Import ODIN Designer Configuration', { exact: true }).click()
+            ]);
+            await chooser.setFiles({ name: 'dns-literal.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(payload)) });
+            const container = page.locator('#dns-servers-container');
+            const inputs = container.locator('input');
+            await expect(inputs).toHaveCount(2);
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await expect(page.locator('body')).not.toHaveAttribute('data-dns-injection', 'executed');
+            await expect(page.getByLabel(identity === 'azure_ad' ? 'DNS Server 1' : 'DNS server *', { exact: true })).toHaveValue(injected);
+            await edit(inputs.first(), injected + ' ');
+            await expect(page.locator('#dns-error')).toContainText('Invalid DNS server format');
+            await page.getByRole('button', { name: '+ Add DNS server', exact: true }).click();
+            await expect(inputs).toHaveCount(3);
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await container.getByRole('button', { name: 'Remove DNS server 2', exact: true }).click();
+            await expect(inputs).toHaveCount(2);
+            await edit(inputs.nth(1), validDns);
+            await container.getByRole('button', { name: 'Remove DNS server 1', exact: true }).click();
+            await expect(inputs).toHaveCount(1);
+            await expect(inputs.first()).toHaveValue(validDns);
+            await expect(page.locator('#dns-error')).not.toBeVisible();
+            await edit(inputs.first(), injected);
+            await page.getByRole('button', { name: '+ Add DNS server', exact: true }).click();
+            await expect(inputs.first()).toHaveValue(injected);
+            await expect(container.locator('img')).toHaveCount(0);
+            await expect(page.locator('body')).not.toHaveAttribute('data-dns-injection', 'executed');
+            await edit(inputs.first(), validDns);
+            await container.getByRole('button', { name: 'Remove DNS server 2', exact: true }).click();
+            await expect(inputs).toHaveCount(1);
+            await expect(page.locator('#dns-error')).not.toBeVisible();
+        });
+    });
+}
+
 test('Disaggregated rendered edits survive node boundaries and their inverse', { timeout: 90000 }, async t => {
     await visit(t, '/index.html?ui=node-boundaries', async page => {
         await page.getByRole('button', { name: 'Skip', exact: true }).click();
         await loadTemplate(page, '64-Node Disaggregated Storage Cluster');
         let sequence = 0;
+        let previousNodes = [];
         const prefix = (await page.getByRole('textbox', { name: /^IPv4 CIDR/ }).first().inputValue())
             .split('.').slice(0, 3).join('.') + '.';
         for (const [racks, perRack] of [[1, 1], [1, 3], [2, 8], [2, 9], [2, 8]]) {
@@ -157,6 +209,12 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
             for (let index = 1; index < perRack; index++) await page.locator('#da-nodes-per-rack').press('ArrowRight');
             const names = page.getByRole('textbox', { name: /^SAM Account name/ });
             const ips = page.getByRole('textbox', { name: /^IPv4 CIDR/ });
+            await expect(names).toHaveCount(racks * perRack);
+            await expect(ips).toHaveCount(racks * perRack);
+            for (let index = 0; index < Math.min(previousNodes.length, racks * perRack); index++) {
+                await expect(names.nth(index)).toHaveValue(previousNodes[index].name);
+                await expect(ips.nth(index)).toHaveValue(previousNodes[index].ip);
+            }
             const firstIP = prefix + (100 + 20 * sequence++) + '/24';
             await edit(ips.first(), firstIP);
             await edit(names.first(), 'lab01');
@@ -165,8 +223,6 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
                 await edit(ips.nth(1), prefix + '220/24');
             }
             await edit(names.first(), 'edge01');
-            await expect(names).toHaveCount(racks * perRack);
-            await expect(ips).toHaveCount(racks * perRack);
             await expect(names.first()).toHaveValue('edge01');
             await expect(ips.first()).toHaveValue(firstIP);
             if (racks * perRack > 1) {
@@ -178,6 +234,8 @@ test('Disaggregated rendered edits survive node boundaries and their inverse', {
             await expect(page.locator('#node-config-section')).toContainText('Node settings valid');
             await expect(page.locator('#wizard-progress-text')).toContainText('100%');
             await expect(page.locator('#generate-arm-btn')).toBeEnabled();
+            previousNodes = [{ name: 'edge01', ip: firstIP }];
+            if (racks * perRack > 1) previousNodes.push({ name: 'manual-node', ip: prefix + '220/24' });
         }
     });
 });
@@ -212,6 +270,268 @@ test('Sizer Help traps both Tab directions and restores edited inputs and trigge
                 await page.locator('#theme-toggle').click();
             }
         }
+    });
+});
+
+test('Sizer Custom disk sizes validate boundaries and return to automatic presets', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-disk-validation', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        const s2d = page.locator('#s2d-integration-section');
+        await expect(s2d).toBeVisible();
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        const input = page.getByLabel('Custom Capacity Disk Size (TB)', { exact: true }).first();
+        await expect(input).toBeVisible();
+        async function assertInvalidKeyboardFocus(field) {
+            await expect(field).toHaveAttribute('aria-invalid', 'true');
+            await field.press('Tab');
+            const errorBorder = await field.evaluate(element => getComputedStyle(element).borderColor);
+            await field.press('Shift+Tab');
+            await page.keyboard.press('Tab');
+            await expect(field).toBeFocused();
+            const focus = await field.evaluate(element => {
+                const style = getComputedStyle(element);
+                return {
+                    visible: element.matches(':focus-visible'),
+                    outline: style.outlineStyle,
+                    width: parseFloat(style.outlineWidth),
+                    color: style.outlineColor,
+                    border: style.borderColor
+                };
+            });
+            assert.ok(focus.visible && focus.outline !== 'none' && focus.width > 0,
+                'Invalid Custom disk inputs retain a visible keyboard-focus outline');
+            assert.equal(focus.border, errorBorder, 'Keyboard focus preserves the validation border');
+            assert.notEqual(focus.color, errorBorder, 'Focus is distinct from the invalid-input border');
+        }
+        for (const value of ['', '0', '-1', '0.09', '100.1']) {
+            await input.fill(value);
+            await expect(input).toHaveAttribute('aria-invalid', 'true');
+            await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
+            await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeDisabled();
+            await expect(page.locator('.results-panel .requirements-grid')).not.toBeVisible();
+            await expect(s2d).not.toBeVisible();
+            if (value === '' || value === '0') await assertInvalidKeyboardFocus(input);
+        }
+        for (const value of ['0.1', '100', '2.4']) {
+            await input.fill(value);
+            await expect(input).toHaveAttribute('aria-invalid', 'false');
+            await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+            await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeEnabled();
+            await expect(s2d).toBeVisible();
+        }
+        await expect(page.locator('#storage-total')).toHaveText('6.9');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 2.4 TB = 19.2 TB');
+        await input.fill('');
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#storage-config').selectOption('hybrid');
+        await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await expect(s2d).toBeVisible();
+        await page.locator('#cache-disk-size').selectOption('custom');
+        await expect(page.locator('#custom-disk-size-validation')).toBeVisible();
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#cache-disk-size-custom').fill('1.6');
+        await expect(page.locator('#custom-disk-size-validation')).not.toBeVisible();
+        await expect(s2d).toBeVisible();
+        await page.locator('#cache-disk-size-custom').fill('0');
+        await expect(s2d).not.toBeVisible();
+        await assertInvalidKeyboardFocus(page.locator('#cache-disk-size-custom'));
+        await page.locator('#cache-disk-size-custom').fill('1.6');
+        await expect(s2d).toBeVisible();
+        await page.locator('#tiered-capacity-disk-size').selectOption('custom');
+        await expect(s2d).not.toBeVisible();
+        await page.locator('#tiered-capacity-disk-size-custom').fill('6.4');
+        await expect(s2d).toBeVisible();
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 6.4 TB = 51.2 TB');
+        await page.locator('#tiered-capacity-disk-size-custom').fill('');
+        await expect(s2d).not.toBeVisible();
+        await assertInvalidKeyboardFocus(page.locator('#tiered-capacity-disk-size-custom'));
+        await page.locator('#tiered-capacity-disk-size-custom').fill('3.2');
+        await expect(s2d).toBeVisible();
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(s2d).not.toBeVisible();
+        await input.fill('2.4');
+        await expect(s2d).toBeVisible();
+        await page.getByRole('button', { name: 'Remove Capacity Disk Size override', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(input).not.toBeVisible();
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        await input.fill('2.4');
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(input).toHaveValue('');
+        await expect(input).not.toBeVisible();
+        await expect(page.locator('#cache-disk-size')).toHaveValue('1.92');
+    });
+});
+
+test('Sizer custom capacity and cache survive Hybrid, Mixed All-Flash and v5 JSON roundtrip', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-disk-roundtrip', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await edit(page.locator('#workload-name'), 'Demo custom storage');
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        await page.locator('#capacity-disk-size').selectOption('custom');
+        await page.locator('#capacity-disk-size-custom').fill('2.4');
+        for (const mode of ['mixed-flash', 'hybrid']) {
+            await page.locator('#storage-config').selectOption(mode);
+            await page.locator('#cache-disk-size').selectOption('custom');
+            await page.locator('#cache-disk-size-custom').fill('1.6');
+            await page.locator('#tiered-capacity-disk-count').selectOption('4');
+            await page.locator('#tiered-capacity-disk-size').selectOption('custom');
+            await page.locator('#tiered-capacity-disk-size-custom').fill('6.4');
+            await expect(page.locator('#cache-disk-size-custom')).toBeVisible();
+            await expect(page.locator('#tiered-capacity-disk-size-custom')).toBeVisible();
+            await expect(page.locator('#storage-total')).toHaveText('18.9');
+        }
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            page.getByTitle('Export configuration as a JSON file', { exact: true }).click()
+        ]);
+        const exported = await fs.readFile(await download.path());
+        const payload = JSON.parse(exported.toString('utf8'));
+        assert.equal(payload._meta.version, 5);
+        assert.equal(payload.data.capacityDiskSize, '2.4');
+        assert.equal(payload.data.cacheDiskSize, '1.6');
+        assert.equal(payload.data.tieredCapacityDiskSize, '6.4');
+        assert.equal(payload.data.diskSizeUserSet, true);
+        await page.reload();
+        await page.getByRole('button', { name: 'Resume', exact: true }).click();
+        await expect(page.locator('#storage-config')).toHaveValue('hybrid');
+        await expect(page.locator('#cache-disk-size-custom')).toHaveValue('1.6');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('6.4');
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        const invalid = JSON.parse(exported.toString('utf8'));
+        invalid.data.cacheDiskSize = 'Infinity';
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [invalidChooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await invalidChooser.setFiles({ name: 'invalid-custom-size.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(invalid)) });
+        await expect(page.getByText('Cannot load disk sizes: cacheDiskSize must be a number from 0.1 to 100 TB.', { exact: true })).toBeVisible();
+        await expect(page.locator('#total-workloads')).toHaveText('0');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        const importPayload = JSON.parse(exported.toString('utf8'));
+        importPayload.data.cacheDiskSize = ' 1.6 ';
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [chooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await chooser.setFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(importPayload)) });
+        await expect(page.locator('#workloads-list')).toContainText('Demo custom storage');
+        await expect(page.locator('#storage-total')).toHaveText('18.9');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#cache-disk-size-custom')).toHaveValue('1.6');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('6.4');
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#capacity-disk-size-custom')).toHaveValue('2.4');
+        await expect(page.locator('#storage-total')).toHaveText('6.9');
+        await page.locator('#storage-config').selectOption('hybrid');
+        await page.getByRole('button', { name: /Configure in Designer/ }).click();
+        await page.locator('#connectivity-choice-overlay').getByRole('button', { name: /^Connected/ }).click();
+        await page.getByRole('button', { name: 'West Europe', exact: true }).click();
+        await page.waitForURL(/from=sizer/);
+        const skip = page.getByRole('button', { name: 'Skip', exact: true });
+        if (await skip.isVisible()) await skip.click();
+        await expect(page.locator('#sizer-import-banner')).toBeVisible();
+        await page.getByRole('button', { name: '💾 Export', exact: true }).click();
+        const designer = JSON.parse(await downloadText(page, page.getByRole('dialog').getByRole('button', { name: 'Export JSON', exact: true })));
+        assert.equal(designer.state.sizerHardware.storage.diskConfig.cache.sizeGB, 1.6 * 1024);
+        assert.equal(designer.state.sizerHardware.storage.diskConfig.capacity.sizeGB, 6.4 * 1024);
+    });
+});
+
+test('Sizer hardware-import Custom disks validate and load both capacity layouts', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=custom-hardware-import', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        await page.locator('[onclick="switchImportTab(\'cluster\')"]').click();
+        await page.locator('#cluster-json-input').fill(JSON.stringify({
+            type: 'Microsoft.HybridCompute/machines',
+            name: 'demo-machine',
+            properties: { detectedProperties: { coreCount: 32, processorCount: 2, totalPhysicalMemoryInGigabytes: 256, processorNames: 'Demo processor' } }
+        }));
+        await page.getByRole('button', { name: 'Parse & Preview', exact: true }).click();
+        await page.locator('#cluster-import-disk-size').selectOption('custom');
+        await expect(page.getByRole('button', { name: 'Load Cluster Configuration', exact: true })).toBeDisabled();
+        await page.locator('#cluster-import-disk-size-custom').fill('2.4');
+        await page.getByRole('button', { name: 'Load Cluster Configuration', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('custom');
+        await expect(page.locator('#capacity-disk-size-custom')).toHaveValue('2.4');
+        await expect(page.locator('#tiered-capacity-disk-size-custom')).toHaveValue('2.4');
+    });
+});
+
+test('Sizer 3.2 TB disks survive tier changes, reload and JSON import', { timeout: 90000 }, async t => {
+    await visit(t, '/sizer/?ui=three-point-two-tb', async page => {
+        await page.getByRole('button', { name: 'Skip', exact: true }).click();
+        await page.locator('[data-workload-type="vm"]').click();
+        await edit(page.locator('#workload-name'), 'Demo 3.2 TB storage');
+        await page.locator('#modal-submit-btn').click();
+        await page.locator('#node-count').selectOption('2');
+        await page.locator('#capacity-disk-count').selectOption('4');
+        await page.locator('#capacity-disk-size').selectOption('3.2');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+
+        await page.locator('#storage-config').selectOption('mixed-flash');
+        await page.locator('#cache-disk-size').selectOption('3.2');
+        await page.locator('#tiered-capacity-disk-count').selectOption('4');
+        await page.locator('#tiered-capacity-disk-size').selectOption('3.2');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
+        await expect(page.locator('#s2d-calculation-details')).toContainText('cache drives do not add usable capacity');
+        await page.locator('#storage-config').selectOption('all-flash');
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.2');
+        await page.locator('#storage-config').selectOption('mixed-flash');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('3.2');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.2');
+
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            page.getByTitle('Export configuration as a JSON file', { exact: true }).click()
+        ]);
+        const filename = await download.path();
+        const exported = await fs.readFile(filename);
+        const payload = JSON.parse(exported.toString('utf8'));
+        assert.equal(payload._meta.version, 5);
+        for (const key of ['capacityDiskSize', 'cacheDiskSize', 'tieredCapacityDiskSize']) {
+            assert.equal(payload.data[key], '3.2', key + ' survives JSON export');
+        }
+        assert.equal(payload.data.diskSizeUserSet, true, 'Manual capacity selection remains owned by the user');
+        await page.reload();
+        await page.getByRole('button', { name: 'Resume', exact: true }).click();
+        await expect(page.locator('#storage-config')).toHaveValue('mixed-flash');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.2');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('3.2');
+
+        await page.getByTitle('Reset all workloads and settings', { exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Reset Sizer', exact: true }).click();
+        await expect(page.locator('#capacity-disk-size')).toHaveValue('3.84');
+        await expect(page.locator('#cache-disk-size')).toHaveValue('1.92');
+        await expect(page.locator('#tiered-capacity-disk-size')).toHaveValue('3.84');
+        await page.getByTitle('Import configuration from a JSON file', { exact: true }).first().click();
+        const [chooser] = await Promise.all([
+            page.waitForEvent('filechooser'),
+            page.locator('#import-panel-sizer').getByRole('button', { name: 'Select JSON File', exact: true }).click()
+        ]);
+        await chooser.setFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: exported });
+        await expect(page.locator('#workloads-list')).toContainText('Demo 3.2 TB storage');
+        await expect(page.locator('#storage-config')).toHaveValue('mixed-flash');
+        for (const id of ['capacity-disk-size', 'cache-disk-size', 'tiered-capacity-disk-size']) {
+            await expect(page.locator('#' + id)).toHaveValue('3.2');
+        }
+        await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');
     });
 });
 
@@ -473,10 +793,14 @@ for (const [label, template] of [
                 assert.ok(/low.level design/i.test(text), format + ' includes the LLD scope guidance');
                 assert.ok(/business or technical requirements/i.test(text), format + ' includes requirements guidance');
             }
+            const scopeColor = await report.locator('#report-scope-note').evaluate(element => getComputedStyle(element).color);
             await report.locator('#print-friendly-btn').click();
             await expect(report.locator('body')).toHaveClass(/print-friendly-mode/);
+            await expect(report.locator('#report-scope-note')).toHaveCSS('color',
+                await report.locator('body').evaluate(element => getComputedStyle(element).color));
             await report.locator('#print-friendly-btn').click();
             await expect(report.locator('body')).not.toHaveClass(/print-friendly-mode/);
+            await expect(report.locator('#report-scope-note')).toHaveCSS('color', scopeColor);
             for (const [button, extension, signature] of [
                 ['#pptx-export-btn', 'pptx', 'PK'],
                 ['button[onclick="exportReportPDF()"]', 'pdf', '%PDF-']
@@ -514,6 +838,10 @@ for (const [label, template] of [
                 await loadTemplate(page, template);
                 report = await openOutput(page, '#generate-report-btn');
                 if (theme === 'print-friendly') await report.locator('#print-friendly-btn').click();
+                const scopeColors = await report.locator('#report-scope-note').evaluate(element => ({
+                    foreground: getComputedStyle(element).color.match(/\d+/g).slice(0, 3).map(Number),
+                    background: getComputedStyle(document.body).backgroundColor.match(/\d+/g).slice(0, 3).map(Number)
+                }));
                 const sourceDiagram = report.locator('svg.switchless-diagram__svg').first();
                 const diagramLabel = await sourceDiagram.getAttribute('aria-label');
                 const primaryLabel = sourceDiagram.locator('text[fill="var(--text-primary)"]').first();
@@ -541,71 +869,92 @@ for (const [label, template] of [
                 });
                 const download = report.waitForEvent('download', { timeout: 100000 });
                 const capture = (async () => {
-                    await report.getByRole('button', { name: /Save as PDF/ }).click();
-                    const image = report.frameLocator('iframe.html2canvas-container').getByAltText(diagramLabel, { exact: true });
-                    await image.waitFor({ state: 'attached', timeout: 30000 });
-                    const png = await image.getAttribute('src');
-                    let fabricPng;
-                    if (fabricSvg) {
-                        const fabricImage = report.frameLocator('iframe.html2canvas-container')
-                            .getByAltText('Leaf-spine topology for disaggregated Azure Local', { exact: true });
-                        await expect(fabricImage).toHaveAttribute('src', /^data:image\/png;base64,/);
-                        fabricPng = await fabricImage.getAttribute('src');
-                    }
+                    // Read cloned PNG sources atomically before html2canvas removes its iframe.
+                    const imageSources = report.waitForFunction(({ diagramLabel, includeFabric }) => {
+                        const frame = document.querySelector('iframe.html2canvas-container');
+                        const images = Array.from(frame?.contentDocument?.images || []);
+                        const png = images.find(image => image.alt === diagramLabel)?.getAttribute('src');
+                        const fabricPng = images.find(image => image.alt === 'Leaf-spine topology for disaggregated Azure Local')?.getAttribute('src');
+                        if (!png?.startsWith('data:image/png;base64,') ||
+                            (includeFabric && !fabricPng?.startsWith('data:image/png;base64,'))) return null;
+                        return { png, fabricPng };
+                    }, { diagramLabel, includeFabric: !!fabricSvg }, { timeout: 30000 });
+                    const [sources] = await Promise.all([
+                        imageSources,
+                        report.getByRole('button', { name: /Save as PDF/ }).click()
+                    ]);
+                    const { png, fabricPng } = await sources.jsonValue();
+                    await sources.dispose();
                     return report.evaluate(async ({ png, fabricPng, fabricSvg, labelBox, foregroundRgb }) => {
                         const element = new Image();
                         element.src = png;
                         await element.decode();
                         const canvas = document.createElement('canvas');
-                        const scale = element.naturalWidth / labelBox.svgWidth;
-                        canvas.width = Math.ceil((labelBox.width + 4) * scale);
-                        canvas.height = Math.ceil((labelBox.height + 4) * scale);
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(element, (labelBox.x - 2) * scale, (labelBox.y - 2) * scale,
-                            canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-                        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                        let foregroundPixels = 0;
-                        let foregroundColor;
-                        let nearestColor = Infinity;
-                        const colorCounts = new Map();
-                        let backgroundColor;
-                        let backgroundPixels = 0;
-                        for (let i = 0; i < pixels.length; i += 4) {
-                            if (pixels[i + 3] > 240) {
-                                const color = Array.from(pixels.slice(i, i + 3));
-                                const key = color.join(',');
-                                const count = (colorCounts.get(key) || 0) + 1;
-                                colorCounts.set(key, count);
-                                if (count > backgroundPixels) {
-                                    backgroundPixels = count;
-                                    backgroundColor = color;
+                        function sampleLabel(image, box, expectedForeground) {
+                            canvas.width = Math.ceil(box.width);
+                            canvas.height = Math.ceil(box.height);
+                            ctx.drawImage(image, box.x, box.y, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+                            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                            let foregroundPixels = 0;
+                            let foregroundColor;
+                            let nearestColor = Infinity;
+                            const colorCounts = new Map();
+                            let backgroundColor;
+                            let backgroundPixels = 0;
+                            for (let i = 0; i < pixels.length; i += 4) {
+                                if (pixels[i + 3] > 240) {
+                                    const color = Array.from(pixels.slice(i, i + 3));
+                                    const key = color.join(',');
+                                    const count = (colorCounts.get(key) || 0) + 1;
+                                    colorCounts.set(key, count);
+                                    if (count > backgroundPixels) {
+                                        backgroundPixels = count;
+                                        backgroundColor = color;
+                                    }
+                                    const distance = expectedForeground.reduce((sum, channel, index) => sum + Math.abs(channel - pixels[i + index]), 0);
+                                    if (distance < nearestColor) {
+                                        nearestColor = distance;
+                                        foregroundColor = color;
+                                    }
+                                    if (expectedForeground.every((channel, index) => Math.abs(channel - pixels[i + index]) <= 20)) foregroundPixels++;
                                 }
-                                const distance = foregroundRgb.reduce((sum, channel, index) => sum + Math.abs(channel - pixels[i + index]), 0);
-                                if (distance < nearestColor) {
-                                    nearestColor = distance;
-                                    foregroundColor = color;
-                                }
-                                if (foregroundRgb.every((channel, index) => Math.abs(channel - pixels[i + index]) <= 20)) foregroundPixels++;
                             }
+                            return { foregroundPixels, foregroundColor, background: backgroundColor };
                         }
-                        canvas.width = canvas.height = 1;
-                        const result = { png, foregroundPixels, foregroundColor, background: backgroundColor };
+                        const scale = element.naturalWidth / labelBox.svgWidth;
+                        const result = {
+                            png,
+                            ...sampleLabel(element, {
+                                x: (labelBox.x - 2) * scale, y: (labelBox.y - 2) * scale,
+                                width: (labelBox.width + 4) * scale, height: (labelBox.height + 4) * scale
+                            }, foregroundRgb)
+                        };
                         if (fabricPng) {
                             element.src = fabricPng;
                             await element.decode();
-                            ctx.clearRect(0, 0, 1, 1);
-                            ctx.drawImage(element, 20, 20, 1, 1, 0, 0, 1, 1);
-                            result.fabric = { png: fabricPng, background: Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3) };
                             const source = new DOMParser().parseFromString(fabricSvg, 'image/svg+xml').documentElement;
+                            const title = source.querySelector('text');
+                            const colors = {};
+                            canvas.width = canvas.height = 1;
                             for (const [key, color] of [
                                 ['authoredBackground', source.style.backgroundColor],
-                                ['foreground', source.querySelector('text').getAttribute('fill')]
+                                ['foreground', title.getAttribute('fill')]
                             ]) {
                                 ctx.clearRect(0, 0, 1, 1);
                                 ctx.fillStyle = color;
                                 ctx.fillRect(0, 0, 1, 1);
-                                result.fabric[key] = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+                                colors[key] = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
                             }
+                            const fontSize = Number(title.getAttribute('font-size'));
+                            const fabricScale = element.naturalWidth / source.viewBox.baseVal.width;
+                            result.fabric = {
+                                png: fabricPng, authoredBackground: colors.authoredBackground,
+                                ...sampleLabel(element, {
+                                    x: 0, y: (Number(title.getAttribute('y')) - fontSize - 2) * fabricScale,
+                                    width: element.naturalWidth, height: (fontSize + 4) * fabricScale
+                                }, colors.foreground)
+                            };
                         }
                         return result;
                     }, { png, fabricPng, fabricSvg, labelBox, foregroundRgb });
@@ -621,6 +970,11 @@ for (const [label, template] of [
                     const channel = value / 255;
                     return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
                 }).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+                const scopeForeground = luminance(scopeColors.foreground);
+                const scopeBackground = luminance(scopeColors.background);
+                const scopeContrast = (Math.max(scopeForeground, scopeBackground) + 0.05) /
+                    (Math.min(scopeForeground, scopeBackground) + 0.05);
+                assert.ok(scopeContrast >= 4.5, 'Report scope text contrast meets WCAG AA: ' + scopeContrast);
                 assert.equal(luminance(foregroundRgb) < 0.5, theme !== 'dark', 'The requested report palette is active');
                 t.diagnostic('Actual primary-label foreground pixels: ' + diagram.foregroundPixels);
                 assert.ok(diagram.foregroundPixels >= 5, 'The rasterized label contains the expected foreground color');
@@ -634,11 +988,13 @@ for (const [label, template] of [
                     await fs.writeFile(target + '-fabric.png', Buffer.from(diagram.fabric.png.split(',')[1], 'base64'));
                     assert.deepEqual(diagram.fabric.background, diagram.fabric.authoredBackground,
                         'Fixed-palette fabric diagrams retain their authored background');
-                    const fabricText = luminance(diagram.fabric.foreground);
+                    t.diagnostic('Actual fabric-label foreground pixels: ' + diagram.fabric.foregroundPixels);
+                    assert.ok(diagram.fabric.foregroundPixels >= 5, 'Rasterized fabric diagram contains expected foreground glyph pixels');
+                    const fabricText = luminance(diagram.fabric.foregroundColor);
                     const fabricBackground = luminance(diagram.fabric.background);
                     const fabricContrast = (Math.max(fabricText, fabricBackground) + 0.05) /
                         (Math.min(fabricText, fabricBackground) + 0.05);
-                    t.diagnostic('Generated fabric-diagram title contrast: ' + fabricContrast.toFixed(2) + ':1');
+                    t.diagnostic('Generated fabric-diagram local title contrast: ' + fabricContrast.toFixed(2) + ':1');
                     assert.ok(fabricContrast >= 4.5, 'Rasterized fabric diagram labels retain readable contrast');
                 }
                 assert.deepEqual(pageErrors, [], 'No uncaught exceptions');

@@ -11,8 +11,9 @@ skills. It does not replace their scenario matrices.
 ## Release documentation
 
 Follow [Application release numbering](../../../CONTRIBUTING.md#application-release-numbering):
-the explicitly requested `0.23.08` fix for #309 is the final legacy-numbered
-exception. The next release after `0.23.08` adopts `YY.MM.DD` CalVer using the actual
+the explicitly requested `0.23.08` fix for #309 and `0.23.09` Sizer/dependency
+follow-up are legacy-numbered exceptions. The next release after `0.23.09`
+adopts `YY.MM.DD` CalVer using the actual
 publication date, with zero-padded month/day and no leading `0.`. At that
 transition, verify version consumers and export/import compatibility, document
 the naming change, and preserve historical versions and the independent Sizer
