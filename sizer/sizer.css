@@ -1211,6 +1211,11 @@ input.disk-size-input[aria-invalid="true"] {
     border-color: var(--danger);
 }
 
+input.disk-size-input[aria-invalid="true"]:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
 .custom-disk-size-control {
     width: 180px;
     max-width: 100%;

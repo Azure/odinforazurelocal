@@ -285,6 +285,28 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
         await page.locator('#capacity-disk-size').selectOption('custom');
         const input = page.getByLabel('Custom Capacity Disk Size (TB)', { exact: true }).first();
         await expect(input).toBeVisible();
+        async function assertInvalidKeyboardFocus(field) {
+            await expect(field).toHaveAttribute('aria-invalid', 'true');
+            await field.press('Tab');
+            const errorBorder = await field.evaluate(element => getComputedStyle(element).borderColor);
+            await field.press('Shift+Tab');
+            await page.keyboard.press('Tab');
+            await expect(field).toBeFocused();
+            const focus = await field.evaluate(element => {
+                const style = getComputedStyle(element);
+                return {
+                    visible: element.matches(':focus-visible'),
+                    outline: style.outlineStyle,
+                    width: parseFloat(style.outlineWidth),
+                    color: style.outlineColor,
+                    border: style.borderColor
+                };
+            });
+            assert.ok(focus.visible && focus.outline !== 'none' && focus.width > 0,
+                'Invalid Custom disk inputs retain a visible keyboard-focus outline');
+            assert.equal(focus.border, errorBorder, 'Keyboard focus preserves the validation border');
+            assert.notEqual(focus.color, errorBorder, 'Focus is distinct from the invalid-input border');
+        }
         for (const value of ['', '0', '-1', '0.09', '100.1']) {
             await input.fill(value);
             await expect(input).toHaveAttribute('aria-invalid', 'true');
@@ -292,6 +314,7 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
             await expect(page.getByTitle('Export configuration as a JSON file', { exact: true })).toBeDisabled();
             await expect(page.locator('.results-panel .requirements-grid')).not.toBeVisible();
             await expect(s2d).not.toBeVisible();
+            if (value === '' || value === '0') await assertInvalidKeyboardFocus(input);
         }
         for (const value of ['0.1', '100', '2.4']) {
             await input.fill(value);
@@ -315,6 +338,7 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
         await expect(s2d).toBeVisible();
         await page.locator('#cache-disk-size-custom').fill('0');
         await expect(s2d).not.toBeVisible();
+        await assertInvalidKeyboardFocus(page.locator('#cache-disk-size-custom'));
         await page.locator('#cache-disk-size-custom').fill('1.6');
         await expect(s2d).toBeVisible();
         await page.locator('#tiered-capacity-disk-size').selectOption('custom');
@@ -324,6 +348,7 @@ test('Sizer Custom disk sizes validate boundaries and return to automatic preset
         await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 6.4 TB = 51.2 TB');
         await page.locator('#tiered-capacity-disk-size-custom').fill('');
         await expect(s2d).not.toBeVisible();
+        await assertInvalidKeyboardFocus(page.locator('#tiered-capacity-disk-size-custom'));
         await page.locator('#tiered-capacity-disk-size-custom').fill('3.2');
         await expect(s2d).toBeVisible();
         await expect(page.locator('#s2d-calculation-details')).toContainText('4 capacity drives × 3.2 TB = 25.6 TB');

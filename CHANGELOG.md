@@ -18,6 +18,7 @@ for the legacy release exceptions and planned transition to calendar versioning.
 ### Fixed
 
 - **Invalid Custom disk S2D results** - Hide the S2D volume count, maximum volume size, and capacity derivation alongside other sizing results while an active Custom disk size is invalid. Restore recalculated results when corrected, with real-control regression coverage for single-tier capacity, cache, and tiered capacity inputs.
+- **Invalid Custom disk keyboard focus** - Show a distinct focus-visible outline on invalid capacity and cache inputs while preserving their red validation border. Keep valid-input styling unchanged; verify keyboard entry for single-tier capacity, cache, and tiered capacity.
 - **Report planning-text contrast** - Use the existing primary-text color for readable planning-aid text in light and dark themes; the light theme's secondary color fell below the 4.5:1 contrast threshold. In Print Friendly mode, inherit the print-friendly foreground instead of retaining dark-theme colors against white. Restore the active theme palette when Print Friendly is disabled.
 
 ### Security

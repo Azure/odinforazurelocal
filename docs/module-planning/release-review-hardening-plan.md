@@ -47,7 +47,7 @@ Application version and JSON payload shapes remain unchanged.
 4. Update release evidence, push Release, and recheck PR feedback. A human
    performs the merge.
 
-## Implementation and validation outcome
+## Implementation and validation outcome (e9e6c48)
 
 All six approved findings are addressed. Application version, payload shapes,
 schemas, sizing formulas, and existing defaults remain unchanged.
@@ -73,3 +73,43 @@ browser checks covered reset, DNS editing, and the rendered release summary.
 These are affected-path reruns, not a replacement claim for both complete release
 matrices recorded earlier in PR #312. Fresh exact-head CI and any required human
 approval remain prerequisites for the maintainer's manual merge.
+
+## Keyboard-focus follow-up
+
+PR #312 now has a separate accessibility finding: invalid Custom disk inputs
+keep the same red border on keyboard focus while their outline is disabled.
+Reproduced with blank/zero capacity and blank cache inputs through real controls.
+
+- Add a distinct outline only to invalid disk inputs matching `:focus-visible`.
+  Keep the validation border and valid-input styling unchanged.
+- Extend the existing disk regression for single-tier capacity, cache, and
+  tiered capacity. Check actual keyboard focus, a visible outline, and the
+  unchanged error border.
+- Touch `sizer/sizer.css`, `scripts/ui-regressions.test.js`, current release
+  summaries, and this plan. No version, payload, schema, or formula changes.
+- Run focused Sizer UI/keyboard checks in both themes and responsive sizes,
+  plus lint, file-mode, HTTP, runner, and whitespace gates before pushing.
+
+### Keyboard-focus validation outcome
+
+- Focused Sizer disk regressions passed 4/4, including blank/zero invalid
+  inputs, preset recovery, hardware import, JSON round-trip, and Designer handoff.
+- Integrated-browser keyboard checks passed 6/6: all three Custom input kinds
+  in both themes at an actual 1280 x 900 viewport.
+- Isolated Playwright checks passed 18/18 across 375 x 667, 768 x 1024, and
+  1280 x 900, both themes, and all three input kinds. Actual Tab focus showed
+  a 2 px blue outline while retaining the red validation border; the outline
+  fit the viewport. Corrected values restored S2D guidance and unchanged
+  valid-input focus styling. Reset returned to Hyperconverged/two machines
+  with no workloads.
+- The rendered current What's New summary includes the keyboard-focus fix.
+- JavaScript, HTML, and CSS lint passed. File-mode tests passed 1729/1729,
+  HTTP tests 2013/2013, runner tests 12/12, and whitespace checks passed.
+  Responsive browser diagnostics recorded no page errors, console errors,
+  failed same-origin requests, or failed same-origin responses.
+- The complete 33-test UI/PDF run remains the earlier `e9e6c48` evidence.
+  It was not repeated for this focused CSS-only follow-up.
+- Reply with completed evidence and resolve only the addressed focus thread.
+
+No open design questions. The reproduction comment precedes implementation;
+validation precedes commit/push, and a human performs any PR merge.
